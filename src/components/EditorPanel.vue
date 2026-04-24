@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import EditorJS from '@editorjs/editorjs';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import InputTool from '@/components/editor-tools/InputTool';
 
 const holderId = 'editorjs-root';
 const panelRef = ref<HTMLElement | null>(null);
@@ -11,12 +12,29 @@ onMounted(() => {
   editor = new EditorJS({
     holder: holderId,
     placeholder: '开始输入你的内容...',
+    tools: {
+      input: {
+        class: InputTool,
+        config: {
+          defaultLabel: '字段名称',
+          defaultPlaceholder: '请输入内容'
+        }
+      }
+    },
     data: {
       blocks: [
         {
           type: 'paragraph',
           data: {
             text: '欢迎使用 Mokelay 编辑器初始化模板。'
+          }
+        },
+        {
+          type: 'input',
+          data: {
+            label: '手机号',
+            placeholder: '请输入手机号',
+            value: ''
           }
         }
       ]
@@ -60,3 +78,37 @@ onBeforeUnmount(() => {
     <pre class="mt-4 max-h-48 overflow-auto rounded bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">{{ data }}</pre>
   </section>
 </template>
+
+<style scoped>
+:deep(.ce-input-tool) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:deep(.ce-input-tool__label),
+:deep(.ce-input-tool__control) {
+  width: 100%;
+  border: 1px solid rgb(148 163 184 / 0.6);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background-color: rgb(255 255 255);
+  color: rgb(15 23 42);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+:deep(.ce-input-tool__label:focus),
+:deep(.ce-input-tool__control:focus) {
+  outline: none;
+  border-color: rgb(99 102 241);
+  box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
+}
+
+:global(.dark) :deep(.ce-input-tool__label),
+:global(.dark) :deep(.ce-input-tool__control) {
+  background-color: rgb(15 23 42);
+  color: rgb(226 232 240);
+  border-color: rgb(71 85 105 / 0.9);
+}
+</style>
