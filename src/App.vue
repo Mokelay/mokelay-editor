@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Switch, SwitchGroup, SwitchLabel } from '@headlessui/vue';
-import { TooltipProvider } from '@reka-ui/vue';
+import { TooltipProvider } from 'reka-ui';
 import { ref } from 'vue';
 import ChartPanel from '@/components/ChartPanel.vue';
 import EditorPanel from '@/components/EditorPanel.vue';
