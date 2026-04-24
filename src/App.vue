@@ -3,7 +3,6 @@ import { Switch, SwitchGroup, SwitchLabel } from '@headlessui/vue';
 import { TooltipProvider } from 'reka-ui';
 import { onMounted, ref, watch } from 'vue';
 import EditorPanel from '@/components/EditorPanel.vue';
-
 const isDark = ref(true);
 
 function applyTheme(dark: boolean) {
