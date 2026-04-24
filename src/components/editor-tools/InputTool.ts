@@ -5,6 +5,7 @@ interface InputToolData {
 }
 
 interface InputToolConfig {
+  edit: boolean;
   defaultLabel?: string;
   defaultPlaceholder?: string;
 }
@@ -21,21 +22,37 @@ export default class InputTool {
   private readonly config: InputToolConfig;
   private labelInput: HTMLInputElement | null = null;
   private valueInput: HTMLInputElement | null = null;
+  private labelValue = '';
 
-  constructor({ data, config }: { data: InputToolData; config?: InputToolConfig }) {
+  constructor({ data, config }: { data: InputToolData; config: InputToolConfig }) {
     this.data = data ?? {};
-    this.config = config ?? {};
+    if (!config || typeof config.edit !== 'boolean') {
+      throw new Error('InputTool requires config.edit to be explicitly set.');
+    }
+    this.config = config;
   }
 
   render() {
     const wrapper = document.createElement('div');
     wrapper.className = 'ce-input-tool';
 
-    const labelInput = document.createElement('input');
-    labelInput.type = 'text';
-    labelInput.placeholder = '字段标签（示例：用户名）';
-    labelInput.value = this.data.label ?? this.config.defaultLabel ?? '';
-    labelInput.className = 'ce-input-tool__label';
+    this.labelValue = this.data.label ?? this.config.defaultLabel ?? '';
+
+    if (this.config.edit) {
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.placeholder = '字段标签（示例：用户名）';
+      labelInput.value = this.labelValue;
+      labelInput.className = 'ce-input-tool__label';
+      wrapper.append(labelInput);
+      this.labelInput = labelInput;
+    } else {
+      const labelText = document.createElement('div');
+      labelText.className = 'ce-input-tool__label';
+      labelText.textContent = this.labelValue;
+      wrapper.append(labelText);
+      this.labelInput = null;
+    }
 
     const valueInput = document.createElement('input');
     valueInput.type = 'text';
@@ -43,9 +60,8 @@ export default class InputTool {
     valueInput.value = this.data.value ?? '';
     valueInput.className = 'ce-input-tool__control';
 
-    wrapper.append(labelInput, valueInput);
+    wrapper.append(valueInput);
 
-    this.labelInput = labelInput;
     this.valueInput = valueInput;
 
     return wrapper;
@@ -53,7 +69,7 @@ export default class InputTool {
 
   save() {
     return {
-      label: this.labelInput?.value.trim() ?? '',
+      label: this.labelInput?.value.trim() ?? this.labelValue,
       placeholder: this.valueInput?.placeholder ?? '',
       value: this.valueInput?.value ?? ''
     };

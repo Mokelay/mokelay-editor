@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
+import InputTool from '@/components/editor-tools/InputTool';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
 type EditorBlock = {
@@ -9,6 +10,20 @@ type EditorBlock = {
 
 type EditorOutput = {
   blocks: EditorBlock[];
+};
+
+type ToolConfig = {
+  edit: boolean;
+};
+
+type ToolInstance = {
+  render: () => HTMLElement;
+};
+
+type ToolClass = new ({ data, config }: { data: Record<string, string>; config: ToolConfig }) => ToolInstance;
+
+const toolRegistry: Record<string, ToolClass> = {
+  input: InputTool
 };
 
 const savedConfig = computed<EditorOutput | null>(() => {
@@ -22,6 +37,44 @@ const savedConfig = computed<EditorOutput | null>(() => {
 });
 
 const blocks = computed(() => savedConfig.value?.blocks ?? []);
+
+function isCustomBlock(type: string) {
+  return type in toolRegistry;
+}
+
+const RenderedToolBlock = defineComponent({
+  name: 'RenderedToolBlock',
+  props: {
+    block: {
+      type: Object as () => EditorBlock,
+      required: true
+    }
+  },
+  setup(props) {
+    const containerRef = ref<HTMLElement | null>(null);
+
+    function mountTool() {
+      const container = containerRef.value;
+      const Tool = toolRegistry[props.block.type];
+
+      if (!container || !Tool) return;
+
+      const instance = new Tool({
+        data: props.block.data,
+        config: {
+          edit: false
+        }
+      });
+
+      container.replaceChildren(instance.render());
+    }
+
+    onMounted(mountTool);
+    watch(() => props.block, mountTool, { deep: true });
+
+    return () => h('div', { ref: containerRef, class: 'space-y-2' });
+  }
+});
 
 function backToEditor() {
   window.location.hash = '/';
@@ -45,15 +98,7 @@ function backToEditor() {
       <div v-for="(block, index) in blocks" :key="index" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
         <p v-if="block.type === 'paragraph'" class="text-sm leading-6" v-html="block.data.text"></p>
 
-        <div v-else-if="block.type === 'input'" class="space-y-2">
-          <label class="block text-sm font-medium">{{ block.data.label }}</label>
-          <input
-            class="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
-            :placeholder="block.data.placeholder"
-            :value="block.data.value"
-            readonly
-          />
-        </div>
+        <RenderedToolBlock v-else-if="isCustomBlock(block.type)" :block="block" />
 
         <pre v-else class="overflow-auto rounded bg-slate-100 p-2 text-xs dark:bg-slate-800">{{ block }}</pre>
       </div>
