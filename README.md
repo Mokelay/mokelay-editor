@@ -6,13 +6,19 @@
 
 - 核心：Editor.js、Tailwind CSS、Headless UI、Reka UI
 - 数据：Axios / Fetch、Vue Query（已接入，可按需使用）
-- 图表：ECharts
 
 ## 本地开发
 
 ```bash
 npm install
 npm run dev
+```
+
+或使用 Yarn：
+
+```bash
+yarn install
+yarn dev
 ```
 
 ## 常用命令
@@ -23,8 +29,15 @@ npm run build
 npm run preview
 ```
 
+对应 Yarn 命令：
+
+```bash
+yarn typecheck
+yarn build
+yarn preview
+```
+
 ## 目录说明
 
 - `src/components/EditorPanel.vue`：Editor.js 编辑器示例
-- `src/components/ChartPanel.vue`：ECharts 图表示例
 - `src/composables/useApi.ts`：Axios + Fetch API 封装
