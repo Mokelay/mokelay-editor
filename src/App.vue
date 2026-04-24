@@ -1,16 +1,30 @@
 <script setup lang="ts">
 import { Switch, SwitchGroup, SwitchLabel } from '@headlessui/vue';
 import { TooltipProvider } from 'reka-ui';
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import EditorPanel from '@/components/EditorPanel.vue';
+import PreviewPanel from '@/components/PreviewPanel.vue';
+
 const isDark = ref(true);
+const routeHash = ref(window.location.hash || '#/');
+
+const isPreviewPage = computed(() => routeHash.value === '#/preview');
 
 function applyTheme(dark: boolean) {
   document.documentElement.classList.toggle('dark', dark);
 }
 
+function syncRoute() {
+  routeHash.value = window.location.hash || '#/';
+}
+
 onMounted(() => {
   applyTheme(isDark.value);
+  window.addEventListener('hashchange', syncRoute);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', syncRoute);
 });
 
 watch(isDark, (dark) => {
@@ -41,7 +55,8 @@ watch(isDark, (dark) => {
         </div>
       </header>
 
-      <EditorPanel />
+      <PreviewPanel v-if="isPreviewPage" />
+      <EditorPanel v-else />
     </main>
   </TooltipProvider>
 </template>

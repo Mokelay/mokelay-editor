@@ -2,11 +2,41 @@
 import EditorJS from '@editorjs/editorjs';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import InputTool from '@/components/editor-tools/InputTool';
+import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
 const holderId = 'editorjs-root';
 const panelRef = ref<HTMLElement | null>(null);
 const data = ref('');
 let editor: EditorJS | null = null;
+
+const defaultEditorData = {
+  blocks: [
+    {
+      type: 'paragraph',
+      data: {
+        text: '欢迎使用 Mokelay 编辑器初始化模板。'
+      }
+    },
+    {
+      type: 'input',
+      data: {
+        label: '手机号',
+        placeholder: '请输入手机号',
+        value: ''
+      }
+    }
+  ]
+};
+
+function getInitialData() {
+  const cache = localStorage.getItem(MOKELAY_CONFIG_STORAGE_KEY);
+  if (!cache) return defaultEditorData;
+  try {
+    return JSON.parse(cache);
+  } catch {
+    return defaultEditorData;
+  }
+}
 
 onMounted(() => {
   editor = new EditorJS({
@@ -21,31 +51,19 @@ onMounted(() => {
         }
       }
     },
-    data: {
-      blocks: [
-        {
-          type: 'paragraph',
-          data: {
-            text: '欢迎使用 Mokelay 编辑器初始化模板。'
-          }
-        },
-        {
-          type: 'input',
-          data: {
-            label: '手机号',
-            placeholder: '请输入手机号',
-            value: ''
-          }
-        }
-      ]
-    }
+    data: getInitialData()
   });
 });
 
 async function save() {
   if (!editor) return;
   const output = await editor.save();
+  localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify(output));
   data.value = JSON.stringify(output, null, 2);
+}
+
+function openPreview() {
+  window.location.hash = '/preview';
 }
 
 async function toggleFullscreen() {
@@ -73,6 +91,7 @@ onBeforeUnmount(() => {
         全屏编辑
       </button>
       <button class="rounded bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400" @click="save">保存内容</button>
+      <button class="rounded bg-emerald-500 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreview">预览页面</button>
     </div>
     <div :id="holderId" class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"></div>
     <pre class="mt-4 max-h-48 overflow-auto rounded bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">{{ data }}</pre>
