@@ -24,7 +24,7 @@ export default class InputTool {
   private valueInput: HTMLInputElement | null = null;
   private labelValue = '';
 
-  constructor({ data, config }: { data: InputToolData; config: InputToolConfig }) {
+  constructor({ data, config }: { data: InputToolData; config?: InputToolConfig }) {
     this.data = data ?? {};
     if (!config || typeof config.edit !== 'boolean') {
       throw new Error('InputTool requires config.edit to be explicitly set.');
