@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import EditorJS from '@editorjs/editorjs';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import InputTool from '@/components/editor-tools/InputTool';
+import EditorToolFactory from '@/components/editor-tools/EditorToolFactory';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
 const holderId = 'editorjs-root';
@@ -44,7 +44,7 @@ onMounted(() => {
     placeholder: '开始输入你的内容...',
     tools: {
       input: {
-        class: InputTool,
+        class: EditorToolFactory.create('input'),
         config: {
           edit: true,
           label: '字段名称',

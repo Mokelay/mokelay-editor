@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, markRaw } from 'vue';
-import MInput from '@/components/editor-tools/MInput.vue';
+import {
+  getEditorComponentDefinition,
+  isRegisteredEditorComponent
+} from '@/components/editor-tools/editorComponentRegistry';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
 type EditorBlock = {
@@ -16,10 +19,6 @@ type BlockComponentProps = {
   edit: boolean;
 } & Record<string, string | boolean | undefined>;
 
-const componentRegistry: Record<string, unknown> = {
-  input: markRaw(MInput)
-};
-
 const savedConfig = computed<EditorOutput | null>(() => {
   const raw = localStorage.getItem(MOKELAY_CONFIG_STORAGE_KEY);
   if (!raw) return null;
@@ -33,11 +32,12 @@ const savedConfig = computed<EditorOutput | null>(() => {
 const blocks = computed(() => savedConfig.value?.blocks ?? []);
 
 function isCustomBlock(type: string) {
-  return type in componentRegistry;
+  return isRegisteredEditorComponent(type);
 }
 
 function getBlockComponent(type: string) {
-  return componentRegistry[type];
+  const definition = getEditorComponentDefinition(type);
+  return definition ? markRaw(definition.component) : null;
 }
 
 function getBlockProps(block: EditorBlock): BlockComponentProps {
