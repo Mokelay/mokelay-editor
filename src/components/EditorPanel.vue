@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import EditorJS from '@editorjs/editorjs';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import EditorToolFactory from '@/components/editor-tools/EditorToolFactory';
+import { createEditorTools } from '@/components/editor-tools/EditorToolFactory';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
 const holderId = 'editorjs-root';
 const panelRef = ref<HTMLElement | null>(null);
 const data = ref('');
 let editor: EditorJS | null = null;
+const editorTools = createEditorTools({ edit: true });
 
 const defaultEditorData = {
   blocks: [
@@ -15,14 +16,6 @@ const defaultEditorData = {
       type: 'paragraph',
       data: {
         text: '欢迎使用 Mokelay 编辑器初始化模板。'
-      }
-    },
-    {
-      type: 'input',
-      data: {
-        label: '手机号',
-        placeholder: '请输入手机号',
-        value: ''
       }
     }
   ]
@@ -42,16 +35,7 @@ onMounted(() => {
   editor = new EditorJS({
     holder: holderId,
     placeholder: '开始输入你的内容...',
-    tools: {
-      input: {
-        class: EditorToolFactory.create('input'),
-        config: {
-          edit: true,
-          label: '字段名称',
-          placeholder: '请输入.....'
-        }
-      }
-    },
+    tools: editorTools,
     data: getInitialData()
   });
 });

@@ -1,14 +1,42 @@
-<script setup lang="ts">
-import { computed } from 'vue';
+<script lang="ts">
+import { defineEditorTool } from '@/components/editor-tools/editorToolDefinition';
 import type { MInputProps } from '@/components/editor-tools/input.types';
 
-const props = defineProps<MInputProps & {
-  onChange?: (payload: MInputProps) => void;
+export const mInputEditorTool = defineEditorTool<MInputProps>({
+  toolbox: {
+    title: 'Input',
+    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+  },
+  createInitialProps: () => ({
+    label: '字段名称',
+    placeholder: '请输入.....',
+    value: ''
+  }),
+  normalizeProps: (props) => ({
+    edit: props.edit ?? false,
+    label: props.label ?? '',
+    placeholder: props.placeholder ?? '',
+    value: props.value ?? ''
+  }),
+  serialize: (props) => ({
+    label: props.label?.trim() ?? '',
+    placeholder: props.placeholder ?? '',
+    value: props.value ?? ''
+  })
+});
+</script>
+
+<script setup lang="ts">
+import { computed } from 'vue';
+import type { MInputProps as MInputComponentProps } from '@/components/editor-tools/input.types';
+
+const props = defineProps<MInputComponentProps & {
+  onChange?: (payload: MInputComponentProps) => void;
 }>();
 
 const labelText = computed(() => props.label ?? '');
 
-function emitChange(payload: Partial<MInputProps>) {
+function emitChange(payload: Partial<MInputComponentProps>) {
   props.onChange?.({
     edit: props.edit,
     label: props.label ?? '',
@@ -38,7 +66,6 @@ function emitChange(payload: Partial<MInputProps>) {
       type="text"
       :placeholder="placeholder"
       :value="value"
-      :readonly="!edit"
       @input="emitChange({ value: ($event.target as HTMLInputElement).value })"
     />
   </div>

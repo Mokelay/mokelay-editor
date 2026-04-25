@@ -1,5 +1,6 @@
 import { createApp, type App } from 'vue';
 import {
+  getEditorComponentRegistry,
   getEditorComponentDefinition,
   type EditorToolComponentProps
 } from '@/components/editor-tools/editorComponentRegistry';
@@ -29,7 +30,7 @@ export default class EditorToolFactory {
 
     class RegisteredEditorTool {
       static get toolbox() {
-        return definition.getToolbox();
+        return definition.toolbox;
       }
 
       private readonly state: EditorToolComponentProps;
@@ -89,4 +90,19 @@ export default class EditorToolFactory {
     toolClassCache.set(toolName, createdTool);
     return createdTool;
   }
+}
+
+export function createEditorTools(sharedConfig: Partial<EditorToolComponentProps> = {}) {
+  return Object.fromEntries(
+    Object.entries(getEditorComponentRegistry()).map(([toolName, definition]) => [
+      toolName,
+      {
+        class: EditorToolFactory.create(toolName),
+        config: definition.normalizeProps({
+          ...(definition.createInitialProps?.() ?? {}),
+          ...sharedConfig
+        })
+      }
+    ])
+  );
 }
