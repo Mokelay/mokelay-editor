@@ -47,8 +47,8 @@ onMounted(() => {
         class: InputTool,
         config: {
           edit: true,
-          defaultLabel: '字段名称',
-          defaultPlaceholder: '请输入内容'
+          label: '字段名称',
+          placeholder: '请输入.....'
         }
       }
     },

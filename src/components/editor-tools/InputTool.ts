@@ -1,14 +1,6 @@
-interface InputToolData {
-  label?: string;
-  placeholder?: string;
-  value?: string;
-}
-
-interface InputToolConfig {
-  edit: boolean;
-  defaultLabel?: string;
-  defaultPlaceholder?: string;
-}
+import { createApp, type App } from 'vue';
+import MInput from '@/components/editor-tools/MInput.vue';
+import type { MInputProps } from '@/components/editor-tools/input.types';
 
 export default class InputTool {
   static get toolbox() {
@@ -18,60 +10,67 @@ export default class InputTool {
     };
   }
 
-  private readonly data: InputToolData;
-  private readonly config: InputToolConfig;
-  private labelInput: HTMLInputElement | null = null;
-  private valueInput: HTMLInputElement | null = null;
-  private labelValue = '';
+  private readonly data: Partial<MInputProps>;
+  private readonly config: MInputProps;
+  private readonly state: MInputProps;
+  private wrapper: HTMLElement | null = null;
+  private vueApp: App<Element> | null = null;
 
-  constructor({ data, config }: { data: InputToolData; config?: InputToolConfig }) {
+  constructor({ data, config }: { data: Partial<MInputProps>; config?: MInputProps }) {
     this.data = data ?? {};
     if (!config || typeof config.edit !== 'boolean') {
       throw new Error('InputTool requires config.edit to be explicitly set.');
     }
     this.config = config;
+    const initialProps = {
+      ...this.config,
+      ...this.data
+    };
+    this.state = {
+      edit: initialProps.edit,
+      label: initialProps.label ?? '',
+      placeholder: initialProps.placeholder ?? '请输入内容',
+      value: initialProps.value ?? ''
+    };
   }
 
   render() {
     const wrapper = document.createElement('div');
-    wrapper.className = 'ce-input-tool';
-
-    this.labelValue = this.data.label ?? this.config.defaultLabel ?? '';
-
-    if (this.config.edit) {
-      const labelInput = document.createElement('input');
-      labelInput.type = 'text';
-      labelInput.placeholder = '字段标签（示例：用户名）';
-      labelInput.value = this.labelValue;
-      labelInput.className = 'ce-input-tool__label';
-      wrapper.append(labelInput);
-      this.labelInput = labelInput;
-    } else {
-      const labelText = document.createElement('div');
-      labelText.className = 'ce-input-tool__label';
-      labelText.textContent = this.labelValue;
-      wrapper.append(labelText);
-      this.labelInput = null;
-    }
-
-    const valueInput = document.createElement('input');
-    valueInput.type = 'text';
-    valueInput.placeholder = this.data.placeholder ?? this.config.defaultPlaceholder ?? '请输入内容';
-    valueInput.value = this.data.value ?? '';
-    valueInput.className = 'ce-input-tool__control';
-
-    wrapper.append(valueInput);
-
-    this.valueInput = valueInput;
-
+    this.wrapper = wrapper;
+    this.mountVueApp();
     return wrapper;
+  }
+
+  destroy() {
+    this.unmountVueApp();
   }
 
   save() {
     return {
-      label: this.labelInput?.value.trim() ?? this.labelValue,
-      placeholder: this.valueInput?.placeholder ?? '',
-      value: this.valueInput?.value ?? ''
+      label: this.state.label?.trim() ?? '',
+      placeholder: this.state.placeholder ?? '',
+      value: this.state.value ?? ''
     };
+  }
+
+  private mountVueApp() {
+    if (!this.wrapper) return;
+
+    this.unmountVueApp();
+    this.vueApp = createApp(MInput, {
+      ...this.state,
+      onChange: (payload: MInputProps) => {
+        this.state.edit = payload.edit;
+        this.state.label = payload.label ?? '';
+        this.state.placeholder = payload.placeholder ?? '';
+        this.state.value = payload.value ?? '';
+      }
+    });
+    this.vueApp.mount(this.wrapper);
+  }
+
+  private unmountVueApp() {
+    this.vueApp?.unmount();
+    this.vueApp = null;
   }
 }
