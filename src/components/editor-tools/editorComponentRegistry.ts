@@ -30,7 +30,7 @@ const editorComponentRegistry: Record<string, EditorComponentDefinition> = {
       return {
         edit: inputProps.edit ?? false,
         label: inputProps.label ?? '',
-        placeholder: inputProps.placeholder ?? '请输入内容',
+        placeholder: inputProps.placeholder ?? '',
         value: inputProps.value ?? ''
       };
     },
