@@ -1,8 +1,8 @@
 import { markRaw } from 'vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
-import type { EditorToolDefinition } from '@/components/editor-tools/editorToolDefinition';
+import type { EditorToolDefinition } from '@/editors/editorToolDefinition';
 
-export type { EditorComponentToolbox, EditorToolComponentProps, EditorToolDefinition } from '@/components/editor-tools/editorToolDefinition';
+export type { EditorComponentToolbox, EditorToolComponentProps, EditorToolDefinition } from '@/editors/editorToolDefinition';
 
 const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   input: {

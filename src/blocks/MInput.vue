@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineEditorTool } from '@/components/editor-tools/editorToolDefinition';
+import { defineEditorTool } from '@/editors/editorToolDefinition';
 
 export interface MInputProps {
   edit: boolean;

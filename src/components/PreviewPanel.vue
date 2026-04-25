@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import {
   getEditorComponentDefinition,
   isRegisteredEditorComponent
-} from '@/components/editor-tools/editorComponentRegistry';
+} from '@/editors/editorComponentRegistry';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
 type EditorBlock = {

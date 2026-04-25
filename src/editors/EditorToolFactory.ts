@@ -3,7 +3,7 @@ import {
   getEditorComponentRegistry,
   getEditorComponentDefinition,
   type EditorToolComponentProps
-} from '@/components/editor-tools/editorComponentRegistry';
+} from '@/editors/editorComponentRegistry';
 
 type EditorToolFactoryOptions = {
   data?: Record<string, unknown>;

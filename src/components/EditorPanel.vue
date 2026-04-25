@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import EditorJS from '@editorjs/editorjs';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { createEditorTools } from '@/components/editor-tools/EditorToolFactory';
+import { createEditorTools } from '@/editors/EditorToolFactory';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
 const holderId = 'editorjs-root';
