@@ -1,6 +1,12 @@
 <script lang="ts">
 import { defineEditorTool } from '@/components/editor-tools/editorToolDefinition';
-import type { MInputProps } from '@/components/editor-tools/input.types';
+
+export interface MInputProps {
+  edit: boolean;
+  label?: string;
+  placeholder?: string;
+  value?: string;
+}
 
 export const mInputEditorTool = defineEditorTool<MInputProps>({
   toolbox: {
@@ -28,15 +34,14 @@ export const mInputEditorTool = defineEditorTool<MInputProps>({
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { MInputProps as MInputComponentProps } from '@/components/editor-tools/input.types';
 
-const props = defineProps<MInputComponentProps & {
-  onChange?: (payload: MInputComponentProps) => void;
+const props = defineProps<MInputProps & {
+  onChange?: (payload: MInputProps) => void;
 }>();
 
 const labelText = computed(() => props.label ?? '');
 
-function emitChange(payload: Partial<MInputComponentProps>) {
+function emitChange(payload: Partial<MInputProps>) {
   props.onChange?.({
     edit: props.edit,
     label: props.label ?? '',

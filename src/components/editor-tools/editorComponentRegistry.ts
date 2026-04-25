@@ -1,5 +1,5 @@
 import { markRaw } from 'vue';
-import MInput, { mInputEditorTool } from '@/components/editor-tools/MInput.vue';
+import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
 import type { EditorToolDefinition } from '@/components/editor-tools/editorToolDefinition';
 
 export type { EditorComponentToolbox, EditorToolComponentProps, EditorToolDefinition } from '@/components/editor-tools/editorToolDefinition';
