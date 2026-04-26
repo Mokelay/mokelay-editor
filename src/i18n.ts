@@ -99,6 +99,44 @@ export function useI18n() {
   };
 }
 
+export function getEditorJsI18nMessages(locale: Locale) {
+  if (locale === 'zh') {
+    return {
+      ui: {
+        blockTunes: {
+          toggler: {
+            'Click to tune': '点击设置',
+            'or drag to move': '或拖拽移动'
+          }
+        },
+        inlineToolbar: {
+          converter: {
+            'Convert to': '转换为'
+          }
+        },
+        toolbar: {
+          toolbox: {
+            Add: '添加'
+          }
+        }
+      },
+      toolNames: {
+        Text: '文本',
+        Heading: '标题',
+        List: '列表',
+        Warning: '提示',
+        Checklist: '清单',
+        Quote: '引用',
+        Delimiter: '分割线',
+        Table: '表格',
+        Link: '链接'
+      }
+    };
+  }
+
+  return {};
+}
+
 export const i18n = {
   t: getMessage,
   get locale() {

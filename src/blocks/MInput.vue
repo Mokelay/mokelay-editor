@@ -11,7 +11,9 @@ export interface MInputProps {
 
 export const mInputEditorTool = defineEditorTool<MInputProps>({
   toolbox: {
-    title: i18n.t('input.toolboxTitle'),
+    get title() {
+      return i18n.t('input.toolboxTitle');
+    },
     icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
   },
   createInitialProps: () => ({

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import EditorJS from '@editorjs/editorjs';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { useI18n } from '@/i18n';
+import type { OutputData } from '@editorjs/editorjs';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
@@ -10,8 +11,8 @@ const panelRef = ref<HTMLElement | null>(null);
 const savedConfigText = ref('');
 const showConfigDialog = ref(false);
 let editor: EditorJS | null = null;
-const editorTools = createEditorTools({ edit: true });
-const { t } = useI18n();
+const { t, localeValue } = useI18n();
+let editorDataCache: OutputData = getInitialData();
 
 function getInitialData() {
   const cache = localStorage.getItem(MOKELAY_CONFIG_STORAGE_KEY);
@@ -43,18 +44,45 @@ function getInitialData() {
   }
 }
 
-onMounted(() => {
+async function mountEditor() {
   editor = new EditorJS({
     holder: holderId,
     placeholder: t('editor.placeholder'),
-    tools: editorTools,
-    data: getInitialData()
+    tools: createEditorTools({ edit: true }),
+    data: editorDataCache,
+    i18n: {
+      messages: getEditorJsI18nMessages(localeValue.value)
+    }
   });
+}
+
+async function rebuildEditor() {
+  if (editor) {
+    try {
+      editorDataCache = await editor.save();
+    } catch {
+      editorDataCache = getInitialData();
+    }
+
+    editor.destroy();
+    editor = null;
+  }
+
+  await mountEditor();
+}
+
+onMounted(async () => {
+  await mountEditor();
+});
+
+watch(localeValue, async () => {
+  await rebuildEditor();
 });
 
 async function save() {
   if (!editor) return;
   const output = await editor.save();
+  editorDataCache = output;
   localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify(output));
   savedConfigText.value = JSON.stringify(output, null, 2);
   showConfigDialog.value = true;
