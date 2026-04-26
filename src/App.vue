@@ -40,7 +40,7 @@ watch(isDark, (dark) => {
     <main class="flex min-h-screen flex-col gap-4 bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
       <header class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <h1 class="text-2xl font-bold">{{ t('app.title') }}</h1>
-        <p class="mt-2 text-slate-600 dark:text-slate-400">{{ t('app.subtitle') }}</p>
+        <!-- <p class="mt-2 text-slate-600 dark:text-slate-400">{{ t('app.subtitle') }}</p> -->
         <div class="mt-4 flex flex-wrap items-center gap-5">
           <SwitchGroup as="div" class="flex items-center gap-3">
             <SwitchLabel class="text-sm">{{ t('app.darkMode') }}</SwitchLabel>

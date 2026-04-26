@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
-    "deploy": "gh-pages -d dist",
+    "deploy": "gh-pages -d dist --cname editor.mokelay.com",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
