@@ -1,5 +1,6 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
+import { i18n } from '@/i18n';
 
 export interface MInputProps {
   edit: boolean;
@@ -10,12 +11,12 @@ export interface MInputProps {
 
 export const mInputEditorTool = defineEditorTool<MInputProps>({
   toolbox: {
-    title: 'Input',
+    title: i18n.t('input.toolboxTitle'),
     icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
   },
   createInitialProps: () => ({
-    label: '字段名称',
-    placeholder: '请输入.....',
+    label: i18n.t('input.defaultLabel'),
+    placeholder: i18n.t('input.defaultPlaceholder'),
     value: ''
   }),
   normalizeProps: (props) => ({
@@ -34,10 +35,12 @@ export const mInputEditorTool = defineEditorTool<MInputProps>({
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from '@/i18n';
 
 const props = defineProps<MInputProps & {
   onChange?: (payload: MInputProps) => void;
 }>();
+const { t } = useI18n();
 
 const labelText = computed(() => props.label ?? '');
 
@@ -58,7 +61,7 @@ function emitChange(payload: Partial<MInputProps>) {
       v-if="edit"
       class="ce-input-tool__label"
       type="text"
-      placeholder="字段标签（示例：用户名）"
+      :placeholder="t('input.editLabelPlaceholder')"
       :value="label"
       @input="emitChange({ label: ($event.target as HTMLInputElement).value })"
     />
