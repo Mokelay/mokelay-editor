@@ -14,7 +14,10 @@ export const enMessages = {
     saveContent: 'Save content',
     previewPage: 'Preview',
     configJson: 'Config JSON',
-    close: 'Close'
+    close: 'Close',
+    blockProperties: 'Properties',
+    cancel: 'Cancel',
+    confirm: 'Confirm'
   },
   preview: {
     title: 'Config Preview',

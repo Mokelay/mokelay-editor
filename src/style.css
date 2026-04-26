@@ -5,3 +5,102 @@
 body {
   @apply m-0 bg-slate-100 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100;
 }
+
+.ce-props-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(15 23 42 / 0.45);
+  padding: 16px;
+}
+
+.ce-props-dialog {
+  width: min(560px, 100%);
+  border-radius: 14px;
+  border: 1px solid rgb(203 213 225);
+  background: rgb(255 255 255);
+  box-shadow: 0 20px 45px rgb(15 23 42 / 0.2);
+  padding: 18px;
+}
+
+.ce-props-dialog__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgb(30 41 59);
+}
+
+.ce-props-dialog__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ce-props-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: rgb(71 85 105);
+  font-size: 13px;
+}
+
+.ce-props-dialog__input {
+  border: 1px solid rgb(148 163 184 / 0.75);
+  border-radius: 8px;
+  background: rgb(255 255 255);
+  color: rgb(15 23 42);
+  padding: 8px 10px;
+}
+
+.ce-props-dialog__actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ce-props-dialog__btn {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ce-props-dialog__btn--cancel {
+  background: rgb(226 232 240);
+  color: rgb(30 41 59);
+}
+
+.ce-props-dialog__btn--confirm {
+  background: rgb(99 102 241);
+  color: rgb(255 255 255);
+}
+
+.dark .ce-props-dialog {
+  border-color: rgb(71 85 105 / 0.9);
+  background: rgb(15 23 42);
+}
+
+.dark .ce-props-dialog__title {
+  color: rgb(226 232 240);
+}
+
+.dark .ce-props-dialog__field {
+  color: rgb(148 163 184);
+}
+
+.dark .ce-props-dialog__input {
+  border-color: rgb(71 85 105 / 0.9);
+  background: rgb(2 6 23);
+  color: rgb(226 232 240);
+}
+
+.dark .ce-props-dialog__btn--cancel {
+  background: rgb(51 65 85);
+  color: rgb(226 232 240);
+}

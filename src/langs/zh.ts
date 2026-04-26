@@ -14,7 +14,10 @@ export const zhMessages = {
     saveContent: '保存内容',
     previewPage: '预览页面',
     configJson: '配置 JSON',
-    close: '关闭'
+    close: '关闭',
+    blockProperties: '属性',
+    cancel: '取消',
+    confirm: '确定'
   },
   preview: {
     title: '配置预览',
