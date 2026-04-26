@@ -147,6 +147,102 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+:deep(.mokelay-editor-tool) {
+  position: relative;
+}
+
+:deep(.mokelay-editor-tool__property-button) {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  border: 0;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  background: rgb(15 23 42 / 0.88);
+  color: rgb(248 250 252);
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+:deep(.mokelay-editor-tool__property-dialog) {
+  width: min(100%, 480px);
+  border: 0;
+  border-radius: 16px;
+  padding: 0;
+  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
+}
+
+:deep(.mokelay-editor-tool__property-dialog::backdrop) {
+  background: rgb(15 23 42 / 0.45);
+}
+
+:deep(.mokelay-editor-tool__property-panel) {
+  margin: 0;
+  padding: 20px;
+  background: rgb(255 255 255);
+}
+
+:deep(.mokelay-editor-tool__property-header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+:deep(.mokelay-editor-tool__property-title) {
+  margin: 0;
+  color: rgb(15 23 42);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:deep(.mokelay-editor-tool__property-close) {
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: rgb(226 232 240);
+  color: rgb(51 65 85);
+  cursor: pointer;
+}
+
+:deep(.mokelay-editor-tool__property-body) {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+:deep(.mokelay-editor-tool__property-field) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:deep(.mokelay-editor-tool__property-label) {
+  color: rgb(51 65 85);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:deep(.mokelay-editor-tool__property-input) {
+  width: 100%;
+  border: 1px solid rgb(148 163 184 / 0.65);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgb(255 255 255);
+  color: rgb(15 23 42);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+:deep(.mokelay-editor-tool__property-input:focus) {
+  outline: none;
+  border-color: rgb(99 102 241);
+  box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
+}
+
 :deep(.ce-input-tool) {
   display: flex;
   flex-direction: column;
@@ -175,6 +271,29 @@ onBeforeUnmount(() => {
 :global(.dark) :deep(.ce-input-tool__label),
 :global(.dark) :deep(.ce-input-tool__control) {
   background-color: rgb(15 23 42);
+  color: rgb(226 232 240);
+  border-color: rgb(71 85 105 / 0.9);
+}
+
+:global(.dark) :deep(.mokelay-editor-tool__property-panel) {
+  background: rgb(15 23 42);
+}
+
+:global(.dark) :deep(.mokelay-editor-tool__property-title) {
+  color: rgb(241 245 249);
+}
+
+:global(.dark) :deep(.mokelay-editor-tool__property-close) {
+  background: rgb(51 65 85);
+  color: rgb(241 245 249);
+}
+
+:global(.dark) :deep(.mokelay-editor-tool__property-label) {
+  color: rgb(203 213 225);
+}
+
+:global(.dark) :deep(.mokelay-editor-tool__property-input) {
+  background: rgb(15 23 42);
   color: rgb(226 232 240);
   border-color: rgb(71 85 105 / 0.9);
 }

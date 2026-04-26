@@ -1,4 +1,5 @@
 import { createApp, type App } from 'vue';
+import { i18n } from '@/i18n';
 import {
   getEditorComponentRegistry,
   getEditorComponentDefinition,
@@ -35,7 +36,21 @@ export default class EditorToolFactory {
 
       private readonly state: EditorToolComponentProps;
       private wrapper: HTMLElement | null = null;
+      private contentRoot: HTMLElement | null = null;
       private vueApp: App<Element> | null = null;
+      private propertyButton: HTMLButtonElement | null = null;
+      private propertyDialog: HTMLDialogElement | null = null;
+      private readonly boundShowPropertyButton = () => {
+        this.setPropertyButtonVisible(true);
+      };
+      private readonly boundHidePropertyButton = () => {
+        if (!this.propertyDialog?.open) {
+          this.setPropertyButtonVisible(false);
+        }
+      };
+      private readonly boundTouchStart = () => {
+        this.setPropertyButtonVisible(true);
+      };
 
       constructor({ data, config }: EditorToolFactoryOptions) {
         const mergedProps = {
@@ -54,13 +69,29 @@ export default class EditorToolFactory {
 
       render() {
         const wrapper = document.createElement('div');
+        wrapper.className = 'mokelay-editor-tool';
+
+        const contentRoot = document.createElement('div');
+        contentRoot.className = 'mokelay-editor-tool__content';
+        wrapper.appendChild(contentRoot);
+
         this.wrapper = wrapper;
+        this.contentRoot = contentRoot;
+        this.createPropertyButton();
+        this.createPropertyDialog();
+        this.bindWrapperEvents();
         this.mountVueApp();
         return wrapper;
       }
 
       destroy() {
+        this.unbindWrapperEvents();
         this.unmountVueApp();
+        this.propertyDialog?.remove();
+        this.propertyDialog = null;
+        this.propertyButton = null;
+        this.contentRoot = null;
+        this.wrapper = null;
       }
 
       save() {
@@ -68,7 +99,7 @@ export default class EditorToolFactory {
       }
 
       private mountVueApp() {
-        if (!this.wrapper) return;
+        if (!this.contentRoot) return;
 
         this.unmountVueApp();
         this.vueApp = createApp(definition.component, {
@@ -77,12 +108,134 @@ export default class EditorToolFactory {
             Object.assign(this.state, payload);
           }
         });
-        this.vueApp.mount(this.wrapper);
+        this.vueApp.mount(this.contentRoot);
       }
 
       private unmountVueApp() {
         this.vueApp?.unmount();
         this.vueApp = null;
+      }
+
+      private createPropertyButton() {
+        if (!this.wrapper || !definition.propertyPanel?.fields.length) return;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'mokelay-editor-tool__property-button';
+        button.textContent = i18n.t('editor.properties');
+        button.hidden = true;
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.openPropertyDialog();
+        });
+        this.wrapper.appendChild(button);
+        this.propertyButton = button;
+      }
+
+      private createPropertyDialog() {
+        if (!this.wrapper || !definition.propertyPanel?.fields.length) return;
+
+        const dialog = document.createElement('dialog');
+        dialog.className = 'mokelay-editor-tool__property-dialog';
+        dialog.addEventListener('close', () => {
+          this.boundHidePropertyButton();
+        });
+
+        const title = definition.propertyPanel.title || i18n.t('editor.propertyDialogTitle');
+        const fields = definition.propertyPanel.fields.map((field) => {
+          const value = this.getPropertyFieldValue(field.key);
+          return `
+            <label class="mokelay-editor-tool__property-field">
+              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+              <input
+                class="mokelay-editor-tool__property-input"
+                data-property-key="${field.key}"
+                type="${field.type ?? 'text'}"
+                value="${this.escapeHtml(value)}"
+                placeholder="${this.escapeHtml(field.placeholder ?? '')}"
+              />
+            </label>
+          `;
+        }).join('');
+
+        dialog.innerHTML = `
+          <form method="dialog" class="mokelay-editor-tool__property-panel">
+            <div class="mokelay-editor-tool__property-header">
+              <h3 class="mokelay-editor-tool__property-title">${this.escapeHtml(title)}</h3>
+              <button type="submit" class="mokelay-editor-tool__property-close">${this.escapeHtml(i18n.t('editor.close'))}</button>
+            </div>
+            <div class="mokelay-editor-tool__property-body">
+              ${fields}
+            </div>
+          </form>
+        `;
+
+        dialog.querySelectorAll<HTMLInputElement>('[data-property-key]').forEach((input) => {
+          input.addEventListener('input', () => {
+            const propertyKey = input.dataset.propertyKey;
+            if (!propertyKey) return;
+            this.updateProperty(propertyKey, input.value);
+          });
+        });
+
+        this.wrapper.appendChild(dialog);
+        this.propertyDialog = dialog;
+      }
+
+      private bindWrapperEvents() {
+        if (!this.wrapper || !this.propertyButton) return;
+        this.wrapper.addEventListener('mouseenter', this.boundShowPropertyButton);
+        this.wrapper.addEventListener('mouseleave', this.boundHidePropertyButton);
+        this.wrapper.addEventListener('touchstart', this.boundTouchStart, { passive: true });
+      }
+
+      private unbindWrapperEvents() {
+        if (!this.wrapper || !this.propertyButton) return;
+        this.wrapper.removeEventListener('mouseenter', this.boundShowPropertyButton);
+        this.wrapper.removeEventListener('mouseleave', this.boundHidePropertyButton);
+        this.wrapper.removeEventListener('touchstart', this.boundTouchStart);
+      }
+
+      private setPropertyButtonVisible(visible: boolean) {
+        if (!this.propertyButton) return;
+        this.propertyButton.hidden = !visible;
+      }
+
+      private openPropertyDialog() {
+        if (!this.propertyDialog) return;
+        this.setPropertyButtonVisible(true);
+        this.syncPropertyDialogValues();
+        if (!this.propertyDialog.open) {
+          this.propertyDialog.showModal();
+        }
+      }
+
+      private syncPropertyDialogValues() {
+        if (!this.propertyDialog) return;
+        this.propertyDialog.querySelectorAll<HTMLInputElement>('[data-property-key]').forEach((input) => {
+          const propertyKey = input.dataset.propertyKey;
+          if (!propertyKey) return;
+          input.value = this.getPropertyFieldValue(propertyKey);
+        });
+      }
+
+      private updateProperty(key: string, value: string) {
+        (this.state as Record<string, unknown>)[key] = value;
+        this.mountVueApp();
+      }
+
+      private getPropertyFieldValue(key: string) {
+        const value = (this.state as Record<string, unknown>)[key];
+        return typeof value === 'string' ? value : '';
+      }
+
+      private escapeHtml(value: string) {
+        return value
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
       }
     }
 

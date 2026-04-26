@@ -13,6 +13,8 @@ export const enMessages = {
     fullscreenEdit: 'Fullscreen',
     saveContent: 'Save content',
     previewPage: 'Preview',
+    properties: 'Properties',
+    propertyDialogTitle: 'Property Settings',
     configJson: 'Config JSON',
     close: 'Close'
   },
@@ -25,7 +27,14 @@ export const enMessages = {
     toolboxTitle: 'Input',
     defaultLabel: 'Field name',
     defaultPlaceholder: 'Please enter...',
-    editLabelPlaceholder: 'Field label (e.g. Username)'
+    editLabelPlaceholder: 'Field label (e.g. Username)',
+    propertyPanelTitle: 'Input Properties',
+    properties: {
+      label: 'Label',
+      placeholder: 'Placeholder',
+      value: 'Default value',
+      valuePlaceholder: 'Please enter a default value'
+    }
   }
 } as const;
 

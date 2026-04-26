@@ -16,6 +16,30 @@ export const mInputEditorTool = defineEditorTool<MInputProps>({
     },
     icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
   },
+  propertyPanel: {
+    get title() {
+      return i18n.t('input.propertyPanelTitle');
+    },
+    get fields() {
+      return [
+        {
+          key: 'label',
+          label: i18n.t('input.properties.label'),
+          placeholder: i18n.t('input.editLabelPlaceholder')
+        },
+        {
+          key: 'placeholder',
+          label: i18n.t('input.properties.placeholder'),
+          placeholder: i18n.t('input.defaultPlaceholder')
+        },
+        {
+          key: 'value',
+          label: i18n.t('input.properties.value'),
+          placeholder: i18n.t('input.properties.valuePlaceholder')
+        }
+      ];
+    }
+  },
   createInitialProps: () => ({
     label: i18n.t('input.defaultLabel'),
     placeholder: i18n.t('input.defaultPlaceholder'),

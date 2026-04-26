@@ -13,6 +13,8 @@ export const zhMessages = {
     fullscreenEdit: '全屏编辑',
     saveContent: '保存内容',
     previewPage: '预览页面',
+    properties: '属性',
+    propertyDialogTitle: '属性设置',
     configJson: '配置 JSON',
     close: '关闭'
   },
@@ -25,7 +27,14 @@ export const zhMessages = {
     toolboxTitle: '输入框',
     defaultLabel: '字段名称',
     defaultPlaceholder: '请输入.....',
-    editLabelPlaceholder: '字段标签（示例：用户名）'
+    editLabelPlaceholder: '字段标签（示例：用户名）',
+    propertyPanelTitle: '输入框属性',
+    properties: {
+      label: '字段标签',
+      placeholder: '占位提示',
+      value: '默认值',
+      valuePlaceholder: '请输入默认值'
+    }
   }
 } as const;
 
