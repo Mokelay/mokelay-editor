@@ -118,6 +118,21 @@ export function getEditorJsI18nMessages(locale: Locale) {
           toolbox: {
             Add: '添加'
           }
+        },
+        popover: {
+          Filter: '筛选',
+          'Nothing found': '未找到结果'
+        }
+      },
+      blockTunes: {
+        delete: {
+          Delete: '删除'
+        },
+        moveUp: {
+          'Move up': '上移'
+        },
+        moveDown: {
+          'Move down': '下移'
         }
       },
       toolNames: {
