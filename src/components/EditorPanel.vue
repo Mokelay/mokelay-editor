@@ -1,91 +1,29 @@
 <script setup lang="ts">
-import EditorJS from '@editorjs/editorjs';
 import type { OutputData } from '@editorjs/editorjs';
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { getEditorJsI18nMessages, useI18n } from '@/i18n';
-import { createEditorTools } from '@/editors/EditorToolFactory';
+import { ref } from 'vue';
+import MPage from '@/blocks/MPage.vue';
+import { getInitialEditorBlocks } from '@/utils/editorData';
+import { useI18n } from '@/i18n';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
-const holderId = 'editorjs-root';
 const panelRef = ref<HTMLElement | null>(null);
+const pageRef = ref<InstanceType<typeof MPage> | null>(null);
 const savedConfigText = ref('');
 const showConfigDialog = ref(false);
-let editor: EditorJS | null = null;
-const { t, localeValue } = useI18n();
-let editorDataCache: OutputData = getInitialData();
+const { t } = useI18n();
 
-function getInitialData() {
-  const cache = localStorage.getItem(MOKELAY_CONFIG_STORAGE_KEY);
-  if (!cache) {
-    return {
-      blocks: [
-        {
-          type: 'paragraph',
-          data: {
-            text: t('editor.defaultParagraph')
-          }
-        }
-      ]
-    };
-  }
-  try {
-    return JSON.parse(cache);
-  } catch {
-    return {
-      blocks: [
-        {
-          type: 'paragraph',
-          data: {
-            text: t('editor.defaultParagraph')
-          }
-        }
-      ]
-    };
-  }
-}
-
-async function mountEditor() {
-  editor = new EditorJS({
-    holder: holderId,
-    placeholder: t('editor.placeholder'),
-    tools: createEditorTools({ edit: true }),
-    data: editorDataCache,
-    i18n: {
-      messages: getEditorJsI18nMessages(localeValue.value)
-    }
-  });
-}
-
-async function rebuildEditor() {
-  if (editor) {
-    try {
-      editorDataCache = await editor.save();
-    } catch {
-      editorDataCache = getInitialData();
-    }
-
-    editor.destroy();
-    editor = null;
-  }
-
-  await mountEditor();
-}
-
-onMounted(async () => {
-  await mountEditor();
-});
-
-watch(localeValue, async () => {
-  await rebuildEditor();
-});
+const pageBlocks = ref<Array<Record<string, unknown>>>(getInitialEditorBlocks(t));
 
 async function save() {
-  if (!editor) return;
-  const output = await editor.save();
-  editorDataCache = output;
+  const output: OutputData = (await pageRef.value?.saveEditor()) ?? { blocks: pageBlocks.value };
+  pageBlocks.value = output.blocks as Array<Record<string, unknown>>;
   localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify(output));
   savedConfigText.value = JSON.stringify(output, null, 2);
   showConfigDialog.value = true;
+}
+
+function handlePageChange(blocks: Array<Record<string, unknown>>) {
+  pageBlocks.value = blocks;
 }
 
 function openPreview() {
@@ -104,11 +42,6 @@ async function toggleFullscreen() {
   }
   await document.exitFullscreen();
 }
-
-onBeforeUnmount(() => {
-  editor?.destroy();
-  editor = null;
-});
 </script>
 
 <template>
@@ -123,7 +56,8 @@ onBeforeUnmount(() => {
       <button class="rounded bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400" @click="save">{{ t('editor.saveContent') }}</button>
       <button class="rounded bg-emerald-500 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreview">{{ t('editor.previewPage') }}</button>
     </div>
-    <div :id="holderId" class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"></div>
+
+    <MPage ref="pageRef" :edit="true" :value="pageBlocks" @change="handlePageChange" />
 
     <div
       v-if="showConfigDialog"
