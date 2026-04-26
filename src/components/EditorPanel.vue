@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import EditorJS from '@editorjs/editorjs';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import type { OutputData } from '@editorjs/editorjs';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
@@ -9,41 +11,78 @@ const panelRef = ref<HTMLElement | null>(null);
 const savedConfigText = ref('');
 const showConfigDialog = ref(false);
 let editor: EditorJS | null = null;
-const editorTools = createEditorTools({ edit: true });
-
-const defaultEditorData = {
-  blocks: [
-    {
-      type: 'paragraph',
-      data: {
-        text: '欢迎使用 Mokelay 编辑器初始化模板。'
-      }
-    }
-  ]
-};
+const { t, localeValue } = useI18n();
+let editorDataCache: OutputData = getInitialData();
 
 function getInitialData() {
   const cache = localStorage.getItem(MOKELAY_CONFIG_STORAGE_KEY);
-  if (!cache) return defaultEditorData;
+  if (!cache) {
+    return {
+      blocks: [
+        {
+          type: 'paragraph',
+          data: {
+            text: t('editor.defaultParagraph')
+          }
+        }
+      ]
+    };
+  }
   try {
     return JSON.parse(cache);
   } catch {
-    return defaultEditorData;
+    return {
+      blocks: [
+        {
+          type: 'paragraph',
+          data: {
+            text: t('editor.defaultParagraph')
+          }
+        }
+      ]
+    };
   }
 }
 
-onMounted(() => {
+async function mountEditor() {
   editor = new EditorJS({
     holder: holderId,
-    placeholder: '开始输入你的内容...',
-    tools: editorTools,
-    data: getInitialData()
+    placeholder: t('editor.placeholder'),
+    tools: createEditorTools({ edit: true }),
+    data: editorDataCache,
+    i18n: {
+      messages: getEditorJsI18nMessages(localeValue.value)
+    }
   });
+}
+
+async function rebuildEditor() {
+  if (editor) {
+    try {
+      editorDataCache = await editor.save();
+    } catch {
+      editorDataCache = getInitialData();
+    }
+
+    editor.destroy();
+    editor = null;
+  }
+
+  await mountEditor();
+}
+
+onMounted(async () => {
+  await mountEditor();
+});
+
+watch(localeValue, async () => {
+  await rebuildEditor();
 });
 
 async function save() {
   if (!editor) return;
   const output = await editor.save();
+  editorDataCache = output;
   localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify(output));
   savedConfigText.value = JSON.stringify(output, null, 2);
   showConfigDialog.value = true;
@@ -79,10 +118,10 @@ onBeforeUnmount(() => {
   >
     <div class="mb-3 flex items-center justify-end gap-2">
       <button class="rounded bg-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600" @click="toggleFullscreen">
-        全屏编辑
+        {{ t('editor.fullscreenEdit') }}
       </button>
-      <button class="rounded bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400" @click="save">保存内容</button>
-      <button class="rounded bg-emerald-500 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreview">预览页面</button>
+      <button class="rounded bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400" @click="save">{{ t('editor.saveContent') }}</button>
+      <button class="rounded bg-emerald-500 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreview">{{ t('editor.previewPage') }}</button>
     </div>
     <div :id="holderId" class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"></div>
 
@@ -93,12 +132,12 @@ onBeforeUnmount(() => {
     >
       <div class="w-full max-w-3xl rounded-xl bg-white p-4 shadow-2xl dark:bg-slate-900">
         <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">配置 JSON</h3>
+          <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ t('editor.configJson') }}</h3>
           <button
             class="rounded bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
             @click="closeConfigDialog"
           >
-            关闭
+            {{ t('editor.close') }}
           </button>
         </div>
         <pre class="max-h-[60vh] overflow-auto rounded bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">{{ savedConfigText }}</pre>
