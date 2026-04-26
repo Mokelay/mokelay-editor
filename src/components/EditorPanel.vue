@@ -6,7 +6,8 @@ import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
 const holderId = 'editorjs-root';
 const panelRef = ref<HTMLElement | null>(null);
-const data = ref('');
+const savedConfigText = ref('');
+const showConfigDialog = ref(false);
 let editor: EditorJS | null = null;
 const editorTools = createEditorTools({ edit: true });
 
@@ -44,11 +45,16 @@ async function save() {
   if (!editor) return;
   const output = await editor.save();
   localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify(output));
-  data.value = JSON.stringify(output, null, 2);
+  savedConfigText.value = JSON.stringify(output, null, 2);
+  showConfigDialog.value = true;
 }
 
 function openPreview() {
   window.location.hash = '/preview';
+}
+
+function closeConfigDialog() {
+  showConfigDialog.value = false;
 }
 
 async function toggleFullscreen() {
@@ -79,7 +85,25 @@ onBeforeUnmount(() => {
       <button class="rounded bg-emerald-500 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreview">预览页面</button>
     </div>
     <div :id="holderId" class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"></div>
-    <pre class="mt-4 max-h-48 overflow-auto rounded bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">{{ data }}</pre>
+
+    <div
+      v-if="showConfigDialog"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4"
+      @click.self="closeConfigDialog"
+    >
+      <div class="w-full max-w-3xl rounded-xl bg-white p-4 shadow-2xl dark:bg-slate-900">
+        <div class="mb-3 flex items-center justify-between">
+          <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">配置 JSON</h3>
+          <button
+            class="rounded bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+            @click="closeConfigDialog"
+          >
+            关闭
+          </button>
+        </div>
+        <pre class="max-h-[60vh] overflow-auto rounded bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">{{ savedConfigText }}</pre>
+      </div>
+    </div>
   </section>
 </template>
 
