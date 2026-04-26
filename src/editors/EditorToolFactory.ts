@@ -22,6 +22,7 @@ const toolClassCache = new Map<string, EditorToolClass>();
 
 type EditorToolSettingsItem = {
   icon: string;
+  title?: string;
   label?: string;
   name?: string;
   onActivate?: () => void;
@@ -83,7 +84,7 @@ export default class EditorToolFactory {
           {
             name: 'properties',
             icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-            label: i18n.t('editor.blockProperties'),
+            title: i18n.t('editor.blockProperties'),
             closeOnActivate: true,
             onActivate: () => {
               this.openPropsDialog();
