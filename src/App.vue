@@ -76,6 +76,10 @@ function saveEditorContent() {
 function openPreviewPage() {
   editorPanelRef.value?.openPreview();
 }
+
+function backToEditorPage() {
+  window.location.hash = '/';
+}
 </script>
 
 <template>
@@ -114,6 +118,9 @@ function openPreviewPage() {
               {{ t('editor.previewPage') }}
             </button>
           </template>
+          <button v-else class="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" @click="backToEditorPage">
+            {{ t('preview.backToEditor') }}
+          </button>
         </div>
       </header>
 

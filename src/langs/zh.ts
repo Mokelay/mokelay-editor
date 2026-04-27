@@ -22,7 +22,7 @@ export const zhMessages = {
   },
   preview: {
     title: '配置预览',
-    backToEditor: '返回编辑器',
+    backToEditor: '返回',
     emptyState: '未找到已保存配置，请先在编辑器点击“保存内容”。'
   },
   input: {
