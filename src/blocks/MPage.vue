@@ -226,7 +226,11 @@ onBeforeUnmount(async () => {
 </script>
 
 <template>
-  <div v-if="shouldRenderEditor" ref="holderRef" class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"></div>
+  <div
+    v-if="shouldRenderEditor"
+    ref="holderRef"
+    class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 py-3 pr-3 pl-11 dark:border-slate-700 dark:bg-slate-950"
+  ></div>
   <div v-else class="space-y-4">
     <div v-for="(block, index) in previewBlocks" :key="index" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
       <p v-if="block.type === 'paragraph'" class="text-sm leading-6" v-html="block.data.text"></p>
