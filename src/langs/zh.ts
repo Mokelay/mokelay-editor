@@ -86,6 +86,18 @@ export const zhEditorJsMessages = {
     Quote: '引用',
     Delimiter: '分割线',
     Table: '表格',
-    Link: '链接'
+    Link: '链接',
+    Columns: '分栏'
+  },
+  tools: {
+    columns: {
+      '2 Columns': '两列',
+      '3 Columns': '三列',
+      'Roll Columns': '轮换列',
+      'Are you sure?': '确认继续吗？',
+      'This will delete Column 3!': '这将删除第 3 列！',
+      'Yes, delete it!': '确认删除',
+      Cancel: '取消'
+    }
   }
 } as const;
