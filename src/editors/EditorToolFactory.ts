@@ -17,6 +17,7 @@ type EditorToolClass = new (options: EditorToolFactoryOptions) => {
   destroy: () => void;
 };
 
+// 缓存已经构建过的工具类，避免重复创建 class。
 const toolClassCache = new Map<string, EditorToolClass>();
 
 export default class EditorToolFactory {
@@ -53,6 +54,7 @@ export default class EditorToolFactory {
       };
 
       constructor({ data, config }: EditorToolFactoryOptions) {
+        // data 是已保存 block.data，config 是工具级固定配置（例如 edit）。
         const mergedProps = {
           ...(config ?? {}),
           ...(data ?? {})
@@ -68,6 +70,7 @@ export default class EditorToolFactory {
       }
 
       render() {
+        // EditorJS 要求 render 返回宿主元素；内部再挂载 Vue 组件。
         const wrapper = document.createElement('div');
         wrapper.className = 'mokelay-editor-tool';
 
@@ -104,6 +107,7 @@ export default class EditorToolFactory {
         this.unmountVueApp();
         this.vueApp = createApp(definition.component, {
           ...this.state,
+          // 兼容两种回调命名，统一回写到同一份 state。
           onToolChange: (payload: EditorToolComponentProps) => {
             Object.assign(this.state, payload);
           },
@@ -175,6 +179,7 @@ export default class EditorToolFactory {
         `;
 
         dialog.querySelectorAll<HTMLInputElement>('[data-property-key]').forEach((input) => {
+          // 属性面板输入实时更新工具状态。
           input.addEventListener('input', () => {
             const propertyKey = input.dataset.propertyKey;
             if (!propertyKey) return;
@@ -225,6 +230,7 @@ export default class EditorToolFactory {
 
       private updateProperty(key: string, value: string) {
         (this.state as Record<string, unknown>)[key] = value;
+        // 属性变化后重新挂载组件，确保视图与状态同步。
         this.mountVueApp();
       }
 

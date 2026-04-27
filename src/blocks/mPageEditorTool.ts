@@ -2,11 +2,15 @@ import type { OutputData } from '@editorjs/editorjs';
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
 
+// MPage 工具在编辑器中的数据结构定义：
+// - edit: 是否为编辑态
+// - value: 页面内嵌 blocks 数据
 export type MPageToolProps = {
   edit: boolean;
   value?: OutputData['blocks'];
 };
 
+// 为 MPage 注册 EditorJS 工具能力，统一处理默认值、归一化和序列化。
 export const mPageEditorTool = defineEditorTool<MPageToolProps>({
   toolbox: {
     get title() {
