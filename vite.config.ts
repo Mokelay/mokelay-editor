@@ -2,8 +2,11 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import path from 'node:path';
 
-export default defineConfig({
+export default defineConfig(() => ({
   base: '/',
+  define: {
+    __APP_VERSION__: JSON.stringify(new Date().toISOString())
+  },
   plugins: [vue()],
   server: {
     host: '0.0.0.0',
@@ -21,4 +24,4 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   }
-});
+}));

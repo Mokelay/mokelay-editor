@@ -1,4 +1,6 @@
-const CACHE_VERSION = 'mokelay-editor-v2';
+const CACHE_PREFIX = 'mokelay-editor';
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
+const CACHE_VERSION = `${CACHE_PREFIX}-${SW_VERSION}`;
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -15,12 +17,18 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== CACHE_VERSION)
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_VERSION)
             .map((key) => caches.delete(key))
         )
       )
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
@@ -30,6 +38,25 @@ self.addEventListener('fetch', (event) => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put('/index.html', copy));
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match('/index.html');
+          if (cached) {
+            return cached;
+          }
+          return caches.match('/');
+        })
+    );
     return;
   }
 
@@ -43,15 +70,17 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+      const networkFetch = fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse.ok) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
+          }
+          return networkResponse;
+        })
+        .catch(() => cachedResponse);
 
-      return fetch(event.request).then((networkResponse) => {
-        const copy = networkResponse.clone();
-        caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, copy));
-        return networkResponse;
-      });
+      return cachedResponse || networkFetch;
     })
   );
 });
