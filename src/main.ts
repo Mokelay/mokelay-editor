@@ -9,14 +9,12 @@ const queryClient = new QueryClient();
 app.use(VueQueryPlugin, { queryClient });
 app.mount('#app');
 
-if ('serviceWorker' in navigator) {
-  if (import.meta.env.PROD) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch((error) => {
-        console.error('Service worker registration failed:', error);
-      });
-    });
-  } else {
+function setupPwaAutoUpdate() {
+  if (!('serviceWorker' in navigator)) {
+    return;
+  }
+
+  if (!import.meta.env.PROD) {
     navigator.serviceWorker.getRegistrations().then((registrations) => {
       registrations.forEach((registration) => registration.unregister());
     });
@@ -25,5 +23,54 @@ if ('serviceWorker' in navigator) {
         keys.forEach((key) => caches.delete(key));
       });
     }
+    return;
   }
+
+  const swUrl = `/sw.js?v=${encodeURIComponent(__APP_VERSION__)}`;
+  let hasReloadedForUpdate = false;
+
+  const requestImmediateActivation = (registration: ServiceWorkerRegistration) => {
+    if (registration.waiting) {
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+  };
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hasReloadedForUpdate) {
+      return;
+    }
+    hasReloadedForUpdate = true;
+    window.location.reload();
+  });
+
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register(swUrl);
+
+      requestImmediateActivation(registration);
+
+      registration.addEventListener('updatefound', () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) {
+          return;
+        }
+
+        installingWorker.addEventListener('statechange', () => {
+          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            requestImmediateActivation(registration);
+          }
+        });
+      });
+
+      window.setInterval(() => {
+        registration.update().catch(() => {
+          // ignore background update failures
+        });
+      }, 60 * 1000);
+    } catch (error) {
+      console.error('Service worker registration failed:', error);
+    }
+  });
 }
+
+setupPwaAutoUpdate();
