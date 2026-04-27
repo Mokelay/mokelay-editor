@@ -3,6 +3,8 @@ export const enMessages = {
     title: 'Mokelay Editor',
     subtitle: 'Mokelay page configurator',
     darkMode: 'Dark mode',
+    dark: 'Dark',
+    light: 'Light',
     language: 'Language',
     chinese: '中文',
     english: 'English'
