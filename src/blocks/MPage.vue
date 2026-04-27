@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import EditorJS, { type OutputData } from '@editorjs/editorjs';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
 
 export interface MPageProps {
   edit?: boolean;
   value?: OutputData['blocks'];
+  onToolChange?: (payload: { edit: boolean; value: OutputData['blocks'] }) => void;
 }
 
 const props = withDefaults(defineProps<MPageProps>(), {
   edit: false,
   value: () => []
 });
-const attrs = useAttrs();
 
 const emit = defineEmits<{
   (event: 'change', blocks: OutputData['blocks']): void;
@@ -40,11 +40,11 @@ function isSameBlocks(left: OutputData['blocks'], right: OutputData['blocks']) {
 }
 
 function notifyChanges(blocks: OutputData['blocks']) {
-  const onChange = attrs.onChange as ((payload: { edit: boolean; value: OutputData['blocks'] }) => void) | undefined;
-  onChange?.({
+  const payload = {
     edit: props.edit,
     value: blocks
-  });
+  };
+  props.onToolChange?.(payload);
   emit('change', blocks);
 }
 

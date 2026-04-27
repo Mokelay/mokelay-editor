@@ -65,19 +65,22 @@ import { useI18n } from '@/i18n';
 
 const props = defineProps<MInputProps & {
   onChange?: (payload: MInputProps) => void;
+  onToolChange?: (payload: MInputProps) => void;
 }>();
 const { t } = useI18n();
 
 const labelText = computed(() => props.label ?? '');
 
 function emitChange(payload: Partial<MInputProps>) {
-  props.onChange?.({
+  const nextPayload = {
     edit: props.edit,
     label: props.label ?? '',
     placeholder: props.placeholder ?? '',
     value: props.value ?? '',
     ...payload
-  });
+  };
+  props.onToolChange?.(nextPayload);
+  props.onChange?.(nextPayload);
 }
 </script>
 
