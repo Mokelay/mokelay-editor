@@ -94,6 +94,17 @@ export const zhEditorJsMessages = {
       '2 Columns': '两列',
       '3 Columns': '三列',
       'Roll Columns': '轮换列',
+      'Roll Colls': '轮换列',
+      'Are you sure?': '确认继续吗？',
+      'This will delete Column 3!': '这将删除第 3 列！',
+      'Yes, delete it!': '确认删除',
+      Cancel: '取消'
+    },
+    Columns: {
+      '2 Columns': '两列',
+      '3 Columns': '三列',
+      'Roll Columns': '轮换列',
+      'Roll Colls': '轮换列',
       'Are you sure?': '确认继续吗？',
       'This will delete Column 3!': '这将删除第 3 列！',
       'Yes, delete it!': '确认删除',
