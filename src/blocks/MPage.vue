@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import EditorJS, { type OutputData } from '@editorjs/editorjs';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
 
@@ -13,6 +13,7 @@ const props = withDefaults(defineProps<MPageProps>(), {
   edit: false,
   value: () => []
 });
+const attrs = useAttrs();
 
 const emit = defineEmits<{
   (event: 'change', blocks: OutputData['blocks']): void;
@@ -38,6 +39,15 @@ function isSameBlocks(left: OutputData['blocks'], right: OutputData['blocks']) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function notifyChanges(blocks: OutputData['blocks']) {
+  const onChange = attrs.onChange as ((payload: { edit: boolean; value: OutputData['blocks'] }) => void) | undefined;
+  onChange?.({
+    edit: props.edit,
+    value: blocks
+  });
+  emit('change', blocks);
+}
+
 async function mountEditor() {
   if (!holderRef.value || !shouldRenderEditor.value) return;
   editor = new EditorJS({
@@ -53,7 +63,7 @@ async function mountEditor() {
       const output = await editor.save();
       editorDataCache = output;
       if (isSyncingFromProps) return;
-      emit('change', output.blocks);
+      notifyChanges(output.blocks);
     }
   });
 }
