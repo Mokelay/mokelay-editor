@@ -71,21 +71,6 @@ defineExpose({
   position: relative;
 }
 
-:deep(.mokelay-editor-tool__property-button) {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10;
-  border: 0;
-  border-radius: 9999px;
-  padding: 4px 10px;
-  background: rgb(15 23 42 / 0.88);
-  color: rgb(248 250 252);
-  font-size: 12px;
-  line-height: 16px;
-  cursor: pointer;
-}
-
 :deep(.mokelay-editor-tool__property-dialog) {
   width: min(100%, 480px);
   border: 0;
