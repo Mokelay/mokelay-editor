@@ -3,6 +3,15 @@ const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const CACHE_VERSION = `${CACHE_PREFIX}-${SW_VERSION}`;
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest'];
 
+function isValidNavigationShellResponse(response) {
+  if (!response || !response.ok) {
+    return false;
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  return contentType.includes('text/html');
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL))
@@ -45,8 +54,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put('/index.html', copy));
+          if (isValidNavigationShellResponse(response)) {
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put('/index.html', copy));
+          }
           return response;
         })
         .catch(async () => {
