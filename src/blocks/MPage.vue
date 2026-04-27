@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import EditorJS, { type OutputData } from '@editorjs/editorjs';
+import EditorJsColumns from '@calumk/editorjs-columns';
 import Table from '@editorjs/table';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
@@ -38,10 +39,23 @@ const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
 const previewBlocks = computed(() => (Array.isArray(props.value) ? props.value : []));
 
+type EditorBlock = OutputData['blocks'][number];
+type EditorColumnData = { blocks?: OutputData['blocks'] };
+
 function getTableRows(block: OutputData['blocks'][number]) {
   const content = (block.data as { withHeadings?: boolean; content?: unknown }).content;
   if (!Array.isArray(content)) return [];
   return content.filter((row): row is string[] => Array.isArray(row));
+}
+
+function getColumns(block: EditorBlock): EditorColumnData[] {
+  const cols = (block.data as { cols?: unknown }).cols;
+  if (!Array.isArray(cols)) return [];
+  return cols.filter((col): col is EditorColumnData => typeof col === 'object' && col !== null);
+}
+
+function getColumnBlocks(column: EditorColumnData): OutputData['blocks'] {
+  return Array.isArray(column.blocks) ? column.blocks : [];
 }
 
 function buildOutput(blocks: OutputData['blocks']): OutputData {
@@ -95,14 +109,24 @@ function notifyChanges(blocks: OutputData['blocks']) {
 
 async function mountEditor() {
   if (!holderRef.value || !shouldRenderEditor.value || editor) return;
+  const columnTools = {
+    ...createEditorTools({ edit: true }),
+    table: {
+      class: Table,
+      inlineToolbar: true
+    }
+  };
   editor = new EditorJS({
     holder: holderRef.value,
     placeholder: t('editor.placeholder'),
     tools: {
-      ...createEditorTools({ edit: true }),
-      table: {
-        class: Table,
-        inlineToolbar: true
+      ...columnTools,
+      columns: {
+        class: EditorJsColumns,
+        config: {
+          EditorJsLibrary: EditorJS,
+          tools: columnTools
+        }
       }
     },
     data: editorDataCache,
@@ -226,6 +250,47 @@ onBeforeUnmount(async () => {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div v-else-if="block.type === 'columns'" class="grid gap-3 md:grid-cols-2">
+        <div
+          v-for="(column, columnIndex) in getColumns(block)"
+          :key="`columns-${index}-${columnIndex}`"
+          class="space-y-2 rounded border border-slate-200 p-2 dark:border-slate-700"
+        >
+          <div
+            v-for="(columnBlock, columnBlockIndex) in getColumnBlocks(column)"
+            :key="`columns-${index}-${columnIndex}-${columnBlockIndex}`"
+            class="rounded border border-slate-200 p-2 dark:border-slate-700"
+          >
+            <p v-if="columnBlock.type === 'paragraph'" class="text-sm leading-6" v-html="columnBlock.data.text"></p>
+            <div v-else-if="columnBlock.type === 'table'" class="overflow-auto">
+              <table class="min-w-full border-collapse text-xs">
+                <tbody>
+                  <tr
+                    v-for="(row, rowIndex) in getTableRows(columnBlock)"
+                    :key="`table-col-${index}-${columnIndex}-${columnBlockIndex}-${rowIndex}`"
+                    class="border-b border-slate-200 dark:border-slate-700"
+                  >
+                    <component
+                      :is="rowIndex === 0 ? 'th' : 'td'"
+                      v-for="(cell, cellIndex) in row"
+                      :key="`table-col-${index}-${columnIndex}-${columnBlockIndex}-${rowIndex}-${cellIndex}`"
+                      class="border border-slate-200 px-2 py-1 text-left align-top dark:border-slate-700"
+                      v-html="cell"
+                    />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <component
+              :is="getBlockComponent(columnBlock.type)"
+              v-else-if="isCustomBlock(columnBlock.type)"
+              v-bind="getBlockProps(columnBlock)"
+            />
+            <pre v-else class="overflow-auto rounded bg-slate-100 p-2 text-xs dark:bg-slate-800">{{ columnBlock }}</pre>
+          </div>
+        </div>
       </div>
 
       <component
