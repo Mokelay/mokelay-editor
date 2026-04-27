@@ -100,7 +100,7 @@ export const mAdvanceInputEditorTool = defineEditorTool<MAdvanceInputProps>({
 </script>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 
 const props = defineProps<MAdvanceInputProps & {
@@ -110,12 +110,22 @@ const props = defineProps<MAdvanceInputProps & {
 
 const { t } = useI18n();
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const localValue = ref(props.value ?? '');
 const showSuggestions = ref(false);
 const activeTrigger = ref<TriggerChar | null>(null);
 const activeQuery = ref('');
 const replaceRange = ref<{ start: number; end: number } | null>(null);
 
 const labelText = computed(() => props.label ?? '');
+
+watch(
+  () => props.value,
+  (nextValue) => {
+    if (typeof nextValue === 'string' && nextValue !== localValue.value) {
+      localValue.value = nextValue;
+    }
+  }
+);
 
 function emitChange(payload: Partial<MAdvanceInputProps>) {
   const nextPayload = {
@@ -200,17 +210,19 @@ function updateSuggestionState() {
 
 function handleInput(event: Event) {
   const value = (event.target as HTMLTextAreaElement).value;
+  localValue.value = value;
   emitChange({ value });
   updateSuggestionState();
 }
 
 function insertOption(option: TriggerOption) {
   const textarea = textareaRef.value;
-  const currentValue = props.value ?? '';
+  const currentValue = localValue.value;
   const range = replaceRange.value;
   if (!textarea || !range) return;
 
   const nextValue = `${currentValue.slice(0, range.start)}${option.value} ${currentValue.slice(range.end)}`;
+  localValue.value = nextValue;
   emitChange({ value: nextValue });
   closeSuggestion();
 
@@ -246,7 +258,7 @@ function handleBlur() {
         class="ce-advance-input-tool__editor"
         :placeholder="placeholder"
         :readonly="!edit"
-        :value="value"
+        :value="localValue"
         @input="handleInput"
         @keyup="updateSuggestionState"
         @click="updateSuggestionState"
