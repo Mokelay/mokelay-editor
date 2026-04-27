@@ -1,10 +1,11 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
+import type { OutputData } from '@editorjs/editorjs';
 
 export interface MPageProps {
   edit?: boolean;
-  value?: Array<Record<string, unknown>>;
+  value?: OutputData['blocks'];
 }
 
 export const mPageEditorTool = defineEditorTool<Required<MPageProps>>({
@@ -29,7 +30,7 @@ export const mPageEditorTool = defineEditorTool<Required<MPageProps>>({
 </script>
 
 <script setup lang="ts">
-import EditorJS, { type OutputData } from '@editorjs/editorjs';
+import EditorJS from '@editorjs/editorjs';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
@@ -40,7 +41,7 @@ const props = withDefaults(defineProps<MPageProps>(), {
 });
 
 const emit = defineEmits<{
-  (event: 'change', blocks: Array<Record<string, unknown>>): void;
+  (event: 'change', blocks: OutputData['blocks']): void;
 }>();
 
 const shouldRenderEditor = computed(() => props.edit);
@@ -53,10 +54,14 @@ let editorDataCache: OutputData = {
 const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
 
-function buildOutput(blocks: Array<Record<string, unknown>>): OutputData {
+function buildOutput(blocks: OutputData['blocks']): OutputData {
   return {
     blocks
   };
+}
+
+function isSameBlocks(left: OutputData['blocks'], right: OutputData['blocks']) {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 async function mountEditor() {
@@ -74,7 +79,7 @@ async function mountEditor() {
       const output = await editor.save();
       editorDataCache = output;
       if (isSyncingFromProps) return;
-      emit('change', output.blocks as Array<Record<string, unknown>>);
+      emit('change', output.blocks);
     }
   });
 }
@@ -116,7 +121,11 @@ onMounted(async () => {
 watch(
   () => props.value,
   async (blocks) => {
-    const nextBlocks = Array.isArray(blocks) ? blocks : [];
+    const nextBlocks = Array.isArray(blocks) ? blocks : ([] as OutputData['blocks']);
+    const cachedBlocks = Array.isArray(editorDataCache.blocks) ? editorDataCache.blocks : ([] as OutputData['blocks']);
+    if (isSameBlocks(nextBlocks, cachedBlocks)) {
+      return;
+    }
     isSyncingFromProps = true;
     editorDataCache = buildOutput(nextBlocks);
     if (editor) {

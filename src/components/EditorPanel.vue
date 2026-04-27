@@ -12,17 +12,17 @@ const savedConfigText = ref('');
 const showConfigDialog = ref(false);
 const { t } = useI18n();
 
-const pageBlocks = ref<Array<Record<string, unknown>>>(getInitialEditorBlocks(t));
+const pageBlocks = ref<OutputData['blocks']>(getInitialEditorBlocks(t));
 
 async function save() {
   const output: OutputData = (await pageRef.value?.saveEditor()) ?? { blocks: pageBlocks.value };
-  pageBlocks.value = output.blocks as Array<Record<string, unknown>>;
+  pageBlocks.value = output.blocks;
   localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify(output));
   savedConfigText.value = JSON.stringify(output, null, 2);
   showConfigDialog.value = true;
 }
 
-function handlePageChange(blocks: Array<Record<string, unknown>>) {
+function handlePageChange(blocks: OutputData['blocks']) {
   pageBlocks.value = blocks;
 }
 
