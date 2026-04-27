@@ -48,6 +48,11 @@ function getTableRows(block: OutputData['blocks'][number]) {
   return content.filter((row): row is string[] => Array.isArray(row));
 }
 
+function shouldRenderTableHeaderCell(block: OutputData['blocks'][number], rowIndex: number) {
+  const withHeadings = (block.data as { withHeadings?: unknown }).withHeadings;
+  return rowIndex === 0 && withHeadings === true;
+}
+
 function getColumns(block: EditorBlock): EditorColumnData[] {
   const cols = (block.data as { cols?: unknown }).cols;
   if (!Array.isArray(cols)) return [];
@@ -245,7 +250,7 @@ onBeforeUnmount(async () => {
               class="border-b border-slate-200 dark:border-slate-700"
             >
               <component
-                :is="rowIndex === 0 ? 'th' : 'td'"
+                :is="shouldRenderTableHeaderCell(block, rowIndex) ? 'th' : 'td'"
                 v-for="(cell, cellIndex) in row"
                 :key="`table-${index}-${rowIndex}-${cellIndex}`"
                 class="border border-slate-200 px-3 py-2 text-left align-top dark:border-slate-700"
@@ -277,7 +282,7 @@ onBeforeUnmount(async () => {
                     class="border-b border-slate-200 dark:border-slate-700"
                   >
                     <component
-                      :is="rowIndex === 0 ? 'th' : 'td'"
+                      :is="shouldRenderTableHeaderCell(columnBlock, rowIndex) ? 'th' : 'td'"
                       v-for="(cell, cellIndex) in row"
                       :key="`table-col-${index}-${columnIndex}-${columnBlockIndex}-${rowIndex}-${cellIndex}`"
                       class="border border-slate-200 px-2 py-1 text-left align-top dark:border-slate-700"
