@@ -22,7 +22,7 @@ export const enMessages = {
   },
   preview: {
     title: 'Config Preview',
-    backToEditor: 'Back to editor',
+    backToEditor: 'Back',
     emptyState: 'No saved config found. Please click "Save content" in the editor first.'
   },
   input: {
