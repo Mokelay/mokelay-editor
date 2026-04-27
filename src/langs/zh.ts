@@ -40,6 +40,15 @@ export const zhMessages = {
   },
   page: {
     toolboxTitle: '页面'
+  },
+  columns: {
+    twoColumns: '两列',
+    threeColumns: '三列',
+    rollColumns: '轮换列',
+    confirmTitle: '确认继续吗？',
+    deleteThirdColumn: '这将删除第 3 列！',
+    confirmDelete: '确认删除',
+    cancel: '取消'
   }
 } as const;
 

@@ -63,6 +63,19 @@ function getColumnBlocks(column: EditorColumnData): OutputData['blocks'] {
   return Array.isArray(column.blocks) ? column.blocks : [];
 }
 
+function getColumnsI18n() {
+  return {
+    '2 Columns': t('columns.twoColumns'),
+    '3 Columns': t('columns.threeColumns'),
+    'Roll Columns': t('columns.rollColumns'),
+    'Roll Colls': t('columns.rollColumns'),
+    'Are you sure?': t('columns.confirmTitle'),
+    'This will delete Column 3!': t('columns.deleteThirdColumn'),
+    'Yes, delete it!': t('columns.confirmDelete'),
+    Cancel: t('columns.cancel')
+  };
+}
+
 function buildOutput(blocks: OutputData['blocks']): OutputData {
   return {
     blocks
@@ -130,7 +143,8 @@ async function mountEditor() {
         class: EditorJsColumns,
         config: {
           EditorJsLibrary: EditorJS,
-          tools: columnTools
+          tools: columnTools,
+          i18n: getColumnsI18n()
         }
       }
     },

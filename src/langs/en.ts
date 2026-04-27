@@ -40,6 +40,15 @@ export const enMessages = {
   },
   page: {
     toolboxTitle: 'Page'
+  },
+  columns: {
+    twoColumns: '2 Columns',
+    threeColumns: '3 Columns',
+    rollColumns: 'Roll Columns',
+    confirmTitle: 'Are you sure?',
+    deleteThirdColumn: 'This will delete Column 3!',
+    confirmDelete: 'Yes, delete it!',
+    cancel: 'Cancel'
   }
 } as const;
 
