@@ -123,8 +123,8 @@ function emitChange(payload: Partial<MAdvanceInputProps>) {
     label: props.label ?? '',
     placeholder: props.placeholder ?? '',
     value: props.value ?? '',
-    componentOptions: props.componentOptions ?? '',
-    triggerOptions: props.triggerOptions ?? '',
+    componentOptions: props.componentOptions ?? DEFAULT_COMPONENT_OPTIONS.join(','),
+    triggerOptions: props.triggerOptions ?? JSON.stringify(DEFAULT_TRIGGER_OPTIONS),
     ...payload
   };
   props.onToolChange?.(nextPayload);
@@ -135,17 +135,17 @@ function parseTriggerOptions(raw: string | undefined): Record<TriggerChar, Trigg
   try {
     const parsed = JSON.parse(raw ?? '{}') as Partial<Record<TriggerChar, TriggerOption[]>>;
     return {
-      '@': Array.isArray(parsed['@']) ? parsed['@'] : [],
-      '#': Array.isArray(parsed['#']) ? parsed['#'] : [],
-      '/': Array.isArray(parsed['/']) ? parsed['/'] : []
+      '@': Array.isArray(parsed['@']) ? parsed['@'] : DEFAULT_TRIGGER_OPTIONS['@'],
+      '#': Array.isArray(parsed['#']) ? parsed['#'] : DEFAULT_TRIGGER_OPTIONS['#'],
+      '/': Array.isArray(parsed['/']) ? parsed['/'] : DEFAULT_TRIGGER_OPTIONS['/']
     };
   } catch {
-    return { '@': [], '#': [], '/': [] };
+    return DEFAULT_TRIGGER_OPTIONS;
   }
 }
 
 const componentOptions = computed(() => {
-  return (props.componentOptions ?? '')
+  return (props.componentOptions ?? DEFAULT_COMPONENT_OPTIONS.join(','))
     .split(',')
     .map((name) => name.trim())
     .filter(Boolean)
