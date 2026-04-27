@@ -8,7 +8,12 @@ export interface MPageProps {
   value?: OutputData['blocks'];
 }
 
-export const mPageEditorTool = defineEditorTool<Required<MPageProps>>({
+type MPageToolProps = {
+  edit: boolean;
+  value?: OutputData['blocks'];
+};
+
+export const mPageEditorTool = defineEditorTool<MPageToolProps>({
   toolbox: {
     get title() {
       return i18n.t('editor.toolboxTitle');
