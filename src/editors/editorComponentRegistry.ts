@@ -1,6 +1,6 @@
-import { markRaw } from 'vue';
+import { defineAsyncComponent, markRaw } from 'vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
-import MPage, { mPageEditorTool } from '@/blocks/MPage.vue';
+import { mPageEditorTool } from '@/blocks/mPageEditorTool';
 import type { EditorToolDefinition } from '@/editors/editorToolDefinition';
 
 export type { EditorComponentToolbox, EditorToolComponentProps, EditorToolDefinition } from '@/editors/editorToolDefinition';
@@ -19,8 +19,8 @@ function getEditorComponentName(component: NamedComponent) {
 }
 
 const editorComponentRegistry: Record<string, EditorToolDefinition> = {
-  [getEditorComponentName(MPage)]: {
-    component: markRaw(MPage),
+  MPage: {
+    component: markRaw(defineAsyncComponent(() => import('@/blocks/MPage.vue'))),
     ...mPageEditorTool
   },
   [getEditorComponentName(MInput)]: {
