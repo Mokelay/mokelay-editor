@@ -35,6 +35,9 @@ export const enMessages = {
       value: 'Default value',
       valuePlaceholder: 'Please enter a default value'
     }
+  },
+  page: {
+    toolboxTitle: 'Page'
   }
 } as const;
 

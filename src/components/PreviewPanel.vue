@@ -1,24 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { OutputData } from '@editorjs/editorjs';
 import { useI18n } from '@/i18n';
-import {
-  getEditorComponentDefinition,
-  isRegisteredEditorComponent
-} from '@/editors/editorComponentRegistry';
+import MPage from '@/blocks/MPage.vue';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
-type EditorBlock = {
-  type: string;
-  data: Record<string, string>;
-};
-
 type EditorOutput = {
-  blocks: EditorBlock[];
+  blocks: OutputData['blocks'];
 };
-
-type BlockComponentProps = {
-  edit: boolean;
-} & Record<string, unknown>;
 const { t } = useI18n();
 
 const savedConfig = computed<EditorOutput | null>(() => {
@@ -31,34 +20,7 @@ const savedConfig = computed<EditorOutput | null>(() => {
   }
 });
 
-const blocks = computed(() => savedConfig.value?.blocks ?? []);
-
-function isCustomBlock(type: string) {
-  return isRegisteredEditorComponent(type);
-}
-
-function getBlockComponent(type: string) {
-  const definition = getEditorComponentDefinition(type);
-  return definition?.component ?? null;
-}
-
-function getBlockProps(block: EditorBlock): BlockComponentProps {
-  const definition = getEditorComponentDefinition(block.type);
-  if (!definition) {
-    return {
-      edit: false,
-      ...block.data
-    };
-  }
-
-  return {
-    ...definition.normalizeProps({
-      ...(definition.createInitialProps?.() ?? {}),
-      ...block.data,
-      edit: false
-    })
-  };
-}
+const blocks = computed<OutputData['blocks']>(() => savedConfig.value?.blocks ?? []);
 
 function backToEditor() {
   window.location.hash = '/';
@@ -78,18 +40,6 @@ function backToEditor() {
       {{ t('preview.emptyState') }}
     </p>
 
-    <div v-else class="space-y-4">
-      <div v-for="(block, index) in blocks" :key="index" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-        <p v-if="block.type === 'paragraph'" class="text-sm leading-6" v-html="block.data.text"></p>
-
-        <component
-          :is="getBlockComponent(block.type)"
-          v-else-if="isCustomBlock(block.type)"
-          v-bind="getBlockProps(block)"
-        />
-
-        <pre v-else class="overflow-auto rounded bg-slate-100 p-2 text-xs dark:bg-slate-800">{{ block }}</pre>
-      </div>
-    </div>
+    <MPage v-else :edit="false" :value="blocks" />
   </section>
 </template>

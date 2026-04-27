@@ -104,6 +104,9 @@ export default class EditorToolFactory {
         this.unmountVueApp();
         this.vueApp = createApp(definition.component, {
           ...this.state,
+          onToolChange: (payload: EditorToolComponentProps) => {
+            Object.assign(this.state, payload);
+          },
           onChange: (payload: EditorToolComponentProps) => {
             Object.assign(this.state, payload);
           }
