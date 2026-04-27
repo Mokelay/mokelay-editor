@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'mokelay-editor-v1';
+const CACHE_VERSION = 'mokelay-editor-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -30,6 +30,14 @@ self.addEventListener('fetch', (event) => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  if (
+    requestUrl.pathname.startsWith('/@vite/') ||
+    requestUrl.pathname.startsWith('/src/') ||
+    requestUrl.searchParams.has('t')
+  ) {
     return;
   }
 
