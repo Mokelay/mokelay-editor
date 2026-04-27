@@ -13,8 +13,8 @@ export const zhMessages = {
     placeholder: '开始输入你的内容...',
     defaultParagraph: '欢迎使用 Mokelay 编辑器初始化模板。',
     fullscreenEdit: '全屏编辑',
-    saveContent: '保存内容',
-    previewPage: '预览页面',
+    saveContent: '保存',
+    previewPage: '预览',
     properties: '属性',
     propertyDialogTitle: '属性设置',
     configJson: '配置 JSON',
@@ -23,7 +23,7 @@ export const zhMessages = {
   preview: {
     title: '配置预览',
     backToEditor: '返回',
-    emptyState: '未找到已保存配置，请先在编辑器点击“保存内容”。'
+    emptyState: '未找到已保存配置，请先在编辑器点击“保存”。'
   },
   input: {
     toolboxTitle: '输入框',

@@ -2,6 +2,7 @@
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
 
+// 输入框组件在编辑器中的属性定义。
 export interface MInputProps {
   edit: boolean;
   label?: string;
@@ -9,6 +10,7 @@ export interface MInputProps {
   value?: string;
 }
 
+// 输入框工具定义：提供工具箱信息、属性面板、默认值和保存规则。
 export const mInputEditorTool = defineEditorTool<MInputProps>({
   toolbox: {
     get title() {
@@ -69,8 +71,10 @@ const props = defineProps<MInputProps & {
 }>();
 const { t } = useI18n();
 
+// 统一标签展示文本，避免模板层重复判空。
 const labelText = computed(() => props.label ?? '');
 
+// 组件内任意字段变更后，向外抛出完整 payload，保持工具状态一致。
 function emitChange(payload: Partial<MInputProps>) {
   const nextPayload = {
     edit: props.edit,

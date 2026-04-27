@@ -8,6 +8,7 @@ import {
   isRegisteredEditorComponent
 } from '@/editors/editorComponentRegistry';
 
+// MPage 作为容器块，既支持 EditorJS 编辑态，也支持组件化预览态。
 export interface MPageProps {
   edit?: boolean;
   value?: OutputData['blocks'];
@@ -27,6 +28,7 @@ const shouldRenderEditor = computed(() => props.edit);
 let editor: EditorJS | null = null;
 let isSyncingFromProps = false;
 let skipNextPropSync = false;
+// 缓存最近一次编辑器输出，用于编辑态与预览态切换时保留数据。
 let editorDataCache: OutputData = {
   blocks: props.value
 };
@@ -41,6 +43,7 @@ function buildOutput(blocks: OutputData['blocks']): OutputData {
   };
 }
 
+// 当前通过 JSON 深比较 blocks，保证外部同步时能正确判断是否需要重建编辑器。
 function isSameBlocks(left: OutputData['blocks'], right: OutputData['blocks']) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -72,6 +75,7 @@ function getBlockProps(block: OutputData['blocks'][number]) {
   };
 }
 
+// 将内部变更通知给外部，并标记下一次 props 同步跳过，避免循环更新。
 function notifyChanges(blocks: OutputData['blocks']) {
   const payload = {
     edit: props.edit,
@@ -110,6 +114,7 @@ async function unmountEditor() {
   try {
     editorDataCache = await currentEditor.save();
   } catch {
+    // 销毁阶段若保存失败，回退到当前 props，避免丢失可用数据。
     editorDataCache = buildOutput(props.value);
   }
 
@@ -142,6 +147,7 @@ onMounted(async () => {
 watch(
   () => props.value,
   async (blocks) => {
+    // 本次更新由内部触发时，跳过反向同步，避免重复重建。
     if (skipNextPropSync) {
       skipNextPropSync = false;
       return;
@@ -163,6 +169,7 @@ watch(
 );
 
 watch(localeValue, async () => {
+  // 切换语言后重建 EditorJS，以刷新工具名称与界面文案。
   if (!editor) return;
   await rebuildEditor();
 });

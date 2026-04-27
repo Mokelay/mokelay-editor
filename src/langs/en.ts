@@ -13,7 +13,7 @@ export const enMessages = {
     placeholder: 'Start typing your content...',
     defaultParagraph: 'Welcome to the Mokelay editor starter template.',
     fullscreenEdit: 'Fullscreen',
-    saveContent: 'Save content',
+    saveContent: 'Save',
     previewPage: 'Preview',
     properties: 'Properties',
     propertyDialogTitle: 'Property Settings',
@@ -23,7 +23,7 @@ export const enMessages = {
   preview: {
     title: 'Config Preview',
     backToEditor: 'Back',
-    emptyState: 'No saved config found. Please click "Save content" in the editor first.'
+    emptyState: 'No saved config found. Please click "Save" in the editor first.'
   },
   input: {
     toolboxTitle: 'Input',
