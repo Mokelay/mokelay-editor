@@ -3,6 +3,8 @@ export const zhMessages = {
     title: 'Mokelay Editor',
     subtitle: 'Mokelay页面配置器',
     darkMode: '深色模式',
+    dark: '深色',
+    light: '浅色',
     language: '语言',
     chinese: '中文',
     english: 'English'

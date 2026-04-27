@@ -6,7 +6,6 @@ import { getInitialEditorBlocks } from '@/utils/editorData';
 import { useI18n } from '@/i18n';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 
-const panelRef = ref<HTMLElement | null>(null);
 const pageRef = ref<InstanceType<typeof MPage> | null>(null);
 const savedConfigText = ref('');
 const showConfigDialog = ref(false);
@@ -34,29 +33,16 @@ function closeConfigDialog() {
   showConfigDialog.value = false;
 }
 
-async function toggleFullscreen() {
-  if (!panelRef.value) return;
-  if (!document.fullscreenElement) {
-    await panelRef.value.requestFullscreen();
-    return;
-  }
-  await document.exitFullscreen();
-}
+defineExpose({
+  save,
+  openPreview
+});
 </script>
 
 <template>
   <section
-    ref="panelRef"
-    class="flex h-[calc(100vh-14rem)] min-h-[520px] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm [&:fullscreen]:h-screen dark:border-slate-700 dark:bg-slate-900"
+    class="flex min-h-[520px] flex-1 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
   >
-    <div class="mb-3 flex items-center justify-end gap-2">
-      <button class="rounded bg-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600" @click="toggleFullscreen">
-        {{ t('editor.fullscreenEdit') }}
-      </button>
-      <button class="rounded bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400" @click="save">{{ t('editor.saveContent') }}</button>
-      <button class="rounded bg-emerald-500 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreview">{{ t('editor.previewPage') }}</button>
-    </div>
-
     <MPage ref="pageRef" :edit="true" :value="pageBlocks" @change="handlePageChange" />
 
     <div
