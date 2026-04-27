@@ -38,6 +38,22 @@ export const enMessages = {
       valuePlaceholder: 'Please enter a default value'
     }
   },
+  advanceInput: {
+    toolboxTitle: 'Advanced Input',
+    defaultLabel: 'Advanced Field',
+    defaultPlaceholder: 'Type @, / or # to trigger suggestions...',
+    editLabelPlaceholder: 'Field label (e.g. Approval note)',
+    propertyPanelTitle: 'Advanced Input Properties',
+    componentTag: 'Component',
+    customPreviewTitle: 'Embedded Component Preview',
+    properties: {
+      label: 'Label',
+      placeholder: 'Placeholder',
+      atOptions: '@ suggestions (JSON array)',
+      slashOptions: '/ suggestions (JSON array)',
+      hashOptions: '# suggestions (JSON array)'
+    }
+  },
   page: {
     toolboxTitle: 'Page'
   },
