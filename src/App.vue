@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Switch, SwitchGroup, SwitchLabel } from '@headlessui/vue';
 import { TooltipProvider } from 'reka-ui';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
@@ -40,6 +39,7 @@ function getInitialThemeMode() {
 const isDark = ref(getInitialThemeMode());
 const routeHash = ref(window.location.hash || '#/');
 const { t, localeValue, setLocale } = useI18n();
+const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
 
 const isPreviewPage = computed(() => routeHash.value === '#/preview');
 
@@ -65,45 +65,73 @@ watch(isDark, (dark) => {
   setCookieValue(THEME_MODE_COOKIE_KEY, dark ? 'dark' : 'light');
 });
 
+function handleThemeModeChange(value: string) {
+  isDark.value = value === 'dark';
+}
+
+function saveEditorContent() {
+  editorPanelRef.value?.save();
+}
+
+function openPreviewPage() {
+  editorPanelRef.value?.openPreview();
+}
+
+function backToEditor() {
+  window.location.hash = '/';
+}
 </script>
 
 <template>
   <TooltipProvider>
-    <main class="flex min-h-screen flex-col gap-4 bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
-      <header class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <h1 class="text-2xl font-bold">{{ t('app.title') }}</h1>
-        <!-- <p class="mt-2 text-slate-600 dark:text-slate-400">{{ t('app.subtitle') }}</p> -->
-        <div class="mt-4 flex flex-wrap items-center gap-5">
-          <SwitchGroup as="div" class="flex items-center gap-3">
-            <SwitchLabel class="text-sm">{{ t('app.darkMode') }}</SwitchLabel>
-            <Switch
-              v-model="isDark"
-              class="relative inline-flex h-6 w-11 items-center rounded-full"
-              :class="isDark ? 'bg-indigo-500' : 'bg-slate-400 dark:bg-slate-600'"
+    <main class="flex min-h-screen flex-col bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+      <header class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <h1 class="text-xl font-semibold">{{ t('app.title') }}</h1>
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="flex items-center gap-2 text-sm">
+            <span>{{ t('app.darkMode') }}</span>
+            <select
+              :value="isDark ? 'dark' : 'light'"
+              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
+              @change="handleThemeModeChange(($event.target as HTMLSelectElement).value)"
             >
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition"
-                :class="isDark ? 'translate-x-6' : 'translate-x-1'"
-              />
-            </Switch>
-          </SwitchGroup>
+              <option value="dark">{{ t('app.dark') }}</option>
+              <option value="light">{{ t('app.light') }}</option>
+            </select>
+          </label>
 
           <label class="flex items-center gap-2 text-sm">
             <span>{{ t('app.language') }}</span>
             <select
               :value="localeValue"
-              class="rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-800"
+              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
               @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en')"
             >
               <option value="zh">{{ t('app.chinese') }}</option>
               <option value="en">{{ t('app.english') }}</option>
             </select>
           </label>
+
+          <template v-if="!isPreviewPage">
+            <button class="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400" @click="saveEditorContent">
+              {{ t('editor.saveContent') }}
+            </button>
+            <button class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreviewPage">
+              {{ t('editor.previewPage') }}
+            </button>
+          </template>
+          <button
+            v-else
+            class="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600"
+            @click="backToEditor"
+          >
+            {{ t('preview.backToEditor') }}
+          </button>
         </div>
       </header>
 
       <PreviewPanel v-if="isPreviewPage" />
-      <EditorPanel v-else />
+      <EditorPanel v-else ref="editorPanelRef" />
     </main>
   </TooltipProvider>
 </template>
