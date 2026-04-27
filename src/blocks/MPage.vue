@@ -26,6 +26,7 @@ const emit = defineEmits<{
 const shouldRenderEditor = computed(() => props.edit);
 let editor: EditorJS | null = null;
 let isSyncingFromProps = false;
+let skipNextPropSync = false;
 let editorDataCache: OutputData = {
   blocks: props.value
 };
@@ -77,6 +78,7 @@ function notifyChanges(blocks: OutputData['blocks']) {
     value: blocks
   };
   props.onToolChange?.(payload);
+  skipNextPropSync = true;
   emit('change', blocks);
 }
 
@@ -137,6 +139,11 @@ onMounted(async () => {
 watch(
   () => props.value,
   async (blocks) => {
+    if (skipNextPropSync) {
+      skipNextPropSync = false;
+      return;
+    }
+
     const nextBlocks = Array.isArray(blocks) ? blocks : ([] as OutputData['blocks']);
     const cachedBlocks = Array.isArray(editorDataCache.blocks) ? editorDataCache.blocks : ([] as OutputData['blocks']);
     if (isSameBlocks(nextBlocks, cachedBlocks)) {
