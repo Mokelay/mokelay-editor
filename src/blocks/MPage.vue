@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import EditorJS, { type OutputData } from '@editorjs/editorjs';
+import EditorJS, { type OutputData, type ToolSettings } from '@editorjs/editorjs';
+import EditorJsColumns from '@calumk/editorjs-columns';
+import Table from '@editorjs/table';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
-import {
-  getEditorComponentDefinition,
-  isRegisteredEditorComponent
-} from '@/editors/editorComponentRegistry';
+import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
 
 // MPage 作为容器块，既支持 EditorJS 编辑态，也支持组件化预览态。
 export interface MPageProps {
@@ -37,6 +36,19 @@ const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
 const previewBlocks = computed(() => (Array.isArray(props.value) ? props.value : []));
 
+type EditorBlock = OutputData['blocks'][number];
+type EditorColumnData = { blocks?: OutputData['blocks'] };
+
+function getColumns(block: EditorBlock): EditorColumnData[] {
+  const cols = (block.data as { cols?: unknown }).cols;
+  if (!Array.isArray(cols)) return [];
+  return cols.filter((col): col is EditorColumnData => typeof col === 'object' && col !== null);
+}
+
+function getColumnBlocks(column: EditorColumnData): OutputData['blocks'] {
+  return Array.isArray(column.blocks) ? column.blocks : [];
+}
+
 function buildOutput(blocks: OutputData['blocks']): OutputData {
   return {
     blocks
@@ -46,33 +58,6 @@ function buildOutput(blocks: OutputData['blocks']): OutputData {
 // 当前通过 JSON 深比较 blocks，保证外部同步时能正确判断是否需要重建编辑器。
 function isSameBlocks(left: OutputData['blocks'], right: OutputData['blocks']) {
   return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function isCustomBlock(type: string) {
-  return isRegisteredEditorComponent(type);
-}
-
-function getBlockComponent(type: string) {
-  const definition = getEditorComponentDefinition(type);
-  return definition?.component ?? null;
-}
-
-function getBlockProps(block: OutputData['blocks'][number]) {
-  const definition = getEditorComponentDefinition(block.type);
-  if (!definition) {
-    return {
-      edit: false,
-      ...block.data
-    };
-  }
-
-  return {
-    ...definition.normalizeProps({
-      ...(definition.createInitialProps?.() ?? {}),
-      ...block.data,
-      edit: false
-    })
-  };
 }
 
 // 将内部变更通知给外部，并标记下一次 props 同步跳过，避免循环更新。
@@ -88,10 +73,26 @@ function notifyChanges(blocks: OutputData['blocks']) {
 
 async function mountEditor() {
   if (!holderRef.value || !shouldRenderEditor.value || editor) return;
+  const columnTools: Record<string, ToolSettings> = {
+    ...(createEditorTools({ edit: true }) as Record<string, ToolSettings>),
+    table: {
+      class: Table as unknown as ToolSettings['class'],
+      inlineToolbar: true
+    }
+  };
   editor = new EditorJS({
     holder: holderRef.value,
     placeholder: t('editor.placeholder'),
-    tools: createEditorTools({ edit: true }),
+    tools: {
+      ...columnTools,
+      columns: {
+        class: EditorJsColumns as unknown as ToolSettings['class'],
+        config: {
+          EditorJsLibrary: EditorJS,
+          tools: columnTools
+        }
+      }
+    },
     data: editorDataCache,
     i18n: {
       messages: getEditorJsI18nMessages(localeValue.value)
@@ -189,18 +190,30 @@ onBeforeUnmount(async () => {
 </script>
 
 <template>
-  <div v-if="shouldRenderEditor" ref="holderRef" class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"></div>
+  <div
+    v-if="shouldRenderEditor"
+    ref="holderRef"
+    class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 py-3 pr-3 pl-11 dark:border-slate-700 dark:bg-slate-950"
+  ></div>
   <div v-else class="space-y-4">
     <div v-for="(block, index) in previewBlocks" :key="index" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-      <p v-if="block.type === 'paragraph'" class="text-sm leading-6" v-html="block.data.text"></p>
+      <EditorPreviewBlock v-if="block.type !== 'columns'" :block="block" />
 
-      <component
-        :is="getBlockComponent(block.type)"
-        v-else-if="isCustomBlock(block.type)"
-        v-bind="getBlockProps(block)"
-      />
-
-      <pre v-else class="overflow-auto rounded bg-slate-100 p-2 text-xs dark:bg-slate-800">{{ block }}</pre>
+      <div v-else-if="block.type === 'columns'" class="grid gap-3 md:grid-cols-2">
+        <div
+          v-for="(column, columnIndex) in getColumns(block)"
+          :key="`columns-${index}-${columnIndex}`"
+          class="space-y-2 rounded border border-slate-200 p-2 dark:border-slate-700"
+        >
+          <div
+            v-for="(columnBlock, columnBlockIndex) in getColumnBlocks(column)"
+            :key="`columns-${index}-${columnIndex}-${columnBlockIndex}`"
+            class="rounded border border-slate-200 p-2 dark:border-slate-700"
+          >
+            <EditorPreviewBlock :block="columnBlock" compact-table />
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>

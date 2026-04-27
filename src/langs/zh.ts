@@ -40,7 +40,7 @@ export const zhMessages = {
   },
   page: {
     toolboxTitle: '页面'
-  }
+  },
 } as const;
 
 export const zhEditorJsMessages = {
@@ -86,6 +86,7 @@ export const zhEditorJsMessages = {
     Quote: '引用',
     Delimiter: '分割线',
     Table: '表格',
-    Link: '链接'
-  }
+    Link: '链接',
+    Columns: '分栏'
+  },
 } as const;

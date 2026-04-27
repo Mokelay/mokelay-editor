@@ -40,7 +40,7 @@ export const enMessages = {
   },
   page: {
     toolboxTitle: 'Page'
-  }
+  },
 } as const;
 
 export const enEditorJsMessages = {} as const;
