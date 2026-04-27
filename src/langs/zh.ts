@@ -35,6 +35,9 @@ export const zhMessages = {
       value: '默认值',
       valuePlaceholder: '请输入默认值'
     }
+  },
+  page: {
+    toolboxTitle: '页面'
   }
 } as const;
 
