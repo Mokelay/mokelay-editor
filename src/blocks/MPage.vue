@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import EditorJS, { type OutputData } from '@editorjs/editorjs';
+import EditorJS, { type OutputData, type ToolSettings } from '@editorjs/editorjs';
 import EditorJsColumns from '@calumk/editorjs-columns';
 import Table from '@editorjs/table';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -73,10 +73,10 @@ function notifyChanges(blocks: OutputData['blocks']) {
 
 async function mountEditor() {
   if (!holderRef.value || !shouldRenderEditor.value || editor) return;
-  const columnTools = {
-    ...createEditorTools({ edit: true }),
+  const columnTools: Record<string, ToolSettings> = {
+    ...(createEditorTools({ edit: true }) as Record<string, ToolSettings>),
     table: {
-      class: Table,
+      class: Table as unknown as ToolSettings['class'],
       inlineToolbar: true
     }
   };
@@ -86,7 +86,7 @@ async function mountEditor() {
     tools: {
       ...columnTools,
       columns: {
-        class: EditorJsColumns,
+        class: EditorJsColumns as unknown as ToolSettings['class'],
         config: {
           EditorJsLibrary: EditorJS,
           tools: columnTools
