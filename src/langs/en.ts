@@ -38,6 +38,24 @@ export const enMessages = {
       valuePlaceholder: 'Please enter a default value'
     }
   },
+  advanceInput: {
+    toolboxTitle: 'Advanced Input',
+    defaultLabel: 'Advanced field',
+    defaultPlaceholder: 'Type @ / # / to trigger suggestions',
+    editLabelPlaceholder: 'Field label (e.g. Approver)',
+    propertyPanelTitle: 'Advanced Input Properties',
+    defaultTriggerConfig: '{"@":["Alice"],"#":["todo"]}',
+    defaultComponentOptions: '["MInput","MPage"]',
+    componentTag: 'Component',
+    properties: {
+      label: 'Label',
+      placeholder: 'Placeholder',
+      value: 'Default value',
+      valuePlaceholder: 'Please enter a default value',
+      triggerConfig: 'Trigger config (JSON)',
+      componentOptions: 'Insertable components (JSON array)'
+    }
+  },
   page: {
     toolboxTitle: 'Page'
   },
