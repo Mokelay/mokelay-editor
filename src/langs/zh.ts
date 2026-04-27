@@ -38,6 +38,21 @@ export const zhMessages = {
       valuePlaceholder: '请输入默认值'
     }
   },
+  advanceInput: {
+    toolboxTitle: '高级输入框',
+    defaultLabel: '高级字段',
+    defaultPlaceholder: '输入 @ / # / 触发建议，输入 / 可插入组件',
+    editLabelPlaceholder: '字段标签（示例：审批说明）',
+    propertyPanelTitle: '高级输入框属性',
+    insertedTitle: '已插入组件预览',
+    properties: {
+      label: '字段标签',
+      placeholder: '占位提示',
+      value: '默认值',
+      valuePlaceholder: '请输入默认值',
+      triggerOptionsJson: '触发词 JSON'
+    }
+  },
   page: {
     toolboxTitle: '页面'
   },
