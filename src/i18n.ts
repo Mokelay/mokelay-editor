@@ -3,7 +3,38 @@ import { editorJsLocaleMessages, localeMessages } from '@/langs';
 
 type Locale = 'zh' | 'en';
 
-const currentLocale = ref<Locale>(navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en');
+const LOCALE_COOKIE_KEY = 'mokelay-editor-locale';
+
+function getCookieValue(name: string): string | null {
+  const entries = document.cookie ? document.cookie.split('; ') : [];
+  const entry = entries.find((item) => item.startsWith(`${name}=`));
+
+  if (!entry) {
+    return null;
+  }
+
+  return decodeURIComponent(entry.slice(name.length + 1));
+}
+
+function setCookieValue(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; samesite=lax`;
+}
+
+function getDefaultLocale(): Locale {
+  return navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+
+function getInitialLocale(): Locale {
+  const cookieLocale = getCookieValue(LOCALE_COOKIE_KEY);
+
+  if (cookieLocale === 'zh' || cookieLocale === 'en') {
+    return cookieLocale;
+  }
+
+  return getDefaultLocale();
+}
+
+const currentLocale = ref<Locale>(getInitialLocale());
 
 function getMessage(path: string): string {
   const parts = path.split('.');
@@ -26,13 +57,16 @@ function getMessage(path: string): string {
   return path;
 }
 
+function updateLocale(locale: Locale) {
+  currentLocale.value = locale;
+  setCookieValue(LOCALE_COOKIE_KEY, locale);
+}
+
 export function useI18n() {
   return {
     locale: readonly(currentLocale),
     t: getMessage,
-    setLocale: (locale: Locale) => {
-      currentLocale.value = locale;
-    },
+    setLocale: updateLocale,
     localeValue: computed(() => currentLocale.value)
   };
 }
@@ -46,7 +80,5 @@ export const i18n = {
   get locale() {
     return currentLocale.value;
   },
-  setLocale(locale: Locale) {
-    currentLocale.value = locale;
-  }
+  setLocale: updateLocale
 };

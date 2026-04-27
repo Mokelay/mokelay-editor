@@ -6,7 +6,38 @@ import { useI18n } from '@/i18n';
 import EditorPanel from '@/components/EditorPanel.vue';
 import PreviewPanel from '@/components/PreviewPanel.vue';
 
-const isDark = ref(true);
+const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
+
+function getCookieValue(name: string): string | null {
+  const entries = document.cookie ? document.cookie.split('; ') : [];
+  const entry = entries.find((item) => item.startsWith(`${name}=`));
+
+  if (!entry) {
+    return null;
+  }
+
+  return decodeURIComponent(entry.slice(name.length + 1));
+}
+
+function setCookieValue(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; samesite=lax`;
+}
+
+function getInitialThemeMode() {
+  const savedThemeMode = getCookieValue(THEME_MODE_COOKIE_KEY);
+
+  if (savedThemeMode === 'dark') {
+    return true;
+  }
+
+  if (savedThemeMode === 'light') {
+    return false;
+  }
+
+  return false;
+}
+
+const isDark = ref(getInitialThemeMode());
 const routeHash = ref(window.location.hash || '#/');
 const { t, localeValue, setLocale } = useI18n();
 
@@ -31,6 +62,7 @@ onUnmounted(() => {
 
 watch(isDark, (dark) => {
   applyTheme(dark);
+  setCookieValue(THEME_MODE_COOKIE_KEY, dark ? 'dark' : 'light');
 });
 
 </script>
