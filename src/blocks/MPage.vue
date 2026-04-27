@@ -3,6 +3,10 @@ import EditorJS, { type OutputData } from '@editorjs/editorjs';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
+import {
+  getEditorComponentDefinition,
+  isRegisteredEditorComponent
+} from '@/editors/editorComponentRegistry';
 
 export interface MPageProps {
   edit?: boolean;
@@ -28,6 +32,7 @@ let editorDataCache: OutputData = {
 
 const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
+const previewBlocks = computed(() => (Array.isArray(props.value) ? props.value : []));
 
 function buildOutput(blocks: OutputData['blocks']): OutputData {
   return {
@@ -37,6 +42,33 @@ function buildOutput(blocks: OutputData['blocks']): OutputData {
 
 function isSameBlocks(left: OutputData['blocks'], right: OutputData['blocks']) {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function isCustomBlock(type: string) {
+  return isRegisteredEditorComponent(type);
+}
+
+function getBlockComponent(type: string) {
+  const definition = getEditorComponentDefinition(type);
+  return definition?.component ?? null;
+}
+
+function getBlockProps(block: OutputData['blocks'][number]) {
+  const definition = getEditorComponentDefinition(block.type);
+  if (!definition) {
+    return {
+      edit: false,
+      ...block.data
+    };
+  }
+
+  return {
+    ...definition.normalizeProps({
+      ...(definition.createInitialProps?.() ?? {}),
+      ...block.data,
+      edit: false
+    })
+  };
 }
 
 function notifyChanges(blocks: OutputData['blocks']) {
@@ -141,4 +173,17 @@ onBeforeUnmount(async () => {
 
 <template>
   <div v-if="shouldRenderEditor" ref="holderRef" class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"></div>
+  <div v-else class="space-y-4">
+    <div v-for="(block, index) in previewBlocks" :key="index" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+      <p v-if="block.type === 'paragraph'" class="text-sm leading-6" v-html="block.data.text"></p>
+
+      <component
+        :is="getBlockComponent(block.type)"
+        v-else-if="isCustomBlock(block.type)"
+        v-bind="getBlockProps(block)"
+      />
+
+      <pre v-else class="overflow-auto rounded bg-slate-100 p-2 text-xs dark:bg-slate-800">{{ block }}</pre>
+    </div>
+  </div>
 </template>
