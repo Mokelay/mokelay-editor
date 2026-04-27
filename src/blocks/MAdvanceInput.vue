@@ -100,7 +100,7 @@ export const mAdvanceInputEditorTool = defineEditorTool<MAdvanceInputProps>({
 </script>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 
 const props = defineProps<MAdvanceInputProps & {
@@ -109,23 +109,14 @@ const props = defineProps<MAdvanceInputProps & {
 }>();
 
 const { t } = useI18n();
-const textareaRef = ref<HTMLTextAreaElement | null>(null);
-const localValue = ref(props.value ?? '');
+const editorRef = ref<HTMLDivElement | null>(null);
 const showSuggestions = ref(false);
 const activeTrigger = ref<TriggerChar | null>(null);
 const activeQuery = ref('');
-const replaceRange = ref<{ start: number; end: number } | null>(null);
+const replaceRange = ref<{ node: Text; start: number; end: number } | null>(null);
+const localValue = ref(props.value ?? '');
 
 const labelText = computed(() => props.label ?? '');
-
-watch(
-  () => props.value,
-  (nextValue) => {
-    if (typeof nextValue === 'string' && nextValue !== localValue.value) {
-      localValue.value = nextValue;
-    }
-  }
-);
 
 function emitChange(payload: Partial<MAdvanceInputProps>) {
   const nextPayload = {
@@ -185,12 +176,151 @@ function closeSuggestion() {
   replaceRange.value = null;
 }
 
-function updateSuggestionState() {
-  const textarea = textareaRef.value;
-  if (!textarea) return;
+type RenderToken = {
+  type: 'text' | 'tag' | 'component';
+  value: string;
+};
 
-  const cursor = textarea.selectionStart;
-  const text = textarea.value.slice(0, cursor);
+const renderedTokens = computed<RenderToken[]>(() => parseTokens(localValue.value));
+
+function parseTokens(raw: string) {
+  const tokens: RenderToken[] = [];
+  const pattern = /(\{\{component:([a-zA-Z0-9_-]+)\}\}|[@#][^\s]+)/g;
+  let lastIndex = 0;
+
+  for (const matched of raw.matchAll(pattern)) {
+    const fullText = matched[0];
+    const matchedIndex = matched.index ?? 0;
+    if (matchedIndex > lastIndex) {
+      tokens.push({ type: 'text', value: raw.slice(lastIndex, matchedIndex) });
+    }
+    if (fullText.startsWith('{{component:')) {
+      const componentName = matched[2] ?? '';
+      tokens.push({ type: 'component', value: componentName });
+    } else {
+      tokens.push({ type: 'tag', value: fullText });
+    }
+    lastIndex = matchedIndex + fullText.length;
+  }
+
+  if (lastIndex < raw.length) {
+    tokens.push({ type: 'text', value: raw.slice(lastIndex) });
+  }
+  if (!tokens.length) {
+    tokens.push({ type: 'text', value: '' });
+  }
+  return tokens;
+}
+
+function serializeEditorContent() {
+  const root = editorRef.value;
+  if (!root) return localValue.value;
+
+  let serialized = '';
+  root.childNodes.forEach((node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      serialized += node.textContent ?? '';
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const element = node as HTMLElement;
+    const token = element.dataset.token;
+    const component = element.dataset.component;
+    if (token) {
+      serialized += `${token} `;
+      return;
+    }
+    if (component) {
+      serialized += `{{component:${component}}} `;
+      return;
+    }
+    serialized += element.textContent ?? '';
+  });
+  return serialized.replace(/\u00a0/g, ' ');
+}
+
+function createTagNode(tagValue: string) {
+  const tagNode = document.createElement('span');
+  tagNode.className = 'ce-advance-input-tool__tag';
+  tagNode.contentEditable = 'false';
+  tagNode.dataset.token = tagValue;
+  tagNode.textContent = tagValue;
+  return tagNode;
+}
+
+function createComponentNode(componentName: string) {
+  const componentNode = document.createElement('span');
+  componentNode.className = 'ce-advance-input-tool__component';
+  componentNode.contentEditable = 'false';
+  componentNode.dataset.component = componentName;
+
+  const titleNode = document.createElement('strong');
+  titleNode.textContent = componentName;
+  const descNode = document.createElement('small');
+  descNode.textContent = t('advanceInput.componentTag');
+  componentNode.appendChild(titleNode);
+  componentNode.appendChild(descNode);
+  return componentNode;
+}
+
+function renderEditorContent(value: string) {
+  const root = editorRef.value;
+  if (!root) return;
+
+  const previousSerialized = serializeEditorContent();
+  if (previousSerialized === value) return;
+
+  root.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  parseTokens(value).forEach((token) => {
+    if (token.type === 'text') {
+      fragment.appendChild(document.createTextNode(token.value));
+      return;
+    }
+    if (token.type === 'tag') {
+      fragment.appendChild(createTagNode(token.value));
+      fragment.appendChild(document.createTextNode(' '));
+      return;
+    }
+    fragment.appendChild(createComponentNode(token.value));
+    fragment.appendChild(document.createTextNode(' '));
+  });
+  root.appendChild(fragment);
+}
+
+watch(
+  () => props.value,
+  (nextValue) => {
+    if (typeof nextValue !== 'string') return;
+    if (nextValue !== localValue.value) {
+      localValue.value = nextValue;
+      renderEditorContent(nextValue);
+    }
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  renderEditorContent(localValue.value);
+});
+
+function updateSuggestionState() {
+  const selection = window.getSelection();
+  if (!selection || !selection.rangeCount || !selection.isCollapsed) {
+    closeSuggestion();
+    return;
+  }
+
+  const anchorNode = selection.anchorNode;
+  if (!anchorNode || anchorNode.nodeType !== Node.TEXT_NODE) {
+    closeSuggestion();
+    return;
+  }
+
+  const textNode = anchorNode as Text;
+  const cursor = selection.anchorOffset;
+  const text = textNode.textContent?.slice(0, cursor) ?? '';
   const matched = text.match(/(^|\s)([@/#])([^\s@/#]*)$/);
   if (!matched) {
     closeSuggestion();
@@ -204,33 +334,61 @@ function updateSuggestionState() {
 
   activeTrigger.value = trigger;
   activeQuery.value = query;
-  replaceRange.value = { start, end: cursor };
+  replaceRange.value = { node: textNode, start, end: cursor };
   showSuggestions.value = true;
 }
 
-function handleInput(event: Event) {
-  const value = (event.target as HTMLTextAreaElement).value;
+function handleInput() {
+  const value = serializeEditorContent();
   localValue.value = value;
   emitChange({ value });
   updateSuggestionState();
 }
 
 function insertOption(option: TriggerOption) {
-  const textarea = textareaRef.value;
-  const currentValue = localValue.value;
+  const root = editorRef.value;
   const range = replaceRange.value;
-  if (!textarea || !range) return;
+  if (!root || !range) return;
 
-  const nextValue = `${currentValue.slice(0, range.start)}${option.value} ${currentValue.slice(range.end)}`;
+  const targetNode = range.node;
+  const parent = targetNode.parentNode;
+  if (!parent) return;
+
+  const originText = targetNode.textContent ?? '';
+  const beforeText = originText.slice(0, range.start);
+  const afterText = originText.slice(range.end);
+  const beforeNode = document.createTextNode(beforeText);
+  const afterNode = document.createTextNode(afterText);
+  const spacerNode = document.createTextNode(' ');
+
+  const fragment = document.createDocumentFragment();
+  fragment.appendChild(beforeNode);
+
+  if (activeTrigger.value === '/') {
+    const componentName = option.value.match(/\{\{component:([a-zA-Z0-9_-]+)\}\}/)?.[1] ?? option.label;
+    fragment.appendChild(createComponentNode(componentName));
+  } else {
+    fragment.appendChild(createTagNode(option.value));
+  }
+
+  fragment.appendChild(spacerNode);
+  fragment.appendChild(afterNode);
+  parent.replaceChild(fragment, targetNode);
+
+  const selection = window.getSelection();
+  if (selection) {
+    const caretRange = document.createRange();
+    caretRange.setStart(spacerNode, spacerNode.textContent?.length ?? 1);
+    caretRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(caretRange);
+  }
+
+  const nextValue = serializeEditorContent();
   localValue.value = nextValue;
   emitChange({ value: nextValue });
   closeSuggestion();
-
-  requestAnimationFrame(() => {
-    textarea.focus();
-    const caret = range.start + option.value.length + 1;
-    textarea.setSelectionRange(caret, caret);
-  });
+  requestAnimationFrame(() => root.focus());
 }
 
 function handleBlur() {
@@ -253,17 +411,27 @@ function handleBlur() {
     </div>
 
     <div class="ce-advance-input-tool__editor-wrap">
-      <textarea
-        ref="textareaRef"
-        class="ce-advance-input-tool__editor"
-        :placeholder="placeholder"
-        :readonly="!edit"
-        :value="localValue"
+      <div
+        v-if="edit"
+        ref="editorRef"
+        class="ce-advance-input-tool__editor ce-advance-input-tool__editor--rich"
+        contenteditable="true"
+        :data-placeholder="placeholder"
         @input="handleInput"
         @keyup="updateSuggestionState"
         @click="updateSuggestionState"
         @blur="handleBlur"
       />
+      <div v-else class="ce-advance-input-tool__editor ce-advance-input-tool__preview">
+        <template v-for="(token, index) in renderedTokens" :key="`${token.type}-${index}-${token.value}`">
+          <span v-if="token.type === 'text'">{{ token.value }}</span>
+          <span v-else-if="token.type === 'tag'" class="ce-advance-input-tool__tag">{{ token.value }}</span>
+          <span v-else class="ce-advance-input-tool__component">
+            <strong>{{ token.value }}</strong>
+            <small>{{ t('advanceInput.componentTag') }}</small>
+          </span>
+        </template>
+      </div>
 
       <div v-if="edit && showSuggestions && candidateOptions.length" class="ce-advance-input-tool__suggestion">
         <button
@@ -302,7 +470,24 @@ function handleBlur() {
 
 .ce-advance-input-tool__editor {
   min-height: 112px;
-  resize: vertical;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ce-advance-input-tool__editor--rich {
+  cursor: text;
+}
+
+.ce-advance-input-tool__editor--rich:empty::before {
+  content: attr(data-placeholder);
+  color: rgb(148 163 184);
+}
+
+.ce-advance-input-tool__preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .ce-advance-input-tool__label:focus,
@@ -348,5 +533,41 @@ function handleBlur() {
 
 .ce-advance-input-tool__suggestion-item small {
   color: rgb(100 116 139);
+}
+
+.ce-advance-input-tool__tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  margin: 0 2px;
+  border-radius: 999px;
+  background: rgb(224 231 255);
+  color: rgb(55 48 163);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.ce-advance-input-tool__component {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  margin: 2px;
+  padding: 8px 10px;
+  border: 1px solid rgb(165 180 252);
+  border-radius: 8px;
+  background: rgb(238 242 255);
+  color: rgb(49 46 129);
+}
+
+.ce-advance-input-tool__component strong {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.ce-advance-input-tool__component small {
+  color: rgb(79 70 229);
+  font-size: 11px;
+  line-height: 14px;
 }
 </style>
