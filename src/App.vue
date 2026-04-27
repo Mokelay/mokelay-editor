@@ -85,7 +85,6 @@ function openPreviewPage() {
         <h1 class="text-xl font-semibold">{{ t('app.title') }}</h1>
         <div class="flex flex-wrap items-center gap-3">
           <label class="flex items-center gap-2 text-sm">
-            <span>{{ t('app.darkMode') }}</span>
             <select
               :value="isDark ? 'dark' : 'light'"
               class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
@@ -97,7 +96,6 @@ function openPreviewPage() {
           </label>
 
           <label class="flex items-center gap-2 text-sm">
-            <span>{{ t('app.language') }}</span>
             <select
               :value="localeValue"
               class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
