@@ -83,7 +83,7 @@ function notifyChanges(blocks: OutputData['blocks']) {
 }
 
 async function mountEditor() {
-  if (!holderRef.value || !shouldRenderEditor.value) return;
+  if (!holderRef.value || !shouldRenderEditor.value || editor) return;
   editor = new EditorJS({
     holder: holderRef.value,
     placeholder: t('editor.placeholder'),
@@ -103,14 +103,17 @@ async function mountEditor() {
 }
 
 async function unmountEditor() {
-  if (!editor) return;
+  const currentEditor = editor;
+  if (!currentEditor) return;
+  editor = null;
+
   try {
-    editorDataCache = await editor.save();
+    editorDataCache = await currentEditor.save();
   } catch {
     editorDataCache = buildOutput(props.value);
   }
-  editor.destroy();
-  editor = null;
+
+  currentEditor.destroy();
 }
 
 async function rebuildEditor() {
