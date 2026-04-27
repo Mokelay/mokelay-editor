@@ -30,6 +30,7 @@ const shouldRenderEditor = computed(() => props.edit);
 let editor: EditorJS | null = null;
 let isSyncingFromProps = false;
 let skipNextPropSync = false;
+let columnsMenuObserver: MutationObserver | null = null;
 // 缓存最近一次编辑器输出，用于编辑态与预览态切换时保留数据。
 let editorDataCache: OutputData = {
   blocks: props.value
@@ -74,6 +75,39 @@ function getColumnsI18n() {
     'Yes, delete it!': t('columns.confirmDelete'),
     Cancel: t('columns.cancel')
   };
+}
+
+function getColumnsMenuTranslationMap() {
+  return new Map<string, string>([
+    ['2 Columns', t('columns.twoColumns')],
+    ['3 Columns', t('columns.threeColumns')],
+    ['Roll Columns', t('columns.rollColumns')],
+    ['Roll Colls', t('columns.rollColumns')]
+  ]);
+}
+
+function localizeColumnsMenu() {
+  if (localeValue.value !== 'zh') return;
+  const translationMap = getColumnsMenuTranslationMap();
+  document.querySelectorAll<HTMLElement>('.ce-popover-item__title').forEach((element) => {
+    const label = element.textContent?.trim();
+    if (!label) return;
+    const translatedLabel = translationMap.get(label);
+    if (!translatedLabel || translatedLabel === label) return;
+    element.textContent = translatedLabel;
+  });
+}
+
+function startColumnsMenuLocalizationObserver() {
+  columnsMenuObserver?.disconnect();
+  columnsMenuObserver = new MutationObserver(() => {
+    localizeColumnsMenu();
+  });
+  columnsMenuObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  localizeColumnsMenu();
 }
 
 function buildOutput(blocks: OutputData['blocks']): OutputData {
@@ -160,12 +194,15 @@ async function mountEditor() {
       notifyChanges(output.blocks);
     }
   });
+  startColumnsMenuLocalizationObserver();
 }
 
 async function unmountEditor() {
   const currentEditor = editor;
   if (!currentEditor) return;
   editor = null;
+  columnsMenuObserver?.disconnect();
+  columnsMenuObserver = null;
 
   try {
     editorDataCache = await currentEditor.save();
@@ -240,6 +277,8 @@ watch(shouldRenderEditor, async (enabled) => {
 });
 
 onBeforeUnmount(async () => {
+  columnsMenuObserver?.disconnect();
+  columnsMenuObserver = null;
   await unmountEditor();
 });
 </script>
