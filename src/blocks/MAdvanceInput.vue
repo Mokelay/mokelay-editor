@@ -365,11 +365,19 @@ function updateSuggestionState() {
   showSuggestions.value = true;
 }
 
-function handleInput() {
+function handleInput(event: InputEvent) {
   const value = serializeEditorContent();
   localValue.value = value;
   emitChange({ value });
   updateSuggestionState();
+
+  const shouldNormalizeNow = event.inputType === 'insertParagraph' || event.data === ' ' || event.data === '\n';
+  if (shouldNormalizeNow && /(^|\s)[@#][^\s]+(?=\s|$)/.test(value)) {
+    normalizeTokenRender();
+    requestAnimationFrame(() => {
+      moveCaretToEditorEnd();
+    });
+  }
 }
 
 function moveCaretToEditorEnd() {
@@ -451,6 +459,10 @@ function handleBlur() {
   normalizeTokenRender();
   window.setTimeout(closeSuggestion, 100);
 }
+
+function handleFocus() {
+  normalizeTokenRender();
+}
 </script>
 
 <template>
@@ -477,6 +489,7 @@ function handleBlur() {
         @input="handleInput"
         @keyup="handleEditorKeyup"
         @click="updateSuggestionState"
+        @focus="handleFocus"
         @blur="handleBlur"
       />
       <div v-else class="ce-advance-input-tool__editor ce-advance-input-tool__preview">
