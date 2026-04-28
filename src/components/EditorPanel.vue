@@ -188,12 +188,6 @@ defineExpose({
   box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
 }
 
-:deep(.ce-tag-tool) {
-  display: flex;
-  align-items: center;
-  min-height: 32px;
-}
-
 :global(.dark) :deep(.ce-input-tool__label),
 :global(.dark) :deep(.ce-input-tool__control) {
   background-color: rgb(15 23 42);

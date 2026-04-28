@@ -182,3 +182,23 @@ onBeforeUnmount(() => {
     </ElTag>
   </div>
 </template>
+
+<style scoped>
+.ce-tag-tool {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  max-width: 100%;
+}
+
+.ce-tag-tool :deep(.el-tag) {
+  max-width: 100%;
+  line-height: 20px;
+}
+
+.ce-tag-tool :deep(.el-tag__content) {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+</style>
