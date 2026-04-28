@@ -84,12 +84,13 @@ function backToEditorPage() {
 
 <template>
   <TooltipProvider>
-    <main class="flex min-h-screen flex-col bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
-      <header class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <h1 class="text-xl font-semibold">{{ t('app.title') }}</h1>
+    <main data-testid="app-root" class="flex min-h-screen flex-col bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
+      <header data-testid="app-header" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <h1 data-testid="app-title" class="text-xl font-semibold">{{ t('app.title') }}</h1>
         <div class="flex flex-wrap items-center gap-3">
           <label class="flex items-center gap-2 text-sm">
             <select
+              data-testid="theme-select"
               :value="isDark ? 'dark' : 'light'"
               class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
               @change="handleThemeModeChange(($event.target as HTMLSelectElement).value)"
@@ -101,6 +102,7 @@ function backToEditorPage() {
 
           <label class="flex items-center gap-2 text-sm">
             <select
+              data-testid="locale-select"
               :value="localeValue"
               class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
               @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en')"
@@ -111,14 +113,14 @@ function backToEditorPage() {
           </label>
 
           <template v-if="!isPreviewPage">
-            <button class="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400" @click="saveEditorContent">
+            <button data-testid="save-button" class="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400" @click="saveEditorContent">
               {{ t('editor.saveContent') }}
             </button>
-            <button class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreviewPage">
+            <button data-testid="preview-button" class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreviewPage">
               {{ t('editor.previewPage') }}
             </button>
           </template>
-          <button v-else class="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" @click="backToEditorPage">
+          <button v-else data-testid="back-to-editor-button" class="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" @click="backToEditorPage">
             {{ t('preview.backToEditor') }}
           </button>
         </div>

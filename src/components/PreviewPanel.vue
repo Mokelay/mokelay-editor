@@ -25,10 +25,11 @@ const blocks = computed<OutputData['blocks']>(() => savedConfig.value?.blocks ??
 
 <template>
   <section
+    data-testid="preview-panel"
     class="flex min-h-[520px] flex-1 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
   >
     <div class="flex-1 overflow-auto">
-      <p v-if="!savedConfig" class="rounded border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100">
+      <p v-if="!savedConfig" data-testid="preview-empty-state" class="rounded border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100">
         {{ t('preview.emptyState') }}
       </p>
 

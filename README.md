@@ -27,6 +27,7 @@ yarn dev
 npm run typecheck
 npm run build
 npm run preview
+npm run e2e
 ```
 
 对应 Yarn 命令：
@@ -35,6 +36,26 @@ npm run preview
 yarn typecheck
 yarn build
 yarn preview
+```
+
+## E2E 测试
+
+首次执行请先安装 Playwright 浏览器：
+
+```bash
+npm run e2e:install
+```
+
+运行端到端测试：
+
+```bash
+npm run e2e
+```
+
+如需可视化调试：
+
+```bash
+npm run e2e:headed
 ```
 
 ## 目录说明

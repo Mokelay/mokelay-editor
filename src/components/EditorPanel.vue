@@ -41,26 +41,29 @@ defineExpose({
 
 <template>
   <section
+    data-testid="editor-panel"
     class="flex min-h-[520px] flex-1 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
   >
     <MPage ref="pageRef" :edit="true" :value="pageBlocks" @change="handlePageChange" />
 
     <div
       v-if="showConfigDialog"
+      data-testid="config-dialog-overlay"
       class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4"
       @click.self="closeConfigDialog"
     >
-      <div class="w-full max-w-3xl rounded-xl bg-white p-4 shadow-2xl dark:bg-slate-900">
+      <div data-testid="config-dialog" class="w-full max-w-3xl rounded-xl bg-white p-4 shadow-2xl dark:bg-slate-900">
         <div class="mb-3 flex items-center justify-between">
-          <h3 class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ t('editor.configJson') }}</h3>
+          <h3 data-testid="config-dialog-title" class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ t('editor.configJson') }}</h3>
           <button
+            data-testid="config-dialog-close"
             class="rounded bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
             @click="closeConfigDialog"
           >
             {{ t('editor.close') }}
           </button>
         </div>
-        <pre class="max-h-[60vh] overflow-auto rounded bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">{{ savedConfigText }}</pre>
+        <pre data-testid="config-json" class="max-h-[60vh] overflow-auto rounded bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">{{ savedConfigText }}</pre>
       </div>
     </div>
   </section>
