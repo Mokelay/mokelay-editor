@@ -128,10 +128,22 @@ defineExpose({
   gap: 6px;
 }
 
+:deep(.mokelay-editor-tool__property-field--checkbox) {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
 :deep(.mokelay-editor-tool__property-label) {
   color: rgb(51 65 85);
   font-size: 13px;
   font-weight: 600;
+}
+
+:deep(.mokelay-editor-tool__property-checkbox) {
+  width: 16px;
+  height: 16px;
+  margin: 0;
 }
 
 :deep(.mokelay-editor-tool__property-input) {
@@ -174,6 +186,12 @@ defineExpose({
   outline: none;
   border-color: rgb(99 102 241);
   box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
+}
+
+:deep(.ce-tag-tool) {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
 }
 
 :global(.dark) :deep(.ce-input-tool__label),

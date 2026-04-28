@@ -15,6 +15,33 @@ async function addInputTool(page: Parameters<typeof test.beforeEach>[0]['page'])
   await page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '输入框' }).click();
 }
 
+async function openAddMenu(page: Parameters<typeof test.beforeEach>[0]['page']) {
+  const blocks = page.locator('.ce-block');
+  await expect(blocks).toHaveCount(1);
+  await blocks.nth(0).click();
+  await page.locator('.ce-toolbar__plus').click();
+}
+
+function expectToolbarBesideTool(
+  toolBox: { x: number; y: number; width: number; height: number } | null,
+  plusBox: { x: number; y: number; width: number; height: number } | null,
+  settingsBox: { x: number; y: number; width: number; height: number } | null
+) {
+  expect(toolBox).not.toBeNull();
+  expect(plusBox).not.toBeNull();
+  expect(settingsBox).not.toBeNull();
+
+  const toolCenterY = toolBox!.y + toolBox!.height / 2;
+  const plusCenterY = plusBox!.y + plusBox!.height / 2;
+  const settingsCenterY = settingsBox!.y + settingsBox!.height / 2;
+  const allowedVerticalOffset = Math.max(toolBox!.height / 2, 18);
+
+  expect(plusBox!.x).toBeLessThan(toolBox!.x);
+  expect(settingsBox!.x).toBeLessThan(toolBox!.x);
+  expect(Math.abs(plusCenterY - toolCenterY)).toBeLessThanOrEqual(allowedVerticalOffset);
+  expect(Math.abs(settingsCenterY - toolCenterY)).toBeLessThanOrEqual(allowedVerticalOffset);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await page.evaluate((key) => {
@@ -97,11 +124,7 @@ test('adds an input component and opens its property panel', async ({ page }) =>
   const plusBox = await plusButton.boundingBox();
   const settingsBox = await settingsButton.boundingBox();
 
-  expect(inputBox).not.toBeNull();
-  expect(plusBox).not.toBeNull();
-  expect(settingsBox).not.toBeNull();
-  expect(plusBox!.x).toBeLessThan(inputBox!.x);
-  expect(settingsBox!.x).toBeLessThan(inputBox!.x);
+  expectToolbarBesideTool(inputBox, plusBox, settingsBox);
 
   await settingsButton.click();
 
@@ -116,4 +139,48 @@ test('adds an input component and opens its property panel', async ({ page }) =>
   await expect(page.getByTestId('tool-property-input-label')).toBeVisible();
   await expect(page.getByTestId('tool-property-input-placeholder')).toBeVisible();
   await expect(page.getByTestId('tool-property-input-value')).toBeVisible();
+});
+
+test('adds a tag component and opens its property panel', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await openAddMenu(page);
+
+  const tagMenuItem = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '标签' });
+  await expect(tagMenuItem).toBeVisible();
+  await tagMenuItem.click();
+
+  const editorTagTool = page.getByTestId('editor-tag-tool');
+  await expect(editorTagTool).toBeVisible();
+  await expect(page.getByTestId('editor-tag-value')).toContainText('标签');
+  await expect(page.locator('.ce-block')).toHaveCount(2);
+
+  await editorTagTool.hover();
+
+  const plusButton = page.locator('.ce-toolbar__plus');
+  const settingsButton = page.locator('.ce-toolbar__settings-btn');
+
+  await expect(plusButton).toBeVisible();
+  await expect(settingsButton).toBeVisible();
+
+  const tagBox = await editorTagTool.boundingBox();
+  const plusBox = await plusButton.boundingBox();
+  const settingsBox = await settingsButton.boundingBox();
+
+  expectToolbarBesideTool(tagBox, plusBox, settingsBox);
+
+  await settingsButton.click();
+
+  const propertyButton = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '属性' });
+  await expect(propertyButton).toBeVisible();
+  await propertyButton.click();
+
+  const propertyDialog = page.locator('[data-testid="tool-property-dialog"][open]');
+  await expect(propertyDialog).toBeVisible();
+  await expect(page.getByTestId('tool-property-panel')).toBeVisible();
+  await expect(page.getByTestId('tool-property-title')).toContainText('标签属性');
+  await expect(page.getByTestId('tool-property-input-tagName')).toBeVisible();
+  await expect(page.getByTestId('tool-property-input-type')).toBeVisible();
+  await expect(page.getByTestId('tool-property-input-size')).toBeVisible();
+  await expect(page.getByTestId('tool-property-input-color')).toBeVisible();
+  await expect(page.getByTestId('tool-property-input-closable')).toBeVisible();
 });

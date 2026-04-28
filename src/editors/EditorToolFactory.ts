@@ -1,6 +1,7 @@
 import { createApp, type App } from 'vue';
 import { i18n } from '@/i18n';
 import type { MenuConfig } from '@editorjs/editorjs/types/tools';
+import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import {
   getEditorComponentRegistry,
   getEditorComponentDefinition,
@@ -135,22 +136,7 @@ export default class EditorToolFactory {
         dialog.dataset.toolName = toolName;
 
         const title = definition.propertyPanel.title || i18n.t('editor.propertyDialogTitle');
-        const fields = definition.propertyPanel.fields.map((field) => {
-          const value = this.getPropertyFieldValue(field.key);
-          return `
-            <label class="mokelay-editor-tool__property-field">
-              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
-              <input
-                class="mokelay-editor-tool__property-input"
-                data-testid="tool-property-input-${field.key}"
-                data-property-key="${field.key}"
-                type="${field.type ?? 'text'}"
-                value="${this.escapeHtml(value)}"
-                placeholder="${this.escapeHtml(field.placeholder ?? '')}"
-              />
-            </label>
-          `;
-        }).join('');
+        const fields = definition.propertyPanel.fields.map((field) => this.renderPropertyField(field)).join('');
 
         dialog.innerHTML = `
           <form method="dialog" class="mokelay-editor-tool__property-panel" data-testid="tool-property-panel">
@@ -164,17 +150,9 @@ export default class EditorToolFactory {
           </form>
         `;
 
-        dialog.querySelectorAll<HTMLInputElement>('[data-property-key]').forEach((input) => {
-          // 属性面板输入实时更新工具状态。
-          input.addEventListener('input', () => {
-            const propertyKey = input.dataset.propertyKey;
-            if (!propertyKey) return;
-            this.updateProperty(propertyKey, input.value);
-          });
-        });
-
         this.wrapper.appendChild(dialog);
         this.propertyDialog = dialog;
+        this.bindPropertyInputs();
       }
 
       private openPropertyDialog() {
@@ -187,22 +165,26 @@ export default class EditorToolFactory {
 
       private syncPropertyDialogValues() {
         if (!this.propertyDialog) return;
-        this.propertyDialog.querySelectorAll<HTMLInputElement>('[data-property-key]').forEach((input) => {
+        this.propertyDialog.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-property-key]').forEach((input) => {
           const propertyKey = input.dataset.propertyKey;
           if (!propertyKey) return;
-          input.value = this.getPropertyFieldValue(propertyKey);
+          const value = this.getPropertyFieldValue(propertyKey);
+          if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+            input.checked = value === true;
+            return;
+          }
+          input.value = typeof value === 'string' ? value : '';
         });
       }
 
-      private updateProperty(key: string, value: string) {
+      private updateProperty(key: string, value: string | boolean) {
         (this.state as Record<string, unknown>)[key] = value;
         // 属性变化后重新挂载组件，确保视图与状态同步。
         this.mountVueApp();
       }
 
       private getPropertyFieldValue(key: string) {
-        const value = (this.state as Record<string, unknown>)[key];
-        return typeof value === 'string' ? value : '';
+        return (this.state as Record<string, unknown>)[key];
       }
 
       private escapeHtml(value: string) {
@@ -211,6 +193,83 @@ export default class EditorToolFactory {
           .replace(/"/g, '&quot;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;');
+      }
+
+      private renderPropertyField(field: EditorToolPropertyField) {
+        if (field.type === 'checkbox') {
+          return `
+            <label class="mokelay-editor-tool__property-field mokelay-editor-tool__property-field--checkbox">
+              <input
+                class="mokelay-editor-tool__property-checkbox"
+                data-testid="tool-property-input-${field.key}"
+                data-property-key="${field.key}"
+                data-property-type="checkbox"
+                type="checkbox"
+                ${this.getPropertyFieldValue(field.key) === true ? 'checked' : ''}
+              />
+              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+            </label>
+          `;
+        }
+
+        if (field.type === 'select') {
+          const value = this.getPropertyFieldValue(field.key);
+          const options = (field.options ?? []).map((option) => `
+            <option value="${this.escapeHtml(option.value)}" ${value === option.value ? 'selected' : ''}>${this.escapeHtml(option.label)}</option>
+          `).join('');
+
+          return `
+            <label class="mokelay-editor-tool__property-field">
+              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+              <select
+                class="mokelay-editor-tool__property-input"
+                data-testid="tool-property-input-${field.key}"
+                data-property-key="${field.key}"
+                data-property-type="select"
+              >
+                ${options}
+              </select>
+            </label>
+          `;
+        }
+
+        const value = this.getPropertyFieldValue(field.key);
+        return `
+          <label class="mokelay-editor-tool__property-field">
+            <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+            <input
+              class="mokelay-editor-tool__property-input"
+              data-testid="tool-property-input-${field.key}"
+              data-property-key="${field.key}"
+              data-property-type="text"
+              type="text"
+              value="${this.escapeHtml(typeof value === 'string' ? value : '')}"
+              placeholder="${this.escapeHtml(field.placeholder ?? '')}"
+            />
+          </label>
+        `;
+      }
+
+      private bindPropertyInputs() {
+        if (!this.propertyDialog) return;
+
+        this.propertyDialog.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-property-key]').forEach((input) => {
+          const eventName = input instanceof HTMLInputElement
+            ? (input.type === 'checkbox' ? 'change' : 'input')
+            : 'change';
+          input.addEventListener(eventName, () => {
+            const propertyKey = input.dataset.propertyKey;
+            if (!propertyKey) return;
+            this.updateProperty(propertyKey, this.readPropertyInputValue(input));
+          });
+        });
+      }
+
+      private readPropertyInputValue(input: HTMLInputElement | HTMLSelectElement) {
+        if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+          return input.checked;
+        }
+        return input.value;
       }
     }
 
