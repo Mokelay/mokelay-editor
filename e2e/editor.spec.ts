@@ -22,6 +22,11 @@ async function openAddMenu(page: Parameters<typeof test.beforeEach>[0]['page']) 
   await page.locator('.ce-toolbar__plus').click();
 }
 
+async function addAdvanceInputTool(page: Parameters<typeof test.beforeEach>[0]['page']) {
+  await openAddMenu(page);
+  await page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '高级输入框' }).click();
+}
+
 function expectToolbarBesideTool(
   toolBox: { x: number; y: number; width: number; height: number } | null,
   plusBox: { x: number; y: number; width: number; height: number } | null,
@@ -183,4 +188,37 @@ test('adds a tag component and opens its property panel', async ({ page }) => {
   await expect(page.getByTestId('tool-property-input-size')).toBeVisible();
   await expect(page.getByTestId('tool-property-input-color')).toBeVisible();
   await expect(page.getByTestId('tool-property-input-closable')).toBeVisible();
+});
+
+test('adds an advanced input, inserts a tag, and renders it in preview', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addAdvanceInputTool(page);
+
+  const advanceInput = page.getByTestId('editor-advance-input-tool');
+  const editable = page.getByTestId('editor-advance-input-content');
+  await expect(advanceInput).toBeVisible();
+  await expect(page.locator('.ce-block')).toHaveCount(2);
+
+  await editable.click();
+  await page.keyboard.type('hello /');
+  await expect(page.getByTestId('editor-advance-input-menu')).toBeVisible();
+  await page.getByTestId('editor-advance-input-menu-item-MTag').click();
+
+  const embeddedTag = page.getByTestId('editor-advance-input-token-MTag');
+  await expect(embeddedTag).toBeVisible();
+  await embeddedTag.click();
+
+  const embeddedDialog = page.getByTestId('advance-input-embedded-property-dialog');
+  await expect(embeddedDialog).toBeVisible();
+  await expect(page.getByTestId('advance-input-embedded-property-title')).toContainText('标签属性');
+  await expect(page.getByTestId('advance-input-embedded-property-input-tagName')).toBeVisible();
+  await page.getByTestId('advance-input-embedded-property-close').click();
+
+  await page.getByTestId('save-button').click();
+  await page.getByTestId('config-dialog-close').click();
+  await page.getByTestId('preview-button').click();
+
+  await expect(page.getByTestId('preview-block-MAdvanceInput')).toBeVisible();
+  await expect(page.getByTestId('preview-advance-input-value')).toContainText('hello ');
+  await expect(page.getByTestId('preview-advance-input-value')).toContainText('标签');
 });

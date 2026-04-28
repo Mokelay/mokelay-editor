@@ -38,6 +38,9 @@ export const zhMessages = {
       valuePlaceholder: '请输入默认值'
     }
   },
+  advanceInput: {
+    toolboxTitle: '高级输入框'
+  },
   tag: {
     toolboxTitle: '标签',
     defaultTagName: '标签',

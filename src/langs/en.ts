@@ -38,6 +38,9 @@ export const enMessages = {
       valuePlaceholder: 'Please enter a default value'
     }
   },
+  advanceInput: {
+    toolboxTitle: 'Advanced Input'
+  },
   tag: {
     toolboxTitle: 'Tag',
     defaultTagName: 'Tag',

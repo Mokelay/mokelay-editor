@@ -1,4 +1,5 @@
 import { defineAsyncComponent, markRaw } from 'vue';
+import MAdvanceInput, { mAdvanceInputEditorTool } from '@/blocks/MAdvanceInput.vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
 import MTag, { mTagEditorTool } from '@/blocks/MTag.vue';
 import { mPageEditorTool } from '@/blocks/mPageEditorTool';
@@ -30,6 +31,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MInput)]: {
     component: markRaw(MInput),
     ...mInputEditorTool
+  },
+  [getEditorComponentName(MAdvanceInput)]: {
+    component: markRaw(MAdvanceInput),
+    ...mAdvanceInputEditorTool
   },
   [getEditorComponentName(MTag)]: {
     component: markRaw(MTag),
