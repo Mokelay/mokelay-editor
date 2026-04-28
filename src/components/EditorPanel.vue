@@ -150,9 +150,11 @@ defineExpose({
 
 
 :deep(.ce-tag-tool) {
-  display: block;
-  width: 100%;
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
   padding: 4px 0;
+  vertical-align: top;
 }
 
 :deep(.ce-tag-tool > span) {
