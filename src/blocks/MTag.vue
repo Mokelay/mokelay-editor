@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Tag as ElTag } from 'element-ui';
-import 'element-ui/lib/theme-chalk/tag.css';
+import { ElTag } from 'element-plus';
+import 'element-plus/es/components/tag/style/css';
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
 
