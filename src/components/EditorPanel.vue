@@ -173,6 +173,96 @@ defineExpose({
   box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
 }
 
+
+
+:deep(.ce-tag-tool-wrap) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:deep(.ce-tag-tool__editor) {
+  width: 100%;
+  border: 1px solid rgb(148 163 184 / 0.6);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background-color: rgb(255 255 255);
+  color: rgb(15 23 42);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+:deep(.ce-tag-tool) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+:deep(.ce-tag-tool.is-hidden) {
+  display: none;
+}
+
+:deep(.ce-tag-tool.is-no-transition) {
+  transition: none;
+}
+
+:deep(.ce-tag-tool--medium) {
+  padding: 8px 14px;
+  font-size: 16px;
+}
+
+:deep(.ce-tag-tool--small) {
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+:deep(.ce-tag-tool--mini) {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+:deep(.ce-tag-tool__text) {
+  line-height: 1.2;
+}
+
+:deep(.ce-tag-tool__close) {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+:deep(.ce-tag-tool.is-hit) {
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 0.12);
+}
+
+:deep(.ce-tag-tool--light.ce-tag-tool--info) { background: rgb(236 245 255); border-color: rgb(191 225 255); color: rgb(64 158 255); }
+:deep(.ce-tag-tool--light.ce-tag-tool--success) { background: rgb(240 249 235); border-color: rgb(200 231 180); color: rgb(103 194 58); }
+:deep(.ce-tag-tool--light.ce-tag-tool--warning) { background: rgb(253 246 236); border-color: rgb(243 213 166); color: rgb(230 162 60); }
+:deep(.ce-tag-tool--light.ce-tag-tool--danger) { background: rgb(254 240 240); border-color: rgb(249 200 200); color: rgb(245 108 108); }
+
+:deep(.ce-tag-tool--dark.ce-tag-tool--info) { background: rgb(64 158 255); border-color: rgb(64 158 255); color: rgb(255 255 255); }
+:deep(.ce-tag-tool--dark.ce-tag-tool--success) { background: rgb(103 194 58); border-color: rgb(103 194 58); color: rgb(255 255 255); }
+:deep(.ce-tag-tool--dark.ce-tag-tool--warning) { background: rgb(230 162 60); border-color: rgb(230 162 60); color: rgb(255 255 255); }
+:deep(.ce-tag-tool--dark.ce-tag-tool--danger) { background: rgb(245 108 108); border-color: rgb(245 108 108); color: rgb(255 255 255); }
+
+:deep(.ce-tag-tool--plain.ce-tag-tool--info) { background: transparent; border-color: rgb(191 225 255); color: rgb(64 158 255); }
+:deep(.ce-tag-tool--plain.ce-tag-tool--success) { background: transparent; border-color: rgb(200 231 180); color: rgb(103 194 58); }
+:deep(.ce-tag-tool--plain.ce-tag-tool--warning) { background: transparent; border-color: rgb(243 213 166); color: rgb(230 162 60); }
+:deep(.ce-tag-tool--plain.ce-tag-tool--danger) { background: transparent; border-color: rgb(249 200 200); color: rgb(245 108 108); }
+
+:global(.dark) :deep(.ce-tag-tool__editor) {
+  background-color: rgb(15 23 42);
+  color: rgb(226 232 240);
+  border-color: rgb(71 85 105 / 0.9);
+}
 :global(.dark) :deep(.ce-input-tool__label),
 :global(.dark) :deep(.ce-input-tool__control) {
   background-color: rgb(15 23 42);

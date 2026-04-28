@@ -38,6 +38,23 @@ export const enMessages = {
       valuePlaceholder: 'Please enter a default value'
     }
   },
+
+  tag: {
+    toolboxTitle: 'Tag',
+    propertyPanelTitle: 'Tag Properties',
+    defaultText: 'Tag',
+    properties: {
+      text: 'Text',
+      type: 'Type',
+      closable: 'Closable',
+      disableTransitions: 'Disable transitions',
+      hit: 'Hit border',
+      color: 'Background color',
+      colorPlaceholder: 'e.g. #409EFF',
+      size: 'Size',
+      effect: 'Effect'
+    }
+  },
   page: {
     toolboxTitle: 'Page'
   },
