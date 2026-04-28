@@ -252,12 +252,11 @@ function handleClose() {
 </script>
 
 <template>
-  <div v-if="!dismissed" class="inline-flex">
+  <div v-if="!dismissed" class="ce-tag-tool" @click="handleClick">
     <span
       class="inline-flex items-center gap-2 rounded-lg border text-base leading-none"
       :class="[sizeClass, transitionClass]"
       :style="tagStyle"
-      @click="handleClick"
     >
       {{ label }}
       <button

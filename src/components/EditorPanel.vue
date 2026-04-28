@@ -148,6 +148,16 @@ defineExpose({
   box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
 }
 
+
+:deep(.ce-tag-tool) {
+  display: block;
+  width: 100%;
+  padding: 4px 0;
+}
+
+:deep(.ce-tag-tool > span) {
+  cursor: pointer;
+}
 :deep(.ce-input-tool) {
   display: flex;
   flex-direction: column;
