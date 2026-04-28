@@ -254,10 +254,6 @@ function createComponentNode(componentName: string) {
   componentNode.className = 'ce-advance-input-tool__component';
   componentNode.contentEditable = 'false';
   componentNode.dataset.component = componentName;
-  const titleNode = document.createElement('div');
-  titleNode.className = 'ce-advance-input-tool__component-title';
-  titleNode.textContent = componentName;
-  componentNode.appendChild(titleNode);
 
   if (componentName === 'MInput') {
     const previewNode = document.createElement('div');
@@ -376,6 +372,35 @@ function handleInput() {
   updateSuggestionState();
 }
 
+function moveCaretToEditorEnd() {
+  const root = editorRef.value;
+  if (!root) return;
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(root);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function normalizeTokenRender() {
+  const value = serializeEditorContent();
+  localValue.value = value;
+  renderEditorContent(value);
+  emitChange({ value });
+}
+
+function handleEditorKeyup(event: KeyboardEvent) {
+  updateSuggestionState();
+  if (event.key === ' ' || event.key === 'Enter' || event.key === 'Tab') {
+    normalizeTokenRender();
+    requestAnimationFrame(() => {
+      moveCaretToEditorEnd();
+    });
+  }
+}
+
 function insertOption(option: TriggerOption) {
   const root = editorRef.value;
   const range = replaceRange.value;
@@ -423,6 +448,7 @@ function insertOption(option: TriggerOption) {
 }
 
 function handleBlur() {
+  normalizeTokenRender();
   window.setTimeout(closeSuggestion, 100);
 }
 </script>
@@ -449,7 +475,7 @@ function handleBlur() {
         contenteditable="true"
         :data-placeholder="placeholder"
         @input="handleInput"
-        @keyup="updateSuggestionState"
+        @keyup="handleEditorKeyup"
         @click="updateSuggestionState"
         @blur="handleBlur"
       />
@@ -458,7 +484,6 @@ function handleBlur() {
           <span v-if="token.type === 'text'">{{ token.value }}</span>
           <span v-else-if="token.type === 'tag'" class="ce-advance-input-tool__tag">{{ token.value }}</span>
           <span v-else class="ce-advance-input-tool__component">
-            <div class="ce-advance-input-tool__component-title">{{ token.value }}</div>
             <template v-if="isInputComponent(token.value)">
               <div class="ce-advance-input-tool__component-preview ce-advance-input-tool__component-preview--input">
                 <input class="ce-advance-input-tool__component-input" type="text" disabled :placeholder="t('input.defaultPlaceholder')" />
@@ -601,12 +626,6 @@ function handleBlur() {
   border-radius: 8px;
   background: rgb(238 242 255);
   color: rgb(49 46 129);
-}
-
-.ce-advance-input-tool__component-title {
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 600;
 }
 
 .ce-advance-input-tool__component small {
