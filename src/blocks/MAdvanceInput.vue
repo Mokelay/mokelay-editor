@@ -295,9 +295,6 @@ function renderEditorContent(value: string) {
   const root = editorRef.value;
   if (!root) return;
 
-  const previousSerialized = serializeEditorContent();
-  if (previousSerialized === value) return;
-
   root.innerHTML = '';
   const fragment = document.createDocumentFragment();
   parseTokens(value).forEach((token) => {
