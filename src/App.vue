@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { TooltipProvider } from 'reka-ui';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
-import EditorPanel from '@/components/EditorPanel.vue';
-import PreviewPanel from '@/components/PreviewPanel.vue';
+
+const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
+const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
 
 const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
 

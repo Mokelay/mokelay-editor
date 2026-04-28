@@ -7,6 +7,22 @@ export default defineConfig(function () { return ({
         __APP_VERSION__: JSON.stringify(new Date().toISOString())
     },
     plugins: [vue()],
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: function (id) {
+                    if (!id.includes('node_modules')) {
+                        return;
+                    }
+                    if (id.includes('@editorjs/editorjs') ||
+                        id.includes('@editorjs/table') ||
+                        id.includes('@calumk/editorjs-columns')) {
+                        return 'editorjs';
+                    }
+                }
+            }
+        }
+    },
     server: {
         host: '0.0.0.0',
         port: 5173,
