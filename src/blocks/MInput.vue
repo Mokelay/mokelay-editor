@@ -89,9 +89,10 @@ function emitChange(payload: Partial<MInputProps>) {
 </script>
 
 <template>
-  <div class="ce-input-tool">
+  <div class="ce-input-tool" data-testid="editor-input-tool">
     <input
       v-if="edit"
+      data-testid="editor-input-label"
       class="ce-input-tool__label"
       type="text"
       :placeholder="t('input.editLabelPlaceholder')"
@@ -103,6 +104,7 @@ function emitChange(payload: Partial<MInputProps>) {
     </div>
 
     <input
+      data-testid="editor-input-control"
       class="ce-input-tool__control"
       type="text"
       :placeholder="placeholder"

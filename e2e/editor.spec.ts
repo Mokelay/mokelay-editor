@@ -2,6 +2,19 @@ import { expect, test } from '@playwright/test';
 
 const storageKey = 'mokelay-editor-config';
 
+async function switchLocaleToChinese(page: Parameters<typeof test.beforeEach>[0]['page']) {
+  await page.getByTestId('locale-select').selectOption('zh');
+}
+
+async function addInputTool(page: Parameters<typeof test.beforeEach>[0]['page']) {
+  const blocks = page.locator('.ce-block');
+  await expect(blocks).toHaveCount(1);
+
+  await blocks.nth(0).click();
+  await page.locator('.ce-toolbar__plus').click();
+  await page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '输入框' }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await page.evaluate((key) => {
@@ -62,4 +75,45 @@ test('restores saved content after reload', async ({ page }) => {
   await expect(page.getByTestId('preview-block-paragraph')).toContainText('Mokelay');
   const storedConfig = await page.evaluate((key) => localStorage.getItem(key), storageKey);
   expect(storedConfig).not.toBeNull();
+});
+
+test('adds an input component and opens its property panel', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addInputTool(page);
+
+  const editorInputTool = page.getByTestId('editor-input-tool');
+  await expect(editorInputTool).toBeVisible();
+  await expect(page.locator('.ce-block')).toHaveCount(2);
+
+  await editorInputTool.hover();
+
+  const plusButton = page.locator('.ce-toolbar__plus');
+  const settingsButton = page.locator('.ce-toolbar__settings-btn');
+
+  await expect(plusButton).toBeVisible();
+  await expect(settingsButton).toBeVisible();
+
+  const inputBox = await editorInputTool.boundingBox();
+  const plusBox = await plusButton.boundingBox();
+  const settingsBox = await settingsButton.boundingBox();
+
+  expect(inputBox).not.toBeNull();
+  expect(plusBox).not.toBeNull();
+  expect(settingsBox).not.toBeNull();
+  expect(plusBox!.x).toBeLessThan(inputBox!.x);
+  expect(settingsBox!.x).toBeLessThan(inputBox!.x);
+
+  await settingsButton.click();
+
+  const propertyButton = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '属性' });
+  await expect(propertyButton).toBeVisible();
+  await propertyButton.click();
+
+  const propertyDialog = page.locator('[data-testid="tool-property-dialog"][open]');
+  await expect(propertyDialog).toBeVisible();
+  await expect(page.getByTestId('tool-property-panel')).toBeVisible();
+  await expect(page.getByTestId('tool-property-title')).toContainText('输入框属性');
+  await expect(page.getByTestId('tool-property-input-label')).toBeVisible();
+  await expect(page.getByTestId('tool-property-input-placeholder')).toBeVisible();
+  await expect(page.getByTestId('tool-property-input-value')).toBeVisible();
 });

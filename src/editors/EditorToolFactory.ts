@@ -62,9 +62,12 @@ export default class EditorToolFactory {
         // EditorJS 要求 render 返回宿主元素；内部再挂载 Vue 组件。
         const wrapper = document.createElement('div');
         wrapper.className = 'mokelay-editor-tool';
+        wrapper.dataset.toolName = toolName;
+        wrapper.dataset.testid = `editor-tool-${toolName}`;
 
         const contentRoot = document.createElement('div');
         contentRoot.className = 'mokelay-editor-tool__content';
+        contentRoot.dataset.testid = `editor-tool-content-${toolName}`;
         wrapper.appendChild(contentRoot);
 
         this.wrapper = wrapper;
@@ -128,6 +131,8 @@ export default class EditorToolFactory {
 
         const dialog = document.createElement('dialog');
         dialog.className = 'mokelay-editor-tool__property-dialog';
+        dialog.dataset.testid = 'tool-property-dialog';
+        dialog.dataset.toolName = toolName;
 
         const title = definition.propertyPanel.title || i18n.t('editor.propertyDialogTitle');
         const fields = definition.propertyPanel.fields.map((field) => {
@@ -137,6 +142,7 @@ export default class EditorToolFactory {
               <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
               <input
                 class="mokelay-editor-tool__property-input"
+                data-testid="tool-property-input-${field.key}"
                 data-property-key="${field.key}"
                 type="${field.type ?? 'text'}"
                 value="${this.escapeHtml(value)}"
@@ -147,12 +153,12 @@ export default class EditorToolFactory {
         }).join('');
 
         dialog.innerHTML = `
-          <form method="dialog" class="mokelay-editor-tool__property-panel">
+          <form method="dialog" class="mokelay-editor-tool__property-panel" data-testid="tool-property-panel">
             <div class="mokelay-editor-tool__property-header">
-              <h3 class="mokelay-editor-tool__property-title">${this.escapeHtml(title)}</h3>
-              <button type="submit" class="mokelay-editor-tool__property-close">${this.escapeHtml(i18n.t('editor.close'))}</button>
+              <h3 class="mokelay-editor-tool__property-title" data-testid="tool-property-title">${this.escapeHtml(title)}</h3>
+              <button type="submit" class="mokelay-editor-tool__property-close" data-testid="tool-property-close">${this.escapeHtml(i18n.t('editor.close'))}</button>
             </div>
-            <div class="mokelay-editor-tool__property-body">
+            <div class="mokelay-editor-tool__property-body" data-testid="tool-property-body">
               ${fields}
             </div>
           </form>
