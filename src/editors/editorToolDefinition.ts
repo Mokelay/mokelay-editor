@@ -9,7 +9,11 @@ export type EditorToolPropertyField = {
   key: string;
   label: string;
   placeholder?: string;
-  type?: 'text';
+  type?: 'text' | 'select' | 'checkbox';
+  options?: Array<{
+    label: string;
+    value: string;
+  }>;
 };
 
 export type EditorToolPropertyPanel = {
