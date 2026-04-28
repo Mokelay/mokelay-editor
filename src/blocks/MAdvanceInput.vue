@@ -254,14 +254,45 @@ function createComponentNode(componentName: string) {
   componentNode.className = 'ce-advance-input-tool__component';
   componentNode.contentEditable = 'false';
   componentNode.dataset.component = componentName;
-
-  const titleNode = document.createElement('strong');
+  const titleNode = document.createElement('div');
+  titleNode.className = 'ce-advance-input-tool__component-title';
   titleNode.textContent = componentName;
+  componentNode.appendChild(titleNode);
+
+  if (componentName === 'MInput') {
+    const previewNode = document.createElement('div');
+    previewNode.className = 'ce-advance-input-tool__component-preview ce-advance-input-tool__component-preview--input';
+
+    const inputNode = document.createElement('input');
+    inputNode.type = 'text';
+    inputNode.disabled = true;
+    inputNode.placeholder = t('input.defaultPlaceholder');
+    inputNode.className = 'ce-advance-input-tool__component-input';
+    previewNode.appendChild(inputNode);
+    componentNode.appendChild(previewNode);
+    return componentNode;
+  }
+
+  if (componentName === 'MPage') {
+    const previewNode = document.createElement('div');
+    previewNode.className = 'ce-advance-input-tool__component-preview ce-advance-input-tool__component-preview--page';
+    previewNode.innerHTML = '<span></span><span></span><span></span>';
+    componentNode.appendChild(previewNode);
+    return componentNode;
+  }
+
   const descNode = document.createElement('small');
   descNode.textContent = t('advanceInput.componentTag');
-  componentNode.appendChild(titleNode);
   componentNode.appendChild(descNode);
   return componentNode;
+}
+
+function isInputComponent(componentName: string) {
+  return componentName === 'MInput';
+}
+
+function isPageComponent(componentName: string) {
+  return componentName === 'MPage';
 }
 
 function renderEditorContent(value: string) {
@@ -427,8 +458,20 @@ function handleBlur() {
           <span v-if="token.type === 'text'">{{ token.value }}</span>
           <span v-else-if="token.type === 'tag'" class="ce-advance-input-tool__tag">{{ token.value }}</span>
           <span v-else class="ce-advance-input-tool__component">
-            <strong>{{ token.value }}</strong>
-            <small>{{ t('advanceInput.componentTag') }}</small>
+            <div class="ce-advance-input-tool__component-title">{{ token.value }}</div>
+            <template v-if="isInputComponent(token.value)">
+              <div class="ce-advance-input-tool__component-preview ce-advance-input-tool__component-preview--input">
+                <input class="ce-advance-input-tool__component-input" type="text" disabled :placeholder="t('input.defaultPlaceholder')" />
+              </div>
+            </template>
+            <template v-else-if="isPageComponent(token.value)">
+              <div class="ce-advance-input-tool__component-preview ce-advance-input-tool__component-preview--page">
+                <span />
+                <span />
+                <span />
+              </div>
+            </template>
+            <small v-else>{{ t('advanceInput.componentTag') }}</small>
           </span>
         </template>
       </div>
@@ -550,7 +593,7 @@ function handleBlur() {
 .ce-advance-input-tool__component {
   display: inline-flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   min-width: 120px;
   margin: 2px;
   padding: 8px 10px;
@@ -560,14 +603,45 @@ function handleBlur() {
   color: rgb(49 46 129);
 }
 
-.ce-advance-input-tool__component strong {
+.ce-advance-input-tool__component-title {
   font-size: 12px;
   line-height: 16px;
+  font-weight: 600;
 }
 
 .ce-advance-input-tool__component small {
   color: rgb(79 70 229);
   font-size: 11px;
   line-height: 14px;
+}
+
+.ce-advance-input-tool__component-preview {
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.9);
+  border: 1px dashed rgb(129 140 248);
+  padding: 6px;
+}
+
+.ce-advance-input-tool__component-input {
+  width: 100%;
+  min-width: 120px;
+  border: 1px solid rgb(199 210 254);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: rgb(238 242 255);
+  color: rgb(79 70 229);
+}
+
+.ce-advance-input-tool__component-preview--page {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ce-advance-input-tool__component-preview--page span {
+  height: 5px;
+  border-radius: 4px;
+  background: rgb(165 180 252);
 }
 </style>
