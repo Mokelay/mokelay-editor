@@ -1,13 +1,6 @@
-<script setup lang="ts">
-import { computed } from 'vue';
-import { ElTag } from 'element-plus';
-import 'element-plus/es/components/tag/style/css';
+<script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
-
-defineOptions({
-  name: 'MTag'
-});
 
 export interface MTagProps {
   edit: boolean;
@@ -83,8 +76,25 @@ export const mTagEditorTool = defineEditorTool<MTagProps>({
     type: props.type ?? ''
   })
 });
+</script>
 
-const props = withDefaults(defineProps<MTagProps>(), {
+<script setup lang="ts">
+import { computed } from 'vue';
+import { ElTag } from 'element-plus';
+import 'element-plus/es/components/tag/style/css';
+
+defineOptions({
+  name: 'MTag'
+});
+
+const props = withDefaults(defineProps<{
+  edit?: boolean;
+  tagName?: string;
+  closable?: boolean;
+  size?: 'medium' | 'small' | 'mini' | '';
+  color?: string;
+  type?: 'success' | 'info' | 'warning' | 'danger' | '';
+}>(), {
   edit: false,
   tagName: '',
   closable: false,
