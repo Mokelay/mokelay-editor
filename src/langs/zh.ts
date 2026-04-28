@@ -38,6 +38,24 @@ export const zhMessages = {
       valuePlaceholder: '请输入默认值'
     }
   },
+  tag: {
+    toolboxTitle: '标签',
+    propertyPanelTitle: '标签属性',
+    defaults: {
+      tagName: '标签',
+      size: 'small | medium | mini',
+      type: 'success | info | warning | danger',
+      color: '#409EFF',
+      closable: 'true / false'
+    },
+    properties: {
+      tagName: '标签文案',
+      size: '尺寸',
+      type: '类型',
+      color: '颜色',
+      closable: '可关闭'
+    }
+  },
   page: {
     toolboxTitle: '页面'
   },
