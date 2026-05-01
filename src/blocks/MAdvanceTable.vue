@@ -4,9 +4,25 @@ import { i18n } from '@/i18n';
 
 export type MAdvanceTableFixed = 'left' | 'right' | '' | null;
 
+type EmbeddedBlock = {
+  id: string;
+  type: string;
+  data: Record<string, unknown>;
+};
+
+type StoredSegment =
+  | {
+      type: 'text';
+      text: string;
+    }
+  | {
+      type: 'component';
+      component: EmbeddedBlock;
+    };
+
 export interface MAdvanceTableColumnConfig {
   columnName?: string;
-  columnContent?: string;
+  columnContent?: StoredSegment[] | string;
   width?: number | null;
   fixed?: MAdvanceTableFixed;
 }
@@ -19,12 +35,12 @@ export interface MAdvanceTableProps {
   data?: Array<Record<string, unknown>>;
 }
 
-function getSerializedTextValue(text: string) {
-  return JSON.stringify([{ type: 'text', text }]);
+function getTextValue(text: string) {
+  return [{ type: 'text', text }] satisfies StoredSegment[];
 }
 
-function getSerializedTagValue() {
-  return JSON.stringify([
+function getTagValue() {
+  return [
     {
       type: 'component',
       component: {
@@ -39,32 +55,32 @@ function getSerializedTagValue() {
         }
       }
     }
-  ]);
+  ] satisfies StoredSegment[];
 }
 
 function getDefaultColumns(): MAdvanceTableColumnConfig[] {
   return [
     {
       columnName: i18n.t('advanceTable.defaultColumns.name'),
-      columnContent: getSerializedTextValue('{{name}}'),
+      columnContent: getTextValue('{{name}}'),
       width: 180,
       fixed: 'left'
     },
     {
       columnName: i18n.t('advanceTable.defaultColumns.status'),
-      columnContent: getSerializedTextValue('{{status}}'),
+      columnContent: getTextValue('{{status}}'),
       width: 140,
       fixed: null
     },
     {
       columnName: i18n.t('advanceTable.defaultColumns.tag'),
-      columnContent: getSerializedTagValue(),
+      columnContent: getTagValue(),
       width: 120,
       fixed: null
     },
     {
       columnName: i18n.t('advanceTable.defaultColumns.owner'),
-      columnContent: getSerializedTextValue('{{owner}}'),
+      columnContent: getTextValue('{{owner}}'),
       width: 160,
       fixed: null
     }
@@ -146,7 +162,7 @@ function normalizeColumns(columns?: MAdvanceTableColumnConfig[]) {
     .filter((column): column is MAdvanceTableColumnConfig => typeof column === 'object' && column !== null)
     .map((column, index) => ({
       columnName: column.columnName?.trim() || `${i18n.t('advanceTable.defaultColumnName')}${index + 1}`,
-      columnContent: typeof column.columnContent === 'string' ? column.columnContent : getSerializedTextValue(''),
+      columnContent: parseStoredSegments(column.columnContent),
       width: normalizeWidth(column.width),
       fixed: normalizeFixed(column.fixed)
     }));
@@ -173,28 +189,94 @@ function normalizeWidth(width?: number | null) {
 function normalizeFixed(fixed?: MAdvanceTableFixed) {
   return fixed === 'left' || fixed === 'right' ? fixed : null;
 }
+
+function mergeTextSegments(segments: StoredSegment[]) {
+  const merged: StoredSegment[] = [];
+
+  for (const segment of segments) {
+    if (segment.type === 'text') {
+      const previous = merged[merged.length - 1];
+      if (previous?.type === 'text') {
+        previous.text += segment.text;
+      } else {
+        merged.push({ type: 'text', text: segment.text });
+      }
+      continue;
+    }
+
+    merged.push(segment);
+  }
+
+  return merged.length ? merged : getTextValue('');
+}
+
+function parseStoredSegments(value?: StoredSegment[] | string): StoredSegment[] {
+  if (!value) {
+    return getTextValue('');
+  }
+
+  if (Array.isArray(value)) {
+    return normalizeStoredSegments(value);
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      return normalizeStoredSegments(parsed);
+    }
+  } catch {
+    // 兼容普通字符串配置。
+  }
+
+  return getTextValue(value);
+}
+
+function normalizeStoredSegments(segments: unknown[]) {
+  const normalizedSegments: StoredSegment[] = [];
+
+  segments.forEach((item) => {
+    if (typeof item !== 'object' || item === null || !('type' in item)) {
+      return;
+    }
+
+    const record = item as Record<string, unknown>;
+
+    if (record.type === 'text') {
+      normalizedSegments.push({
+        type: 'text',
+        text: typeof record.text === 'string' ? record.text : ''
+      });
+      return;
+    }
+
+    if (
+      record.type === 'component' &&
+      typeof record.component === 'object' &&
+      record.component !== null &&
+      typeof (record.component as Partial<EmbeddedBlock>).type === 'string'
+    ) {
+      const component = record.component as Partial<EmbeddedBlock>;
+      normalizedSegments.push({
+        type: 'component',
+        component: {
+          id: typeof component.id === 'string' ? component.id : component.type ?? 'component',
+          type: component.type ?? '',
+          data: typeof component.data === 'object' && component.data !== null
+            ? component.data as Record<string, unknown>
+            : {}
+        }
+      });
+    }
+  });
+
+  return mergeTextSegments(normalizedSegments);
+}
 </script>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { getInlineCustomComponentDefinition } from '@/editors/inlineCustomComponents';
 import { useI18n } from '@/i18n';
-
-type EmbeddedBlock = {
-  id: string;
-  type: string;
-  data: Record<string, unknown>;
-};
-
-type StoredSegment =
-  | {
-      type: 'text';
-      text: string;
-    }
-  | {
-      type: 'component';
-      component: EmbeddedBlock;
-    };
 
 type RenderSegment =
   | {
@@ -221,78 +303,6 @@ const hasIndexColumn = computed(() => props.index === true);
 const selectionColumnWidth = 44;
 const indexColumnWidth = 56;
 const fallbackFixedColumnWidth = 160;
-
-function mergeTextSegments(segments: StoredSegment[]) {
-  const merged: StoredSegment[] = [];
-
-  for (const segment of segments) {
-    if (segment.type === 'text') {
-      const previous = merged[merged.length - 1];
-      if (previous?.type === 'text') {
-        previous.text += segment.text;
-      } else {
-        merged.push({ type: 'text', text: segment.text });
-      }
-      continue;
-    }
-
-    merged.push(segment);
-  }
-
-  return merged.length ? merged : [{ type: 'text', text: '' }] satisfies StoredSegment[];
-}
-
-function parseStoredSegments(value?: string): StoredSegment[] {
-  if (!value) {
-    return [{ type: 'text', text: '' }];
-  }
-
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed)) {
-      const normalizedSegments: StoredSegment[] = [];
-
-      parsed.forEach((item) => {
-        if (typeof item !== 'object' || item === null || !('type' in item)) {
-          return;
-        }
-
-        if (item.type === 'text') {
-          normalizedSegments.push({
-            type: 'text',
-            text: typeof item.text === 'string' ? item.text : ''
-          });
-          return;
-        }
-
-        if (
-          item.type === 'component' &&
-          typeof item.component === 'object' &&
-          item.component !== null &&
-          typeof item.component.type === 'string'
-        ) {
-          const component = item.component as Partial<EmbeddedBlock>;
-          normalizedSegments.push({
-            type: 'component',
-            component: {
-              id: typeof component.id === 'string' ? component.id : component.type ?? 'component',
-              type: component.type ?? '',
-              data: typeof component.data === 'object' && component.data !== null
-                ? component.data as Record<string, unknown>
-                : {}
-            }
-          });
-        }
-      });
-
-      return mergeTextSegments(normalizedSegments);
-    }
-  } catch {
-    // 兼容普通字符串配置。
-  }
-
-  return [{ type: 'text', text: value }];
-}
 
 function stringifyCellValue(value: unknown) {
   if (value === null || value === undefined) return '';
@@ -321,16 +331,24 @@ function readRowPath(row: Record<string, unknown>, path: string) {
 }
 
 function resolveCellContent(row: Record<string, unknown>, column: MAdvanceTableColumnConfig) {
-  const columnContent = column.columnContent ?? '';
-  if (columnContent in row) {
-    return stringifyCellValue(row[columnContent]);
+  const columnContent = column.columnContent;
+  if (typeof columnContent === 'string') {
+    if (columnContent in row) {
+      return stringifyCellValue(row[columnContent]);
+    }
+
+    return columnContent;
   }
 
-  if (!columnContent && column.columnName && column.columnName in row) {
+  if (Array.isArray(columnContent)) {
+    return columnContent;
+  }
+
+  if (column.columnName && column.columnName in row) {
     return stringifyCellValue(row[column.columnName]);
   }
 
-  return columnContent;
+  return getTextValue('');
 }
 
 function interpolateComponentData(value: unknown, row: Record<string, unknown>): unknown {

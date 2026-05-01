@@ -2,6 +2,23 @@ import { expect, test } from '@playwright/test';
 
 const storageKey = 'mokelay-editor-config';
 
+type TestPage = Parameters<typeof test.beforeEach>[0]['page'];
+type SavedBlock = {
+  type?: string;
+  data?: Record<string, unknown>;
+};
+
+async function getSavedBlocks(page: TestPage) {
+  const storedConfig = await page.evaluate((key) => localStorage.getItem(key), storageKey);
+  expect(storedConfig).not.toBeNull();
+
+  const parsed = JSON.parse(storedConfig ?? '{}') as {
+    blocks?: SavedBlock[];
+  };
+
+  return Array.isArray(parsed.blocks) ? parsed.blocks : [];
+}
+
 async function switchLocaleToChinese(page: Parameters<typeof test.beforeEach>[0]['page']) {
   await page.getByTestId('locale-select').selectOption('zh');
 }
@@ -220,6 +237,17 @@ test('adds an advanced input, inserts a tag, and renders it in preview', async (
   await page.getByTestId('advance-input-embedded-property-close').click();
 
   await page.getByTestId('save-button').click();
+  const blocks = await getSavedBlocks(page);
+  const advanceInputBlock = blocks.find((block) => block.type === 'MAdvanceInput');
+  const advanceInputValue = advanceInputBlock?.data?.value as Array<{
+    type?: string;
+    component?: { type?: string };
+  }> | undefined;
+
+  expect(Array.isArray(advanceInputValue)).toBeTruthy();
+  expect(typeof advanceInputBlock?.data?.value).not.toBe('string');
+  expect(advanceInputValue?.some((segment) => segment.type === 'component' && segment.component?.type === 'MTag')).toBeTruthy();
+
   await page.getByTestId('config-dialog-close').click();
   await page.getByTestId('preview-button').click();
 
@@ -242,6 +270,24 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   await expect(page.getByTestId('advance-table-cell-0-2')).toContainText('设计');
 
   await page.getByTestId('save-button').click();
+  const blocks = await getSavedBlocks(page);
+  const tableBlock = blocks.find((block) => block.type === 'MAdvanceTable');
+  const columns = tableBlock?.data?.columns as Array<{
+    columnName?: string;
+    columnContent?: unknown;
+  }> | undefined;
+  const tagColumn = columns?.find((column) => column.columnName === '标签');
+  const tagColumnContent = tagColumn?.columnContent as Array<{
+    type?: string;
+    component?: { type?: string };
+  }> | undefined;
+
+  expect(Array.isArray(columns?.[0]?.columnContent)).toBeTruthy();
+  expect(typeof columns?.[0]?.columnContent).not.toBe('string');
+  expect(Array.isArray(tagColumnContent)).toBeTruthy();
+  expect(tagColumnContent?.[0]?.type).toBe('component');
+  expect(tagColumnContent?.[0]?.component?.type).toBe('MTag');
+
   await expect(page.getByTestId('config-json')).toContainText('MAdvanceTable');
   await expect(page.getByTestId('config-json')).toContainText('MTag');
   await expect(page.getByTestId('config-json')).toContainText('columns');

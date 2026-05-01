@@ -4,35 +4,8 @@ import { i18n } from '@/i18n';
 
 export interface MAdvanceInputProps {
   edit: boolean;
-  value?: string;
+  value?: StoredSegment[] | string;
 }
-
-export const mAdvanceInputEditorTool = defineEditorTool<MAdvanceInputProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('advanceInput.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="14" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10h5M7 14h3M14 10h3M14 14h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-  },
-  createInitialProps: () => ({
-    value: JSON.stringify([{ type: 'text', text: '' }])
-  }),
-  normalizeProps: (props) => ({
-    edit: props.edit ?? false,
-    value: typeof props.value === 'string' ? props.value : JSON.stringify([{ type: 'text', text: '' }])
-  }),
-  serialize: (props) => ({
-    value: typeof props.value === 'string' ? props.value : JSON.stringify([{ type: 'text', text: '' }])
-  })
-});
-</script>
-
-<script setup lang="ts">
-import { createApp, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { App } from 'vue';
-import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
-import { getInlineCustomComponentDefinition, getInlineCustomComponentEntries } from '@/editors/inlineCustomComponents';
-import { useI18n } from '@/i18n';
 
 type EmbeddedBlock = {
   id: string;
@@ -49,6 +22,130 @@ type StoredSegment =
       type: 'component';
       component: EmbeddedBlock;
     };
+
+function getEmptyValue() {
+  return [{ type: 'text', text: '' }] satisfies StoredSegment[];
+}
+
+function mergeTextSegments(segments: StoredSegment[]) {
+  const merged: StoredSegment[] = [];
+
+  for (const segment of segments) {
+    if (segment.type === 'text') {
+      const previous = merged[merged.length - 1];
+      if (previous?.type === 'text') {
+        previous.text += segment.text;
+      } else {
+        merged.push({ type: 'text', text: segment.text });
+      }
+      continue;
+    }
+
+    merged.push(segment);
+  }
+
+  if (!merged.length) {
+    return getEmptyValue();
+  }
+
+  return merged;
+}
+
+function parseStoredSegments(value?: StoredSegment[] | string): StoredSegment[] {
+  if (!value) {
+    return getEmptyValue();
+  }
+
+  if (Array.isArray(value)) {
+    return normalizeStoredSegments(value);
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      return normalizeStoredSegments(parsed);
+    }
+  } catch {
+    // 兼容历史纯文本格式。
+  }
+
+  return [{ type: 'text', text: value }];
+}
+
+function normalizeStoredSegments(segments: unknown[]) {
+  const normalizedSegments: StoredSegment[] = [];
+
+  segments.forEach((item) => {
+    if (typeof item !== 'object' || item === null || !('type' in item)) {
+      return;
+    }
+
+    const record = item as Record<string, unknown>;
+
+    if (record.type === 'text') {
+      normalizedSegments.push({
+        type: 'text',
+        text: typeof record.text === 'string' ? record.text : ''
+      });
+      return;
+    }
+
+    if (
+      record.type === 'component' &&
+      typeof record.component === 'object' &&
+      record.component !== null &&
+      typeof (record.component as Partial<EmbeddedBlock>).type === 'string'
+    ) {
+      const component = record.component as Partial<EmbeddedBlock>;
+      normalizedSegments.push({
+        type: 'component',
+        component: {
+          id: typeof component.id === 'string' ? component.id : generateBlockId(),
+          type: component.type ?? '',
+          data: typeof component.data === 'object' && component.data !== null
+            ? component.data as Record<string, unknown>
+            : {}
+        }
+      });
+    }
+  });
+
+  return mergeTextSegments(normalizedSegments);
+}
+
+function generateBlockId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().slice(0, 10);
+  }
+  return Math.random().toString(36).slice(2, 12);
+}
+
+export const mAdvanceInputEditorTool = defineEditorTool<MAdvanceInputProps>({
+  toolbox: {
+    get title() {
+      return i18n.t('advanceInput.toolboxTitle');
+    },
+    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="14" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 10h5M7 14h3M14 10h3M14 14h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+  },
+  createInitialProps: () => ({
+    value: getEmptyValue()
+  }),
+  normalizeProps: (props) => ({
+    edit: props.edit ?? false,
+    value: parseStoredSegments(props.value)
+  }),
+  serialize: (props) => ({
+    value: parseStoredSegments(props.value)
+  })
+});
+</script>
+
+<script setup lang="ts">
+import { createApp, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { App } from 'vue';
+import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
+import { getInlineCustomComponentDefinition, getInlineCustomComponentEntries } from '@/editors/inlineCustomComponents';
+import { useI18n } from '@/i18n';
 
 type EmbeddedRecord = {
   app: App<Element>;
@@ -79,97 +176,14 @@ const activeEmbeddedComponent = ref<ActiveEmbeddedComponent | null>(null);
 
 const embeddedRecords = new Map<string, EmbeddedRecord>();
 let suppressDomSync = false;
-let lastSerializedValue = '';
-
-function generateBlockId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID().slice(0, 10);
-  }
-  return Math.random().toString(36).slice(2, 12);
-}
-
-function getEmptySerializedValue() {
-  return JSON.stringify([{ type: 'text', text: '' }]);
-}
-
-function mergeTextSegments(segments: StoredSegment[]) {
-  const merged: StoredSegment[] = [];
-
-  for (const segment of segments) {
-    if (segment.type === 'text') {
-      const previous = merged[merged.length - 1];
-      if (previous?.type === 'text') {
-        previous.text += segment.text;
-      } else {
-        merged.push({ type: 'text', text: segment.text });
-      }
-      continue;
-    }
-
-    merged.push(segment);
-  }
-
-  if (!merged.length) {
-    return [{ type: 'text', text: '' }] satisfies StoredSegment[];
-  }
-
-  return merged;
-}
-
-function parseStoredSegments(value?: string): StoredSegment[] {
-  if (!value) {
-    return [{ type: 'text', text: '' }];
-  }
-
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed)) {
-      const normalizedSegments: StoredSegment[] = [];
-
-      parsed.forEach((item) => {
-        if (typeof item !== 'object' || item === null || !('type' in item)) {
-          return;
-        }
-
-        if (item.type === 'text') {
-          normalizedSegments.push({
-            type: 'text',
-            text: typeof item.text === 'string' ? item.text : ''
-          });
-          return;
-        }
-
-        if (
-          item.type === 'component' &&
-          typeof item.component === 'object' &&
-          item.component !== null &&
-          typeof item.component.type === 'string'
-        ) {
-          const component = item.component as Partial<EmbeddedBlock>;
-          normalizedSegments.push({
-            type: 'component',
-            component: {
-              id: typeof component.id === 'string' ? component.id : generateBlockId(),
-              type: component.type ?? '',
-              data: typeof component.data === 'object' && component.data !== null
-                ? component.data as Record<string, unknown>
-                : {}
-            }
-          });
-        }
-      });
-
-      return mergeTextSegments(normalizedSegments);
-    }
-  } catch {
-    // 兼容历史纯文本格式。
-  }
-
-  return [{ type: 'text', text: value }];
-}
+let lastValueSignature = '';
 
 function serializeSegments(segments: StoredSegment[]) {
-  return JSON.stringify(mergeTextSegments(segments));
+  return mergeTextSegments(segments);
+}
+
+function getValueSignature(segments: StoredSegment[]) {
+  return JSON.stringify(serializeSegments(segments));
 }
 
 function createComponentBlock(type: string): EmbeddedBlock {
@@ -246,7 +260,7 @@ function createComponentWrapper(block: EmbeddedBlock) {
   return wrapper;
 }
 
-function renderEditableContent(value: string, focusAtEnd = false) {
+function renderEditableContent(value?: StoredSegment[] | string, focusAtEnd = false) {
   const root = editableRef.value;
   if (!root) return;
 
@@ -269,7 +283,7 @@ function renderEditableContent(value: string, focusAtEnd = false) {
     root.appendChild(document.createTextNode(''));
   }
 
-  lastSerializedValue = serializeSegments(segments);
+  lastValueSignature = getValueSignature(segments);
   suppressDomSync = false;
 
   if (focusAtEnd) {
@@ -320,11 +334,11 @@ function getSegmentsFromDom() {
   return mergeTextSegments(segments);
 }
 
-function emitValueChange(serializedValue: string) {
-  lastSerializedValue = serializedValue;
+function emitValueChange(value: StoredSegment[]) {
+  lastValueSignature = getValueSignature(value);
   const payload = {
     edit: props.edit,
-    value: serializedValue
+    value
   };
   props.onToolChange?.(payload);
   props.onChange?.(payload);
@@ -332,9 +346,9 @@ function emitValueChange(serializedValue: string) {
 
 function syncValueFromDom() {
   if (suppressDomSync) return;
-  const serializedValue = serializeSegments(getSegmentsFromDom());
-  if (serializedValue === lastSerializedValue) return;
-  emitValueChange(serializedValue);
+  const value = serializeSegments(getSegmentsFromDom());
+  if (getValueSignature(value) === lastValueSignature) return;
+  emitValueChange(value);
 }
 
 function placeCaretAtEnd(root: HTMLElement) {
@@ -586,7 +600,7 @@ function getPreviewProps(block: EmbeddedBlock) {
 
 onMounted(() => {
   if (props.edit) {
-    renderEditableContent(props.value ?? getEmptySerializedValue());
+    renderEditableContent(props.value);
   }
 });
 
@@ -602,7 +616,7 @@ watch(
       return;
     }
     nextTick(() => {
-      renderEditableContent(props.value ?? getEmptySerializedValue());
+      renderEditableContent(props.value);
     });
   }
 );
@@ -611,9 +625,9 @@ watch(
   () => props.value,
   (value) => {
     if (!props.edit) return;
-    const nextValue = typeof value === 'string' ? value : getEmptySerializedValue();
-    if (nextValue === lastSerializedValue) return;
-    renderEditableContent(nextValue);
+    const nextSegments = parseStoredSegments(value);
+    if (getValueSignature(nextSegments) === lastValueSignature) return;
+    renderEditableContent(nextSegments);
   }
 );
 </script>
