@@ -197,7 +197,7 @@ onBeforeUnmount(async () => {
     class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 py-3 pr-3 pl-11 dark:border-slate-700 dark:bg-slate-950"
   ></div>
   <div v-else data-testid="preview-blocks" class="space-y-4">
-    <div v-for="(block, index) in previewBlocks" :key="index" :data-testid="`preview-block-${block.type}`" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+    <div v-for="(block, index) in previewBlocks" :key="index" :data-testid="`preview-block-${block.type}`" class="p-3">
       <EditorPreviewBlock v-if="block.type !== 'columns'" :block="block" />
 
       <div v-else-if="block.type === 'columns'" data-testid="preview-columns" class="grid gap-3 md:grid-cols-2">
@@ -205,13 +205,13 @@ onBeforeUnmount(async () => {
           v-for="(column, columnIndex) in getColumns(block)"
           :key="`columns-${index}-${columnIndex}`"
           :data-testid="`preview-column-${columnIndex}`"
-          class="space-y-2 rounded border border-slate-200 p-2 dark:border-slate-700"
+          class="space-y-2 p-2"
         >
           <div
             v-for="(columnBlock, columnBlockIndex) in getColumnBlocks(column)"
             :key="`columns-${index}-${columnIndex}-${columnBlockIndex}`"
             :data-testid="`preview-column-block-${columnBlock.type}`"
-            class="rounded border border-slate-200 p-2 dark:border-slate-700"
+            class="p-2"
           >
             <EditorPreviewBlock :block="columnBlock" compact-table />
           </div>
