@@ -102,9 +102,7 @@ function normalizeStoredSegments(segments: unknown[]) {
         component: {
           id: typeof component.id === 'string' ? component.id : generateBlockId(),
           type: component.type ?? '',
-          data: typeof component.data === 'object' && component.data !== null
-            ? component.data as Record<string, unknown>
-            : {}
+          data: toPlainRecord(component.data)
         }
       });
     }
@@ -118,6 +116,26 @@ function generateBlockId() {
     return crypto.randomUUID().slice(0, 10);
   }
   return Math.random().toString(36).slice(2, 12);
+}
+
+function cloneJsonValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function toPlainRecord(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return {};
+  }
+
+  return cloneJsonValue(value) as Record<string, unknown>;
+}
+
+function cloneEmbeddedBlock(block: EmbeddedBlock): EmbeddedBlock {
+  return {
+    id: block.id,
+    type: block.type,
+    data: toPlainRecord(block.data)
+  };
 }
 
 export const mAdvanceInputEditorTool = defineEditorTool<MAdvanceInputProps>({
@@ -200,7 +218,7 @@ function createComponentBlock(type: string): EmbeddedBlock {
   return {
     id: generateBlockId(),
     type,
-    data: definition.serialize(normalized)
+    data: toPlainRecord(definition.serialize(normalized))
   };
 }
 
@@ -212,24 +230,25 @@ function unmountEmbeddedRecords() {
 }
 
 function createComponentWrapper(block: EmbeddedBlock) {
-  const definition = getInlineCustomComponentDefinition(block.type);
+  const plainBlock = cloneEmbeddedBlock(block);
+  const definition = getInlineCustomComponentDefinition(plainBlock.type);
   if (!definition) {
     const fallback = document.createElement('span');
     fallback.className = 'ce-advance-input-tool__token ce-advance-input-tool__token--unknown';
     fallback.dataset.segmentType = 'component';
-    fallback.dataset.blockId = block.id;
-    fallback.dataset.block = JSON.stringify(block);
-    fallback.textContent = block.type;
+    fallback.dataset.blockId = plainBlock.id;
+    fallback.dataset.block = JSON.stringify(plainBlock);
+    fallback.textContent = plainBlock.type;
     return fallback;
   }
 
   const wrapper = document.createElement('span');
   wrapper.className = 'ce-advance-input-tool__token';
   wrapper.dataset.segmentType = 'component';
-  wrapper.dataset.blockId = block.id;
-  wrapper.dataset.block = JSON.stringify(block);
+  wrapper.dataset.blockId = plainBlock.id;
+  wrapper.dataset.block = JSON.stringify(plainBlock);
   wrapper.contentEditable = 'false';
-  wrapper.setAttribute('data-testid', `editor-advance-input-token-${block.type}`);
+  wrapper.setAttribute('data-testid', `editor-advance-input-token-${plainBlock.type}`);
 
   const mountPoint = document.createElement('span');
   mountPoint.className = 'ce-advance-input-tool__token-mount';
@@ -237,7 +256,7 @@ function createComponentWrapper(block: EmbeddedBlock) {
 
   const normalized = definition.normalizeProps({
     ...(definition.createInitialProps?.() ?? {}),
-    ...block.data,
+    ...plainBlock.data,
     edit: false
   });
 
@@ -247,12 +266,12 @@ function createComponentWrapper(block: EmbeddedBlock) {
   wrapper.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    openEmbeddedComponentDialog(block.id);
+    openEmbeddedComponentDialog(plainBlock.id);
   });
 
-  embeddedRecords.set(block.id, {
+  embeddedRecords.set(plainBlock.id, {
     app,
-    block: structuredClone(block),
+    block: cloneEmbeddedBlock(plainBlock),
     mountPoint,
     wrapper
   });
@@ -319,7 +338,7 @@ function getSegmentsFromDom() {
       if (block) {
         segments.push({
           type: 'component',
-          component: structuredClone(block)
+          component: cloneEmbeddedBlock(block)
         });
       }
       return;
@@ -568,7 +587,7 @@ function updateEmbeddedComponentField(key: string, value: string | boolean) {
 
   record.block = {
     ...record.block,
-    data: definition.serialize(normalized)
+    data: toPlainRecord(definition.serialize(normalized))
   };
   record.wrapper.dataset.block = JSON.stringify(record.block);
 

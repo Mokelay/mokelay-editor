@@ -301,3 +301,111 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
   await expect(page.getByTestId('advance-table-cell-0-2')).toContainText('设计');
 });
+
+test('loads saved JSON segment blocks in editor', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => {
+    pageErrors.push(error.message);
+  });
+
+  await page.evaluate((key) => {
+    localStorage.setItem(key, JSON.stringify({
+      time: 1777614863777,
+      version: '2.31.6',
+      blocks: [
+        {
+          id: 'z-gUomnOqj',
+          type: 'MAdvanceInput',
+          data: {
+            value: [
+              { type: 'text', text: 'aaa' },
+              {
+                type: 'component',
+                component: {
+                  id: '930a9df2-a',
+                  type: 'MTag',
+                  data: {
+                    tagName: '标签',
+                    closable: false,
+                    size: '',
+                    color: '',
+                    type: 'success'
+                  }
+                }
+              },
+              { type: 'text', text: 'bbbbb' },
+              {
+                type: 'component',
+                component: {
+                  id: '639955f1-3',
+                  type: 'MTag',
+                  data: {
+                    tagName: '标签',
+                    closable: false,
+                    size: '',
+                    color: '',
+                    type: 'success'
+                  }
+                }
+              },
+              { type: 'text', text: 'c' }
+            ]
+          }
+        },
+        {
+          id: '04UrzC68Vp',
+          type: 'MAdvanceTable',
+          data: {
+            index: false,
+            selection: false,
+            columns: [
+              {
+                columnName: '名称',
+                columnContent: [{ type: 'text', text: '{{name}}' }],
+                width: 180,
+                fixed: 'left'
+              },
+              {
+                columnName: '标签',
+                columnContent: [
+                  {
+                    type: 'component',
+                    component: {
+                      id: 'advance-table-default-tag',
+                      type: 'MTag',
+                      data: {
+                        tagName: '{{tag}}',
+                        type: '{{tagType}}',
+                        size: 'small',
+                        color: '',
+                        closable: false
+                      }
+                    }
+                  }
+                ],
+                width: 120,
+                fixed: null
+              }
+            ],
+            data: [
+              {
+                name: 'Mokelay 页面',
+                tag: '设计',
+                tagType: 'warning'
+              }
+            ]
+          }
+        }
+      ]
+    }));
+    window.location.hash = '/';
+  }, storageKey);
+  await page.reload();
+
+  await expect(page.getByTestId('editor-advance-input-tool')).toBeVisible();
+  await expect(page.getByTestId('editor-advance-input-token-MTag')).toHaveCount(2);
+  await expect(page.getByTestId('editor-advance-table-tool')).toBeVisible();
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
+  await expect(page.getByTestId('advance-table-cell-0-1')).toContainText('设计');
+  expect(pageErrors).toEqual([]);
+});

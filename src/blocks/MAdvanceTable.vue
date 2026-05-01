@@ -261,15 +261,25 @@ function normalizeStoredSegments(segments: unknown[]) {
         component: {
           id: typeof component.id === 'string' ? component.id : component.type ?? 'component',
           type: component.type ?? '',
-          data: typeof component.data === 'object' && component.data !== null
-            ? component.data as Record<string, unknown>
-            : {}
+          data: toPlainRecord(component.data)
         }
       });
     }
   });
 
   return mergeTextSegments(normalizedSegments);
+}
+
+function cloneJsonValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function toPlainRecord(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return {};
+  }
+
+  return cloneJsonValue(value) as Record<string, unknown>;
 }
 </script>
 
