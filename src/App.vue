@@ -43,6 +43,7 @@ const { t, localeValue, setLocale } = useI18n();
 const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
 
 const isPreviewPage = computed(() => routeHash.value === '#/preview');
+const isEditorReady = computed(() => editorPanelRef.value !== null);
 
 function applyTheme(dark: boolean) {
   document.documentElement.classList.toggle('dark', dark);
@@ -114,10 +115,20 @@ function backToEditorPage() {
           </label>
 
           <template v-if="!isPreviewPage">
-            <button data-testid="save-button" class="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400" @click="saveEditorContent">
+            <button
+              data-testid="save-button"
+              class="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="!isEditorReady"
+              @click="saveEditorContent"
+            >
               {{ t('editor.saveContent') }}
             </button>
-            <button data-testid="preview-button" class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-400" @click="openPreviewPage">
+            <button
+              data-testid="preview-button"
+              class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="!isEditorReady"
+              @click="openPreviewPage"
+            >
               {{ t('editor.previewPage') }}
             </button>
           </template>

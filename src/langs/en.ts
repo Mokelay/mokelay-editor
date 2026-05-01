@@ -41,6 +41,38 @@ export const enMessages = {
   advanceInput: {
     toolboxTitle: 'Advanced Input'
   },
+  advanceTable: {
+    toolboxTitle: 'Advanced Table',
+    propertyPanelTitle: 'Advanced Table Properties',
+    defaultColumnName: 'Column',
+    empty: 'No data',
+    selectAll: 'Select all',
+    selectRow: 'Select row',
+    properties: {
+      index: 'Show index column',
+      selection: 'Show selection column'
+    },
+    defaultColumns: {
+      name: 'Name',
+      status: 'Status',
+      tag: 'Tag',
+      owner: 'Owner'
+    },
+    defaultRows: {
+      first: {
+        name: 'Mokelay Page',
+        status: 'Designing',
+        tag: 'Design',
+        owner: 'Product Team'
+      },
+      second: {
+        name: 'Advanced Table',
+        status: 'Previewable',
+        tag: 'Preview',
+        owner: 'Editor Team'
+      }
+    }
+  },
   tag: {
     toolboxTitle: 'Tag',
     defaultTagName: 'Tag',
