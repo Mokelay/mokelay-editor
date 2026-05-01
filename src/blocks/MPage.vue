@@ -196,7 +196,7 @@ onBeforeUnmount(async () => {
     data-testid="editor-surface"
     class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 py-3 pr-3 pl-11 dark:border-slate-700 dark:bg-slate-950"
   ></div>
-  <div v-else data-testid="preview-blocks" class="space-y-4">
+  <div v-else data-testid="preview-blocks" class="space-y-2">
     <div v-for="(block, index) in previewBlocks" :key="index" :data-testid="`preview-block-${block.type}`" class="p-3">
       <EditorPreviewBlock v-if="block.type !== 'columns'" :block="block" />
 
