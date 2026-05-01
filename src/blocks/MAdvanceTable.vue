@@ -23,6 +23,25 @@ function getSerializedTextValue(text: string) {
   return JSON.stringify([{ type: 'text', text }]);
 }
 
+function getSerializedTagValue() {
+  return JSON.stringify([
+    {
+      type: 'component',
+      component: {
+        id: 'advance-table-default-tag',
+        type: 'MTag',
+        data: {
+          tagName: '{{tag}}',
+          type: '{{tagType}}',
+          size: 'small',
+          color: '',
+          closable: false
+        }
+      }
+    }
+  ]);
+}
+
 function getDefaultColumns(): MAdvanceTableColumnConfig[] {
   return [
     {
@@ -35,6 +54,12 @@ function getDefaultColumns(): MAdvanceTableColumnConfig[] {
       columnName: i18n.t('advanceTable.defaultColumns.status'),
       columnContent: getSerializedTextValue('{{status}}'),
       width: 140,
+      fixed: null
+    },
+    {
+      columnName: i18n.t('advanceTable.defaultColumns.tag'),
+      columnContent: getSerializedTagValue(),
+      width: 120,
       fixed: null
     },
     {
@@ -51,11 +76,15 @@ function getDefaultData(): Array<Record<string, unknown>> {
     {
       name: i18n.t('advanceTable.defaultRows.first.name'),
       status: i18n.t('advanceTable.defaultRows.first.status'),
+      tag: i18n.t('advanceTable.defaultRows.first.tag'),
+      tagType: 'warning',
       owner: i18n.t('advanceTable.defaultRows.first.owner')
     },
     {
       name: i18n.t('advanceTable.defaultRows.second.name'),
       status: i18n.t('advanceTable.defaultRows.second.status'),
+      tag: i18n.t('advanceTable.defaultRows.second.tag'),
+      tagType: 'success',
       owner: i18n.t('advanceTable.defaultRows.second.owner')
     }
   ];

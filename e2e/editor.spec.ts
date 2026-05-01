@@ -236,11 +236,14 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   await expect(advanceTable).toBeVisible();
   await expect(page.locator('.ce-block').filter({ has: advanceTable })).toHaveCount(1);
   await expect(page.getByTestId('advance-table-header-0')).toContainText('名称');
+  await expect(page.getByTestId('advance-table-header-2')).toContainText('标签');
   await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
   await expect(page.getByTestId('advance-table-cell-1-1')).toContainText('可预览');
+  await expect(page.getByTestId('advance-table-cell-0-2')).toContainText('设计');
 
   await page.getByTestId('save-button').click();
   await expect(page.getByTestId('config-json')).toContainText('MAdvanceTable');
+  await expect(page.getByTestId('config-json')).toContainText('MTag');
   await expect(page.getByTestId('config-json')).toContainText('columns');
   await expect(page.getByTestId('config-json')).toContainText('data');
   await page.getByTestId('config-dialog-close').click();
@@ -250,4 +253,5 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   await expect(page.getByTestId('advance-table')).toBeVisible();
   await expect(page.getByTestId('advance-table-header-0')).toContainText('名称');
   await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
+  await expect(page.getByTestId('advance-table-cell-0-2')).toContainText('设计');
 });

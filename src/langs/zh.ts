@@ -55,17 +55,20 @@ export const zhMessages = {
     defaultColumns: {
       name: '名称',
       status: '状态',
+      tag: '标签',
       owner: '负责人'
     },
     defaultRows: {
       first: {
         name: 'Mokelay 页面',
         status: '设计中',
+        tag: '设计',
         owner: '产品团队'
       },
       second: {
         name: '高级表格',
         status: '可预览',
+        tag: '预览',
         owner: '编辑器团队'
       }
     }

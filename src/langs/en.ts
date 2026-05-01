@@ -55,17 +55,20 @@ export const enMessages = {
     defaultColumns: {
       name: 'Name',
       status: 'Status',
+      tag: 'Tag',
       owner: 'Owner'
     },
     defaultRows: {
       first: {
         name: 'Mokelay Page',
         status: 'Designing',
+        tag: 'Design',
         owner: 'Product Team'
       },
       second: {
         name: 'Advanced Table',
         status: 'Previewable',
+        tag: 'Preview',
         owner: 'Editor Team'
       }
     }
