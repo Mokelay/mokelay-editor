@@ -41,6 +41,35 @@ export const zhMessages = {
   advanceInput: {
     toolboxTitle: '高级输入框'
   },
+  advanceTable: {
+    toolboxTitle: '高级表格',
+    propertyPanelTitle: '高级表格属性',
+    defaultColumnName: '列',
+    empty: '暂无数据',
+    selectAll: '全选',
+    selectRow: '选择行',
+    properties: {
+      index: '显示序号列',
+      selection: '显示多选列'
+    },
+    defaultColumns: {
+      name: '名称',
+      status: '状态',
+      owner: '负责人'
+    },
+    defaultRows: {
+      first: {
+        name: 'Mokelay 页面',
+        status: '设计中',
+        owner: '产品团队'
+      },
+      second: {
+        name: '高级表格',
+        status: '可预览',
+        owner: '编辑器团队'
+      }
+    }
+  },
   tag: {
     toolboxTitle: '标签',
     defaultTagName: '标签',

@@ -12,7 +12,7 @@ async function addInputTool(page: Parameters<typeof test.beforeEach>[0]['page'])
 
   await blocks.nth(0).click();
   await page.locator('.ce-toolbar__plus').click();
-  await page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '输入框' }).click();
+  await page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: /^输入框$/ }).click();
 }
 
 async function openAddMenu(page: Parameters<typeof test.beforeEach>[0]['page']) {
@@ -25,6 +25,11 @@ async function openAddMenu(page: Parameters<typeof test.beforeEach>[0]['page']) 
 async function addAdvanceInputTool(page: Parameters<typeof test.beforeEach>[0]['page']) {
   await openAddMenu(page);
   await page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '高级输入框' }).click();
+}
+
+async function addAdvanceTableTool(page: Parameters<typeof test.beforeEach>[0]['page']) {
+  await openAddMenu(page);
+  await page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '高级表格' }).click();
 }
 
 function expectToolbarBesideTool(
@@ -221,4 +226,28 @@ test('adds an advanced input, inserts a tag, and renders it in preview', async (
   await expect(page.getByTestId('preview-block-MAdvanceInput')).toBeVisible();
   await expect(page.getByTestId('preview-advance-input-value')).toContainText('hello ');
   await expect(page.getByTestId('preview-advance-input-value')).toContainText('标签');
+});
+
+test('adds an advanced table and renders it in preview', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addAdvanceTableTool(page);
+
+  const advanceTable = page.getByTestId('editor-advance-table-tool');
+  await expect(advanceTable).toBeVisible();
+  await expect(page.locator('.ce-block').filter({ has: advanceTable })).toHaveCount(1);
+  await expect(page.getByTestId('advance-table-header-0')).toContainText('名称');
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
+  await expect(page.getByTestId('advance-table-cell-1-1')).toContainText('可预览');
+
+  await page.getByTestId('save-button').click();
+  await expect(page.getByTestId('config-json')).toContainText('MAdvanceTable');
+  await expect(page.getByTestId('config-json')).toContainText('columns');
+  await expect(page.getByTestId('config-json')).toContainText('data');
+  await page.getByTestId('config-dialog-close').click();
+  await page.getByTestId('preview-button').click();
+
+  await expect(page.getByTestId('preview-block-MAdvanceTable')).toBeVisible();
+  await expect(page.getByTestId('advance-table')).toBeVisible();
+  await expect(page.getByTestId('advance-table-header-0')).toContainText('名称');
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
 });
