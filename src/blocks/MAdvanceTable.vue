@@ -68,6 +68,20 @@ function getTagValue() {
   ] satisfies StoredBlock[];
 }
 
+function getLinkValue() {
+  return [
+    {
+      id: 'advance-table-default-link',
+      type: 'MLink',
+      data: {
+        text: '{{linkText}}',
+        url: '{{linkUrl}}',
+        open: false
+      }
+    }
+  ] satisfies StoredBlock[];
+}
+
 function getDefaultColumns(): MAdvanceTableColumnConfig[] {
   return [
     {
@@ -93,6 +107,12 @@ function getDefaultColumns(): MAdvanceTableColumnConfig[] {
       columnContent: getTextValue('{{owner}}', 'advance-table-default-owner'),
       width: 160,
       fixed: null
+    },
+    {
+      columnName: i18n.t('advanceTable.defaultColumns.link'),
+      columnContent: getLinkValue(),
+      width: 180,
+      fixed: null
     }
   ];
 }
@@ -104,14 +124,18 @@ function getDefaultData(): Array<Record<string, unknown>> {
       status: i18n.t('advanceTable.defaultRows.first.status'),
       tag: i18n.t('advanceTable.defaultRows.first.tag'),
       tagType: 'warning',
-      owner: i18n.t('advanceTable.defaultRows.first.owner')
+      owner: i18n.t('advanceTable.defaultRows.first.owner'),
+      linkText: i18n.t('advanceTable.defaultRows.first.linkText'),
+      linkUrl: i18n.t('advanceTable.defaultRows.first.linkUrl')
     },
     {
       name: i18n.t('advanceTable.defaultRows.second.name'),
       status: i18n.t('advanceTable.defaultRows.second.status'),
       tag: i18n.t('advanceTable.defaultRows.second.tag'),
       tagType: 'success',
-      owner: i18n.t('advanceTable.defaultRows.second.owner')
+      owner: i18n.t('advanceTable.defaultRows.second.owner'),
+      linkText: i18n.t('advanceTable.defaultRows.second.linkText'),
+      linkUrl: i18n.t('advanceTable.defaultRows.second.linkUrl')
     }
   ];
 }
