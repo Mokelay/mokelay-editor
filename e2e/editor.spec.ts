@@ -49,6 +49,13 @@ async function addAdvanceTableTool(page: Parameters<typeof test.beforeEach>[0]['
   await page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '高级表格' }).click();
 }
 
+async function addLinkTool(page: Parameters<typeof test.beforeEach>[0]['page']) {
+  await openAddMenu(page);
+  const linkMenuItem = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: /^链接$/ });
+  await expect(linkMenuItem).toBeVisible();
+  await linkMenuItem.click();
+}
+
 function expectToolbarBesideTool(
   toolBox: { x: number; y: number; width: number; height: number } | null,
   plusBox: { x: number; y: number; width: number; height: number } | null,
@@ -213,6 +220,50 @@ test('adds a tag component and opens its property panel', async ({ page }) => {
   await expect(page.getByTestId('tool-property-input-closable')).toBeVisible();
 });
 
+test('adds a link component and renders it in preview', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addLinkTool(page);
+
+  const editorLinkTool = page.getByTestId('editor-link-tool');
+  const editorLinkValue = page.getByTestId('editor-link-value');
+  await expect(editorLinkTool).toBeVisible();
+  await expect(editorLinkValue).toHaveText('链接');
+  await expect(editorLinkValue).toHaveAttribute('href', 'https://mokelay.com');
+  await expect(page.locator('.ce-block')).toHaveCount(2);
+
+  await editorLinkTool.hover();
+
+  const plusButton = page.locator('.ce-toolbar__plus');
+  const settingsButton = page.locator('.ce-toolbar__settings-btn');
+
+  await expect(plusButton).toBeVisible();
+  await expect(settingsButton).toBeVisible();
+
+  const linkBox = await editorLinkTool.boundingBox();
+  const plusBox = await plusButton.boundingBox();
+  const settingsBox = await settingsButton.boundingBox();
+
+  expectToolbarBesideTool(linkBox, plusBox, settingsBox);
+
+  await page.getByTestId('save-button').click();
+  const blocks = await getSavedBlocks(page);
+  const linkBlock = blocks.find((block) => block.type === 'MLink');
+
+  expect(linkBlock?.data).toEqual(expect.objectContaining({
+    text: '链接',
+    url: 'https://mokelay.com',
+    open: false
+  }));
+
+  await page.getByTestId('config-dialog-close').click();
+  await page.getByTestId('preview-button').click();
+
+  const previewLink = page.getByTestId('preview-block-MLink').getByTestId('editor-link-value');
+  await expect(page.getByTestId('preview-block-MLink')).toBeVisible();
+  await expect(previewLink).toHaveText('链接');
+  await expect(previewLink).toHaveAttribute('href', 'https://mokelay.com');
+});
+
 test('adds an advanced input, inserts a tag, and renders it in preview', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addAdvanceInputTool(page);
@@ -225,6 +276,7 @@ test('adds an advanced input, inserts a tag, and renders it in preview', async (
   await editable.click();
   await page.keyboard.type('hello /');
   await expect(page.getByTestId('editor-advance-input-menu')).toBeVisible();
+  await expect(page.getByTestId('editor-advance-input-menu-item-MLink')).toBeVisible();
   await page.getByTestId('editor-advance-input-menu-item-MTag').click();
 
   const embeddedTag = page.getByTestId('editor-advance-input-token-MTag');
@@ -274,9 +326,11 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   await expect(page.locator('.ce-block').filter({ has: advanceTable })).toHaveCount(1);
   await expect(page.getByTestId('advance-table-header-0')).toContainText('名称');
   await expect(page.getByTestId('advance-table-header-2')).toContainText('标签');
+  await expect(page.getByTestId('advance-table-header-4')).toContainText('链接');
   await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
   await expect(page.getByTestId('advance-table-cell-1-1')).toContainText('可预览');
   await expect(page.getByTestId('advance-table-cell-0-2')).toContainText('设计');
+  await expect(page.getByTestId('advance-table-cell-0-4')).toContainText('官网');
 
   await page.getByTestId('save-button').click();
   const blocks = await getSavedBlocks(page);
@@ -286,10 +340,16 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
     columnContent?: unknown;
   }> | undefined;
   const tagColumn = columns?.find((column) => column.columnName === '标签');
+  const linkColumn = columns?.find((column) => column.columnName === '链接');
   const tagColumnContent = tagColumn?.columnContent as Array<{
     id?: string;
     type?: string;
     data?: { text?: string };
+  }> | undefined;
+  const linkColumnContent = linkColumn?.columnContent as Array<{
+    id?: string;
+    type?: string;
+    data?: Record<string, unknown>;
   }> | undefined;
   const nameColumnContent = columns?.[0]?.columnContent as Array<{
     id?: string;
@@ -298,7 +358,8 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   }> | undefined;
   const savedColumnContentBlocks = [
     ...(nameColumnContent ?? []),
-    ...(tagColumnContent ?? [])
+    ...(tagColumnContent ?? []),
+    ...(linkColumnContent ?? [])
   ];
 
   expect(Array.isArray(columns?.[0]?.columnContent)).toBeTruthy();
@@ -308,10 +369,18 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   expect(Array.isArray(tagColumnContent)).toBeTruthy();
   expect(tagColumnContent?.[0]?.type).toBe('MTag');
   expect(tagColumnContent?.[0]?.data).toEqual(expect.objectContaining({ tagName: '{{tag}}' }));
+  expect(Array.isArray(linkColumnContent)).toBeTruthy();
+  expect(linkColumnContent?.[0]?.type).toBe('MLink');
+  expect(linkColumnContent?.[0]?.data).toEqual(expect.objectContaining({
+    text: '{{linkText}}',
+    url: '{{linkUrl}}',
+    open: false
+  }));
   expect(savedColumnContentBlocks.some((block) => block.type === 'text')).toBeFalsy();
 
   await expect(page.getByTestId('config-json')).toContainText('MAdvanceTable');
   await expect(page.getByTestId('config-json')).toContainText('MTag');
+  await expect(page.getByTestId('config-json')).toContainText('MLink');
   await expect(page.getByTestId('config-json')).toContainText('columns');
   await expect(page.getByTestId('config-json')).toContainText('data');
   await page.getByTestId('config-dialog-close').click();
@@ -322,6 +391,7 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   await expect(page.getByTestId('advance-table-header-0')).toContainText('名称');
   await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
   await expect(page.getByTestId('advance-table-cell-0-2')).toContainText('设计');
+  await expect(page.getByTestId('advance-table-cell-0-4')).toContainText('官网');
 });
 
 test('loads saved JSON content blocks in editor', async ({ page }) => {

@@ -35,6 +35,17 @@ export const enMessages = {
       valuePlaceholder: 'Please enter a default value'
     }
   },
+  link: {
+    toolboxTitle: 'Link',
+    defaultText: 'Link',
+    defaultUrl: 'https://mokelay.com',
+    propertyPanelTitle: 'Link Properties',
+    properties: {
+      text: 'Link text',
+      url: 'Link URL',
+      open: 'Open in new page'
+    }
+  },
   advanceInput: {
     toolboxTitle: 'Advanced Input'
   },
@@ -53,20 +64,25 @@ export const enMessages = {
       name: 'Name',
       status: 'Status',
       tag: 'Tag',
-      owner: 'Owner'
+      owner: 'Owner',
+      link: 'Link'
     },
     defaultRows: {
       first: {
         name: 'Mokelay Page',
         status: 'Designing',
         tag: 'Design',
-        owner: 'Product Team'
+        owner: 'Product Team',
+        linkText: 'Website',
+        linkUrl: 'https://mokelay.com'
       },
       second: {
         name: 'Advanced Table',
         status: 'Previewable',
         tag: 'Preview',
-        owner: 'Editor Team'
+        owner: 'Editor Team',
+        linkText: 'Docs',
+        linkUrl: 'https://editor.mokelay.com'
       }
     }
   },

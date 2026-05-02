@@ -35,6 +35,17 @@ export const zhMessages = {
       valuePlaceholder: '请输入默认值'
     }
   },
+  link: {
+    toolboxTitle: '链接',
+    defaultText: '链接',
+    defaultUrl: 'https://mokelay.com',
+    propertyPanelTitle: '链接属性',
+    properties: {
+      text: '链接文本',
+      url: '链接地址',
+      open: '新页面打开'
+    }
+  },
   advanceInput: {
     toolboxTitle: '高级输入框'
   },
@@ -53,20 +64,25 @@ export const zhMessages = {
       name: '名称',
       status: '状态',
       tag: '标签',
-      owner: '负责人'
+      owner: '负责人',
+      link: '链接'
     },
     defaultRows: {
       first: {
         name: 'Mokelay 页面',
         status: '设计中',
         tag: '设计',
-        owner: '产品团队'
+        owner: '产品团队',
+        linkText: '官网',
+        linkUrl: 'https://mokelay.com'
       },
       second: {
         name: '高级表格',
         status: '可预览',
         tag: '预览',
-        owner: '编辑器团队'
+        owner: '编辑器团队',
+        linkText: '文档',
+        linkUrl: 'https://editor.mokelay.com'
       }
     }
   },
