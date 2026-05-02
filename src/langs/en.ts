@@ -27,12 +27,9 @@ export const enMessages = {
   },
   input: {
     toolboxTitle: 'Input',
-    defaultLabel: 'Field name',
     defaultPlaceholder: 'Please enter...',
-    editLabelPlaceholder: 'Field label (e.g. Username)',
     propertyPanelTitle: 'Input Properties',
     properties: {
-      label: 'Label',
       placeholder: 'Placeholder',
       value: 'Default value',
       valuePlaceholder: 'Please enter a default value'

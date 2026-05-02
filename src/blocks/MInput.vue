@@ -5,7 +5,6 @@ import { i18n } from '@/i18n';
 // 输入框组件在编辑器中的属性定义。
 export interface MInputProps {
   edit: boolean;
-  label?: string;
   placeholder?: string;
   value?: string;
 }
@@ -25,11 +24,6 @@ export const mInputEditorTool = defineEditorTool<MInputProps>({
     get fields() {
       return [
         {
-          key: 'label',
-          label: i18n.t('input.properties.label'),
-          placeholder: i18n.t('input.editLabelPlaceholder')
-        },
-        {
           key: 'placeholder',
           label: i18n.t('input.properties.placeholder'),
           placeholder: i18n.t('input.defaultPlaceholder')
@@ -43,18 +37,15 @@ export const mInputEditorTool = defineEditorTool<MInputProps>({
     }
   },
   createInitialProps: () => ({
-    label: i18n.t('input.defaultLabel'),
     placeholder: i18n.t('input.defaultPlaceholder'),
     value: ''
   }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
-    label: props.label ?? '',
     placeholder: props.placeholder ?? '',
     value: props.value ?? ''
   }),
   serialize: (props) => ({
-    label: props.label?.trim() ?? '',
     placeholder: props.placeholder ?? '',
     value: props.value ?? ''
   })
@@ -62,23 +53,15 @@ export const mInputEditorTool = defineEditorTool<MInputProps>({
 </script>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useI18n } from '@/i18n';
-
 const props = defineProps<MInputProps & {
   onChange?: (payload: MInputProps) => void;
   onToolChange?: (payload: MInputProps) => void;
 }>();
-const { t } = useI18n();
-
-// 统一标签展示文本，避免模板层重复判空。
-const labelText = computed(() => props.label ?? '');
 
 // 组件内任意字段变更后，向外抛出完整 payload，保持工具状态一致。
 function emitChange(payload: Partial<MInputProps>) {
   const nextPayload = {
     edit: props.edit,
-    label: props.label ?? '',
     placeholder: props.placeholder ?? '',
     value: props.value ?? '',
     ...payload
@@ -91,19 +74,6 @@ function emitChange(payload: Partial<MInputProps>) {
 <template>
   <div class="ce-input-tool" data-testid="editor-input-tool">
     <input
-      v-if="edit"
-      data-testid="editor-input-label"
-      class="ce-input-tool__label"
-      type="text"
-      :placeholder="t('input.editLabelPlaceholder')"
-      :value="label"
-      @input="emitChange({ label: ($event.target as HTMLInputElement).value })"
-    />
-    <div v-else class="ce-input-tool__label">
-      {{ labelText }}
-    </div>
-
-    <input
       data-testid="editor-input-control"
       class="ce-input-tool__control"
       type="text"
@@ -113,3 +83,34 @@ function emitChange(payload: Partial<MInputProps>) {
     />
   </div>
 </template>
+
+<style scoped>
+.ce-input-tool {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ce-input-tool__control {
+  width: 100%;
+  border: 1px solid rgb(148 163 184 / 0.6);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background-color: rgb(255 255 255);
+  color: rgb(15 23 42);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.ce-input-tool__control:focus {
+  outline: none;
+  border-color: rgb(99 102 241);
+  box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
+}
+
+:global(.dark) .ce-input-tool__control {
+  background-color: rgb(15 23 42);
+  color: rgb(226 232 240);
+  border-color: rgb(71 85 105 / 0.9);
+}
+</style>

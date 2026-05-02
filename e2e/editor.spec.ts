@@ -163,7 +163,8 @@ test('adds an input component and opens its property panel', async ({ page }) =>
   await expect(propertyDialog).toBeVisible();
   await expect(page.getByTestId('tool-property-panel')).toBeVisible();
   await expect(page.getByTestId('tool-property-title')).toContainText('输入框属性');
-  await expect(page.getByTestId('tool-property-input-label')).toBeVisible();
+  await expect(page.getByTestId('editor-input-label')).toHaveCount(0);
+  await expect(page.getByTestId('tool-property-input-label')).toHaveCount(0);
   await expect(page.getByTestId('tool-property-input-placeholder')).toBeVisible();
   await expect(page.getByTestId('tool-property-input-value')).toBeVisible();
 });

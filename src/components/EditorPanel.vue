@@ -163,38 +163,6 @@ defineExpose({
   box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
 }
 
-:deep(.ce-input-tool) {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-:deep(.ce-input-tool__label),
-:deep(.ce-input-tool__control) {
-  width: 100%;
-  border: 1px solid rgb(148 163 184 / 0.6);
-  border-radius: 8px;
-  padding: 8px 10px;
-  background-color: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-:deep(.ce-input-tool__label:focus),
-:deep(.ce-input-tool__control:focus) {
-  outline: none;
-  border-color: rgb(99 102 241);
-  box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
-}
-
-:global(.dark) :deep(.ce-input-tool__label),
-:global(.dark) :deep(.ce-input-tool__control) {
-  background-color: rgb(15 23 42);
-  color: rgb(226 232 240);
-  border-color: rgb(71 85 105 / 0.9);
-}
-
 :global(.dark) :deep(.mokelay-editor-tool__property-panel) {
   background: rgb(15 23 42);
 }

@@ -27,12 +27,9 @@ export const zhMessages = {
   },
   input: {
     toolboxTitle: '输入框',
-    defaultLabel: '字段名称',
     defaultPlaceholder: '请输入.....',
-    editLabelPlaceholder: '字段标签（示例：用户名）',
     propertyPanelTitle: '输入框属性',
     properties: {
-      label: '字段标签',
       placeholder: '占位提示',
       value: '默认值',
       valuePlaceholder: '请输入默认值'
