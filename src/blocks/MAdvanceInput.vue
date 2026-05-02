@@ -4,44 +4,55 @@ import { i18n } from '@/i18n';
 
 export interface MAdvanceInputProps {
   edit: boolean;
-  value?: StoredSegment[] | string;
+  value?: StoredBlock[];
 }
 
-type EmbeddedBlock = {
+type StoredBlock = {
   id: string;
   type: string;
   data: Record<string, unknown>;
 };
 
-type StoredSegment =
-  | {
-      type: 'text';
-      text: string;
-    }
-  | {
-      type: 'component';
-      component: EmbeddedBlock;
-    };
-
-function getEmptyValue() {
-  return [{ type: 'text', text: '' }] satisfies StoredSegment[];
+function generateBlockId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().slice(0, 10);
+  }
+  return Math.random().toString(36).slice(2, 12);
 }
 
-function mergeTextSegments(segments: StoredSegment[]) {
-  const merged: StoredSegment[] = [];
+function createParagraphBlock(text: string, id = generateBlockId()): StoredBlock {
+  return {
+    id,
+    type: 'paragraph',
+    data: {
+      text
+    }
+  };
+}
 
-  for (const segment of segments) {
-    if (segment.type === 'text') {
+function getParagraphText(block: StoredBlock) {
+  return typeof block.data.text === 'string' ? block.data.text : '';
+}
+
+function getEmptyValue() {
+  return [createParagraphBlock('')];
+}
+
+function mergeParagraphBlocks(blocks: StoredBlock[]) {
+  const merged: StoredBlock[] = [];
+
+  for (const block of blocks) {
+    if (block.type === 'paragraph') {
       const previous = merged[merged.length - 1];
-      if (previous?.type === 'text') {
-        previous.text += segment.text;
+      if (previous?.type === 'paragraph') {
+        previous.data.text = getParagraphText(previous) + getParagraphText(block);
       } else {
-        merged.push({ type: 'text', text: segment.text });
+        merged.push(createParagraphBlock(getParagraphText(block), block.id));
       }
       continue;
     }
 
-    merged.push(segment);
+    merged.push(cloneStoredBlock(block));
   }
 
   if (!merged.length) {
@@ -51,71 +62,39 @@ function mergeTextSegments(segments: StoredSegment[]) {
   return merged;
 }
 
-function parseStoredSegments(value?: StoredSegment[] | string): StoredSegment[] {
-  if (!value) {
+function normalizeStoredBlocks(value?: StoredBlock[]): StoredBlock[] {
+  if (!Array.isArray(value)) {
     return getEmptyValue();
   }
 
-  if (Array.isArray(value)) {
-    return normalizeStoredSegments(value);
-  }
+  const normalizedBlocks: StoredBlock[] = [];
 
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed)) {
-      return normalizeStoredSegments(parsed);
-    }
-  } catch {
-    // 兼容历史纯文本格式。
-  }
-
-  return [{ type: 'text', text: value }];
-}
-
-function normalizeStoredSegments(segments: unknown[]) {
-  const normalizedSegments: StoredSegment[] = [];
-
-  segments.forEach((item) => {
-    if (typeof item !== 'object' || item === null || !('type' in item)) {
+  value.forEach((item) => {
+    if (typeof item !== 'object' || item === null) {
       return;
     }
 
     const record = item as Record<string, unknown>;
-
-    if (record.type === 'text') {
-      normalizedSegments.push({
-        type: 'text',
-        text: typeof record.text === 'string' ? record.text : ''
-      });
+    if (
+      typeof record.id !== 'string' ||
+      typeof record.type !== 'string' ||
+      typeof record.data !== 'object' ||
+      record.data === null ||
+      Array.isArray(record.data)
+    ) {
       return;
     }
 
-    if (
-      record.type === 'component' &&
-      typeof record.component === 'object' &&
-      record.component !== null &&
-      typeof (record.component as Partial<EmbeddedBlock>).type === 'string'
-    ) {
-      const component = record.component as Partial<EmbeddedBlock>;
-      normalizedSegments.push({
-        type: 'component',
-        component: {
-          id: typeof component.id === 'string' ? component.id : generateBlockId(),
-          type: component.type ?? '',
-          data: toPlainRecord(component.data)
-        }
-      });
-    }
+    const block = {
+      id: record.id,
+      type: record.type,
+      data: toPlainRecord(record.data)
+    };
+
+    normalizedBlocks.push(block.type === 'paragraph' ? createParagraphBlock(getParagraphText(block), block.id) : block);
   });
 
-  return mergeTextSegments(normalizedSegments);
-}
-
-function generateBlockId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID().slice(0, 10);
-  }
-  return Math.random().toString(36).slice(2, 12);
+  return mergeParagraphBlocks(normalizedBlocks);
 }
 
 function cloneJsonValue<T>(value: T): T {
@@ -130,7 +109,7 @@ function toPlainRecord(value: unknown): Record<string, unknown> {
   return cloneJsonValue(value) as Record<string, unknown>;
 }
 
-function cloneEmbeddedBlock(block: EmbeddedBlock): EmbeddedBlock {
+function cloneStoredBlock(block: StoredBlock): StoredBlock {
   return {
     id: block.id,
     type: block.type,
@@ -150,10 +129,10 @@ export const mAdvanceInputEditorTool = defineEditorTool<MAdvanceInputProps>({
   }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
-    value: parseStoredSegments(props.value)
+    value: normalizeStoredBlocks(props.value)
   }),
   serialize: (props) => ({
-    value: parseStoredSegments(props.value)
+    value: normalizeStoredBlocks(props.value)
   })
 });
 </script>
@@ -167,7 +146,7 @@ import { useI18n } from '@/i18n';
 
 type EmbeddedRecord = {
   app: App<Element>;
-  block: EmbeddedBlock;
+  block: StoredBlock;
   mountPoint: HTMLElement;
   wrapper: HTMLElement;
 };
@@ -196,15 +175,15 @@ const embeddedRecords = new Map<string, EmbeddedRecord>();
 let suppressDomSync = false;
 let lastValueSignature = '';
 
-function serializeSegments(segments: StoredSegment[]) {
-  return mergeTextSegments(segments);
+function serializeBlocks(blocks: StoredBlock[]) {
+  return mergeParagraphBlocks(blocks);
 }
 
-function getValueSignature(segments: StoredSegment[]) {
-  return JSON.stringify(serializeSegments(segments));
+function getValueSignature(blocks: StoredBlock[]) {
+  return JSON.stringify(serializeBlocks(blocks));
 }
 
-function createComponentBlock(type: string): EmbeddedBlock {
+function createComponentBlock(type: string): StoredBlock {
   const definition = getInlineCustomComponentDefinition(type);
   if (!definition) {
     throw new Error(`Unknown inline component "${type}".`);
@@ -229,8 +208,8 @@ function unmountEmbeddedRecords() {
   embeddedRecords.clear();
 }
 
-function createComponentWrapper(block: EmbeddedBlock) {
-  const plainBlock = cloneEmbeddedBlock(block);
+function createComponentWrapper(block: StoredBlock) {
+  const plainBlock = cloneStoredBlock(block);
   const definition = getInlineCustomComponentDefinition(plainBlock.type);
   if (!definition) {
     const fallback = document.createElement('span');
@@ -271,7 +250,7 @@ function createComponentWrapper(block: EmbeddedBlock) {
 
   embeddedRecords.set(plainBlock.id, {
     app,
-    block: cloneEmbeddedBlock(plainBlock),
+    block: cloneStoredBlock(plainBlock),
     mountPoint,
     wrapper
   });
@@ -279,7 +258,7 @@ function createComponentWrapper(block: EmbeddedBlock) {
   return wrapper;
 }
 
-function renderEditableContent(value?: StoredSegment[] | string, focusAtEnd = false) {
+function renderEditableContent(value?: StoredBlock[], focusAtEnd = false) {
   const root = editableRef.value;
   if (!root) return;
 
@@ -287,14 +266,14 @@ function renderEditableContent(value?: StoredSegment[] | string, focusAtEnd = fa
   unmountEmbeddedRecords();
   root.innerHTML = '';
 
-  const segments = parseStoredSegments(value);
-  for (const segment of segments) {
-    if (segment.type === 'text') {
-      root.appendChild(document.createTextNode(segment.text));
+  const blocks = normalizeStoredBlocks(value);
+  for (const block of blocks) {
+    if (block.type === 'paragraph') {
+      root.appendChild(document.createTextNode(getParagraphText(block)));
       continue;
     }
 
-    root.appendChild(createComponentWrapper(segment.component));
+    root.appendChild(createComponentWrapper(block));
     root.appendChild(document.createTextNode('\u200B'));
   }
 
@@ -302,7 +281,7 @@ function renderEditableContent(value?: StoredSegment[] | string, focusAtEnd = fa
     root.appendChild(document.createTextNode(''));
   }
 
-  lastValueSignature = getValueSignature(segments);
+  lastValueSignature = getValueSignature(blocks);
   suppressDomSync = false;
 
   if (focusAtEnd) {
@@ -312,17 +291,17 @@ function renderEditableContent(value?: StoredSegment[] | string, focusAtEnd = fa
   }
 }
 
-function getSegmentsFromDom() {
+function getBlocksFromDom() {
   const root = editableRef.value;
   if (!root) {
-    return [{ type: 'text', text: '' }] satisfies StoredSegment[];
+    return getEmptyValue();
   }
 
-  const segments: StoredSegment[] = [];
+  const blocks: StoredBlock[] = [];
   root.childNodes.forEach((node) => {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = (node.textContent ?? '').replace(/\u200B/g, '');
-      segments.push({ type: 'text', text });
+      blocks.push(createParagraphBlock(text));
       return;
     }
 
@@ -333,27 +312,21 @@ function getSegmentsFromDom() {
     if (node.dataset.segmentType === 'component') {
       const blockId = node.dataset.blockId ?? '';
       const record = embeddedRecords.get(blockId);
-      const fallbackBlock = node.dataset.block ? JSON.parse(node.dataset.block) as EmbeddedBlock : null;
+      const fallbackBlock = node.dataset.block ? JSON.parse(node.dataset.block) as StoredBlock : null;
       const block = record?.block ?? fallbackBlock;
       if (block) {
-        segments.push({
-          type: 'component',
-          component: cloneEmbeddedBlock(block)
-        });
+        blocks.push(cloneStoredBlock(block));
       }
       return;
     }
 
-    segments.push({
-      type: 'text',
-      text: (node.textContent ?? '').replace(/\u200B/g, '')
-    });
+    blocks.push(createParagraphBlock((node.textContent ?? '').replace(/\u200B/g, '')));
   });
 
-  return mergeTextSegments(segments);
+  return mergeParagraphBlocks(blocks);
 }
 
-function emitValueChange(value: StoredSegment[]) {
+function emitValueChange(value: StoredBlock[]) {
   lastValueSignature = getValueSignature(value);
   const payload = {
     edit: props.edit,
@@ -365,7 +338,7 @@ function emitValueChange(value: StoredSegment[]) {
 
 function syncValueFromDom() {
   if (suppressDomSync) return;
-  const value = serializeSegments(getSegmentsFromDom());
+  const value = serializeBlocks(getBlocksFromDom());
   if (getValueSignature(value) === lastValueSignature) return;
   emitValueChange(value);
 }
@@ -600,14 +573,18 @@ function updateEmbeddedComponentField(key: string, value: string | boolean) {
 }
 
 function getPreviewSegments() {
-  return parseStoredSegments(props.value);
+  return normalizeStoredBlocks(props.value);
 }
 
 function getPreviewComponent(type: string) {
   return getInlineCustomComponentDefinition(type)?.component ?? null;
 }
 
-function getPreviewProps(block: EmbeddedBlock) {
+function getBlockText(block: StoredBlock) {
+  return getParagraphText(block);
+}
+
+function getPreviewProps(block: StoredBlock) {
   const definition = getInlineCustomComponentDefinition(block.type);
   if (!definition) return { edit: false };
   return definition.normalizeProps({
@@ -644,9 +621,9 @@ watch(
   () => props.value,
   (value) => {
     if (!props.edit) return;
-    const nextSegments = parseStoredSegments(value);
-    if (getValueSignature(nextSegments) === lastValueSignature) return;
-    renderEditableContent(nextSegments);
+    const nextBlocks = normalizeStoredBlocks(value);
+    if (getValueSignature(nextBlocks) === lastValueSignature) return;
+    renderEditableContent(nextBlocks);
   }
 );
 </script>
@@ -688,10 +665,10 @@ watch(
     </div>
 
     <div v-else class="ce-advance-input-tool__preview" data-testid="preview-advance-input-value">
-      <template v-for="(segment, index) in getPreviewSegments()" :key="`${segment.type}-${index}`">
-        <span v-if="segment.type === 'text'" class="ce-advance-input-tool__preview-text">{{ segment.text }}</span>
+      <template v-for="(block, index) in getPreviewSegments()" :key="`${block.id}-${block.type}-${index}`">
+        <span v-if="block.type === 'paragraph'" class="ce-advance-input-tool__preview-text">{{ getBlockText(block) }}</span>
         <span v-else class="ce-advance-input-tool__preview-token">
-          <component :is="getPreviewComponent(segment.component.type)" v-bind="getPreviewProps(segment.component)" />
+          <component :is="getPreviewComponent(block.type)" v-bind="getPreviewProps(block)" />
         </span>
       </template>
     </div>

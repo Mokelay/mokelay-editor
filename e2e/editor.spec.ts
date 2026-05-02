@@ -241,19 +241,27 @@ test('adds an advanced input, inserts a tag, and renders it in preview', async (
   const blocks = await getSavedBlocks(page);
   const advanceInputBlock = blocks.find((block) => block.type === 'MAdvanceInput');
   const advanceInputValue = advanceInputBlock?.data?.value as Array<{
+    id?: string;
     type?: string;
-    component?: { type?: string };
+    data?: { text?: string };
   }> | undefined;
+  const advanceInputParagraphText = advanceInputValue
+    ?.filter((block) => block.type === 'paragraph')
+    .map((block) => block.data?.text ?? '')
+    .join('');
 
   expect(Array.isArray(advanceInputValue)).toBeTruthy();
   expect(typeof advanceInputBlock?.data?.value).not.toBe('string');
-  expect(advanceInputValue?.some((segment) => segment.type === 'component' && segment.component?.type === 'MTag')).toBeTruthy();
+  expect(advanceInputParagraphText).toBe('hello ');
+  expect(advanceInputValue?.some((block) => block.type === 'MTag')).toBeTruthy();
+  expect(advanceInputValue?.some((block) => block.type === 'text')).toBeFalsy();
+  expect(advanceInputValue?.every((block) => typeof block.id === 'string' && typeof block.data === 'object')).toBeTruthy();
 
   await page.getByTestId('config-dialog-close').click();
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MAdvanceInput')).toBeVisible();
-  await expect(page.getByTestId('preview-advance-input-value')).toContainText('hello ');
+  await expect(page.getByTestId('preview-advance-input-value')).toContainText('hello');
   await expect(page.getByTestId('preview-advance-input-value')).toContainText('标签');
 });
 
@@ -279,15 +287,28 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   }> | undefined;
   const tagColumn = columns?.find((column) => column.columnName === '标签');
   const tagColumnContent = tagColumn?.columnContent as Array<{
+    id?: string;
     type?: string;
-    component?: { type?: string };
+    data?: { text?: string };
   }> | undefined;
+  const nameColumnContent = columns?.[0]?.columnContent as Array<{
+    id?: string;
+    type?: string;
+    data?: { text?: string };
+  }> | undefined;
+  const savedColumnContentBlocks = [
+    ...(nameColumnContent ?? []),
+    ...(tagColumnContent ?? [])
+  ];
 
   expect(Array.isArray(columns?.[0]?.columnContent)).toBeTruthy();
   expect(typeof columns?.[0]?.columnContent).not.toBe('string');
+  expect(nameColumnContent?.[0]?.type).toBe('paragraph');
+  expect(nameColumnContent?.[0]?.data?.text).toBe('{{name}}');
   expect(Array.isArray(tagColumnContent)).toBeTruthy();
-  expect(tagColumnContent?.[0]?.type).toBe('component');
-  expect(tagColumnContent?.[0]?.component?.type).toBe('MTag');
+  expect(tagColumnContent?.[0]?.type).toBe('MTag');
+  expect(tagColumnContent?.[0]?.data).toEqual(expect.objectContaining({ tagName: '{{tag}}' }));
+  expect(savedColumnContentBlocks.some((block) => block.type === 'text')).toBeFalsy();
 
   await expect(page.getByTestId('config-json')).toContainText('MAdvanceTable');
   await expect(page.getByTestId('config-json')).toContainText('MTag');
@@ -303,7 +324,7 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   await expect(page.getByTestId('advance-table-cell-0-2')).toContainText('设计');
 });
 
-test('loads saved JSON segment blocks in editor', async ({ page }) => {
+test('loads saved JSON content blocks in editor', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => {
     pageErrors.push(error.message);
@@ -319,37 +340,49 @@ test('loads saved JSON segment blocks in editor', async ({ page }) => {
           type: 'MAdvanceInput',
           data: {
             value: [
-              { type: 'text', text: 'aaa' },
               {
-                type: 'component',
-                component: {
-                  id: '930a9df2-a',
-                  type: 'MTag',
-                  data: {
-                    tagName: '标签',
-                    closable: false,
-                    size: '',
-                    color: '',
-                    type: 'success'
-                  }
+                id: 'advance-input-text-a',
+                type: 'paragraph',
+                data: {
+                  text: 'aaa'
                 }
               },
-              { type: 'text', text: 'bbbbb' },
               {
-                type: 'component',
-                component: {
-                  id: '639955f1-3',
-                  type: 'MTag',
-                  data: {
-                    tagName: '标签',
-                    closable: false,
-                    size: '',
-                    color: '',
-                    type: 'success'
-                  }
+                id: '930a9df2-a',
+                type: 'MTag',
+                data: {
+                  tagName: '标签',
+                  closable: false,
+                  size: '',
+                  color: '',
+                  type: 'success'
                 }
               },
-              { type: 'text', text: 'c' }
+              {
+                id: 'advance-input-text-b',
+                type: 'paragraph',
+                data: {
+                  text: 'bbbbb'
+                }
+              },
+              {
+                id: '639955f1-3',
+                type: 'MTag',
+                data: {
+                  tagName: '标签',
+                  closable: false,
+                  size: '',
+                  color: '',
+                  type: 'success'
+                }
+              },
+              {
+                id: 'advance-input-text-c',
+                type: 'paragraph',
+                data: {
+                  text: 'c'
+                }
+              }
             ]
           }
         },
@@ -362,7 +395,15 @@ test('loads saved JSON segment blocks in editor', async ({ page }) => {
             columns: [
               {
                 columnName: '名称',
-                columnContent: [{ type: 'text', text: '{{name}}' }],
+                columnContent: [
+                  {
+                    id: 'advance-table-name-content',
+                    type: 'paragraph',
+                    data: {
+                      text: '{{name}}'
+                    }
+                  }
+                ],
                 width: 180,
                 fixed: 'left'
               },
@@ -370,17 +411,14 @@ test('loads saved JSON segment blocks in editor', async ({ page }) => {
                 columnName: '标签',
                 columnContent: [
                   {
-                    type: 'component',
-                    component: {
-                      id: 'advance-table-default-tag',
-                      type: 'MTag',
-                      data: {
-                        tagName: '{{tag}}',
-                        type: '{{tagType}}',
-                        size: 'small',
-                        color: '',
-                        closable: false
-                      }
+                    id: 'advance-table-default-tag',
+                    type: 'MTag',
+                    data: {
+                      tagName: '{{tag}}',
+                      type: '{{tagType}}',
+                      size: 'small',
+                      color: '',
+                      closable: false
                     }
                   }
                 ],

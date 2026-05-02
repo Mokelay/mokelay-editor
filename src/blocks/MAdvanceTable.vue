@@ -10,19 +10,11 @@ type EmbeddedBlock = {
   data: Record<string, unknown>;
 };
 
-type StoredSegment =
-  | {
-      type: 'text';
-      text: string;
-    }
-  | {
-      type: 'component';
-      component: EmbeddedBlock;
-    };
+type StoredBlock = EmbeddedBlock;
 
 export interface MAdvanceTableColumnConfig {
   columnName?: string;
-  columnContent?: StoredSegment[] | string;
+  columnContent?: StoredBlock[];
   width?: number | null;
   fixed?: MAdvanceTableFixed;
 }
@@ -35,40 +27,58 @@ export interface MAdvanceTableProps {
   data?: Array<Record<string, unknown>>;
 }
 
-function getTextValue(text: string) {
-  return [{ type: 'text', text }] satisfies StoredSegment[];
+function generateBlockId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().slice(0, 10);
+  }
+  return Math.random().toString(36).slice(2, 12);
+}
+
+function createParagraphBlock(text: string, id = generateBlockId()): StoredBlock {
+  return {
+    id,
+    type: 'paragraph',
+    data: {
+      text
+    }
+  };
+}
+
+function getParagraphText(block: StoredBlock) {
+  return typeof block.data.text === 'string' ? block.data.text : '';
+}
+
+function getTextValue(text: string, id?: string) {
+  return [createParagraphBlock(text, id)] satisfies StoredBlock[];
 }
 
 function getTagValue() {
   return [
     {
-      type: 'component',
-      component: {
-        id: 'advance-table-default-tag',
-        type: 'MTag',
-        data: {
-          tagName: '{{tag}}',
-          type: '{{tagType}}',
-          size: 'small',
-          color: '',
-          closable: false
-        }
+      id: 'advance-table-default-tag',
+      type: 'MTag',
+      data: {
+        tagName: '{{tag}}',
+        type: '{{tagType}}',
+        size: 'small',
+        color: '',
+        closable: false
       }
     }
-  ] satisfies StoredSegment[];
+  ] satisfies StoredBlock[];
 }
 
 function getDefaultColumns(): MAdvanceTableColumnConfig[] {
   return [
     {
       columnName: i18n.t('advanceTable.defaultColumns.name'),
-      columnContent: getTextValue('{{name}}'),
+      columnContent: getTextValue('{{name}}', 'advance-table-default-name'),
       width: 180,
       fixed: 'left'
     },
     {
       columnName: i18n.t('advanceTable.defaultColumns.status'),
-      columnContent: getTextValue('{{status}}'),
+      columnContent: getTextValue('{{status}}', 'advance-table-default-status'),
       width: 140,
       fixed: null
     },
@@ -80,7 +90,7 @@ function getDefaultColumns(): MAdvanceTableColumnConfig[] {
     },
     {
       columnName: i18n.t('advanceTable.defaultColumns.owner'),
-      columnContent: getTextValue('{{owner}}'),
+      columnContent: getTextValue('{{owner}}', 'advance-table-default-owner'),
       width: 160,
       fixed: null
     }
@@ -162,7 +172,7 @@ function normalizeColumns(columns?: MAdvanceTableColumnConfig[]) {
     .filter((column): column is MAdvanceTableColumnConfig => typeof column === 'object' && column !== null)
     .map((column, index) => ({
       columnName: column.columnName?.trim() || `${i18n.t('advanceTable.defaultColumnName')}${index + 1}`,
-      columnContent: parseStoredSegments(column.columnContent),
+      columnContent: normalizeStoredBlocks(column.columnContent),
       width: normalizeWidth(column.width),
       fixed: normalizeFixed(column.fixed)
     }));
@@ -190,84 +200,59 @@ function normalizeFixed(fixed?: MAdvanceTableFixed) {
   return fixed === 'left' || fixed === 'right' ? fixed : null;
 }
 
-function mergeTextSegments(segments: StoredSegment[]) {
-  const merged: StoredSegment[] = [];
+function mergeParagraphBlocks(blocks: StoredBlock[]) {
+  const merged: StoredBlock[] = [];
 
-  for (const segment of segments) {
-    if (segment.type === 'text') {
+  for (const block of blocks) {
+    if (block.type === 'paragraph') {
       const previous = merged[merged.length - 1];
-      if (previous?.type === 'text') {
-        previous.text += segment.text;
+      if (previous?.type === 'paragraph') {
+        previous.data.text = getParagraphText(previous) + getParagraphText(block);
       } else {
-        merged.push({ type: 'text', text: segment.text });
+        merged.push(createParagraphBlock(getParagraphText(block), block.id));
       }
       continue;
     }
 
-    merged.push(segment);
+    merged.push(cloneStoredBlock(block));
   }
 
   return merged.length ? merged : getTextValue('');
 }
 
-function parseStoredSegments(value?: StoredSegment[] | string): StoredSegment[] {
-  if (!value) {
+function normalizeStoredBlocks(value?: StoredBlock[]): StoredBlock[] {
+  if (!Array.isArray(value)) {
     return getTextValue('');
   }
 
-  if (Array.isArray(value)) {
-    return normalizeStoredSegments(value);
-  }
+  const normalizedBlocks: StoredBlock[] = [];
 
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed)) {
-      return normalizeStoredSegments(parsed);
-    }
-  } catch {
-    // 兼容普通字符串配置。
-  }
-
-  return getTextValue(value);
-}
-
-function normalizeStoredSegments(segments: unknown[]) {
-  const normalizedSegments: StoredSegment[] = [];
-
-  segments.forEach((item) => {
-    if (typeof item !== 'object' || item === null || !('type' in item)) {
+  value.forEach((item) => {
+    if (typeof item !== 'object' || item === null) {
       return;
     }
 
     const record = item as Record<string, unknown>;
-
-    if (record.type === 'text') {
-      normalizedSegments.push({
-        type: 'text',
-        text: typeof record.text === 'string' ? record.text : ''
-      });
+    if (
+      typeof record.id !== 'string' ||
+      typeof record.type !== 'string' ||
+      typeof record.data !== 'object' ||
+      record.data === null ||
+      Array.isArray(record.data)
+    ) {
       return;
     }
 
-    if (
-      record.type === 'component' &&
-      typeof record.component === 'object' &&
-      record.component !== null &&
-      typeof (record.component as Partial<EmbeddedBlock>).type === 'string'
-    ) {
-      const component = record.component as Partial<EmbeddedBlock>;
-      normalizedSegments.push({
-        type: 'component',
-        component: {
-          id: typeof component.id === 'string' ? component.id : component.type ?? 'component',
-          type: component.type ?? '',
-          data: toPlainRecord(component.data)
-        }
-      });
-    }
+    const block = {
+      id: record.id,
+      type: record.type,
+      data: toPlainRecord(record.data)
+    };
+
+    normalizedBlocks.push(block.type === 'paragraph' ? createParagraphBlock(getParagraphText(block), block.id) : block);
   });
 
-  return mergeTextSegments(normalizedSegments);
+  return mergeParagraphBlocks(normalizedBlocks);
 }
 
 function cloneJsonValue<T>(value: T): T {
@@ -281,22 +266,20 @@ function toPlainRecord(value: unknown): Record<string, unknown> {
 
   return cloneJsonValue(value) as Record<string, unknown>;
 }
+
+function cloneStoredBlock(block: StoredBlock): StoredBlock {
+  return {
+    id: block.id,
+    type: block.type,
+    data: toPlainRecord(block.data)
+  };
+}
 </script>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { getInlineCustomComponentDefinition } from '@/editors/inlineCustomComponents';
 import { useI18n } from '@/i18n';
-
-type RenderSegment =
-  | {
-      type: 'text';
-      text: string;
-    }
-  | {
-      type: 'component';
-      component: EmbeddedBlock;
-    };
 
 const props = defineProps<MAdvanceTableProps & {
   onChange?: (payload: MAdvanceTableProps) => void;
@@ -340,27 +323,6 @@ function readRowPath(row: Record<string, unknown>, path: string) {
   }, row);
 }
 
-function resolveCellContent(row: Record<string, unknown>, column: MAdvanceTableColumnConfig) {
-  const columnContent = column.columnContent;
-  if (typeof columnContent === 'string') {
-    if (columnContent in row) {
-      return stringifyCellValue(row[columnContent]);
-    }
-
-    return columnContent;
-  }
-
-  if (Array.isArray(columnContent)) {
-    return columnContent;
-  }
-
-  if (column.columnName && column.columnName in row) {
-    return stringifyCellValue(row[column.columnName]);
-  }
-
-  return getTextValue('');
-}
-
 function interpolateComponentData(value: unknown, row: Record<string, unknown>): unknown {
   if (typeof value === 'string') {
     return interpolateValue(value, row);
@@ -379,21 +341,20 @@ function interpolateComponentData(value: unknown, row: Record<string, unknown>):
   return value;
 }
 
-function getCellSegments(row: Record<string, unknown>, column: MAdvanceTableColumnConfig): RenderSegment[] {
-  return parseStoredSegments(resolveCellContent(row, column)).map((segment) => {
-    if (segment.type === 'text') {
+function getCellBlocks(row: Record<string, unknown>, column: MAdvanceTableColumnConfig): StoredBlock[] {
+  return normalizeStoredBlocks(column.columnContent).map((block) => {
+    if (block.type === 'paragraph') {
       return {
-        type: 'text',
-        text: interpolateValue(segment.text, row)
+        ...block,
+        data: {
+          text: interpolateValue(getParagraphText(block), row)
+        }
       };
     }
 
     return {
-      type: 'component',
-      component: {
-        ...segment.component,
-        data: interpolateComponentData(segment.component.data, row) as Record<string, unknown>
-      }
+      ...block,
+      data: interpolateComponentData(block.data, row) as Record<string, unknown>
     };
   });
 }
@@ -402,7 +363,7 @@ function getPreviewComponent(type: string) {
   return getInlineCustomComponentDefinition(type)?.component ?? null;
 }
 
-function getPreviewProps(block: EmbeddedBlock) {
+function getPreviewProps(block: StoredBlock) {
   const definition = getInlineCustomComponentDefinition(block.type);
   if (!definition) return { edit: false };
   return definition.normalizeProps({
@@ -410,6 +371,10 @@ function getPreviewProps(block: EmbeddedBlock) {
     ...block.data,
     edit: false
   });
+}
+
+function getBlockText(block: StoredBlock) {
+  return getParagraphText(block);
 }
 
 function getColumnWidth(column: MAdvanceTableColumnConfig) {
@@ -600,12 +565,12 @@ function toggleAllRows() {
               :data-testid="`advance-table-cell-${rowIndex}-${columnIndex}`"
             >
               <template
-                v-for="(segment, segmentIndex) in getCellSegments(row, column)"
-                :key="`${rowIndex}-${columnIndex}-${segment.type}-${segmentIndex}`"
+                v-for="(block, blockIndex) in getCellBlocks(row, column)"
+                :key="`${rowIndex}-${columnIndex}-${block.id}-${block.type}-${blockIndex}`"
               >
-                <span v-if="segment.type === 'text'" class="ce-advance-table-tool__cell-text">{{ segment.text }}</span>
+                <span v-if="block.type === 'paragraph'" class="ce-advance-table-tool__cell-text">{{ getBlockText(block) }}</span>
                 <span v-else class="ce-advance-table-tool__cell-token">
-                  <component :is="getPreviewComponent(segment.component.type)" v-bind="getPreviewProps(segment.component)" />
+                  <component :is="getPreviewComponent(block.type)" v-bind="getPreviewProps(block)" />
                 </span>
               </template>
             </td>
