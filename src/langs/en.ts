@@ -53,6 +53,10 @@ export const enMessages = {
     toolboxTitle: 'Component Selector',
     placeholder: 'Select a component'
   },
+  form: {
+    toolboxTitle: 'Form',
+    placeholder: 'Add a form item'
+  },
   advanceTable: {
     toolboxTitle: 'Advanced Table',
     propertyPanelTitle: 'Advanced Table Properties',

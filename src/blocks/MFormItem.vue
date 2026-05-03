@@ -17,7 +17,7 @@ export interface MFormItemProps {
   layout?: MFormItemLayout;
 }
 
-function generateVariableName() {
+export function generateFormItemVariableName() {
   const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID().slice(0, 8)
     : Math.random().toString(36).slice(2, 10);
@@ -25,7 +25,7 @@ function generateVariableName() {
   return `field_${suffix}`;
 }
 
-function getDefaultLabelName() {
+export function getDefaultFormItemLabelName() {
   return i18n.t('formItem.defaultLabelName');
 }
 
@@ -34,7 +34,7 @@ function normalizeLayout(value?: unknown): MFormItemLayout {
 }
 
 function normalizeLabelName(value?: unknown) {
-  return typeof value === 'string' && value.trim() ? value : getDefaultLabelName();
+  return typeof value === 'string' && value.trim() ? value : getDefaultFormItemLabelName();
 }
 
 function normalizeVariableName(value?: unknown, fallback?: string) {
@@ -42,20 +42,30 @@ function normalizeVariableName(value?: unknown, fallback?: string) {
     return value.trim();
   }
 
-  return fallback || generateVariableName();
+  return fallback || generateFormItemVariableName();
 }
 
 function cloneEditorBlock(block?: StoredBlock) {
   return block ? cloneSelectorBlock(block) : undefined;
 }
 
-function normalizeFormItemProps(props: Partial<MFormItemProps>, fallbackVariableName?: string): MFormItemProps {
+export function normalizeFormItemProps(props: Partial<MFormItemProps>, fallbackVariableName?: string): MFormItemProps {
   return {
     edit: props.edit ?? false,
     labelName: normalizeLabelName(props.labelName),
     variableName: normalizeVariableName(props.variableName, fallbackVariableName),
     editor: normalizeSelectorBlock(props.editor),
     layout: normalizeLayout(props.layout)
+  };
+}
+
+export function serializeFormItemProps(props: Partial<MFormItemProps>) {
+  const normalized = normalizeFormItemProps(props);
+  return {
+    labelName: normalized.labelName,
+    variableName: normalized.variableName,
+    ...(normalized.editor ? { editor: cloneSelectorBlock(normalized.editor) } : {}),
+    layout: normalized.layout
   };
 }
 
@@ -95,21 +105,13 @@ export const mFormItemEditorTool = defineEditorTool<MFormItemProps>({
     }
   },
   createInitialProps: () => ({
-    labelName: getDefaultLabelName(),
-    variableName: generateVariableName(),
+    labelName: getDefaultFormItemLabelName(),
+    variableName: generateFormItemVariableName(),
     editor: undefined,
     layout: 'Vertical'
   }),
   normalizeProps: (props) => normalizeFormItemProps(props),
-  serialize: (props) => {
-    const normalized = normalizeFormItemProps(props);
-    return {
-      labelName: normalized.labelName,
-      variableName: normalized.variableName,
-      ...(normalized.editor ? { editor: cloneSelectorBlock(normalized.editor) } : {}),
-      layout: normalized.layout
-    };
-  }
+  serialize: serializeFormItemProps
 });
 </script>
 
@@ -130,7 +132,7 @@ const props = withDefaults(defineProps<MFormItemProps & {
 });
 
 const { t } = useI18n();
-const selectorExcludeToolNames = ['MFormItem'];
+const selectorExcludeToolNames = ['MFormItem', 'MForm'];
 const formItem = reactive(normalizeFormItemProps(props));
 
 function emitChange() {

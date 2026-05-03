@@ -29,6 +29,7 @@ const props = withDefaults(defineProps<MEditorSelectorProps & {
 });
 
 const { t, localeValue } = useI18n();
+const rootRef = ref<HTMLElement | null>(null);
 const holderRef = ref<HTMLElement | null>(null);
 const selectedBlock = ref<StoredBlock | undefined>(normalizeSelectorBlock(props.value));
 const hasSelectedBlock = computed(() => selectedBlock.value !== undefined);
@@ -37,6 +38,7 @@ let editor: EditorJS | null = null;
 let isRenderingCanonicalValue = false;
 let editorMutationObserver: MutationObserver | null = null;
 let scheduledEditorSync: number | null = null;
+let scheduledToolbarSync: number | null = null;
 let editorDataCache: OutputData = buildOutput(selectedBlock.value);
 
 function buildOutput(block?: StoredBlock): OutputData {
@@ -183,6 +185,48 @@ function stopEditorSyncListeners() {
   holder?.removeEventListener('click', scheduleEditorSync);
 }
 
+function getSelectorToolbar(root: HTMLElement) {
+  return root.querySelector<HTMLElement>('.codex-editor > .ce-toolbar');
+}
+
+function getToolbarScope(root: HTMLElement) {
+  return root.closest<HTMLElement>('[data-testid="editor-form-tool"]')
+    ?? root.closest<HTMLElement>('[data-testid="editor-panel"]')
+    ?? document;
+}
+
+function closePeerSelectorToolbars() {
+  const root = rootRef.value;
+  if (!root) return;
+
+  getToolbarScope(root).querySelectorAll<HTMLElement>('.ce-editor-selector-tool').forEach((selectorRoot) => {
+    if (selectorRoot === root) return;
+    const toolbar = getSelectorToolbar(selectorRoot);
+    toolbar?.classList.remove('ce-toolbar--opened');
+  });
+}
+
+function syncSelectorToolbarState() {
+  const root = rootRef.value;
+  if (!root) return;
+
+  closePeerSelectorToolbars();
+}
+
+function clearScheduledToolbarSync() {
+  if (scheduledToolbarSync === null) return;
+  window.clearTimeout(scheduledToolbarSync);
+  scheduledToolbarSync = null;
+}
+
+function scheduleSelectorToolbarSync() {
+  clearScheduledToolbarSync();
+  scheduledToolbarSync = window.setTimeout(() => {
+    scheduledToolbarSync = null;
+    syncSelectorToolbarState();
+  }, 0);
+}
+
 async function mountEditor() {
   if (!props.edit || !holderRef.value || editor) return;
 
@@ -282,15 +326,19 @@ watch(
 );
 
 onBeforeUnmount(async () => {
+  clearScheduledToolbarSync();
   await unmountEditor();
 });
 </script>
 
 <template>
   <div
+    ref="rootRef"
     class="ce-editor-selector-tool"
     :class="{ 'ce-editor-selector-tool--filled': hasSelectedBlock }"
     data-testid="editor-selector-tool"
+    @mouseenter="scheduleSelectorToolbarSync"
+    @mousemove="scheduleSelectorToolbarSync"
   >
     <div
       v-if="edit"
