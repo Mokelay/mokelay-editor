@@ -49,8 +49,16 @@ function getBlockSignature(block?: StoredBlock) {
   return block ? JSON.stringify(block) : '';
 }
 
+function getExcludedToolNames() {
+  const excludedToolNames = new Set([SELECTOR_TOOL_NAME]);
+  (props.excludeToolNames ?? []).forEach((toolName) => {
+    excludedToolNames.add(toolName);
+  });
+  return excludedToolNames;
+}
+
 function isAllowedSelectorType(type: string) {
-  return type !== SELECTOR_TOOL_NAME && !INTERNAL_BLOCK_TYPES.has(type) && Boolean(getEditorComponentDefinition(type));
+  return !getExcludedToolNames().has(type) && !INTERNAL_BLOCK_TYPES.has(type) && Boolean(getEditorComponentDefinition(type));
 }
 
 function toStoredBlock(block: OutputData['blocks'][number]): StoredBlock | undefined {
@@ -181,7 +189,7 @@ async function mountEditor() {
   editorDataCache = buildOutput(selectedBlock.value);
   const tools = createEditorTools(
     { edit: true },
-    { exclude: [SELECTOR_TOOL_NAME] }
+    { exclude: getExcludedToolNames() }
   ) as Record<string, ToolSettings>;
 
   editor = new EditorJS({
@@ -263,6 +271,15 @@ watch(localeValue, async () => {
   if (!editor) return;
   await rebuildEditor();
 });
+
+watch(
+  () => props.excludeToolNames,
+  async () => {
+    if (!editor) return;
+    await rebuildEditor();
+  },
+  { deep: true }
+);
 
 onBeforeUnmount(async () => {
   await unmountEditor();
