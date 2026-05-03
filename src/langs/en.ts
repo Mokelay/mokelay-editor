@@ -49,6 +49,10 @@ export const enMessages = {
   advanceInput: {
     toolboxTitle: 'Advanced Input'
   },
+  editorSelector: {
+    toolboxTitle: 'Component Selector',
+    placeholder: 'Select a component'
+  },
   advanceTable: {
     toolboxTitle: 'Advanced Table',
     propertyPanelTitle: 'Advanced Table Properties',

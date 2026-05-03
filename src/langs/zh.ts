@@ -49,6 +49,10 @@ export const zhMessages = {
   advanceInput: {
     toolboxTitle: '高级输入框'
   },
+  editorSelector: {
+    toolboxTitle: '组件选择器',
+    placeholder: '选择组件'
+  },
   advanceTable: {
     toolboxTitle: '高级表格',
     propertyPanelTitle: '高级表格属性',

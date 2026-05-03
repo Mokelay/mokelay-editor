@@ -19,6 +19,10 @@ type EditorToolClass = new (options: EditorToolFactoryOptions) => {
   destroy: () => void;
 };
 
+type CreateEditorToolsOptions = {
+  exclude?: Iterable<string>;
+};
+
 // 缓存已经构建过的工具类，避免重复创建 class。
 const toolClassCache = new Map<string, EditorToolClass>();
 
@@ -279,17 +283,24 @@ export default class EditorToolFactory {
   }
 }
 
-export function createEditorTools(sharedConfig: Partial<EditorToolComponentProps> = {}) {
+export function createEditorTools(
+  sharedConfig: Partial<EditorToolComponentProps> = {},
+  options: CreateEditorToolsOptions = {}
+) {
+  const excludedTools = new Set(options.exclude ?? []);
+
   return Object.fromEntries(
-    Object.entries(getEditorComponentRegistry()).map(([toolName, definition]) => [
-      toolName,
-      {
-        class: EditorToolFactory.create(toolName),
-        config: definition.normalizeProps({
-          ...(definition.createInitialProps?.() ?? {}),
-          ...sharedConfig
-        })
-      }
-    ])
+    Object.entries(getEditorComponentRegistry())
+      .filter(([toolName]) => !excludedTools.has(toolName))
+      .map(([toolName, definition]) => [
+        toolName,
+        {
+          class: EditorToolFactory.create(toolName),
+          config: definition.normalizeProps({
+            ...(definition.createInitialProps?.() ?? {}),
+            ...sharedConfig
+          })
+        }
+      ])
   );
 }
