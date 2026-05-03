@@ -90,6 +90,26 @@ export const zhMessages = {
       }
     }
   },
+  formItem: {
+    toolboxTitle: '表单项',
+    defaultLabelName: '字段',
+    propertyPanelTitle: '表单项属性',
+    emptyEditor: '未选择编辑器',
+    properties: {
+      labelName: '字段文本',
+      variableName: '变量名',
+      editor: '编辑器',
+      layout: '布局方式'
+    },
+    placeholders: {
+      labelName: '请输入字段文本',
+      variableName: '请输入变量名'
+    },
+    layouts: {
+      vertical: '垂直',
+      horizontal: '水平'
+    }
+  },
   tag: {
     toolboxTitle: '标签',
     defaultTagName: '标签',

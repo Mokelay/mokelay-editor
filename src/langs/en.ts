@@ -90,6 +90,26 @@ export const enMessages = {
       }
     }
   },
+  formItem: {
+    toolboxTitle: 'Form Item',
+    defaultLabelName: 'Field',
+    propertyPanelTitle: 'Form Item Properties',
+    emptyEditor: 'No editor selected',
+    properties: {
+      labelName: 'Field label',
+      variableName: 'Variable name',
+      editor: 'Editor',
+      layout: 'Layout'
+    },
+    placeholders: {
+      labelName: 'Enter field label',
+      variableName: 'Enter variable name'
+    },
+    layouts: {
+      vertical: 'Vertical',
+      horizontal: 'Horizontal'
+    }
+  },
   tag: {
     toolboxTitle: 'Tag',
     defaultTagName: 'Tag',

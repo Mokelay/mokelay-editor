@@ -10,6 +10,7 @@ export type StoredBlock = {
 export interface MEditorSelectorProps {
   edit: boolean;
   value?: StoredBlock;
+  excludeToolNames?: string[];
 }
 
 function generateBlockId() {
@@ -68,7 +69,10 @@ export const mEditorSelectorEditorTool = defineEditorTool<MEditorSelectorProps>(
   }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
-    value: normalizeSelectorBlock(props.value)
+    value: normalizeSelectorBlock(props.value),
+    excludeToolNames: Array.isArray(props.excludeToolNames)
+      ? props.excludeToolNames.filter((toolName): toolName is string => typeof toolName === 'string')
+      : []
   }),
   serialize: (props) => {
     const value = normalizeSelectorBlock(props.value);

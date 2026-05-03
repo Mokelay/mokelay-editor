@@ -1,6 +1,7 @@
 import { defineAsyncComponent, markRaw } from 'vue';
 import MAdvanceInput, { mAdvanceInputEditorTool } from '@/blocks/MAdvanceInput.vue';
 import MAdvanceTable, { mAdvanceTableEditorTool } from '@/blocks/MAdvanceTable.vue';
+import MFormItem, { mFormItemEditorTool } from '@/blocks/MFormItem.vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
 import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
 import MTag, { mTagEditorTool } from '@/blocks/MTag.vue';
@@ -50,6 +51,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MAdvanceTable)]: {
     component: markRaw(MAdvanceTable),
     ...mAdvanceTableEditorTool
+  },
+  [getEditorComponentName(MFormItem)]: {
+    component: markRaw(MFormItem),
+    ...mFormItemEditorTool
   },
   [getEditorComponentName(MTag)]: {
     component: markRaw(MTag),
