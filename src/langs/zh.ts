@@ -53,6 +53,10 @@ export const zhMessages = {
     toolboxTitle: '组件选择器',
     placeholder: '选择组件'
   },
+  form: {
+    toolboxTitle: '表单',
+    placeholder: '添加表单项'
+  },
   advanceTable: {
     toolboxTitle: '高级表格',
     propertyPanelTitle: '高级表格属性',
