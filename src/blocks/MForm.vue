@@ -138,6 +138,10 @@ function createFormItemTool(toolName: string): FormItemToolClass {
     private contentRoot: HTMLElement | null = null;
     private vueApp: App<Element> | null = null;
     private propertyDialog: HTMLDialogElement | null = null;
+    private toolbarAlignTimer: number | null = null;
+    private readonly handleToolbarPointer = () => {
+      this.scheduleToolbarAlignment();
+    };
 
     constructor({ data, config }: FormItemToolOptions) {
       const edit = typeof config?.edit === 'boolean' ? config.edit : true;
@@ -162,12 +166,17 @@ function createFormItemTool(toolName: string): FormItemToolClass {
 
       this.wrapper = wrapper;
       this.contentRoot = contentRoot;
+      wrapper.addEventListener('mouseenter', this.handleToolbarPointer);
+      wrapper.addEventListener('mousemove', this.handleToolbarPointer);
       this.createPropertyDialog();
       this.mountVueApp();
       return wrapper;
     }
 
     destroy() {
+      this.clearToolbarAlignTimer();
+      this.wrapper?.removeEventListener('mouseenter', this.handleToolbarPointer);
+      this.wrapper?.removeEventListener('mousemove', this.handleToolbarPointer);
       this.unmountVueApp();
       this.propertyDialog?.remove();
       this.propertyDialog = null;
@@ -214,6 +223,40 @@ function createFormItemTool(toolName: string): FormItemToolClass {
     private unmountVueApp() {
       this.vueApp?.unmount();
       this.vueApp = null;
+    }
+
+    private clearToolbarAlignTimer() {
+      if (this.toolbarAlignTimer === null) return;
+      window.clearTimeout(this.toolbarAlignTimer);
+      this.toolbarAlignTimer = null;
+    }
+
+    private scheduleToolbarAlignment() {
+      this.clearToolbarAlignTimer();
+      this.toolbarAlignTimer = window.setTimeout(() => {
+        this.alignToolbarToFormItem();
+      }, 0);
+    }
+
+    private alignToolbarToFormItem() {
+      this.toolbarAlignTimer = null;
+
+      const root = this.wrapper;
+      if (!root) return;
+
+      const block = root.closest('.ce-block') as HTMLElement | null;
+      const editorRoot = root.closest('.codex-editor') as HTMLElement | null;
+      const toolbar = editorRoot?.querySelector<HTMLElement>(':scope > .ce-toolbar');
+      const plusButton = toolbar?.querySelector('.ce-toolbar__plus') as HTMLElement | null;
+
+      if (!block || !toolbar || !plusButton) return;
+
+      const blockRect = block.getBoundingClientRect();
+      const itemRect = root.getBoundingClientRect();
+      const toolbarButtonHeight = plusButton.getBoundingClientRect().height || 26;
+      const top = block.offsetTop + (itemRect.top - blockRect.top) + (itemRect.height - toolbarButtonHeight) / 2;
+
+      toolbar.style.top = `${Math.max(0, Math.round(top))}px`;
     }
 
     private getPropertyFields() {

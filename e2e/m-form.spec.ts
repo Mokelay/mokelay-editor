@@ -220,3 +220,81 @@ test('switches nested selector toolbar to the hovered form item', async ({ page 
   await expect(selectors.nth(0).locator('.ce-toolbar--opened')).toHaveCount(0);
   await expect(selectors.nth(1).locator('.ce-toolbar--opened')).toHaveCount(1);
 });
+
+test('keeps form item toolbar beside the hovered item', async ({ page }) => {
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'form-seeded',
+        type: 'MForm',
+        data: {
+          items: [
+            {
+              labelName: '字段',
+              variableName: 'first',
+              layout: 'Vertical',
+              editor: {
+                id: 'first-input',
+                type: 'MInput',
+                data: {
+                  placeholder: '请输入.....',
+                  value: ''
+                }
+              }
+            },
+            {
+              labelName: '字段',
+              variableName: 'second',
+              layout: 'Vertical',
+              editor: {
+                id: 'second-link',
+                type: 'MLink',
+                data: {
+                  text: '链接',
+                  url: 'https://mokelay.com',
+                  open: false
+                }
+              }
+            },
+            {
+              labelName: '字段',
+              variableName: 'third',
+              layout: 'Vertical',
+              editor: {
+                id: 'third-input',
+                type: 'MInput',
+                data: {
+                  placeholder: '请输入.....',
+                  value: ''
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  });
+
+  const form = page.getByTestId('editor-form-tool');
+  const secondItemShell = form.getByTestId('form-item-edit-shell').nth(1);
+  const formToolbarPlus = form
+    .locator('[data-testid="form-editor-surface"] > .codex-editor > .ce-toolbar .ce-toolbar__plus');
+
+  await secondItemShell.hover({ position: { x: 4, y: 4 } });
+  await expect(formToolbarPlus).toBeVisible();
+
+  await expect.poll(async () => {
+    const itemBox = await secondItemShell.boundingBox();
+    const toolbarBox = await formToolbarPlus.boundingBox();
+
+    if (!itemBox || !toolbarBox) {
+      return false;
+    }
+
+    return toolbarBox.x < itemBox.x
+      && toolbarBox.y > itemBox.y - 12
+      && toolbarBox.y < itemBox.y + itemBox.height;
+  }).toBe(true);
+});
