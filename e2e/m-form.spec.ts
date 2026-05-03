@@ -165,3 +165,58 @@ test('loads saved form item values in editor and preview', async ({ page }) => {
   await expect(previewBlock.getByTestId('editor-tag-tool')).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
+
+test('switches nested selector toolbar to the hovered form item', async ({ page }) => {
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'form-seeded',
+        type: 'MForm',
+        data: {
+          items: [
+            {
+              labelName: '字段',
+              variableName: 'first',
+              layout: 'Vertical',
+              editor: {
+                id: 'first-input',
+                type: 'MInput',
+                data: {
+                  placeholder: '请输入.....',
+                  value: ''
+                }
+              }
+            },
+            {
+              labelName: '字段',
+              variableName: 'second',
+              layout: 'Vertical',
+              editor: {
+                id: 'second-input',
+                type: 'MInput',
+                data: {
+                  placeholder: '请输入.....',
+                  value: ''
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  });
+
+  const form = page.getByTestId('editor-form-tool');
+  const selectors = form.getByTestId('editor-selector-tool');
+  await expect(selectors).toHaveCount(2);
+
+  await selectors.nth(0).hover();
+  await expect(selectors.nth(0).locator('.ce-toolbar--opened')).toHaveCount(1);
+  await expect(selectors.nth(1).locator('.ce-toolbar--opened')).toHaveCount(0);
+
+  await selectors.nth(1).hover();
+  await expect(selectors.nth(0).locator('.ce-toolbar--opened')).toHaveCount(0);
+  await expect(selectors.nth(1).locator('.ce-toolbar--opened')).toHaveCount(1);
+});
