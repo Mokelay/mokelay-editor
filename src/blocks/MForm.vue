@@ -6,7 +6,7 @@ export type { MFormItemData, MFormProps } from '@/blocks/mFormEditorTool';
 <script setup lang="ts">
 import EditorJS, { type OutputData, type ToolSettings } from '@editorjs/editorjs';
 import type { MenuConfig } from '@editorjs/editorjs/types/tools';
-import { createApp, type App, computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { createApp, type App, computed, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import MFormItem, {
   mFormItemEditorTool,
   normalizeFormItemProps,
@@ -134,7 +134,7 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       return definition.toolbox;
     }
 
-    private state: NormalizedMFormItemProps;
+    private readonly state: NormalizedMFormItemProps;
     private wrapper: HTMLElement | null = null;
     private contentRoot: HTMLElement | null = null;
     private vueApp: App<Element> | null = null;
@@ -148,11 +148,11 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       const edit = typeof config?.edit === 'boolean' ? config.edit : true;
       const existingEditor = normalizeSelectorBlock(data?.editor);
 
-      this.state = normalizeFormItemProps({
+      this.state = reactive(normalizeFormItemProps({
         ...(data ?? {}),
         edit,
         editor: existingEditor ?? createInitialEditorBlock(toolName)
-      });
+      })) as NormalizedMFormItemProps;
     }
 
     render() {
@@ -208,15 +208,17 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       if (!this.contentRoot) return;
 
       const updateState = (payload: MFormItemProps) => {
-        this.state = normalizeFormItemProps(payload, this.state.variableName);
+        Object.assign(this.state, normalizeFormItemProps(payload, this.state.variableName));
       };
 
       this.unmountVueApp();
-      this.vueApp = createApp(MFormItem, {
-        ...this.state,
-        edit: true,
-        onToolChange: updateState,
-        onChange: updateState
+      this.vueApp = createApp({
+        render: () => h(MFormItem, {
+          ...this.state,
+          edit: true,
+          onToolChange: updateState,
+          onChange: updateState
+        })
       });
       this.vueApp.mount(this.contentRoot);
     }
@@ -315,12 +317,11 @@ function createFormItemTool(toolName: string): FormItemToolClass {
     }
 
     private updateProperty(key: string, value: string | boolean) {
-      this.state = normalizeFormItemProps({
+      Object.assign(this.state, normalizeFormItemProps({
         ...this.state,
         [key]: value,
         edit: true
-      }, this.state.variableName);
-      this.mountVueApp();
+      }, this.state.variableName));
     }
 
     private getPropertyFieldValue(key: string): unknown {

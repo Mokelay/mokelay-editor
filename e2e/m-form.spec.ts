@@ -116,6 +116,26 @@ test('adds form item through form menu, saves items, and previews', async ({ pag
   await expect(previewBlock).not.toContainText('userName');
 });
 
+test('keeps nested form item property input focused while typing', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, /^表单$/);
+  await selectFormEditorTool(page, 'MInput');
+
+  const form = page.getByTestId('editor-form-tool');
+  const propertyDialog = await openNestedFormItemPropertyPanel(page);
+  const labelInput = propertyDialog.getByTestId('tool-property-input-labelName');
+
+  await labelInput.click();
+  await labelInput.press('ControlOrMeta+A');
+  await expect(labelInput).toBeFocused();
+
+  await page.keyboard.type('用户名');
+
+  await expect(labelInput).toBeFocused();
+  await expect(labelInput).toHaveValue('用户名');
+  await expect(form.getByTestId('form-item-label-preview')).toHaveText('用户名');
+});
+
 test('loads saved form item values in editor and preview', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => {
