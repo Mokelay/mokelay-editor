@@ -17,6 +17,12 @@ export interface MFormItemProps {
   layout?: MFormItemLayout;
 }
 
+export type NormalizedMFormItemProps = Omit<MFormItemProps, 'labelName' | 'variableName' | 'layout'> & {
+  labelName: string;
+  variableName: string;
+  layout: MFormItemLayout;
+};
+
 export function generateFormItemVariableName() {
   const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID().slice(0, 8)
@@ -49,7 +55,7 @@ function cloneEditorBlock(block?: StoredBlock) {
   return block ? cloneSelectorBlock(block) : undefined;
 }
 
-export function normalizeFormItemProps(props: Partial<MFormItemProps>, fallbackVariableName?: string): MFormItemProps {
+export function normalizeFormItemProps(props: Partial<MFormItemProps>, fallbackVariableName?: string): NormalizedMFormItemProps {
   return {
     edit: props.edit ?? false,
     labelName: normalizeLabelName(props.labelName),

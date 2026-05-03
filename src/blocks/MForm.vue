@@ -11,6 +11,7 @@ import MFormItem, {
   mFormItemEditorTool,
   normalizeFormItemProps,
   serializeFormItemProps,
+  type NormalizedMFormItemProps,
   type MFormItemProps
 } from '@/blocks/MFormItem.vue';
 import {
@@ -133,7 +134,7 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       return definition.toolbox;
     }
 
-    private state: MFormItemProps;
+    private state: NormalizedMFormItemProps;
     private wrapper: HTMLElement | null = null;
     private contentRoot: HTMLElement | null = null;
     private vueApp: App<Element> | null = null;
@@ -322,8 +323,8 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       this.mountVueApp();
     }
 
-    private getPropertyFieldValue(key: string) {
-      return (this.state as Record<string, unknown>)[key];
+    private getPropertyFieldValue(key: string): unknown {
+      return this.state[key as keyof NormalizedMFormItemProps];
     }
 
     private renderPropertyField(field: EditorToolPropertyField) {
