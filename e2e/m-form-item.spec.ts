@@ -26,7 +26,10 @@ async function selectFormItemEditor(page: Page, toolName: string) {
 }
 
 async function openFormItemPropertyPanel(page: Page) {
-  await page.getByTestId('editor-form-item-tool').hover();
+  const editShell = page.getByTestId('form-item-edit-shell');
+  await expect(editShell).toBeVisible();
+  await page.keyboard.press('Escape');
+  await editShell.hover({ position: { x: 4, y: 4 } });
   const settingsButton = page.locator('.ce-toolbar__settings-btn').filter({ visible: true }).first();
   await expect(settingsButton).toBeVisible();
   await settingsButton.click();
@@ -47,24 +50,24 @@ test('adds form item, edits fields, selects editor, saves and previews', async (
   await expect(page.locator('.ce-popover--opened')).toHaveCount(0);
 
   const formItem = page.getByTestId('editor-form-item-tool');
-  const labelInput = page.getByTestId('form-item-label-name-field').getByTestId('editor-input-control');
-  const variableInput = page.getByTestId('form-item-variable-name-field').getByTestId('editor-input-control');
-
   await expect(formItem).toBeVisible();
-  await expect(labelInput).toHaveValue('字段');
-  expect(await variableInput.inputValue()).toMatch(/^field_[a-z0-9-]+/i);
-  await expect(formItem).not.toHaveClass(/ce-form-item-tool--horizontal/);
+  await expect(page.getByTestId('form-item-label-name-field')).toHaveCount(0);
+  await expect(page.getByTestId('form-item-variable-name-field')).toHaveCount(0);
+  await expect(page.getByTestId('form-item-label-preview')).toHaveText('字段');
   await expect(page.getByTestId('form-item-editor-field').getByTestId('editor-selector-tool')).toBeVisible();
 
   await openFormItemPropertyPanel(page);
   await expect(page.getByTestId('tool-property-title')).toContainText('表单项属性');
+  await expect(page.getByTestId('tool-property-input-labelName')).toHaveValue('字段');
+  expect(await page.getByTestId('tool-property-input-variableName').inputValue()).toMatch(/^field_[a-z0-9-]+/i);
   await expect(page.getByTestId('tool-property-input-layout')).toHaveValue('Vertical');
+  await page.getByTestId('tool-property-input-labelName').fill('用户名');
+  await page.getByTestId('tool-property-input-variableName').fill('userName');
   await page.getByTestId('tool-property-input-layout').selectOption('Horizontal');
   await page.getByTestId('tool-property-close').click();
+  await expect(page.getByTestId('form-item-label-preview')).toHaveText('用户名');
   await expect(formItem).toHaveClass(/ce-form-item-tool--horizontal/);
 
-  await labelInput.fill('用户名');
-  await variableInput.fill('userName');
   await selectFormItemEditor(page, 'MInput');
   await expect(page.getByTestId('form-item-editor-field').getByTestId('editor-input-tool')).toBeVisible();
 
@@ -128,8 +131,7 @@ test('loads saved form item editor value', async ({ page }) => {
 
   const formItem = page.getByTestId('editor-form-item-tool');
   await expect(formItem).toBeVisible();
-  await expect(formItem).toHaveClass(/ce-form-item-tool--horizontal/);
-  await expect(page.getByTestId('form-item-label-preview')).toContainText('状态');
+  await expect(page.getByTestId('form-item-label-preview')).toHaveText('状态');
   await expect(page.getByTestId('form-item-editor-field').getByTestId('editor-tag-tool')).toBeVisible();
   expect(pageErrors).toEqual([]);
 });

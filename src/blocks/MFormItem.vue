@@ -73,6 +73,16 @@ export const mFormItemEditorTool = defineEditorTool<MFormItemProps>({
     get fields() {
       return [
         {
+          key: 'labelName',
+          label: i18n.t('formItem.properties.labelName'),
+          placeholder: i18n.t('formItem.placeholders.labelName')
+        },
+        {
+          key: 'variableName',
+          label: i18n.t('formItem.properties.variableName'),
+          placeholder: i18n.t('formItem.placeholders.variableName')
+        },
+        {
           key: 'layout',
           label: i18n.t('formItem.properties.layout'),
           type: 'select' as const,
@@ -106,7 +116,6 @@ export const mFormItemEditorTool = defineEditorTool<MFormItemProps>({
 <script setup lang="ts">
 import { reactive, watch } from 'vue';
 import MEditorSelector from '@/blocks/MEditorSelector.vue';
-import MInput, { type MInputProps } from '@/blocks/MInput.vue';
 import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
 import { useI18n } from '@/i18n';
 import type { MEditorSelectorProps } from '@/blocks/mEditorSelectorEditorTool';
@@ -157,18 +166,6 @@ function updateFormItem(payload: Partial<MFormItemProps>) {
   emitChange();
 }
 
-function handleLabelChange(payload: MInputProps) {
-  updateFormItem({
-    labelName: payload.value ?? ''
-  });
-}
-
-function handleVariableNameChange(payload: MInputProps) {
-  updateFormItem({
-    variableName: payload.value ?? ''
-  });
-}
-
 function handleEditorChange(payload: MEditorSelectorProps) {
   updateFormItem({
     editor: payload.value
@@ -200,37 +197,17 @@ watch(
     data-testid="editor-form-item-tool"
   >
     <template v-if="edit">
-      <div class="ce-form-item-tool__config">
-        <label class="ce-form-item-tool__config-field" data-testid="form-item-label-name-field">
-          <span class="ce-form-item-tool__config-label">{{ t('formItem.properties.labelName') }}</span>
-          <MInput
-            :edit="true"
-            :placeholder="t('formItem.placeholders.labelName')"
-            :value="formItem.labelName"
-            :on-change="handleLabelChange"
-          />
-        </label>
-
-        <label class="ce-form-item-tool__config-field" data-testid="form-item-variable-name-field">
-          <span class="ce-form-item-tool__config-label">{{ t('formItem.properties.variableName') }}</span>
-          <MInput
-            :edit="true"
-            :placeholder="t('formItem.placeholders.variableName')"
-            :value="formItem.variableName"
-            :on-change="handleVariableNameChange"
-          />
-        </label>
-      </div>
-
-      <div class="ce-form-item-tool__body">
-        <div class="ce-form-item-tool__label" data-testid="form-item-label-preview">{{ formItem.labelName }}</div>
-        <div class="ce-form-item-tool__editor" data-testid="form-item-editor-field">
-          <MEditorSelector
-            :edit="true"
-            :value="formItem.editor"
-            :exclude-tool-names="selectorExcludeToolNames"
-            :on-change="handleEditorChange"
-          />
+      <div class="ce-form-item-tool__edit-shell" data-testid="form-item-edit-shell">
+        <div class="ce-form-item-tool__body">
+          <div class="ce-form-item-tool__label" data-testid="form-item-label-preview">{{ formItem.labelName }}</div>
+          <div class="ce-form-item-tool__editor" data-testid="form-item-editor-field">
+            <MEditorSelector
+              :edit="true"
+              :value="formItem.editor"
+              :exclude-tool-names="selectorExcludeToolNames"
+              :on-change="handleEditorChange"
+            />
+          </div>
         </div>
       </div>
     </template>
@@ -253,21 +230,13 @@ watch(
   color: rgb(15 23 42);
 }
 
-.ce-form-item-tool__config {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
+.ce-form-item-tool__edit-shell {
+  width: 100%;
+  border: 1px dashed rgb(148 163 184 / 0.7);
+  border-radius: 8px;
+  padding: 8px;
 }
 
-.ce-form-item-tool__config-field {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ce-form-item-tool__config-label,
 .ce-form-item-tool__label {
   color: rgb(51 65 85);
   font-size: 13px;
@@ -307,10 +276,6 @@ watch(
 }
 
 @media (max-width: 640px) {
-  .ce-form-item-tool__config {
-    grid-template-columns: 1fr;
-  }
-
   .ce-form-item-tool--horizontal .ce-form-item-tool__body {
     display: flex;
     flex-direction: column;
@@ -321,7 +286,10 @@ watch(
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-form-item-tool__config-label,
+:global(.dark) .ce-form-item-tool__edit-shell {
+  border-color: rgb(71 85 105 / 0.9);
+}
+
 :global(.dark) .ce-form-item-tool__label {
   color: rgb(203 213 225);
 }
