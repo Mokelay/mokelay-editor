@@ -151,6 +151,19 @@ export const zhMessages = {
   page: {
     toolboxTitle: '页面'
   },
+  datasourceEditor: {
+    toolboxTitle: '数据源编辑器',
+    propertyPanelTitle: '数据源编辑器属性',
+    defaultDatasourceName: '数据源',
+    properties: {
+      datasourceName: '数据源名称',
+      datasourceConfig: '数据源配置'
+    },
+    placeholders: {
+      datasourceName: '请输入数据源名称',
+      datasourceConfig: '请输入 JSON 配置'
+    }
+  },
 } as const;
 
 export const zhEditorJsMessages = {

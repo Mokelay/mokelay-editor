@@ -151,6 +151,19 @@ export const enMessages = {
   page: {
     toolboxTitle: 'Page'
   },
+  datasourceEditor: {
+    toolboxTitle: 'Datasource Editor',
+    propertyPanelTitle: 'Datasource Editor Properties',
+    defaultDatasourceName: 'Datasource',
+    properties: {
+      datasourceName: 'Datasource name',
+      datasourceConfig: 'Datasource config'
+    },
+    placeholders: {
+      datasourceName: 'Enter datasource name',
+      datasourceConfig: 'Enter JSON config'
+    }
+  },
 } as const;
 
 export const enEditorJsMessages = {} as const;
