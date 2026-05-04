@@ -25,6 +25,13 @@ export const enMessages = {
     backToEditor: 'Back',
     emptyState: 'No saved config found. Please click "Save" in the editor first.'
   },
+  globalCalls: {
+    ok: 'OK',
+    cancel: 'Cancel',
+    alertRoleLabel: 'Alert',
+    confirmRoleLabel: 'Confirm',
+    messageRoleLabel: 'Message'
+  },
   input: {
     toolboxTitle: 'Input',
     defaultPlaceholder: 'Please enter...',
