@@ -235,6 +235,11 @@ type ApiStateBodyItem = Omit<MDatasourceBodyItem, 'mock'> & {
 type ApiState = Omit<MDatasourceApiObject, 'bodyData'> & {
   bodyData: ApiStateBodyItem[];
 };
+type TestResultState = {
+  status: number;
+  statusText: string;
+  data: unknown;
+};
 
 const props = defineProps<MDatasourceEditorProps & {
   onChange?: (payload: MDatasourceEditorProps) => void;
@@ -253,6 +258,9 @@ const apiState = reactive<ApiState>(
 );
 const bodyMockInputs = ref<string[]>(apiState.bodyData.map((item) => getBodyMockInputValue(item)));
 const bodyMockErrors = ref<string[]>(apiState.bodyData.map(() => ''));
+const testLoading = ref(false);
+const testResult = ref<TestResultState | null>(null);
+const testError = ref('');
 const isReadOnly = computed(() => !props.edit);
 
 function formatJsonValue(value: JsonValue) {
@@ -287,7 +295,13 @@ function buildApiDatasource(): MDatasourceApiObject {
 }
 
 function emitApiChange() {
+  clearTestOutput();
   emitDatasource(buildApiDatasource());
+}
+
+function clearTestOutput() {
+  testResult.value = null;
+  testError.value = '';
 }
 
 function syncBodyMockInputs() {
@@ -315,6 +329,7 @@ function syncApiState(value: MDatasourceApiObject) {
 function syncLocalState(value: unknown) {
   const normalized = normalizeDatasource(value);
   currentType.value = normalized.type;
+  clearTestOutput();
 
   if (normalized.type === 'JSON') {
     jsonValue.value = normalized.rawData;
@@ -476,6 +491,106 @@ function removeBodyItem(index: number) {
   bodyMockInputs.value.splice(index, 1);
   bodyMockErrors.value.splice(index, 1);
   emitApiChange();
+}
+
+function getRequestUrl(datasource: MDatasourceApiObject) {
+  const domain = datasource.domain.trim();
+  const path = datasource.path.trim();
+  const baseUrl = domain || window.location.origin;
+  const url = new URL(path || '/', baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
+
+  datasource.queryData.forEach((item) => {
+    const key = item.key.trim();
+    if (!key) return;
+    url.searchParams.append(key, item.mock);
+  });
+
+  return url.toString();
+}
+
+function getRequestHeaders(datasource: MDatasourceApiObject) {
+  const headers = new Headers();
+  datasource.headerData.forEach((item) => {
+    const key = item.key.trim();
+    if (!key) return;
+    headers.set(key, item.mock);
+  });
+
+  if (datasource.method === 'POST' && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  return headers;
+}
+
+function getRequestBody(datasource: MDatasourceApiObject) {
+  if (datasource.method !== 'POST') {
+    return undefined;
+  }
+
+  const body = datasource.bodyData.reduce<Record<string, JsonValue>>((result, item) => {
+    const key = item.key.trim();
+    if (!key) return result;
+    result[key] = normalizeBodyMock(item.dataType, item.mock);
+    return result;
+  }, {});
+
+  return JSON.stringify(body);
+}
+
+async function readResponseData(response: Response) {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return await response.json();
+  }
+
+  return await response.text();
+}
+
+function formatUnknownValue(value: unknown) {
+  if (typeof value === 'string') return value;
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+async function testApiConnection() {
+  if (!props.edit || testLoading.value) return;
+
+  const invalidBodyIndex = bodyMockErrors.value.findIndex((error) => Boolean(error));
+  if (invalidBodyIndex >= 0) {
+    testResult.value = null;
+    testError.value = t('datasource.validation.fixBodyBeforeTest');
+    return;
+  }
+
+  const datasource = buildApiDatasource();
+  testLoading.value = true;
+  testResult.value = null;
+  testError.value = '';
+
+  try {
+    const response = await fetch(getRequestUrl(datasource), {
+      method: datasource.method,
+      headers: getRequestHeaders(datasource),
+      body: getRequestBody(datasource)
+    });
+    const data = await readResponseData(response);
+    testResult.value = {
+      status: response.status,
+      statusText: response.statusText,
+      data
+    };
+    console.log('MDatasourceEditor test response:', data);
+  } catch (error) {
+    testError.value = error instanceof Error ? error.message : String(error);
+    console.error('MDatasourceEditor test request failed:', error);
+  } finally {
+    testLoading.value = false;
+  }
 }
 
 function parseBodyMock(dataType: MDatasourceBodyDataType, inputValue: string): BodyMockParseResult {
@@ -867,6 +982,23 @@ watch(
           </p>
         </div>
       </section>
+
+      <div v-if="edit" class="ce-datasource-tool__test-panel" data-testid="datasource-test-panel">
+        <button
+          class="ce-datasource-tool__test-button"
+          type="button"
+          data-testid="datasource-test-button"
+          :disabled="testLoading"
+          @click="testApiConnection"
+        >
+          {{ testLoading ? t('datasource.actions.testing') : t('datasource.actions.testConnection') }}
+        </button>
+        <p v-if="testError" class="ce-datasource-tool__error" data-testid="datasource-test-error">
+          {{ testError }}
+        </p>
+        <pre v-if="testResult" class="ce-datasource-tool__test-result" data-testid="datasource-test-result">{{ t('datasource.test.status') }}: {{ testResult.status }} {{ testResult.statusText }}
+{{ formatUnknownValue(testResult.data) }}</pre>
+      </div>
     </div>
   </div>
 </template>
@@ -1080,6 +1212,52 @@ watch(
   grid-column: 3 / 5;
 }
 
+.ce-datasource-tool__test-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  border-top: 1px solid rgb(226 232 240);
+  padding-top: 12px;
+}
+
+.ce-datasource-tool__test-button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 14px;
+  background: rgb(22 163 74);
+  color: rgb(255 255 255);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ce-datasource-tool__test-button:hover {
+  background: rgb(21 128 61);
+}
+
+.ce-datasource-tool__test-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.ce-datasource-tool__test-result {
+  width: 100%;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid rgb(187 247 208);
+  border-radius: 8px;
+  margin: 0;
+  padding: 10px;
+  background: rgb(240 253 244);
+  color: rgb(20 83 45);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 19px;
+  white-space: pre-wrap;
+}
+
 @media (max-width: 720px) {
   .ce-datasource-tool__header {
     align-items: stretch;
@@ -1158,6 +1336,25 @@ watch(
 :global(.dark) .ce-datasource-tool__empty {
   border-color: rgb(71 85 105);
   color: rgb(148 163 184);
+}
+
+:global(.dark) .ce-datasource-tool__test-panel {
+  border-top-color: rgb(51 65 85);
+}
+
+:global(.dark) .ce-datasource-tool__test-button {
+  background: rgb(34 197 94);
+  color: rgb(5 46 22);
+}
+
+:global(.dark) .ce-datasource-tool__test-button:hover {
+  background: rgb(74 222 128);
+}
+
+:global(.dark) .ce-datasource-tool__test-result {
+  border-color: rgb(22 101 52);
+  background: rgb(20 83 45 / 0.26);
+  color: rgb(187 247 208);
 }
 
 :global(.dark) .ce-datasource-tool__error,

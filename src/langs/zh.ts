@@ -121,13 +121,19 @@ export const zhMessages = {
     },
     actions: {
       add: '添加',
-      remove: '删除'
+      remove: '删除',
+      testConnection: '测试链接',
+      testing: '测试中...'
+    },
+    test: {
+      status: '状态'
     },
     validation: {
       invalidJson: '请输入标准 JSON 结构。',
       invalidNumber: '请输入有效数字。',
       invalidObject: '请输入标准 JSON 对象。',
-      invalidArray: '请输入标准 JSON 数组。'
+      invalidArray: '请输入标准 JSON 数组。',
+      fixBodyBeforeTest: '请先修正 Body 中的 Mock 数据。'
     }
   },
   formItem: {

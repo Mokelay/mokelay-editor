@@ -121,13 +121,19 @@ export const enMessages = {
     },
     actions: {
       add: 'Add',
-      remove: 'Remove'
+      remove: 'Remove',
+      testConnection: 'Test link',
+      testing: 'Testing...'
+    },
+    test: {
+      status: 'Status'
     },
     validation: {
       invalidJson: 'Enter valid JSON.',
       invalidNumber: 'Enter a valid number.',
       invalidObject: 'Enter a valid JSON object.',
-      invalidArray: 'Enter a valid JSON array.'
+      invalidArray: 'Enter a valid JSON array.',
+      fixBodyBeforeTest: 'Fix Body mock data before testing.'
     }
   },
   formItem: {
