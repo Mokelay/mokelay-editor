@@ -25,6 +25,13 @@ export const zhMessages = {
     backToEditor: '返回',
     emptyState: '未找到已保存配置，请先在编辑器点击“保存”。'
   },
+  globalCalls: {
+    ok: '确定',
+    cancel: '取消',
+    alertRoleLabel: '提示',
+    confirmRoleLabel: '确认',
+    messageRoleLabel: '消息'
+  },
   input: {
     toolboxTitle: '输入框',
     defaultPlaceholder: '请输入.....',
