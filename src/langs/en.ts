@@ -105,6 +105,9 @@ export const enMessages = {
     toolboxTitle: 'Datasource Editor',
     title: 'Datasource',
     empty: 'No items',
+    emptySchema: 'No field config yet. Click "Generate field config" first.',
+    noListRecord: 'This schema does not contain an array field for list data.',
+    noFormFields: 'This schema does not contain simple fields for a form.',
     fields: {
       type: 'Datasource type',
       rawData: 'JSON data',
@@ -113,12 +116,20 @@ export const enMessages = {
       method: 'Method',
       key: 'Key',
       mock: 'Mock data',
-      jsonSchema: 'JSON Schema'
+      jsonSchema: 'JSON Schema',
+      generatedFields: 'Fields',
+      searchFields: 'Search fields or paths',
+      recordPath: 'List data path',
+      rootRecordPath: 'Root data',
+      selectedFields: 'Selected fields',
+      required: 'Required'
     },
     sections: {
       headers: 'Header',
       queries: 'Query',
-      body: 'Body'
+      body: 'Body',
+      generateFields: 'Generate field config',
+      fieldSelection: 'Field selection'
     },
     actions: {
       add: 'Add',
@@ -126,7 +137,33 @@ export const enMessages = {
       testConnection: 'Test link',
       testing: 'Testing...',
       parseJsonSchema: 'Parse JSON Schema',
-      parsingJsonSchema: 'Parsing...'
+      parsingJsonSchema: 'Parsing...',
+      generateFields: 'Generate field config',
+      generatingFields: 'Generating...'
+    },
+    tabs: {
+      list: 'List fields',
+      form: 'Form fields',
+      advanced: 'Advanced Schema'
+    },
+    help: {
+      generateFields: 'Detect fields from JSON data or an API response, then prepare them for list and form components.',
+      fieldSelection: 'Choose the fields components should use, and rename them with business-friendly labels.'
+    },
+    schemaTypes: {
+      object: 'Object',
+      array: 'List',
+      string: 'Text',
+      number: 'Number',
+      boolean: 'Switch',
+      null: 'Empty'
+    },
+    componentHints: {
+      text: 'Text',
+      number: 'Number',
+      switch: 'Switch',
+      object: 'Object',
+      array: 'List'
     },
     test: {
       status: 'Status'
