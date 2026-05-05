@@ -101,6 +101,41 @@ export const enMessages = {
       }
     }
   },
+  datasource: {
+    toolboxTitle: 'Datasource Editor',
+    title: 'Datasource',
+    empty: 'No items',
+    fields: {
+      type: 'Datasource type',
+      rawData: 'JSON data',
+      domain: 'API domain',
+      path: 'API path',
+      method: 'Method',
+      key: 'Key',
+      mock: 'Mock data'
+    },
+    sections: {
+      headers: 'Header',
+      queries: 'Query',
+      body: 'Body'
+    },
+    actions: {
+      add: 'Add',
+      remove: 'Remove',
+      testConnection: 'Test link',
+      testing: 'Testing...'
+    },
+    test: {
+      status: 'Status'
+    },
+    validation: {
+      invalidJson: 'Enter valid JSON.',
+      invalidNumber: 'Enter a valid number.',
+      invalidObject: 'Enter a valid JSON object.',
+      invalidArray: 'Enter a valid JSON array.',
+      fixBodyBeforeTest: 'Fix Body mock data before testing.'
+    }
+  },
   formItem: {
     toolboxTitle: 'Form Item',
     defaultLabelName: 'Field',

@@ -101,6 +101,41 @@ export const zhMessages = {
       }
     }
   },
+  datasource: {
+    toolboxTitle: '数据源编辑器',
+    title: '数据源',
+    empty: '暂无配置项',
+    fields: {
+      type: '数据源类型',
+      rawData: 'JSON 数据',
+      domain: 'API 域名',
+      path: 'API Path',
+      method: '调用方法',
+      key: 'Key',
+      mock: 'Mock 数据'
+    },
+    sections: {
+      headers: 'Header',
+      queries: 'Query',
+      body: 'Body'
+    },
+    actions: {
+      add: '添加',
+      remove: '删除',
+      testConnection: '测试链接',
+      testing: '测试中...'
+    },
+    test: {
+      status: '状态'
+    },
+    validation: {
+      invalidJson: '请输入标准 JSON 结构。',
+      invalidNumber: '请输入有效数字。',
+      invalidObject: '请输入标准 JSON 对象。',
+      invalidArray: '请输入标准 JSON 数组。',
+      fixBodyBeforeTest: '请先修正 Body 中的 Mock 数据。'
+    }
+  },
   formItem: {
     toolboxTitle: '表单项',
     defaultLabelName: '字段',
