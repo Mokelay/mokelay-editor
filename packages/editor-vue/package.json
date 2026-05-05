@@ -1,0 +1,33 @@
+{
+  "name": "@mokelay/editor-vue",
+  "version": "0.1.0-beta.0",
+  "description": "Mokelay editor Vue 3 adapter",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "dependencies": {
+    "@mokelay/editor-core": "0.1.0-beta.0"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.2"
+  }
+}

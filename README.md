@@ -63,3 +63,22 @@ npm run e2e:headed
 - `src/components/EditorPanel.vue`：Editor.js 编辑器示例
 - `src/composables/useApi.ts`：Axios + Fetch API 封装
 - `docs/global-calls.md`：`$alert`、`$confirm`、`$message` 全局调用函数使用文档
+
+## SDK Monorepo（进行中）
+
+已新增基础 SDK 包结构：
+
+- `packages/editor-core`：跨框架核心类型、工具定义与注册能力。
+- `packages/editor-vue`：Vue 3 适配层（当前先提供基础适配器入口）。
+
+构建 SDK：
+
+```bash
+npm run build:sdk
+```
+
+类型检查：
+
+```bash
+npm run typecheck:sdk
+```

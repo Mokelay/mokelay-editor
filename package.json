@@ -13,7 +13,9 @@
     "e2e:debug": "playwright test --debug",
     "e2e:install": "playwright install chromium",
     "deploy": "gh-pages -d dist --cname editor.mokelay.com",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "build:sdk": "npm run -w @mokelay/editor-core build && npm run -w @mokelay/editor-vue build",
+    "typecheck:sdk": "npm run -w @mokelay/editor-core typecheck && npm run -w @mokelay/editor-vue typecheck"
   },
   "dependencies": {
     "@calumk/editorjs-columns": "^0.3.2",
@@ -38,5 +40,8 @@
     "typescript": "~5.7.2",
     "vite": "^6.1.0",
     "vue-tsc": "^2.2.2"
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }
