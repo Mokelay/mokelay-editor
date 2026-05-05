@@ -112,7 +112,8 @@ export const enMessages = {
       path: 'API path',
       method: 'Method',
       key: 'Key',
-      mock: 'Mock data'
+      mock: 'Mock data',
+      jsonSchema: 'JSON Schema'
     },
     sections: {
       headers: 'Header',
@@ -123,17 +124,27 @@ export const enMessages = {
       add: 'Add',
       remove: 'Remove',
       testConnection: 'Test link',
-      testing: 'Testing...'
+      testing: 'Testing...',
+      parseJsonSchema: 'Parse JSON Schema',
+      parsingJsonSchema: 'Parsing...'
     },
     test: {
       status: 'Status'
     },
     validation: {
       invalidJson: 'Enter valid JSON.',
+      invalidJsonSchema: 'Enter a JSON Schema that matches the supported format.',
       invalidNumber: 'Enter a valid number.',
       invalidObject: 'Enter a valid JSON object.',
       invalidArray: 'Enter a valid JSON array.',
-      fixBodyBeforeTest: 'Fix Body mock data before testing.'
+      fixBodyBeforeTest: 'Fix Body mock data before testing.',
+      fixJsonBeforeSchema: 'Fix JSON data before parsing JSON Schema.',
+      fixBodyBeforeSchema: 'Fix Body mock data before parsing JSON Schema.',
+      nonJsonResponse: 'The API response is not JSON.',
+      invalidJsonResponse: 'The API response is not valid JSON.',
+      apiRequestFailed: 'API request failed:',
+      emptyArraySchema: 'Cannot infer JSON Schema from an empty array.',
+      mixedArraySchema: 'The array contains incompatible types, so JSON Schema cannot be inferred.'
     }
   },
   formItem: {

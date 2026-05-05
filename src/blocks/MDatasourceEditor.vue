@@ -6,6 +6,36 @@ export type MDatasourceType = 'JSON' | 'API';
 export type MDatasourceApiMethod = 'GET' | 'POST';
 export type MDatasourceBodyDataType = 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array';
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JSONSchema =
+  | {
+      type: 'object';
+      properties: Record<string, JSONSchema>;
+      required?: string[];
+      description?: string;
+    }
+  | {
+      type: 'array';
+      items: JSONSchema;
+      description?: string;
+    }
+  | {
+      type: 'string';
+      enum?: string[];
+      description?: string;
+    }
+  | {
+      type: 'number';
+      minimum?: number;
+      maximum?: number;
+      description?: string;
+    }
+  | {
+      type: 'boolean';
+      description?: string;
+    }
+  | {
+      type: 'null';
+    };
 
 export interface MDatasourceKeyMockItem {
   key: string;
@@ -21,6 +51,7 @@ export interface MDatasourceBodyItem {
 export interface MDatasourceJsonObject {
   type: 'JSON';
   rawData: JsonValue;
+  jsonSchema?: JSONSchema;
 }
 
 export interface MDatasourceApiObject {
@@ -31,6 +62,7 @@ export interface MDatasourceApiObject {
   headerData: MDatasourceKeyMockItem[];
   bodyData: MDatasourceBodyItem[];
   queryData: MDatasourceKeyMockItem[];
+  jsonSchema?: JSONSchema;
 }
 
 export type MDatasourceObject = MDatasourceJsonObject | MDatasourceApiObject;
@@ -74,8 +106,304 @@ function cloneJsonValue<T extends JsonValue>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function cloneJsonSchema<T extends JSONSchema>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 function normalizeString(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, allowedKeys: string[]) {
+  return Object.keys(value).every((key) => allowedKeys.includes(key));
+}
+
+function assignDescription<T extends JSONSchema>(schema: T, description: unknown): T | undefined {
+  if (description === undefined) {
+    return schema;
+  }
+
+  if (typeof description !== 'string') {
+    return undefined;
+  }
+
+  return {
+    ...schema,
+    description
+  };
+}
+
+function normalizeJSONSchema(value: unknown): JSONSchema | undefined {
+  if (!isRecord(value) || typeof value.type !== 'string') {
+    return undefined;
+  }
+
+  if (value.type === 'object') {
+    if (!hasOnlyKeys(value, ['type', 'properties', 'required', 'description']) || !isRecord(value.properties)) {
+      return undefined;
+    }
+
+    const properties: Record<string, JSONSchema> = {};
+    for (const [key, propertyValue] of Object.entries(value.properties)) {
+      const normalizedProperty = normalizeJSONSchema(propertyValue);
+      if (!normalizedProperty) {
+        return undefined;
+      }
+
+      properties[key] = normalizedProperty;
+    }
+
+    const schema: Extract<JSONSchema, { type: 'object' }> = {
+      type: 'object',
+      properties
+    };
+
+    if (value.required !== undefined) {
+      if (!Array.isArray(value.required) || !value.required.every((item) => typeof item === 'string')) {
+        return undefined;
+      }
+
+      schema.required = [...value.required];
+    }
+
+    return assignDescription(schema, value.description);
+  }
+
+  if (value.type === 'array') {
+    if (!hasOnlyKeys(value, ['type', 'items', 'description'])) {
+      return undefined;
+    }
+
+    const items = normalizeJSONSchema(value.items);
+    if (!items) {
+      return undefined;
+    }
+
+    return assignDescription({
+      type: 'array',
+      items
+    }, value.description);
+  }
+
+  if (value.type === 'string') {
+    if (!hasOnlyKeys(value, ['type', 'enum', 'description'])) {
+      return undefined;
+    }
+
+    const schema: Extract<JSONSchema, { type: 'string' }> = {
+      type: 'string'
+    };
+
+    if (value.enum !== undefined) {
+      if (!Array.isArray(value.enum) || !value.enum.every((item) => typeof item === 'string')) {
+        return undefined;
+      }
+
+      schema.enum = [...value.enum];
+    }
+
+    return assignDescription(schema, value.description);
+  }
+
+  if (value.type === 'number') {
+    if (!hasOnlyKeys(value, ['type', 'minimum', 'maximum', 'description'])) {
+      return undefined;
+    }
+
+    const schema: Extract<JSONSchema, { type: 'number' }> = {
+      type: 'number'
+    };
+
+    if (value.minimum !== undefined) {
+      if (typeof value.minimum !== 'number' || !Number.isFinite(value.minimum)) {
+        return undefined;
+      }
+
+      schema.minimum = value.minimum;
+    }
+
+    if (value.maximum !== undefined) {
+      if (typeof value.maximum !== 'number' || !Number.isFinite(value.maximum)) {
+        return undefined;
+      }
+
+      schema.maximum = value.maximum;
+    }
+
+    return assignDescription(schema, value.description);
+  }
+
+  if (value.type === 'boolean') {
+    if (!hasOnlyKeys(value, ['type', 'description'])) {
+      return undefined;
+    }
+
+    return assignDescription({
+      type: 'boolean'
+    }, value.description);
+  }
+
+  if (value.type === 'null' && hasOnlyKeys(value, ['type'])) {
+    return {
+      type: 'null'
+    };
+  }
+
+  return undefined;
+}
+
+type JSONSchemaInferenceResult = {
+  ok: true;
+  schema: JSONSchema;
+} | {
+  ok: false;
+  reason: 'emptyArray' | 'mixedArray';
+};
+
+function mergeInferredJSONSchemas(left: JSONSchema, right: JSONSchema): JSONSchema | undefined {
+  if (left.type !== right.type) {
+    return undefined;
+  }
+
+  if (left.type === 'object' && right.type === 'object') {
+    const properties: Record<string, JSONSchema> = {};
+    const propertyKeys = new Set([
+      ...Object.keys(left.properties),
+      ...Object.keys(right.properties)
+    ]);
+
+    for (const key of propertyKeys) {
+      const leftProperty = left.properties[key];
+      const rightProperty = right.properties[key];
+
+      if (leftProperty && rightProperty) {
+        const mergedProperty = mergeInferredJSONSchemas(leftProperty, rightProperty);
+        if (!mergedProperty) {
+          return undefined;
+        }
+
+        properties[key] = mergedProperty;
+        continue;
+      }
+
+      properties[key] = cloneJsonSchema((leftProperty ?? rightProperty)!);
+    }
+
+    return {
+      type: 'object',
+      properties
+    };
+  }
+
+  if (left.type === 'array' && right.type === 'array') {
+    const items = mergeInferredJSONSchemas(left.items, right.items);
+    if (!items) {
+      return undefined;
+    }
+
+    return {
+      type: 'array',
+      items
+    };
+  }
+
+  return cloneJsonSchema(left);
+}
+
+function inferJSONSchema(value: JsonValue): JSONSchemaInferenceResult {
+  if (value === null) {
+    return {
+      ok: true,
+      schema: {
+        type: 'null'
+      }
+    };
+  }
+
+  if (typeof value === 'string') {
+    return {
+      ok: true,
+      schema: {
+        type: 'string'
+      }
+    };
+  }
+
+  if (typeof value === 'number') {
+    return {
+      ok: true,
+      schema: {
+        type: 'number'
+      }
+    };
+  }
+
+  if (typeof value === 'boolean') {
+    return {
+      ok: true,
+      schema: {
+        type: 'boolean'
+      }
+    };
+  }
+
+  if (Array.isArray(value)) {
+    if (!value.length) {
+      return {
+        ok: false,
+        reason: 'emptyArray'
+      };
+    }
+
+    let items: JSONSchema | undefined;
+    for (const item of value) {
+      const inferredItem = inferJSONSchema(item);
+      if (!inferredItem.ok) {
+        return inferredItem;
+      }
+
+      if (!items) {
+        items = inferredItem.schema;
+        continue;
+      }
+
+      const mergedItems = mergeInferredJSONSchemas(items, inferredItem.schema);
+      if (!mergedItems) {
+        return {
+          ok: false,
+          reason: 'mixedArray'
+        };
+      }
+
+      items = mergedItems;
+    }
+
+    return {
+      ok: true,
+      schema: {
+        type: 'array',
+        items: items!
+      }
+    };
+  }
+
+  const properties: Record<string, JSONSchema> = {};
+  for (const [key, propertyValue] of Object.entries(value)) {
+    const inferredProperty = inferJSONSchema(propertyValue);
+    if (!inferredProperty.ok) {
+      return inferredProperty;
+    }
+
+    properties[key] = inferredProperty.schema;
+  }
+
+  return {
+    ok: true,
+    schema: {
+      type: 'object',
+      properties
+    }
+  };
 }
 
 function normalizeMethod(value: unknown): MDatasourceApiMethod {
@@ -179,8 +507,10 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
     return getDefaultDatasource();
   }
 
+  const jsonSchema = normalizeJSONSchema(value.jsonSchema);
+
   if (value.type === 'API') {
-    return {
+    const datasource: MDatasourceApiObject = {
       type: 'API',
       domain: normalizeString(value.domain),
       path: normalizeString(value.path),
@@ -189,12 +519,24 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
       bodyData: normalizeBodyList(value.bodyData),
       queryData: normalizeKeyMockList(value.queryData)
     };
+
+    if (jsonSchema) {
+      datasource.jsonSchema = jsonSchema;
+    }
+
+    return datasource;
   }
 
-  return {
+  const datasource: MDatasourceJsonObject = {
     type: 'JSON',
     rawData: normalizeJsonValue(value.rawData, {})
   };
+
+  if (jsonSchema) {
+    datasource.jsonSchema = jsonSchema;
+  }
+
+  return datasource;
 }
 
 export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
@@ -232,7 +574,7 @@ type BodyMockParseResult = {
 type ApiStateBodyItem = Omit<MDatasourceBodyItem, 'mock'> & {
   mock: unknown;
 };
-type ApiState = Omit<MDatasourceApiObject, 'bodyData'> & {
+type ApiState = Omit<MDatasourceApiObject, 'bodyData' | 'jsonSchema'> & {
   bodyData: ApiStateBodyItem[];
 };
 type TestResultState = {
@@ -253,6 +595,10 @@ const currentType = ref<MDatasourceType>(normalizedInitialValue.type);
 const jsonValue = shallowRef<JsonValue>(normalizedInitialValue.type === 'JSON' ? normalizedInitialValue.rawData : {});
 const jsonText = ref(formatJsonValue(jsonValue.value));
 const jsonError = ref('');
+const jsonSchemaValue = shallowRef<JSONSchema | undefined>(normalizedInitialValue.jsonSchema);
+const jsonSchemaText = ref(formatJsonSchema(jsonSchemaValue.value));
+const jsonSchemaError = ref('');
+const jsonSchemaLoading = ref(false);
 const apiState = reactive<ApiState>(
   normalizedInitialValue.type === 'API' ? normalizedInitialValue : getDefaultApiDatasource()
 );
@@ -265,6 +611,10 @@ const isReadOnly = computed(() => !props.edit);
 
 function formatJsonValue(value: JsonValue) {
   return JSON.stringify(value, null, 2);
+}
+
+function formatJsonSchema(value?: JSONSchema) {
+  return value ? JSON.stringify(value, null, 2) : '';
 }
 
 function getDatasourcePayload(value: MDatasourceObject): MDatasourceEditorProps {
@@ -282,6 +632,14 @@ function emitDatasource(value: MDatasourceObject) {
   props.onChange?.(payload);
 }
 
+function buildJsonDatasource(): MDatasourceJsonObject {
+  return normalizeDatasource({
+    type: 'JSON',
+    rawData: normalizeJsonValue(jsonValue.value, {}),
+    jsonSchema: jsonSchemaValue.value
+  }) as MDatasourceJsonObject;
+}
+
 function buildApiDatasource(): MDatasourceApiObject {
   return normalizeDatasource({
     type: 'API',
@@ -290,8 +648,13 @@ function buildApiDatasource(): MDatasourceApiObject {
     method: apiState.method,
     headerData: apiState.headerData,
     bodyData: apiState.bodyData,
-    queryData: apiState.queryData
+    queryData: apiState.queryData,
+    jsonSchema: jsonSchemaValue.value
   }) as MDatasourceApiObject;
+}
+
+function emitCurrentDatasource() {
+  emitDatasource(currentType.value === 'JSON' ? buildJsonDatasource() : buildApiDatasource());
 }
 
 function emitApiChange() {
@@ -307,6 +670,12 @@ function clearTestOutput() {
 function syncBodyMockInputs() {
   bodyMockInputs.value = apiState.bodyData.map((item) => getBodyMockInputValue(item));
   bodyMockErrors.value = apiState.bodyData.map(() => '');
+}
+
+function syncJsonSchemaState(value?: JSONSchema) {
+  jsonSchemaValue.value = value ? cloneJsonSchema(value) : undefined;
+  jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
+  jsonSchemaError.value = '';
 }
 
 function syncApiState(value: MDatasourceApiObject) {
@@ -330,6 +699,7 @@ function syncLocalState(value: unknown) {
   const normalized = normalizeDatasource(value);
   currentType.value = normalized.type;
   clearTestOutput();
+  syncJsonSchemaState(normalized.jsonSchema);
 
   if (normalized.type === 'JSON') {
     jsonValue.value = normalized.rawData;
@@ -346,10 +716,7 @@ function setDatasourceType(type: MDatasourceType) {
 
   currentType.value = type;
   if (type === 'JSON') {
-    emitDatasource({
-      type: 'JSON',
-      rawData: normalizeJsonValue(jsonValue.value, {})
-    });
+    emitDatasource(buildJsonDatasource());
     return;
   }
 
@@ -370,12 +737,37 @@ function handleJsonInput(event: Event) {
 
     jsonValue.value = cloneJsonValue(parsed);
     jsonError.value = '';
-    emitDatasource({
-      type: 'JSON',
-      rawData: jsonValue.value
-    });
+    emitDatasource(buildJsonDatasource());
   } catch {
     jsonError.value = t('datasource.validation.invalidJson');
+  }
+}
+
+function handleJsonSchemaInput(event: Event) {
+  if (!props.edit) return;
+
+  const nextText = (event.target as HTMLTextAreaElement).value;
+  jsonSchemaText.value = nextText;
+
+  if (!nextText.trim()) {
+    jsonSchemaValue.value = undefined;
+    jsonSchemaError.value = '';
+    emitCurrentDatasource();
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(nextText) as unknown;
+    const normalizedSchema = normalizeJSONSchema(parsed);
+    if (!normalizedSchema) {
+      throw new Error('Invalid JSON Schema.');
+    }
+
+    jsonSchemaValue.value = normalizedSchema;
+    jsonSchemaError.value = '';
+    emitCurrentDatasource();
+  } catch {
+    jsonSchemaError.value = t('datasource.validation.invalidJsonSchema');
   }
 }
 
@@ -547,6 +939,24 @@ async function readResponseData(response: Response) {
   return await response.text();
 }
 
+async function readJsonSchemaResponseData(response: Response) {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.toLowerCase().includes('json')) {
+    throw new Error(t('datasource.validation.nonJsonResponse'));
+  }
+
+  try {
+    const data = await response.json() as unknown;
+    if (!isJsonValue(data)) {
+      throw new Error(t('datasource.validation.invalidJsonResponse'));
+    }
+
+    return data;
+  } catch {
+    throw new Error(t('datasource.validation.invalidJsonResponse'));
+  }
+}
+
 function formatUnknownValue(value: unknown) {
   if (typeof value === 'string') return value;
 
@@ -554,6 +964,75 @@ function formatUnknownValue(value: unknown) {
     return JSON.stringify(value, null, 2);
   } catch {
     return String(value);
+  }
+}
+
+function getJsonSchemaInferenceError(reason: JSONSchemaInferenceResult['reason']) {
+  return reason === 'emptyArray'
+    ? t('datasource.validation.emptyArraySchema')
+    : t('datasource.validation.mixedArraySchema');
+}
+
+function applyGeneratedJsonSchema(schema: JSONSchema) {
+  jsonSchemaValue.value = cloneJsonSchema(schema);
+  jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
+  jsonSchemaError.value = '';
+  emitCurrentDatasource();
+}
+
+async function parseJsonSchema() {
+  if (!props.edit || jsonSchemaLoading.value) return;
+
+  jsonSchemaError.value = '';
+
+  if (currentType.value === 'JSON') {
+    if (jsonError.value) {
+      jsonSchemaError.value = t('datasource.validation.fixJsonBeforeSchema');
+      return;
+    }
+
+    const inferredSchema = inferJSONSchema(jsonValue.value);
+    if (!inferredSchema.ok) {
+      jsonSchemaError.value = getJsonSchemaInferenceError(inferredSchema.reason);
+      return;
+    }
+
+    applyGeneratedJsonSchema(inferredSchema.schema);
+    return;
+  }
+
+  const invalidBodyIndex = bodyMockErrors.value.findIndex((error) => Boolean(error));
+  if (invalidBodyIndex >= 0) {
+    jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
+    return;
+  }
+
+  jsonSchemaLoading.value = true;
+
+  try {
+    const datasource = buildApiDatasource();
+    const response = await fetch(getRequestUrl(datasource), {
+      method: datasource.method,
+      headers: getRequestHeaders(datasource),
+      body: getRequestBody(datasource)
+    });
+
+    if (!response.ok) {
+      throw new Error(`${t('datasource.validation.apiRequestFailed')} ${response.status} ${response.statusText}`.trim());
+    }
+
+    const data = await readJsonSchemaResponseData(response);
+    const inferredSchema = inferJSONSchema(data);
+    if (!inferredSchema.ok) {
+      jsonSchemaError.value = getJsonSchemaInferenceError(inferredSchema.reason);
+      return;
+    }
+
+    applyGeneratedJsonSchema(inferredSchema.schema);
+  } catch (error) {
+    jsonSchemaError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    jsonSchemaLoading.value = false;
   }
 }
 
@@ -1000,6 +1479,34 @@ watch(
 {{ formatUnknownValue(testResult.data) }}</pre>
       </div>
     </div>
+
+    <div class="ce-datasource-tool__schema-panel" data-testid="datasource-json-schema-panel">
+      <div class="ce-datasource-tool__schema-header">
+        <span class="ce-datasource-tool__label">{{ t('datasource.fields.jsonSchema') }}</span>
+        <button
+          v-if="edit"
+          class="ce-datasource-tool__schema-button"
+          type="button"
+          data-testid="datasource-json-schema-parse-button"
+          :disabled="jsonSchemaLoading"
+          @click="parseJsonSchema"
+        >
+          {{ jsonSchemaLoading ? t('datasource.actions.parsingJsonSchema') : t('datasource.actions.parseJsonSchema') }}
+        </button>
+      </div>
+      <textarea
+        class="ce-datasource-tool__textarea ce-datasource-tool__textarea--schema"
+        data-testid="datasource-json-schema"
+        spellcheck="false"
+        :readonly="isReadOnly"
+        :value="jsonSchemaText"
+        @input="handleJsonSchemaInput"
+        @keydown.stop
+      ></textarea>
+      <p v-if="jsonSchemaError" class="ce-datasource-tool__error" data-testid="datasource-json-schema-error">
+        {{ jsonSchemaError }}
+      </p>
+    </div>
   </div>
 </template>
 
@@ -1070,6 +1577,21 @@ watch(
   padding: 12px;
 }
 
+.ce-datasource-tool__schema-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgb(226 232 240);
+  padding: 12px;
+}
+
+.ce-datasource-tool__schema-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .ce-datasource-tool__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(120px, 0.4fr);
@@ -1119,6 +1641,13 @@ watch(
   line-height: 19px;
 }
 
+.ce-datasource-tool__textarea--schema {
+  min-height: 130px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 19px;
+}
+
 .ce-datasource-tool__textarea--mock {
   min-height: 70px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -1160,7 +1689,8 @@ watch(
 }
 
 .ce-datasource-tool__action,
-.ce-datasource-tool__remove {
+.ce-datasource-tool__remove,
+.ce-datasource-tool__schema-button {
   min-height: 32px;
   border: 1px solid rgb(203 213 225);
   border-radius: 8px;
@@ -1175,14 +1705,25 @@ watch(
   padding: 5px 12px;
 }
 
+.ce-datasource-tool__schema-button {
+  padding: 5px 12px;
+  white-space: nowrap;
+}
+
 .ce-datasource-tool__remove {
   padding: 5px 10px;
   color: rgb(185 28 28);
 }
 
 .ce-datasource-tool__action:hover,
-.ce-datasource-tool__remove:hover {
+.ce-datasource-tool__remove:hover,
+.ce-datasource-tool__schema-button:hover {
   background: rgb(248 250 252);
+}
+
+.ce-datasource-tool__schema-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .ce-datasource-tool__empty {
@@ -1264,6 +1805,11 @@ watch(
     flex-direction: column;
   }
 
+  .ce-datasource-tool__schema-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .ce-datasource-tool__grid,
   .ce-datasource-tool__row,
   .ce-datasource-tool__body-row {
@@ -1283,6 +1829,10 @@ watch(
 
 :global(.dark) .ce-datasource-tool__header {
   border-bottom-color: rgb(51 65 85);
+}
+
+:global(.dark) .ce-datasource-tool__schema-panel {
+  border-top-color: rgb(51 65 85);
 }
 
 :global(.dark) .ce-datasource-tool__title {
@@ -1323,13 +1873,15 @@ watch(
 }
 
 :global(.dark) .ce-datasource-tool__action,
-:global(.dark) .ce-datasource-tool__remove {
+:global(.dark) .ce-datasource-tool__remove,
+:global(.dark) .ce-datasource-tool__schema-button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
 }
 
 :global(.dark) .ce-datasource-tool__action:hover,
-:global(.dark) .ce-datasource-tool__remove:hover {
+:global(.dark) .ce-datasource-tool__remove:hover,
+:global(.dark) .ce-datasource-tool__schema-button:hover {
   background: rgb(30 41 59);
 }
 

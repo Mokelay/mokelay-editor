@@ -112,7 +112,8 @@ export const zhMessages = {
       path: 'API Path',
       method: '调用方法',
       key: 'Key',
-      mock: 'Mock 数据'
+      mock: 'Mock 数据',
+      jsonSchema: 'JSON Schema'
     },
     sections: {
       headers: 'Header',
@@ -123,17 +124,27 @@ export const zhMessages = {
       add: '添加',
       remove: '删除',
       testConnection: '测试链接',
-      testing: '测试中...'
+      testing: '测试中...',
+      parseJsonSchema: '解析JSON Schema',
+      parsingJsonSchema: '解析中...'
     },
     test: {
       status: '状态'
     },
     validation: {
       invalidJson: '请输入标准 JSON 结构。',
+      invalidJsonSchema: '请输入符合数据格式的 JSON Schema。',
       invalidNumber: '请输入有效数字。',
       invalidObject: '请输入标准 JSON 对象。',
       invalidArray: '请输入标准 JSON 数组。',
-      fixBodyBeforeTest: '请先修正 Body 中的 Mock 数据。'
+      fixBodyBeforeTest: '请先修正 Body 中的 Mock 数据。',
+      fixJsonBeforeSchema: '请先修正 JSON 数据。',
+      fixBodyBeforeSchema: '请先修正 Body 中的 Mock 数据。',
+      nonJsonResponse: 'API 响应不是 JSON 数据。',
+      invalidJsonResponse: 'API 响应不是有效 JSON 数据。',
+      apiRequestFailed: 'API 请求失败：',
+      emptyArraySchema: '空数组无法推断 JSON Schema。',
+      mixedArraySchema: '数组中包含无法合并的类型，无法推断 JSON Schema。'
     }
   },
   formItem: {
