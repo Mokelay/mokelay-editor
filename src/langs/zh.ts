@@ -105,6 +105,9 @@ export const zhMessages = {
     toolboxTitle: '数据源编辑器',
     title: '数据源',
     empty: '暂无配置项',
+    emptySchema: '还没有字段配置，请先点击“生成字段配置”。',
+    noListRecord: '当前 Schema 中没有可作为列表数据的数组字段。',
+    noFormFields: '当前 Schema 中没有可用于表单的普通字段。',
     fields: {
       type: '数据源类型',
       rawData: 'JSON 数据',
@@ -112,28 +115,73 @@ export const zhMessages = {
       path: 'API Path',
       method: '调用方法',
       key: 'Key',
-      mock: 'Mock 数据'
+      mock: 'Mock 数据',
+      jsonSchema: 'JSON Schema',
+      generatedFields: '字段数',
+      searchFields: '搜索字段名称或路径',
+      recordPath: '列表数据位置',
+      rootRecordPath: '根数据',
+      selectedFields: '已选择字段',
+      required: '必填'
     },
     sections: {
       headers: 'Header',
       queries: 'Query',
-      body: 'Body'
+      body: 'Body',
+      generateFields: '生成字段配置',
+      fieldSelection: '字段选择'
     },
     actions: {
       add: '添加',
       remove: '删除',
       testConnection: '测试链接',
-      testing: '测试中...'
+      testing: '测试中...',
+      parseJsonSchema: '解析JSON Schema',
+      parsingJsonSchema: '解析中...',
+      generateFields: '生成字段配置',
+      generatingFields: '生成中...'
+    },
+    tabs: {
+      list: '列表字段',
+      form: '表单字段',
+      advanced: '高级 Schema'
+    },
+    help: {
+      generateFields: '从 JSON 数据或 API 响应中识别字段，生成给列表和表单使用的配置。',
+      fieldSelection: '勾选需要给组件使用的字段，可以直接改成业务同学看得懂的名称。'
+    },
+    schemaTypes: {
+      object: '对象',
+      array: '列表',
+      string: '文本',
+      number: '数字',
+      boolean: '开关',
+      null: '空值'
+    },
+    componentHints: {
+      text: '文本',
+      number: '数字',
+      switch: '开关',
+      object: '对象',
+      array: '列表'
     },
     test: {
       status: '状态'
     },
     validation: {
       invalidJson: '请输入标准 JSON 结构。',
+      invalidJsonSchema: '请输入符合数据格式的 JSON Schema。',
       invalidNumber: '请输入有效数字。',
       invalidObject: '请输入标准 JSON 对象。',
       invalidArray: '请输入标准 JSON 数组。',
-      fixBodyBeforeTest: '请先修正 Body 中的 Mock 数据。'
+      fixBodyBeforeTest: '请先修正 Body 中的 Mock 数据。',
+      fixJsonBeforeSchema: '请先修正 JSON 数据。',
+      fixBodyBeforeSchema: '请先修正 Body 中的 Mock 数据。',
+      nonJsonResponse: 'API 响应不是 JSON 数据。',
+      invalidJsonResponse: 'API 响应不是有效 JSON 数据。',
+      apiRequestFailed: 'API 请求失败：',
+      emptyArraySchema: '空数组无法推断 JSON Schema。',
+      mixedArraySchema: '数组中包含无法合并的类型，无法推断 JSON Schema。'
     }
   },
   formItem: {

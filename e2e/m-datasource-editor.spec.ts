@@ -15,6 +15,71 @@ function getDatasourceValue(blocks: Awaited<ReturnType<typeof getSavedBlocks>>) 
   return blocks.find((block) => block.type === 'MDatasourceEditor')?.data?.value;
 }
 
+const userSchema = {
+  type: 'object',
+  properties: {
+    name: {
+      type: 'string'
+    },
+    age: {
+      type: 'number'
+    },
+    isStudent: {
+      type: 'boolean'
+    },
+    tags: {
+      type: 'array',
+      items: {
+        type: 'string'
+      }
+    }
+  }
+};
+
+const userSchemaSelections = {
+  list: {
+    recordPath: 'tags',
+    fields: [
+      {
+        path: 'tags[]',
+        label: 'tags',
+        type: 'string',
+        required: false,
+        enabled: true,
+        componentHint: 'text'
+      }
+    ]
+  },
+  form: {
+    fields: [
+      {
+        path: 'name',
+        label: 'name',
+        type: 'string',
+        required: false,
+        enabled: true,
+        componentHint: 'text'
+      },
+      {
+        path: 'age',
+        label: 'age',
+        type: 'number',
+        required: false,
+        enabled: true,
+        componentHint: 'number'
+      },
+      {
+        path: 'isStudent',
+        label: 'isStudent',
+        type: 'boolean',
+        required: false,
+        enabled: true,
+        componentHint: 'switch'
+      }
+    ]
+  }
+};
+
 test('adds a datasource editor with default JSON value and renders in preview', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
@@ -68,6 +133,219 @@ test('validates JSON input and only saves the last valid JSON value', async ({ p
         }
       ],
       empty: null
+    }
+  });
+});
+
+test('parses JSON datasource data into JSON Schema and saves it', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  const rawData = {
+    name: 'Tom',
+    age: 18,
+    isStudent: true,
+    tags: ['a', 'b']
+  };
+
+  await page.getByTestId('datasource-raw-data').fill(JSON.stringify(rawData));
+  await page.getByTestId('datasource-json-schema-parse-button').click();
+
+  await expect(page.getByTestId('datasource-schema-summary')).toContainText('字段数: 6');
+  await expect(page.getByTestId('datasource-list-field-tags[]')).toBeVisible();
+  await page.getByTestId('datasource-schema-tab-form').click();
+  await expect(page.getByTestId('datasource-form-field-name')).toBeVisible();
+  await expect(page.getByTestId('datasource-form-field-age')).toBeVisible();
+  await page.getByTestId('datasource-schema-tab-advanced').click();
+  await expect(page.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(userSchema, null, 2));
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toEqual({
+    type: 'JSON',
+    rawData,
+    jsonSchema: userSchema,
+    schemaSelections: userSchemaSelections
+  });
+});
+
+test('edits JSON Schema manually and keeps the last valid saved value', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  const manualSchema = {
+    type: 'object',
+    properties: {
+      name: {
+        type: 'string',
+        description: 'User name'
+      }
+    },
+    required: ['name']
+  };
+
+  await page.getByTestId('datasource-schema-tab-advanced').click();
+  await page.getByTestId('datasource-json-schema').fill(JSON.stringify(manualSchema));
+  await expect(page.getByTestId('datasource-json-schema-error')).toHaveCount(0);
+
+  await page.getByTestId('save-button').click();
+  let datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toEqual({
+    type: 'JSON',
+    rawData: {},
+    jsonSchema: manualSchema,
+    schemaSelections: {
+      form: {
+        fields: [
+          {
+            path: 'name',
+            label: 'name',
+            type: 'string',
+            required: true,
+            enabled: true,
+            componentHint: 'text'
+          }
+        ]
+      }
+    }
+  });
+  await page.getByTestId('config-dialog-close').click();
+
+  await page.getByTestId('datasource-json-schema').fill('{ bad');
+  await expect(page.getByTestId('datasource-json-schema-error')).toBeVisible();
+
+  await page.getByTestId('save-button').click();
+  datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toEqual({
+    type: 'JSON',
+    rawData: {},
+    jsonSchema: manualSchema,
+    schemaSelections: {
+      form: {
+        fields: [
+          {
+            path: 'name',
+            label: 'name',
+            type: 'string',
+            required: true,
+            enabled: true,
+            componentHint: 'text'
+          }
+        ]
+      }
+    }
+  });
+  await page.getByTestId('config-dialog-close').click();
+
+  await page.getByTestId('datasource-json-schema').fill('');
+  await expect(page.getByTestId('datasource-json-schema-error')).toHaveCount(0);
+
+  await page.getByTestId('save-button').click();
+  datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toEqual({
+    type: 'JSON',
+    rawData: {}
+  });
+});
+
+test('selects list and form fields from generated Schema and saves friendly labels', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  const rawData = {
+    title: '用户列表',
+    users: [
+      {
+        id: 1,
+        name: 'Ada',
+        active: true
+      }
+    ]
+  };
+  const schema = {
+    type: 'object',
+    properties: {
+      title: {
+        type: 'string'
+      },
+      users: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number'
+            },
+            name: {
+              type: 'string'
+            },
+            active: {
+              type: 'boolean'
+            }
+          }
+        }
+      }
+    }
+  };
+
+  await page.getByTestId('datasource-raw-data').fill(JSON.stringify(rawData));
+  await page.getByTestId('datasource-json-schema-parse-button').click();
+
+  await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('users');
+  await page.getByTestId('datasource-list-field-label-users[].name').fill('用户名');
+  await page.getByTestId('datasource-list-field-enabled-users[].active').uncheck();
+
+  await page.getByTestId('datasource-schema-tab-form').click();
+  await page.getByTestId('datasource-form-field-label-title').fill('标题');
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toEqual({
+    type: 'JSON',
+    rawData,
+    jsonSchema: schema,
+    schemaSelections: {
+      list: {
+        recordPath: 'users',
+        fields: [
+          {
+            path: 'users[].id',
+            label: 'id',
+            type: 'number',
+            required: false,
+            enabled: true,
+            componentHint: 'number'
+          },
+          {
+            path: 'users[].name',
+            label: '用户名',
+            type: 'string',
+            required: false,
+            enabled: true,
+            componentHint: 'text'
+          },
+          {
+            path: 'users[].active',
+            label: 'active',
+            type: 'boolean',
+            required: false,
+            enabled: false,
+            componentHint: 'switch'
+          }
+        ]
+      },
+      form: {
+        fields: [
+          {
+            path: 'title',
+            label: '标题',
+            type: 'string',
+            required: false,
+            enabled: true,
+            componentHint: 'text'
+          }
+        ]
+      }
     }
   });
 });
@@ -204,6 +482,149 @@ test('tests API datasource with current request configuration and prints respons
   await expect(page.getByTestId('datasource-test-result')).toContainText('状态: 201');
   await expect(page.getByTestId('datasource-test-result')).toContainText('"ok": true');
   await expect(page.getByTestId('datasource-test-result')).toContainText('"name": "Ada"');
+});
+
+test('parses API datasource response into JSON Schema and saves it', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  const apiSchema = {
+    type: 'object',
+    properties: {
+      ok: {
+        type: 'boolean'
+      },
+      users: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number'
+            },
+            name: {
+              type: 'string'
+            },
+            active: {
+              type: 'boolean'
+            }
+          }
+        }
+      }
+    }
+  };
+
+  await page.route('**/datasource-schema**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        users: [
+          {
+            id: 1,
+            name: 'Ada',
+            active: true
+          }
+        ]
+      })
+    });
+  });
+
+  await page.getByTestId('datasource-type-api').click();
+  const origin = await page.evaluate(() => window.location.origin);
+  await page.getByTestId('datasource-domain').fill(origin);
+  await page.getByTestId('datasource-path').fill('/datasource-schema');
+
+  await page.getByTestId('datasource-header-add').click();
+  await page.getByTestId('datasource-header-key-0').fill('X-Schema');
+  await page.getByTestId('datasource-header-mock-0').fill('demo-schema');
+
+  await page.getByTestId('datasource-query-add').click();
+  await page.getByTestId('datasource-query-key-0').fill('token');
+  await page.getByTestId('datasource-query-mock-0').fill('abc');
+
+  const requestPromise = page.waitForRequest((request) =>
+    request.url().includes('/datasource-schema') && request.method() === 'GET'
+  );
+  await page.getByTestId('datasource-json-schema-parse-button').click();
+  const request = await requestPromise;
+
+  expect(request.url()).toContain('token=abc');
+  expect(request.headers()['x-schema']).toBe('demo-schema');
+  await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('users');
+  await expect(page.getByTestId('datasource-list-field-users[].id')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-users[].name')).toBeVisible();
+  await page.getByTestId('datasource-schema-tab-form').click();
+  await expect(page.getByTestId('datasource-form-field-ok')).toBeVisible();
+  await page.getByTestId('datasource-schema-tab-advanced').click();
+  await expect(page.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(apiSchema, null, 2));
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toEqual({
+    type: 'API',
+    domain: origin,
+    path: '/datasource-schema',
+    method: 'GET',
+    headerData: [
+      {
+        key: 'X-Schema',
+        mock: 'demo-schema'
+      }
+    ],
+    bodyData: [],
+    queryData: [
+      {
+        key: 'token',
+        mock: 'abc'
+      }
+    ],
+    jsonSchema: apiSchema,
+    schemaSelections: {
+      list: {
+        recordPath: 'users',
+        fields: [
+          {
+            path: 'users[].id',
+            label: 'id',
+            type: 'number',
+            required: false,
+            enabled: true,
+            componentHint: 'number'
+          },
+          {
+            path: 'users[].name',
+            label: 'name',
+            type: 'string',
+            required: false,
+            enabled: true,
+            componentHint: 'text'
+          },
+          {
+            path: 'users[].active',
+            label: 'active',
+            type: 'boolean',
+            required: false,
+            enabled: true,
+            componentHint: 'switch'
+          }
+        ]
+      },
+      form: {
+        fields: [
+          {
+            path: 'ok',
+            label: 'ok',
+            type: 'boolean',
+            required: false,
+            enabled: true,
+            componentHint: 'switch'
+          }
+        ]
+      }
+    }
+  });
 });
 
 test('loads saved JSON datasource in editor and preview', async ({ page }) => {

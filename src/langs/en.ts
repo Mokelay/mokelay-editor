@@ -105,6 +105,9 @@ export const enMessages = {
     toolboxTitle: 'Datasource Editor',
     title: 'Datasource',
     empty: 'No items',
+    emptySchema: 'No field config yet. Click "Generate field config" first.',
+    noListRecord: 'This schema does not contain an array field for list data.',
+    noFormFields: 'This schema does not contain simple fields for a form.',
     fields: {
       type: 'Datasource type',
       rawData: 'JSON data',
@@ -112,28 +115,73 @@ export const enMessages = {
       path: 'API path',
       method: 'Method',
       key: 'Key',
-      mock: 'Mock data'
+      mock: 'Mock data',
+      jsonSchema: 'JSON Schema',
+      generatedFields: 'Fields',
+      searchFields: 'Search fields or paths',
+      recordPath: 'List data path',
+      rootRecordPath: 'Root data',
+      selectedFields: 'Selected fields',
+      required: 'Required'
     },
     sections: {
       headers: 'Header',
       queries: 'Query',
-      body: 'Body'
+      body: 'Body',
+      generateFields: 'Generate field config',
+      fieldSelection: 'Field selection'
     },
     actions: {
       add: 'Add',
       remove: 'Remove',
       testConnection: 'Test link',
-      testing: 'Testing...'
+      testing: 'Testing...',
+      parseJsonSchema: 'Parse JSON Schema',
+      parsingJsonSchema: 'Parsing...',
+      generateFields: 'Generate field config',
+      generatingFields: 'Generating...'
+    },
+    tabs: {
+      list: 'List fields',
+      form: 'Form fields',
+      advanced: 'Advanced Schema'
+    },
+    help: {
+      generateFields: 'Detect fields from JSON data or an API response, then prepare them for list and form components.',
+      fieldSelection: 'Choose the fields components should use, and rename them with business-friendly labels.'
+    },
+    schemaTypes: {
+      object: 'Object',
+      array: 'List',
+      string: 'Text',
+      number: 'Number',
+      boolean: 'Switch',
+      null: 'Empty'
+    },
+    componentHints: {
+      text: 'Text',
+      number: 'Number',
+      switch: 'Switch',
+      object: 'Object',
+      array: 'List'
     },
     test: {
       status: 'Status'
     },
     validation: {
       invalidJson: 'Enter valid JSON.',
+      invalidJsonSchema: 'Enter a JSON Schema that matches the supported format.',
       invalidNumber: 'Enter a valid number.',
       invalidObject: 'Enter a valid JSON object.',
       invalidArray: 'Enter a valid JSON array.',
-      fixBodyBeforeTest: 'Fix Body mock data before testing.'
+      fixBodyBeforeTest: 'Fix Body mock data before testing.',
+      fixJsonBeforeSchema: 'Fix JSON data before parsing JSON Schema.',
+      fixBodyBeforeSchema: 'Fix Body mock data before parsing JSON Schema.',
+      nonJsonResponse: 'The API response is not JSON.',
+      invalidJsonResponse: 'The API response is not valid JSON.',
+      apiRequestFailed: 'API request failed:',
+      emptyArraySchema: 'Cannot infer JSON Schema from an empty array.',
+      mixedArraySchema: 'The array contains incompatible types, so JSON Schema cannot be inferred.'
     }
   },
   formItem: {
