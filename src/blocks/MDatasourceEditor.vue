@@ -714,7 +714,7 @@ function formatUnknownValue(value: unknown) {
   }
 }
 
-function getJsonSchemaInferenceError(reason: JSONSchemaInferenceResult['reason']) {
+function getJsonSchemaInferenceError(reason: Extract<JSONSchemaInferenceResult, { ok: false }>['reason']) {
   return reason === 'emptyArray'
     ? t('datasource.validation.emptyArraySchema')
     : t('datasource.validation.mixedArraySchema');
