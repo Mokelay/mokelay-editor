@@ -2,40 +2,39 @@
 import type { OutputData } from '@editorjs/editorjs';
 import { ref } from 'vue';
 import MPage from '@/blocks/MPage.vue';
-import { getInitialEditorBlocks } from '@/utils/editorData';
 import { useI18n } from '@/i18n';
-import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
+
+type EditorPanelProps = {
+  blocks?: OutputData['blocks'];
+  loading?: boolean;
+  error?: string;
+};
+
+const props = withDefaults(defineProps<EditorPanelProps>(), {
+  blocks: () => [],
+  loading: false,
+  error: ''
+});
+
+const emit = defineEmits<{
+  (event: 'change', blocks: OutputData['blocks']): void;
+}>();
 
 const pageRef = ref<InstanceType<typeof MPage> | null>(null);
-const savedConfigText = ref('');
-const showConfigDialog = ref(false);
 const { t } = useI18n();
 
-const pageBlocks = ref<OutputData['blocks']>(getInitialEditorBlocks(t));
-
 async function save() {
-  const output: OutputData = (await pageRef.value?.saveEditor()) ?? { blocks: pageBlocks.value };
-  pageBlocks.value = output.blocks;
-  localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify(output));
-  savedConfigText.value = JSON.stringify(output, null, 2);
-  showConfigDialog.value = true;
+  const output: OutputData = (await pageRef.value?.saveEditor()) ?? { blocks: props.blocks };
+  emit('change', output.blocks);
+  return output;
 }
 
 function handlePageChange(blocks: OutputData['blocks']) {
-  pageBlocks.value = blocks;
-}
-
-function openPreview() {
-  window.location.hash = '/preview';
-}
-
-function closeConfigDialog() {
-  showConfigDialog.value = false;
+  emit('change', blocks);
 }
 
 defineExpose({
-  save,
-  openPreview
+  save
 });
 </script>
 
@@ -44,28 +43,14 @@ defineExpose({
     data-testid="editor-panel"
     class="flex min-h-[520px] flex-1 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900"
   >
-    <MPage ref="pageRef" :edit="true" :value="pageBlocks" @change="handlePageChange" />
+    <p v-if="loading" data-testid="editor-loading-state" class="mb-3 rounded border border-sky-300 bg-sky-50 p-3 text-sm text-sky-800 dark:border-sky-500/60 dark:bg-sky-900/30 dark:text-sky-100">
+      {{ t('page.loading') }}
+    </p>
+    <p v-else-if="error" data-testid="editor-error-state" class="mb-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/60 dark:bg-red-900/30 dark:text-red-100">
+      {{ error }}
+    </p>
 
-    <div
-      v-if="showConfigDialog"
-      data-testid="config-dialog-overlay"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4"
-      @click.self="closeConfigDialog"
-    >
-      <div data-testid="config-dialog" class="w-full max-w-3xl rounded-xl bg-white p-4 shadow-2xl dark:bg-slate-900">
-        <div class="mb-3 flex items-center justify-between">
-          <h3 data-testid="config-dialog-title" class="text-base font-semibold text-slate-800 dark:text-slate-100">{{ t('editor.configJson') }}</h3>
-          <button
-            data-testid="config-dialog-close"
-            class="rounded bg-slate-200 px-3 py-1 text-sm font-medium text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
-            @click="closeConfigDialog"
-          >
-            {{ t('editor.close') }}
-          </button>
-        </div>
-        <pre data-testid="config-json" class="max-h-[60vh] overflow-auto rounded bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-950 dark:text-slate-300">{{ savedConfigText }}</pre>
-      </div>
-    </div>
+    <MPage v-if="!loading" ref="pageRef" :edit="true" :value="blocks" @change="handlePageChange" />
   </section>
 </template>
 

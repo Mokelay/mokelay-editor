@@ -33,8 +33,6 @@ test('adds a link component and renders it in preview', async ({ page }) => {
     url: 'https://mokelay.com',
     open: false
   }));
-
-  await page.getByTestId('config-dialog-close').click();
   await page.getByTestId('preview-button').click();
 
   const previewLink = page.getByTestId('preview-block-MLink').getByTestId('editor-link-value');

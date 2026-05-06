@@ -14,6 +14,9 @@ export const enMessages = {
     defaultParagraph: 'Welcome to the Mokelay editor starter template.',
     fullscreenEdit: 'Fullscreen',
     saveContent: 'Save',
+    saving: 'Saving...',
+    saveSuccess: 'Saved',
+    saveFailed: 'Save failed. Please try again.',
     previewPage: 'Preview',
     properties: 'Properties',
     propertyDialogTitle: 'Property Settings',
@@ -23,7 +26,7 @@ export const enMessages = {
   preview: {
     title: 'Config Preview',
     backToEditor: 'Back',
-    emptyState: 'No saved config found. Please click "Save" in the editor first.'
+    emptyState: 'No page content yet.'
   },
   globalCalls: {
     ok: 'OK',
@@ -226,7 +229,9 @@ export const enMessages = {
     }
   },
   page: {
-    toolboxTitle: 'Page'
+    toolboxTitle: 'Page',
+    loading: 'Loading page...',
+    loadFailed: 'Failed to load page. Please try again.'
   },
 } as const;
 

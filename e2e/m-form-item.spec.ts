@@ -85,8 +85,6 @@ test('adds form item, edits fields, selects editor, saves and previews', async (
   expect(Array.isArray(formItemBlock?.data?.editor)).toBeFalsy();
   expect(typeof editor?.id).toBe('string');
   expect(typeof editor?.data).toBe('object');
-
-  await page.getByTestId('config-dialog-close').click();
   await page.getByTestId('preview-button').click();
 
   const previewBlock = page.getByTestId('preview-block-MFormItem');

@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+const DEFAULT_MOKELAY_API_BASE_URL = 'http://127.0.0.1:8787';
+
+function normalizeApiBaseUrl(value: string) {
+  return value.replace(/\/+$/, '');
+}
+
 export const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: normalizeApiBaseUrl(import.meta.env.VITE_MOKELAY_API_BASE_URL || DEFAULT_MOKELAY_API_BASE_URL),
   timeout: 10000
 });
 
