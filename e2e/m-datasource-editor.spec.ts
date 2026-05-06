@@ -592,6 +592,94 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
   });
 });
 
+test('parses API datasource response with empty arrays into JSON Schema', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  const responseData = {
+    type: 'API',
+    domain: 'https://api.mokelay.com',
+    path: '/api/me',
+    method: 'GET',
+    headerData: [],
+    bodyData: [],
+    queryData: [
+      {
+        key: 'debug',
+        mock: 'true'
+      }
+    ]
+  };
+  const expectedSchema = {
+    type: 'object',
+    properties: {
+      type: {
+        type: 'string'
+      },
+      domain: {
+        type: 'string'
+      },
+      path: {
+        type: 'string'
+      },
+      method: {
+        type: 'string'
+      },
+      headerData: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {}
+        }
+      },
+      bodyData: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {}
+        }
+      },
+      queryData: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            key: {
+              type: 'string'
+            },
+            mock: {
+              type: 'string'
+            }
+          }
+        }
+      }
+    }
+  };
+
+  await page.route('**/datasource-api-config**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(responseData)
+    });
+  });
+
+  await page.getByTestId('datasource-type-api').click();
+  const origin = await page.evaluate(() => window.location.origin);
+  await page.getByTestId('datasource-domain').fill(origin);
+  await page.getByTestId('datasource-path').fill('/datasource-api-config');
+
+  await page.getByTestId('datasource-json-schema-parse-button').click();
+
+  await expect(page.getByTestId('datasource-json-schema-error')).toHaveCount(0);
+  await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('queryData');
+  await expect(page.getByTestId('datasource-list-field-queryData[].key')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-queryData[].mock')).toBeVisible();
+
+  await page.getByTestId('datasource-schema-tab-advanced').click();
+  await expect(page.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(expectedSchema, null, 2));
+});
+
 test('loads saved JSON datasource in editor and preview', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => {

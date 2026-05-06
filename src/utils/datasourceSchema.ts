@@ -82,6 +82,25 @@ export type JSONSchemaInferenceResult = {
   reason: 'emptyArray' | 'mixedArray';
 };
 
+type UnknownJSONSchema = {
+  type: 'unknown';
+};
+
+type InferredJSONSchema =
+  | UnknownJSONSchema
+  | {
+      type: 'object';
+      properties: Record<string, InferredJSONSchema>;
+      required?: string[];
+      description?: string;
+    }
+  | {
+      type: 'array';
+      items: InferredJSONSchema;
+      description?: string;
+    }
+  | Exclude<JSONSchema, { type: 'object' } | { type: 'array' }>;
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -260,13 +279,69 @@ export function normalizeJSONSchema(value: unknown): JSONSchema | undefined {
   return undefined;
 }
 
-function mergeInferredJSONSchemas(left: JSONSchema, right: JSONSchema): JSONSchema | undefined {
+function isUnknownJSONSchema(value: InferredJSONSchema): value is UnknownJSONSchema {
+  return value.type === 'unknown';
+}
+
+function cloneInferredJSONSchema(value: InferredJSONSchema): InferredJSONSchema {
+  return clonePlainValue(value);
+}
+
+function createUnknownArrayItemSchema(): UnknownJSONSchema {
+  return {
+    type: 'unknown'
+  };
+}
+
+function createEmptyObjectSchema(): Extract<JSONSchema, { type: 'object' }> {
+  return {
+    type: 'object',
+    properties: {}
+  };
+}
+
+function toConcreteJSONSchema(value: InferredJSONSchema): JSONSchema {
+  if (isUnknownJSONSchema(value)) {
+    return createEmptyObjectSchema();
+  }
+
+  if (value.type === 'array') {
+    return {
+      ...value,
+      items: toConcreteJSONSchema(value.items)
+    };
+  }
+
+  if (value.type === 'object') {
+    const properties: Record<string, JSONSchema> = {};
+    Object.entries(value.properties).forEach(([key, property]) => {
+      properties[key] = toConcreteJSONSchema(property);
+    });
+
+    return {
+      ...value,
+      properties
+    };
+  }
+
+  return cloneJsonSchema(value);
+}
+
+function mergeInferredJSONSchemas(left: InferredJSONSchema, right: InferredJSONSchema): InferredJSONSchema | undefined {
+  if (isUnknownJSONSchema(left)) {
+    return cloneInferredJSONSchema(right);
+  }
+
+  if (isUnknownJSONSchema(right)) {
+    return cloneInferredJSONSchema(left);
+  }
+
   if (left.type !== right.type) {
     return undefined;
   }
 
   if (left.type === 'object' && right.type === 'object') {
-    const properties: Record<string, JSONSchema> = {};
+    const properties: Record<string, InferredJSONSchema> = {};
     const propertyKeys = new Set([
       ...Object.keys(left.properties),
       ...Object.keys(right.properties)
@@ -286,7 +361,7 @@ function mergeInferredJSONSchemas(left: JSONSchema, right: JSONSchema): JSONSche
         continue;
       }
 
-      properties[key] = cloneJsonSchema((leftProperty ?? rightProperty)!);
+      properties[key] = cloneInferredJSONSchema((leftProperty ?? rightProperty)!);
     }
 
     return {
@@ -307,10 +382,16 @@ function mergeInferredJSONSchemas(left: JSONSchema, right: JSONSchema): JSONSche
     };
   }
 
-  return cloneJsonSchema(left);
+  return cloneInferredJSONSchema(left);
 }
 
-export function inferJSONSchema(value: JsonValue): JSONSchemaInferenceResult {
+function inferJSONSchemaValue(value: JsonValue): {
+  ok: true;
+  schema: InferredJSONSchema;
+} | {
+  ok: false;
+  reason: 'mixedArray';
+} {
   if (value === null) {
     return {
       ok: true,
@@ -350,14 +431,17 @@ export function inferJSONSchema(value: JsonValue): JSONSchemaInferenceResult {
   if (Array.isArray(value)) {
     if (!value.length) {
       return {
-        ok: false,
-        reason: 'emptyArray'
+        ok: true,
+        schema: {
+          type: 'array',
+          items: createUnknownArrayItemSchema()
+        }
       };
     }
 
-    let items: JSONSchema | undefined;
+    let items: InferredJSONSchema | undefined;
     for (const item of value) {
-      const inferredItem = inferJSONSchema(item);
+      const inferredItem = inferJSONSchemaValue(item);
       if (!inferredItem.ok) {
         return inferredItem;
       }
@@ -387,9 +471,9 @@ export function inferJSONSchema(value: JsonValue): JSONSchemaInferenceResult {
     };
   }
 
-  const properties: Record<string, JSONSchema> = {};
+  const properties: Record<string, InferredJSONSchema> = {};
   for (const [key, propertyValue] of Object.entries(value)) {
-    const inferredProperty = inferJSONSchema(propertyValue);
+    const inferredProperty = inferJSONSchemaValue(propertyValue);
     if (!inferredProperty.ok) {
       return inferredProperty;
     }
@@ -403,6 +487,25 @@ export function inferJSONSchema(value: JsonValue): JSONSchemaInferenceResult {
       type: 'object',
       properties
     }
+  };
+}
+
+export function inferJSONSchema(value: JsonValue): JSONSchemaInferenceResult {
+  if (Array.isArray(value) && !value.length) {
+    return {
+      ok: false,
+      reason: 'emptyArray'
+    };
+  }
+
+  const inferredSchema = inferJSONSchemaValue(value);
+  if (!inferredSchema.ok) {
+    return inferredSchema;
+  }
+
+  return {
+    ok: true,
+    schema: toConcreteJSONSchema(inferredSchema.schema)
   };
 }
 
@@ -663,7 +766,11 @@ function reconcileSelectionFields(generatedFields: SchemaSelectionField[], previ
 
 function getDefaultRecordPath(schema?: JSONSchema) {
   const options = getArrayRecordOptions(schema);
-  return options.length === 1 ? options[0].path : options[0]?.path ?? '';
+  const firstOptionWithFields = options.find((option) =>
+    getSchemaSelectionFieldsForList(schema, option.path).length > 0
+  );
+
+  return firstOptionWithFields?.path ?? options[0]?.path ?? '';
 }
 
 export function reconcileSchemaSelections(
