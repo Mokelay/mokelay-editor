@@ -134,8 +134,6 @@ export const enMessages = {
     actions: {
       add: 'Add',
       remove: 'Remove',
-      testConnection: 'Test link',
-      testing: 'Testing...',
       parseJsonSchema: 'Parse JSON Schema',
       parsingJsonSchema: 'Parsing...',
       generateFields: 'Generate field config',
@@ -165,16 +163,12 @@ export const enMessages = {
       object: 'Object',
       array: 'List'
     },
-    test: {
-      status: 'Status'
-    },
     validation: {
       invalidJson: 'Enter valid JSON.',
       invalidJsonSchema: 'Enter a JSON Schema that matches the supported format.',
       invalidNumber: 'Enter a valid number.',
       invalidObject: 'Enter a valid JSON object.',
       invalidArray: 'Enter a valid JSON array.',
-      fixBodyBeforeTest: 'Fix Body mock data before testing.',
       fixJsonBeforeSchema: 'Fix JSON data before parsing JSON Schema.',
       fixBodyBeforeSchema: 'Fix Body mock data before parsing JSON Schema.',
       nonJsonResponse: 'The API response is not JSON.',

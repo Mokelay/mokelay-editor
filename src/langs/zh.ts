@@ -134,8 +134,6 @@ export const zhMessages = {
     actions: {
       add: '添加',
       remove: '删除',
-      testConnection: '测试链接',
-      testing: '测试中...',
       parseJsonSchema: '解析JSON Schema',
       parsingJsonSchema: '解析中...',
       generateFields: '生成字段配置',
@@ -165,16 +163,12 @@ export const zhMessages = {
       object: '对象',
       array: '列表'
     },
-    test: {
-      status: '状态'
-    },
     validation: {
       invalidJson: '请输入标准 JSON 结构。',
       invalidJsonSchema: '请输入符合数据格式的 JSON Schema。',
       invalidNumber: '请输入有效数字。',
       invalidObject: '请输入标准 JSON 对象。',
       invalidArray: '请输入标准 JSON 数组。',
-      fixBodyBeforeTest: '请先修正 Body 中的 Mock 数据。',
       fixJsonBeforeSchema: '请先修正 JSON 数据。',
       fixBodyBeforeSchema: '请先修正 Body 中的 Mock 数据。',
       nonJsonResponse: 'API 响应不是 JSON 数据。',

@@ -1,8 +1,15 @@
 import { createApp, type App as VueApp } from 'vue';
 import GlobalCallHost from '@/components/global-calls/GlobalCallHost.vue';
+import {
+  $remote,
+  $schema,
+  type RemoteFunction,
+  type SchemaFunction
+} from '@/utils/datasource';
 import type { StoredBlock } from '@/utils/storedBlocks';
 
 export type { StoredBlock } from '@/utils/storedBlocks';
+export { $remote, $schema } from '@/utils/datasource';
 
 export type GlobalCallContent = string | StoredBlock[];
 export type MessageType = 'success' | 'warning' | 'info' | 'error';
@@ -41,6 +48,8 @@ export type GlobalCallFunctions = {
   $alert: AlertFunction;
   $confirm: ConfirmFunction;
   $message: MessageFunction;
+  $remote: RemoteFunction;
+  $schema: SchemaFunction;
 };
 
 type GlobalCallHostHandle = {
@@ -71,6 +80,8 @@ export function installGlobalCalls(app: VueApp) {
   app.config.globalProperties.$alert = $alert;
   app.config.globalProperties.$confirm = $confirm;
   app.config.globalProperties.$message = $message;
+  app.config.globalProperties.$remote = $remote;
+  app.config.globalProperties.$schema = $schema;
   registerWindowGlobalCalls();
 }
 
@@ -87,6 +98,8 @@ export function registerWindowGlobalCalls() {
   globalWindow.$alert = $alert;
   globalWindow.$confirm = $confirm;
   globalWindow.$message = $message;
+  globalWindow.$remote = $remote;
+  globalWindow.$schema = $schema;
 }
 
 function runWithHost<T>(callback: (globalCallHost: GlobalCallHostHandle) => Promise<T>) {
