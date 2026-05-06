@@ -157,7 +157,8 @@ export const zhMessages = {
       string: '文本',
       number: '数字',
       boolean: '开关',
-      null: '空值'
+      null: '空值',
+      union: '联合'
     },
     componentHints: {
       text: '文本',

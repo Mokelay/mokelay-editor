@@ -14,7 +14,6 @@ import {
   reconcileSchemaSelections,
   type DatasourceSchemaSelections,
   type JSONSchema,
-  type JSONSchemaType,
   type JsonValue,
   type SchemaSelectionField,
   type SchemaTreeNode
@@ -146,7 +145,7 @@ function formatJsonSchema(value?: JSONSchema) {
   return value ? JSON.stringify(value, null, 2) : '';
 }
 
-function getSchemaTypeLabel(type: JSONSchemaType) {
+function getSchemaTypeLabel(type: SchemaTreeNode['type'] | SchemaSelectionField['type']) {
   return t(`datasource.schemaTypes.${type}`);
 }
 

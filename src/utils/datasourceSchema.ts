@@ -1,5 +1,8 @@
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
+export type JSONSchemaType = 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
+export type JSONSchemaNodeType = JSONSchemaType | 'union';
+
 export type JSONSchema =
   | {
       type: 'object';
@@ -29,9 +32,12 @@ export type JSONSchema =
     }
   | {
       type: 'null';
+    }
+  | {
+      anyOf: JSONSchema[];
+      description?: string;
     };
 
-export type JSONSchemaType = JSONSchema['type'];
 export type SchemaComponentHint = 'text' | 'number' | 'switch' | 'object' | 'array';
 
 export interface SchemaSelectionField {
@@ -61,7 +67,8 @@ export interface SchemaTreeNode {
   path: string;
   displayPath: string;
   name: string;
-  type: JSONSchemaType;
+  type: JSONSchemaNodeType;
+  selectionType?: JSONSchemaType;
   required: boolean;
   selectable: boolean;
   componentHint: SchemaComponentHint;
@@ -99,7 +106,11 @@ type InferredJSONSchema =
       items: InferredJSONSchema;
       description?: string;
     }
-  | Exclude<JSONSchema, { type: 'object' } | { type: 'array' }>;
+  | {
+      anyOf: InferredJSONSchema[];
+      description?: string;
+    }
+  | Exclude<JSONSchema, { type: 'object' } | { type: 'array' } | { anyOf: JSONSchema[] }>;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -161,7 +172,31 @@ function assignDescription<T extends JSONSchema>(schema: T, description: unknown
 }
 
 export function normalizeJSONSchema(value: unknown): JSONSchema | undefined {
-  if (!isRecord(value) || typeof value.type !== 'string') {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  if (value.anyOf !== undefined) {
+    if (!hasOnlyKeys(value, ['anyOf', 'description']) || !Array.isArray(value.anyOf) || !value.anyOf.length) {
+      return undefined;
+    }
+
+    const anyOf: JSONSchema[] = [];
+    for (const item of value.anyOf) {
+      const normalizedItem = normalizeJSONSchema(item);
+      if (!normalizedItem) {
+        return undefined;
+      }
+
+      anyOf.push(normalizedItem);
+    }
+
+    return assignDescription({
+      anyOf
+    }, value.description);
+  }
+
+  if (typeof value.type !== 'string') {
     return undefined;
   }
 
@@ -280,7 +315,17 @@ export function normalizeJSONSchema(value: unknown): JSONSchema | undefined {
 }
 
 function isUnknownJSONSchema(value: InferredJSONSchema): value is UnknownJSONSchema {
-  return value.type === 'unknown';
+  return 'type' in value && value.type === 'unknown';
+}
+
+function isAnyOfJSONSchema(value: JSONSchema): value is Extract<JSONSchema, { anyOf: JSONSchema[] }> {
+  return 'anyOf' in value;
+}
+
+function isAnyOfInferredJSONSchema(
+  value: InferredJSONSchema
+): value is Extract<InferredJSONSchema, { anyOf: InferredJSONSchema[] }> {
+  return 'anyOf' in value;
 }
 
 function cloneInferredJSONSchema(value: InferredJSONSchema): InferredJSONSchema {
@@ -305,6 +350,12 @@ function toConcreteJSONSchema(value: InferredJSONSchema): JSONSchema {
     return createEmptyObjectSchema();
   }
 
+  if (isAnyOfInferredJSONSchema(value)) {
+    return {
+      anyOf: value.anyOf.map((item) => toConcreteJSONSchema(item))
+    };
+  }
+
   if (value.type === 'array') {
     return {
       ...value,
@@ -327,13 +378,28 @@ function toConcreteJSONSchema(value: InferredJSONSchema): JSONSchema {
   return cloneJsonSchema(value);
 }
 
-function mergeInferredJSONSchemas(left: InferredJSONSchema, right: InferredJSONSchema): InferredJSONSchema | undefined {
+function flattenInferredAnyOf(value: InferredJSONSchema): InferredJSONSchema[] {
+  if (isAnyOfInferredJSONSchema(value)) {
+    return value.anyOf.flatMap((item) => flattenInferredAnyOf(item));
+  }
+
+  return [value];
+}
+
+function mergeSameTypeInferredJSONSchemas(
+  left: InferredJSONSchema,
+  right: InferredJSONSchema
+): InferredJSONSchema | undefined {
   if (isUnknownJSONSchema(left)) {
     return cloneInferredJSONSchema(right);
   }
 
   if (isUnknownJSONSchema(right)) {
     return cloneInferredJSONSchema(left);
+  }
+
+  if (isAnyOfInferredJSONSchema(left) || isAnyOfInferredJSONSchema(right)) {
+    return undefined;
   }
 
   if (left.type !== right.type) {
@@ -353,10 +419,6 @@ function mergeInferredJSONSchemas(left: InferredJSONSchema, right: InferredJSONS
 
       if (leftProperty && rightProperty) {
         const mergedProperty = mergeInferredJSONSchemas(leftProperty, rightProperty);
-        if (!mergedProperty) {
-          return undefined;
-        }
-
         properties[key] = mergedProperty;
         continue;
       }
@@ -372,10 +434,6 @@ function mergeInferredJSONSchemas(left: InferredJSONSchema, right: InferredJSONS
 
   if (left.type === 'array' && right.type === 'array') {
     const items = mergeInferredJSONSchemas(left.items, right.items);
-    if (!items) {
-      return undefined;
-    }
-
     return {
       type: 'array',
       items
@@ -383,6 +441,35 @@ function mergeInferredJSONSchemas(left: InferredJSONSchema, right: InferredJSONS
   }
 
   return cloneInferredJSONSchema(left);
+}
+
+function mergeInferredAnyOfCandidates(candidates: InferredJSONSchema[]): InferredJSONSchema {
+  const anyOf: InferredJSONSchema[] = [];
+
+  candidates.flatMap((item) => flattenInferredAnyOf(item)).forEach((candidate) => {
+    const mergeIndex = anyOf.findIndex((item) => mergeSameTypeInferredJSONSchemas(item, candidate) !== undefined);
+    if (mergeIndex >= 0) {
+      anyOf[mergeIndex] = mergeSameTypeInferredJSONSchemas(anyOf[mergeIndex], candidate)!;
+      return;
+    }
+
+    anyOf.push(cloneInferredJSONSchema(candidate));
+  });
+
+  return anyOf.length === 1
+    ? anyOf[0]
+    : {
+        anyOf
+      };
+}
+
+function mergeInferredJSONSchemas(left: InferredJSONSchema, right: InferredJSONSchema): InferredJSONSchema {
+  const mergedSchema = mergeSameTypeInferredJSONSchemas(left, right);
+  if (mergedSchema) {
+    return mergedSchema;
+  }
+
+  return mergeInferredAnyOfCandidates([left, right]);
 }
 
 function inferJSONSchemaValue(value: JsonValue): {
@@ -451,15 +538,7 @@ function inferJSONSchemaValue(value: JsonValue): {
         continue;
       }
 
-      const mergedItems = mergeInferredJSONSchemas(items, inferredItem.schema);
-      if (!mergedItems) {
-        return {
-          ok: false,
-          reason: 'mixedArray'
-        };
-      }
-
-      items = mergedItems;
+      items = mergeInferredJSONSchemas(items, inferredItem.schema);
     }
 
     return {
@@ -535,14 +614,84 @@ function isSelectableSchemaType(type: JSONSchemaType) {
   return type === 'string' || type === 'number' || type === 'boolean' || type === 'null';
 }
 
+function getSchemaNodeType(schema: JSONSchema): JSONSchemaNodeType {
+  return isAnyOfJSONSchema(schema) ? 'union' : schema.type;
+}
+
+function getNullableSchemaType(schema: JSONSchema, type: JSONSchemaType): JSONSchema | undefined {
+  if (!isAnyOfJSONSchema(schema)) {
+    return schema.type === type ? schema : undefined;
+  }
+
+  const nonNullSchemas = schema.anyOf.filter((item) => !(!isAnyOfJSONSchema(item) && item.type === 'null'));
+  if (nonNullSchemas.length !== 1) {
+    return undefined;
+  }
+
+  const [nonNullSchema] = nonNullSchemas;
+  return !isAnyOfJSONSchema(nonNullSchema) && nonNullSchema.type === type ? nonNullSchema : undefined;
+}
+
+function getObjectSchema(schema: JSONSchema | undefined): Extract<JSONSchema, { type: 'object' }> | undefined {
+  if (!schema) {
+    return undefined;
+  }
+
+  const objectSchema = getNullableSchemaType(schema, 'object');
+  return objectSchema && !isAnyOfJSONSchema(objectSchema) && objectSchema.type === 'object'
+    ? objectSchema
+    : undefined;
+}
+
+function getArraySchema(schema: JSONSchema | undefined): Extract<JSONSchema, { type: 'array' }> | undefined {
+  if (!schema) {
+    return undefined;
+  }
+
+  const arraySchema = getNullableSchemaType(schema, 'array');
+  return arraySchema && !isAnyOfJSONSchema(arraySchema) && arraySchema.type === 'array'
+    ? arraySchema
+    : undefined;
+}
+
+function getSelectableSchemaType(schema: JSONSchema): JSONSchemaType | undefined {
+  if (!isAnyOfJSONSchema(schema)) {
+    return isSelectableSchemaType(schema.type) ? schema.type : undefined;
+  }
+
+  const nonNullSchemas = schema.anyOf.filter((item) => !(!isAnyOfJSONSchema(item) && item.type === 'null'));
+  if (nonNullSchemas.length !== 1) {
+    return undefined;
+  }
+
+  const [nonNullSchema] = nonNullSchemas;
+  return !isAnyOfJSONSchema(nonNullSchema) && isSelectableSchemaType(nonNullSchema.type)
+    ? nonNullSchema.type
+    : undefined;
+}
+
 function createSelectionField(node: SchemaTreeNode, enabled: boolean, label = getSchemaFieldLabel(node.path)): SchemaSelectionField {
+  const selectionType = node.selectionType ?? (node.type === 'union' ? undefined : node.type);
+  if (!selectionType) {
+    throw new TypeError('Schema tree node is not selectable.');
+  }
+
   return {
     path: node.path,
     label,
-    type: node.type,
+    type: selectionType,
     required: node.required,
     enabled,
     componentHint: node.componentHint
+  };
+}
+
+function markSchemaTreeNodeUnselectable(node: SchemaTreeNode): SchemaTreeNode {
+  return {
+    ...node,
+    selectable: false,
+    selectionType: undefined,
+    children: node.children.map((child) => markSchemaTreeNodeUnselectable(child))
   };
 }
 
@@ -551,27 +700,33 @@ export function getSchemaTreeNodes(schema?: JSONSchema, rootPath = '', depth = 0
     return [];
   }
 
+  const selectionType = getSelectableSchemaType(schema);
+  const nodeType = getSchemaNodeType(schema);
   const name = rootPath ? getSchemaFieldLabel(rootPath) : 'root';
   const node: SchemaTreeNode = {
     path: rootPath,
     displayPath: rootPath || 'root',
     name,
-    type: schema.type,
+    type: nodeType,
+    ...(selectionType ? { selectionType } : {}),
     required,
-    selectable: isSelectableSchemaType(schema.type),
-    componentHint: getComponentHint(schema.type),
+    selectable: Boolean(selectionType),
+    componentHint: getComponentHint(selectionType ?? (nodeType === 'union' ? 'string' : nodeType)),
     depth,
     children: []
   };
 
-  if (schema.type === 'object') {
+  if (isAnyOfJSONSchema(schema)) {
+    node.children = schema.anyOf.flatMap((item, index) =>
+      getSchemaTreeNodes(item, `${rootPath || 'root'}.anyOf[${index}]`, depth + 1, required)
+        .map((child) => markSchemaTreeNodeUnselectable(child))
+    );
+  } else if (schema.type === 'object') {
     const requiredFields = new Set(schema.required ?? []);
     node.children = Object.entries(schema.properties).flatMap(([key, value]) =>
       getSchemaTreeNodes(value, getPathWithSegment(rootPath, key), depth + 1, requiredFields.has(key))
     );
-  }
-
-  if (schema.type === 'array') {
+  } else if (schema.type === 'array') {
     const itemPath = getArrayItemPath(rootPath);
     node.children = getSchemaTreeNodes(schema.items, itemPath, depth + 1, required);
   }
@@ -592,22 +747,34 @@ export function getArrayRecordOptions(schema?: JSONSchema): ArrayRecordPathOptio
   }
 
   const options: ArrayRecordPathOption[] = [];
+  const seenPaths = new Set<string>();
+
+  function addOption(path: string) {
+    if (seenPaths.has(path)) {
+      return;
+    }
+
+    seenPaths.add(path);
+    options.push({
+      path,
+      label: path ? `${path}[]` : 'root[]'
+    });
+  }
 
   function walk(value: JSONSchema, path: string) {
-    if (value.type === 'array') {
-      options.push({
-        path,
-        label: path ? `${path}[]` : 'root[]'
-      });
-      walk(value.items, getArrayItemPath(path));
+    const arraySchema = getArraySchema(value);
+    if (arraySchema) {
+      addOption(path);
+      walk(arraySchema.items, getArrayItemPath(path));
       return;
     }
 
-    if (value.type !== 'object') {
+    const objectSchema = getObjectSchema(value);
+    if (!objectSchema) {
       return;
     }
 
-    Object.entries(value.properties).forEach(([key, property]) => {
+    Object.entries(objectSchema.properties).forEach(([key, property]) => {
       walk(property, getPathWithSegment(path, key));
     });
   }
@@ -622,21 +789,22 @@ function readSchemaAtRecordPath(schema: JSONSchema | undefined, recordPath: stri
   }
 
   if (!recordPath) {
-    return schema.type === 'array' ? schema.items : undefined;
+    return getArraySchema(schema)?.items;
   }
 
   const segments = recordPath.split('.').filter(Boolean);
   let current: JSONSchema | undefined = schema;
 
   for (const segment of segments) {
-    if (!current || current.type !== 'object') {
+    const objectSchema = getObjectSchema(current);
+    if (!objectSchema) {
       return undefined;
     }
 
-    current = current.properties[segment];
+    current = objectSchema.properties[segment];
   }
 
-  return current?.type === 'array' ? current.items : undefined;
+  return getArraySchema(current)?.items;
 }
 
 function getLeafNodes(schema: JSONSchema | undefined, pathPrefix = '', includeRoot = false) {
@@ -652,41 +820,45 @@ export function getSchemaSelectionFieldsForList(schema: JSONSchema | undefined, 
 }
 
 export function getSchemaSelectionFieldsForForm(schema: JSONSchema | undefined): SchemaSelectionField[] {
-  const sourceSchema = schema?.type === 'array' ? schema.items : schema;
-  if (sourceSchema?.type !== 'object') {
+  const sourceSchema = getArraySchema(schema)?.items ?? schema;
+  const sourceObjectSchema = getObjectSchema(sourceSchema);
+  if (!sourceObjectSchema) {
     return [];
   }
 
   const fields: SchemaSelectionField[] = [];
 
   function walk(value: JSONSchema, path: string, required: boolean) {
-    if (isSelectableSchemaType(value.type)) {
+    const selectionType = getSelectableSchemaType(value);
+    if (selectionType) {
       fields.push(createSelectionField({
         path,
         displayPath: path,
         name: getSchemaFieldLabel(path),
-        type: value.type,
+        type: isAnyOfJSONSchema(value) ? 'union' : value.type,
+        selectionType,
         required,
         selectable: true,
-        componentHint: getComponentHint(value.type),
+        componentHint: getComponentHint(selectionType),
         depth: 0,
         children: []
       }, true));
       return;
     }
 
-    if (value.type !== 'object') {
+    const objectSchema = getObjectSchema(value);
+    if (!objectSchema) {
       return;
     }
 
-    const requiredFields = new Set(value.required ?? []);
-    Object.entries(value.properties).forEach(([key, property]) => {
+    const requiredFields = new Set(objectSchema.required ?? []);
+    Object.entries(objectSchema.properties).forEach(([key, property]) => {
       walk(property, getPathWithSegment(path, key), requiredFields.has(key));
     });
   }
 
-  Object.entries(sourceSchema.properties).forEach(([key, property]) => {
-    walk(property, key, (sourceSchema.required ?? []).includes(key));
+  Object.entries(sourceObjectSchema.properties).forEach(([key, property]) => {
+    walk(property, key, (sourceObjectSchema.required ?? []).includes(key));
   });
 
   return fields;

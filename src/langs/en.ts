@@ -157,7 +157,8 @@ export const enMessages = {
       string: 'Text',
       number: 'Number',
       boolean: 'Switch',
-      null: 'Empty'
+      null: 'Empty',
+      union: 'Union'
     },
     componentHints: {
       text: 'Text',

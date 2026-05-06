@@ -587,6 +587,182 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
   });
 });
 
+test('parses API datasource response with mixed array item fields into anyOf JSON Schema', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  const responseData = {
+    pages: [
+      {
+        uuid: 'dd25d0d0-fd35-4c0b-aa03-ae1616a4cace',
+        name: '2026-05-06 21:41:45',
+        blocks: [
+          {
+            id: 'KmK-h6kFOc',
+            data: {
+              value: '这是MInput',
+              placeholder: '请输入.....'
+            },
+            type: 'MInput'
+          },
+          {
+            id: 'mJWSCo2398',
+            data: {
+              value: [
+                {
+                  id: 'ada07f6c-5',
+                  data: {
+                    text: '这是MAdvanceInput '
+                  },
+                  type: 'paragraph'
+                },
+                {
+                  id: '57cac635-d',
+                  data: {
+                    size: '',
+                    type: 'warning',
+                    color: '',
+                    tagName: '警告',
+                    closable: false
+                  },
+                  type: 'MTag'
+                }
+              ]
+            },
+            type: 'MAdvanceInput'
+          },
+          {
+            id: '3SJpF3qjCu',
+            data: {
+              data: [
+                {
+                  tag: '设计',
+                  name: 'Mokelay 页面'
+                }
+              ],
+              columns: [
+                {
+                  fixed: 'left',
+                  width: 180,
+                  columnName: '名称',
+                  columnContent: [
+                    {
+                      id: 'advance-table-default-name',
+                      data: {
+                        text: '{{name}}'
+                      },
+                      type: 'paragraph'
+                    }
+                  ]
+                },
+                {
+                  fixed: null,
+                  width: 140,
+                  columnName: '状态',
+                  columnContent: [
+                    {
+                      id: 'advance-table-default-status',
+                      data: {
+                        text: '{{status}}'
+                      },
+                      type: 'paragraph'
+                    }
+                  ]
+                }
+              ],
+              index: false,
+              selection: false
+            },
+            type: 'MAdvanceTable'
+          },
+          {
+            id: 'lJ6KJk0kmD',
+            data: {
+              value: {
+                id: 'ISSX3dI71S',
+                data: {
+                  value: '',
+                  placeholder: '这是MEditorSelect组件'
+                },
+                type: 'MInput'
+              }
+            },
+            type: 'MEditorSelector'
+          }
+        ],
+        createdAt: '2026-05-06T13:41:48.823Z',
+        updatedAt: '2026-05-06T13:41:48.823Z'
+      },
+      {
+        uuid: '98c51555-00c4-47f3-bcf1-981face6dfaa',
+        name: '2026-05-06 21:02:59',
+        blocks: [
+          {
+            id: 'p6HEXcEOc9',
+            data: {
+              value: '这是MInput',
+              placeholder: '请输入.....'
+            },
+            type: 'MInput'
+          }
+        ],
+        createdAt: '2026-05-06T13:03:03.961Z',
+        updatedAt: '2026-05-06T13:03:03.961Z'
+      }
+    ],
+    pagination: {
+      page: 2,
+      pageSize: 2,
+      total: 4,
+      totalPages: 2,
+      hasPreviousPage: true,
+      hasNextPage: false
+    }
+  };
+
+  await page.route('**/api/pages**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(responseData)
+    });
+  });
+
+  await page.getByTestId('datasource-type-api').click();
+  const origin = await page.evaluate(() => window.location.origin);
+  await page.getByTestId('datasource-domain').fill(origin);
+  await page.getByTestId('datasource-path').fill('/api/pages');
+
+  await page.getByTestId('datasource-query-add').click();
+  await page.getByTestId('datasource-query-key-0').fill('pageSize');
+  await page.getByTestId('datasource-query-mock-0').fill('2');
+  await page.getByTestId('datasource-query-add').click();
+  await page.getByTestId('datasource-query-key-1').fill('page');
+  await page.getByTestId('datasource-query-mock-1').fill('2');
+
+  const requestPromise = page.waitForRequest((request) =>
+    request.url().includes('/api/pages') && request.method() === 'GET'
+  );
+  await page.getByTestId('datasource-json-schema-parse-button').click();
+  const request = await requestPromise;
+
+  expect(request.url()).toContain('pageSize=2');
+  expect(request.url()).toContain('page=2');
+  await expect(page.getByTestId('datasource-json-schema-error')).toHaveCount(0);
+  await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('pages');
+  await expect(page.getByTestId('datasource-list-field-pages[].uuid')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-pages[].name')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-pages[].createdAt')).toBeVisible();
+
+  await page.getByTestId('datasource-schema-tab-advanced').click();
+  const generatedSchema = JSON.parse(await page.getByTestId('datasource-json-schema').inputValue()) as any;
+  const valueAnyOf = generatedSchema.properties.pages.items.properties.blocks.items.properties.data.properties.value.anyOf;
+  const fixedAnyOf = generatedSchema.properties.pages.items.properties.blocks.items.properties.data.properties.columns.items.properties.fixed.anyOf;
+
+  expect(valueAnyOf.map((item: { type: string }) => item.type)).toEqual(['string', 'array', 'object']);
+  expect(fixedAnyOf.map((item: { type: string }) => item.type)).toEqual(['string', 'null']);
+});
+
 test('parses API datasource response with empty arrays into JSON Schema', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
