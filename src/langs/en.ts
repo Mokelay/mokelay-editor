@@ -59,6 +59,9 @@ export const enMessages = {
   advanceInput: {
     toolboxTitle: 'Advanced Input'
   },
+  dividerLine: {
+    toolboxTitle: 'Divider'
+  },
   editorSelector: {
     toolboxTitle: 'Component Selector',
     placeholder: 'Select a component'

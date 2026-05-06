@@ -59,6 +59,9 @@ export const zhMessages = {
   advanceInput: {
     toolboxTitle: '高级输入框'
   },
+  dividerLine: {
+    toolboxTitle: '分割线'
+  },
   editorSelector: {
     toolboxTitle: '组件选择器',
     placeholder: '选择组件'
