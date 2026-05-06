@@ -7,215 +7,58 @@ import {
   flattenSchemaTree,
   getArrayRecordOptions,
   getSchemaTreeNodes,
-  inferJSONSchema,
   isJsonObjectValue,
   isJsonValue,
-  isRecord,
   normalizeJSONSchema,
   normalizeSchemaSelections,
   reconcileSchemaSelections,
   type DatasourceSchemaSelections,
   type JSONSchema,
-  type JSONSchemaInferenceResult,
   type JSONSchemaType,
   type JsonValue,
   type SchemaSelectionField,
   type SchemaTreeNode
 } from '@/utils/datasourceSchema';
+import {
+  $schema as resolveDatasourceSchema,
+  DatasourceError,
+  bodyDataTypes,
+  getDefaultApiDatasource,
+  getDefaultBodyMock,
+  getDefaultDatasource,
+  normalizeBodyDataType,
+  normalizeBodyMock,
+  normalizeDatasource,
+  normalizeJsonValue,
+  normalizeMethod,
+  type MDatasourceApiObject,
+  type MDatasourceBodyDataType,
+  type MDatasourceBodyItem,
+  type MDatasourceJsonObject,
+  type MDatasourceKeyMockItem,
+  type MDatasourceObject,
+  type MDatasourceType
+} from '@/utils/datasource';
 
-export type MDatasourceType = 'JSON' | 'API';
-export type MDatasourceApiMethod = 'GET' | 'POST';
-export type MDatasourceBodyDataType = 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array';
 export type {
   DatasourceSchemaSelections,
   JSONSchema,
   JsonValue,
-  SchemaSelectionField
-};
-
-export interface MDatasourceKeyMockItem {
-  key: string;
-  mock: string;
-}
-
-export interface MDatasourceBodyItem {
-  key: string;
-  dataType: MDatasourceBodyDataType;
-  mock: JsonValue;
-}
-
-export interface MDatasourceJsonObject {
-  type: 'JSON';
-  rawData: JsonValue;
-  jsonSchema?: JSONSchema;
-  schemaSelections?: DatasourceSchemaSelections;
-}
-
-export interface MDatasourceApiObject {
-  type: 'API';
-  domain: string;
-  path: string;
-  method: MDatasourceApiMethod;
-  headerData: MDatasourceKeyMockItem[];
-  bodyData: MDatasourceBodyItem[];
-  queryData: MDatasourceKeyMockItem[];
-  jsonSchema?: JSONSchema;
-  schemaSelections?: DatasourceSchemaSelections;
-}
-
-export type MDatasourceObject = MDatasourceJsonObject | MDatasourceApiObject;
+  MDatasourceApiMethod,
+  MDatasourceApiObject,
+  MDatasourceBodyDataType,
+  MDatasourceBodyItem,
+  MDatasourceJsonObject,
+  MDatasourceKeyMockItem,
+  MDatasourceObject,
+  MDatasourceType
+} from '@/utils/datasource';
+export { normalizeDatasource } from '@/utils/datasource';
+export type { SchemaSelectionField } from '@/utils/datasourceSchema';
 
 export interface MDatasourceEditorProps {
   edit: boolean;
   value?: MDatasourceObject;
-}
-
-const bodyDataTypes = ['string', 'number', 'boolean', 'null', 'object', 'array'] as const;
-
-function normalizeString(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
-
-function normalizeMethod(value: unknown): MDatasourceApiMethod {
-  return value === 'POST' ? 'POST' : 'GET';
-}
-
-function normalizeBodyDataType(value: unknown): MDatasourceBodyDataType {
-  return bodyDataTypes.includes(value as MDatasourceBodyDataType)
-    ? value as MDatasourceBodyDataType
-    : 'string';
-}
-
-function normalizeJsonValue(value: unknown, fallback: JsonValue = {}) {
-  return isJsonValue(value) ? cloneJsonValue(value) : fallback;
-}
-
-function getDefaultBodyMock(dataType: MDatasourceBodyDataType): JsonValue {
-  if (dataType === 'number') return 0;
-  if (dataType === 'boolean') return false;
-  if (dataType === 'null') return null;
-  if (dataType === 'object') return {};
-  if (dataType === 'array') return [];
-  return '';
-}
-
-function normalizeBodyMock(dataType: MDatasourceBodyDataType, mock: unknown): JsonValue {
-  if (dataType === 'string') {
-    return typeof mock === 'string' ? mock : normalizeString(mock);
-  }
-
-  if (dataType === 'number') {
-    return typeof mock === 'number' && Number.isFinite(mock) ? mock : 0;
-  }
-
-  if (dataType === 'boolean') {
-    return typeof mock === 'boolean' ? mock : false;
-  }
-
-  if (dataType === 'null') {
-    return null;
-  }
-
-  if (dataType === 'object') {
-    return isJsonObjectValue(mock) ? cloneJsonValue(mock) : {};
-  }
-
-  if (Array.isArray(mock) && isJsonValue(mock)) {
-    return cloneJsonValue(mock);
-  }
-
-  return [];
-}
-
-function normalizeKeyMockList(value: unknown): MDatasourceKeyMockItem[] {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .filter((item): item is Record<string, unknown> => isRecord(item))
-    .map((item) => ({
-      key: normalizeString(item.key),
-      mock: normalizeString(item.mock)
-    }));
-}
-
-function normalizeBodyList(value: unknown): MDatasourceBodyItem[] {
-  if (!Array.isArray(value)) return [];
-
-  return value
-    .filter((item): item is Record<string, unknown> => isRecord(item))
-    .map((item) => {
-      const dataType = normalizeBodyDataType(item.dataType);
-      return {
-        key: normalizeString(item.key),
-        dataType,
-        mock: normalizeBodyMock(dataType, item.mock)
-      };
-    });
-}
-
-function getDefaultApiDatasource(): MDatasourceApiObject {
-  return {
-    type: 'API',
-    domain: '',
-    path: '',
-    method: 'GET',
-    headerData: [],
-    bodyData: [],
-    queryData: []
-  };
-}
-
-function getDefaultDatasource(): MDatasourceObject {
-  return {
-    type: 'JSON',
-    rawData: {}
-  };
-}
-
-export function normalizeDatasource(value: unknown): MDatasourceObject {
-  if (!isRecord(value)) {
-    return getDefaultDatasource();
-  }
-
-  const jsonSchema = normalizeJSONSchema(value.jsonSchema);
-  const schemaSelections = normalizeSchemaSelections(value.schemaSelections, jsonSchema);
-
-  if (value.type === 'API') {
-    const datasource: MDatasourceApiObject = {
-      type: 'API',
-      domain: normalizeString(value.domain),
-      path: normalizeString(value.path),
-      method: normalizeMethod(value.method),
-      headerData: normalizeKeyMockList(value.headerData),
-      bodyData: normalizeBodyList(value.bodyData),
-      queryData: normalizeKeyMockList(value.queryData)
-    };
-
-    if (jsonSchema) {
-      datasource.jsonSchema = jsonSchema;
-    }
-
-    if (schemaSelections) {
-      datasource.schemaSelections = schemaSelections;
-    }
-
-    return datasource;
-  }
-
-  const datasource: MDatasourceJsonObject = {
-    type: 'JSON',
-    rawData: normalizeJsonValue(value.rawData, {})
-  };
-
-  if (jsonSchema) {
-    datasource.jsonSchema = jsonSchema;
-  }
-
-  if (schemaSelections) {
-    datasource.schemaSelections = schemaSelections;
-  }
-
-  return datasource;
 }
 
 export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
@@ -256,11 +99,6 @@ type ApiStateBodyItem = Omit<MDatasourceBodyItem, 'mock'> & {
 type ApiState = Omit<MDatasourceApiObject, 'bodyData' | 'jsonSchema' | 'schemaSelections'> & {
   bodyData: ApiStateBodyItem[];
 };
-type TestResultState = {
-  status: number;
-  statusText: string;
-  data: unknown;
-};
 type SchemaTab = 'list' | 'form' | 'advanced';
 
 const props = defineProps<MDatasourceEditorProps & {
@@ -287,9 +125,6 @@ const apiState = reactive<ApiState>(
 );
 const bodyMockInputs = ref<string[]>(apiState.bodyData.map((item) => getBodyMockInputValue(item)));
 const bodyMockErrors = ref<string[]>(apiState.bodyData.map(() => ''));
-const testLoading = ref(false);
-const testResult = ref<TestResultState | null>(null);
-const testError = ref('');
 const isReadOnly = computed(() => !props.edit);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
@@ -402,13 +237,7 @@ function emitCurrentDatasource() {
 }
 
 function emitApiChange() {
-  clearTestOutput();
   emitDatasource(buildApiDatasource());
-}
-
-function clearTestOutput() {
-  testResult.value = null;
-  testError.value = '';
 }
 
 function syncBodyMockInputs() {
@@ -443,7 +272,6 @@ function syncApiState(value: MDatasourceApiObject) {
 function syncLocalState(value: unknown) {
   const normalized = normalizeDatasource(value);
   currentType.value = normalized.type;
-  clearTestOutput();
   syncJsonSchemaState(normalized.jsonSchema, normalized.schemaSelections);
 
   if (normalized.type === 'JSON') {
@@ -632,92 +460,16 @@ function removeBodyItem(index: number) {
   emitApiChange();
 }
 
-function getRequestUrl(datasource: MDatasourceApiObject) {
-  const domain = datasource.domain.trim();
-  const path = datasource.path.trim();
-  const baseUrl = domain || window.location.origin;
-  const url = new URL(path || '/', baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
-
-  datasource.queryData.forEach((item) => {
-    const key = item.key.trim();
-    if (!key) return;
-    url.searchParams.append(key, item.mock);
-  });
-
-  return url.toString();
-}
-
-function getRequestHeaders(datasource: MDatasourceApiObject) {
-  const headers = new Headers();
-  datasource.headerData.forEach((item) => {
-    const key = item.key.trim();
-    if (!key) return;
-    headers.set(key, item.mock);
-  });
-
-  if (datasource.method === 'POST' && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
-  }
-
-  return headers;
-}
-
-function getRequestBody(datasource: MDatasourceApiObject) {
-  if (datasource.method !== 'POST') {
-    return undefined;
-  }
-
-  const body = datasource.bodyData.reduce<Record<string, JsonValue>>((result, item) => {
-    const key = item.key.trim();
-    if (!key) return result;
-    result[key] = normalizeBodyMock(item.dataType, item.mock);
-    return result;
-  }, {});
-
-  return JSON.stringify(body);
-}
-
-async function readResponseData(response: Response) {
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    return await response.json();
-  }
-
-  return await response.text();
-}
-
-async function readJsonSchemaResponseData(response: Response) {
-  const contentType = response.headers.get('content-type') ?? '';
-  if (!contentType.toLowerCase().includes('json')) {
-    throw new Error(t('datasource.validation.nonJsonResponse'));
-  }
-
-  try {
-    const data = await response.json() as unknown;
-    if (!isJsonValue(data)) {
-      throw new Error(t('datasource.validation.invalidJsonResponse'));
+function getDatasourceErrorMessage(error: unknown) {
+  if (error instanceof DatasourceError) {
+    if (error.code === 'apiRequestFailed') {
+      return `${t('datasource.validation.apiRequestFailed')} ${error.status ?? ''} ${error.statusText ?? ''}`.trim();
     }
 
-    return data;
-  } catch {
-    throw new Error(t('datasource.validation.invalidJsonResponse'));
+    return t(`datasource.validation.${error.code}`);
   }
-}
 
-function formatUnknownValue(value: unknown) {
-  if (typeof value === 'string') return value;
-
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
-function getJsonSchemaInferenceError(reason: Extract<JSONSchemaInferenceResult, { ok: false }>['reason']) {
-  return reason === 'emptyArray'
-    ? t('datasource.validation.emptyArraySchema')
-    : t('datasource.validation.mixedArraySchema');
+  return error instanceof Error ? error.message : String(error);
 }
 
 function applyGeneratedJsonSchema(schema: JSONSchema) {
@@ -809,84 +561,23 @@ async function parseJsonSchema() {
       return;
     }
 
-    const inferredSchema = inferJSONSchema(jsonValue.value);
-    if (!inferredSchema.ok) {
-      jsonSchemaError.value = getJsonSchemaInferenceError(inferredSchema.reason);
+  } else {
+    const invalidBodyIndex = bodyMockErrors.value.findIndex((error) => Boolean(error));
+    if (invalidBodyIndex >= 0) {
+      jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
       return;
     }
-
-    applyGeneratedJsonSchema(inferredSchema.schema);
-    return;
-  }
-
-  const invalidBodyIndex = bodyMockErrors.value.findIndex((error) => Boolean(error));
-  if (invalidBodyIndex >= 0) {
-    jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
-    return;
   }
 
   jsonSchemaLoading.value = true;
 
   try {
-    const datasource = buildApiDatasource();
-    const response = await fetch(getRequestUrl(datasource), {
-      method: datasource.method,
-      headers: getRequestHeaders(datasource),
-      body: getRequestBody(datasource)
-    });
-
-    if (!response.ok) {
-      throw new Error(`${t('datasource.validation.apiRequestFailed')} ${response.status} ${response.statusText}`.trim());
-    }
-
-    const data = await readJsonSchemaResponseData(response);
-    const inferredSchema = inferJSONSchema(data);
-    if (!inferredSchema.ok) {
-      jsonSchemaError.value = getJsonSchemaInferenceError(inferredSchema.reason);
-      return;
-    }
-
-    applyGeneratedJsonSchema(inferredSchema.schema);
+    const schema = await resolveDatasourceSchema(currentType.value === 'JSON' ? buildJsonDatasource() : buildApiDatasource());
+    applyGeneratedJsonSchema(schema);
   } catch (error) {
-    jsonSchemaError.value = error instanceof Error ? error.message : String(error);
+    jsonSchemaError.value = getDatasourceErrorMessage(error);
   } finally {
     jsonSchemaLoading.value = false;
-  }
-}
-
-async function testApiConnection() {
-  if (!props.edit || testLoading.value) return;
-
-  const invalidBodyIndex = bodyMockErrors.value.findIndex((error) => Boolean(error));
-  if (invalidBodyIndex >= 0) {
-    testResult.value = null;
-    testError.value = t('datasource.validation.fixBodyBeforeTest');
-    return;
-  }
-
-  const datasource = buildApiDatasource();
-  testLoading.value = true;
-  testResult.value = null;
-  testError.value = '';
-
-  try {
-    const response = await fetch(getRequestUrl(datasource), {
-      method: datasource.method,
-      headers: getRequestHeaders(datasource),
-      body: getRequestBody(datasource)
-    });
-    const data = await readResponseData(response);
-    testResult.value = {
-      status: response.status,
-      statusText: response.statusText,
-      data
-    };
-    console.log('MDatasourceEditor test response:', data);
-  } catch (error) {
-    testError.value = error instanceof Error ? error.message : String(error);
-    console.error('MDatasourceEditor test request failed:', error);
-  } finally {
-    testLoading.value = false;
   }
 }
 
@@ -1280,22 +971,6 @@ watch(
         </div>
       </details>
 
-      <div v-if="edit" class="ce-datasource-tool__test-panel" data-testid="datasource-test-panel">
-        <button
-          class="ce-datasource-tool__test-button"
-          type="button"
-          data-testid="datasource-test-button"
-          :disabled="testLoading"
-          @click="testApiConnection"
-        >
-          {{ testLoading ? t('datasource.actions.testing') : t('datasource.actions.testConnection') }}
-        </button>
-        <p v-if="testError" class="ce-datasource-tool__error" data-testid="datasource-test-error">
-          {{ testError }}
-        </p>
-        <pre v-if="testResult" class="ce-datasource-tool__test-result" data-testid="datasource-test-result">{{ t('datasource.test.status') }}: {{ testResult.status }} {{ testResult.statusText }}
-{{ formatUnknownValue(testResult.data) }}</pre>
-      </div>
     </div>
 
     <div class="ce-datasource-tool__generate-panel" data-testid="datasource-schema-generate-panel">
@@ -1944,52 +1619,6 @@ watch(
   grid-column: 3 / 5;
 }
 
-.ce-datasource-tool__test-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-  border-top: 1px solid rgb(226 232 240);
-  padding-top: 12px;
-}
-
-.ce-datasource-tool__test-button {
-  min-height: 36px;
-  border: 0;
-  border-radius: 8px;
-  padding: 7px 14px;
-  background: rgb(22 163 74);
-  color: rgb(255 255 255);
-  font: inherit;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.ce-datasource-tool__test-button:hover {
-  background: rgb(21 128 61);
-}
-
-.ce-datasource-tool__test-button:disabled {
-  cursor: wait;
-  opacity: 0.7;
-}
-
-.ce-datasource-tool__test-result {
-  width: 100%;
-  max-height: 220px;
-  overflow: auto;
-  border: 1px solid rgb(187 247 208);
-  border-radius: 8px;
-  margin: 0;
-  padding: 10px;
-  background: rgb(240 253 244);
-  color: rgb(20 83 45);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
-  line-height: 19px;
-  white-space: pre-wrap;
-}
-
 @media (max-width: 720px) {
   .ce-datasource-tool__header {
     align-items: stretch;
@@ -2133,25 +1762,6 @@ watch(
 :global(.dark) .ce-datasource-tool__schema-badge--required {
   background: rgb(127 29 29 / 0.35);
   color: rgb(254 202 202);
-}
-
-:global(.dark) .ce-datasource-tool__test-panel {
-  border-top-color: rgb(51 65 85);
-}
-
-:global(.dark) .ce-datasource-tool__test-button {
-  background: rgb(34 197 94);
-  color: rgb(5 46 22);
-}
-
-:global(.dark) .ce-datasource-tool__test-button:hover {
-  background: rgb(74 222 128);
-}
-
-:global(.dark) .ce-datasource-tool__test-result {
-  border-color: rgb(22 101 52);
-  background: rgb(20 83 45 / 0.26);
-  color: rgb(187 247 208);
 }
 
 :global(.dark) .ce-datasource-tool__error,

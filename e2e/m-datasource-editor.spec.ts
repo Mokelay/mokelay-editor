@@ -356,6 +356,7 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
 
   await page.getByTestId('datasource-type-api').click();
   await expect(page.getByTestId('datasource-api-panel')).toBeVisible();
+  await expect(page.getByTestId('datasource-test-button')).toHaveCount(0);
 
   await page.getByTestId('datasource-domain').fill('https://api.mokelay.com');
   await page.getByTestId('datasource-path').fill('/v1/users');
@@ -423,67 +424,6 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
   });
 });
 
-test('tests API datasource with current request configuration and prints response data', async ({ page }) => {
-  await switchLocaleToChinese(page);
-  await addEditorTool(page, '数据源编辑器');
-
-  await page.route('**/datasource-test**', async (route) => {
-    await route.fulfill({
-      status: 201,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        ok: true,
-        users: [
-          {
-            id: 1,
-            name: 'Ada'
-          }
-        ]
-      })
-    });
-  });
-
-  await page.getByTestId('datasource-type-api').click();
-  const origin = await page.evaluate(() => window.location.origin);
-  await page.getByTestId('datasource-domain').fill(origin);
-  await page.getByTestId('datasource-path').fill('/datasource-test');
-  await page.getByTestId('datasource-method').selectOption('POST');
-
-  await page.getByTestId('datasource-header-add').click();
-  await page.getByTestId('datasource-header-key-0').fill('X-Demo');
-  await page.getByTestId('datasource-header-mock-0').fill('demo-header');
-
-  await page.getByTestId('datasource-query-add').click();
-  await page.getByTestId('datasource-query-key-0').fill('token');
-  await page.getByTestId('datasource-query-mock-0').fill('abc');
-
-  await page.getByTestId('datasource-body-add').click();
-  await page.getByTestId('datasource-body-key-0').fill('name');
-  await page.getByTestId('datasource-body-mock-0').fill('Ada');
-  await page.getByTestId('datasource-body-add').click();
-  await page.getByTestId('datasource-body-key-1').fill('count');
-  await page.getByTestId('datasource-body-type-1').selectOption('number');
-  await page.getByTestId('datasource-body-mock-1').fill('2');
-
-  const requestPromise = page.waitForRequest((request) =>
-    request.url().includes('/datasource-test') && request.method() === 'POST'
-  );
-  await page.getByTestId('datasource-test-button').click();
-  const request = await requestPromise;
-
-  expect(request.url()).toContain('token=abc');
-  expect(request.headers()['x-demo']).toBe('demo-header');
-  expect(request.headers()['content-type']).toContain('application/json');
-  expect(request.postDataJSON()).toEqual({
-    name: 'Ada',
-    count: 2
-  });
-
-  await expect(page.getByTestId('datasource-test-result')).toContainText('状态: 201');
-  await expect(page.getByTestId('datasource-test-result')).toContainText('"ok": true');
-  await expect(page.getByTestId('datasource-test-result')).toContainText('"name": "Ada"');
-});
-
 test('parses API datasource response into JSON Schema and saves it', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
@@ -535,6 +475,7 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
   const origin = await page.evaluate(() => window.location.origin);
   await page.getByTestId('datasource-domain').fill(origin);
   await page.getByTestId('datasource-path').fill('/datasource-schema');
+  await page.getByTestId('datasource-method').selectOption('POST');
 
   await page.getByTestId('datasource-header-add').click();
   await page.getByTestId('datasource-header-key-0').fill('X-Schema');
@@ -544,14 +485,27 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
   await page.getByTestId('datasource-query-key-0').fill('token');
   await page.getByTestId('datasource-query-mock-0').fill('abc');
 
+  await page.getByTestId('datasource-body-add').click();
+  await page.getByTestId('datasource-body-key-0').fill('name');
+  await page.getByTestId('datasource-body-mock-0').fill('Ada');
+  await page.getByTestId('datasource-body-add').click();
+  await page.getByTestId('datasource-body-key-1').fill('count');
+  await page.getByTestId('datasource-body-type-1').selectOption('number');
+  await page.getByTestId('datasource-body-mock-1').fill('2');
+
   const requestPromise = page.waitForRequest((request) =>
-    request.url().includes('/datasource-schema') && request.method() === 'GET'
+    request.url().includes('/datasource-schema') && request.method() === 'POST'
   );
   await page.getByTestId('datasource-json-schema-parse-button').click();
   const request = await requestPromise;
 
   expect(request.url()).toContain('token=abc');
   expect(request.headers()['x-schema']).toBe('demo-schema');
+  expect(request.headers()['content-type']).toContain('application/json');
+  expect(request.postDataJSON()).toEqual({
+    name: 'Ada',
+    count: 2
+  });
   await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('users');
   await expect(page.getByTestId('datasource-list-field-users[].id')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-users[].name')).toBeVisible();
@@ -566,14 +520,25 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
     type: 'API',
     domain: origin,
     path: '/datasource-schema',
-    method: 'GET',
+    method: 'POST',
     headerData: [
       {
         key: 'X-Schema',
         mock: 'demo-schema'
       }
     ],
-    bodyData: [],
+    bodyData: [
+      {
+        key: 'name',
+        dataType: 'string',
+        mock: 'Ada'
+      },
+      {
+        key: 'count',
+        dataType: 'number',
+        mock: 2
+      }
+    ],
     queryData: [
       {
         key: 'token',
