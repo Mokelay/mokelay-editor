@@ -26,6 +26,7 @@ yarn dev
 ```bash
 npm run typecheck
 npm run build
+npm run publish:npm
 npm run preview
 npm run e2e
 ```
@@ -37,6 +38,33 @@ yarn typecheck
 yarn build
 yarn preview
 ```
+
+## 发布到 npm
+
+发布包名和版本来自根目录 `package.json`。`npm run build` 会先生成 `dist/`，再自动写入 `dist/package.json`，其中 `private` 会被设置为 `false`，避免发布根项目。
+
+发布前先确认已登录 npm：
+
+```bash
+npm login
+npm whoami
+```
+
+执行发布：
+
+```bash
+npm run publish:npm
+```
+
+该命令会依次执行构建、`npm pack --dry-run ./dist` 和 `npm publish ./dist`。如果 npm 要求浏览器认证，请按终端提示打开链接并完成授权。
+
+发布成功后可以检查线上版本：
+
+```bash
+npm view mokelay-editor version
+```
+
+再次发布前需要先修改根目录 `package.json` 的 `version`，因为 npm 不允许重复发布同一个版本。
 
 ## E2E 测试
 
