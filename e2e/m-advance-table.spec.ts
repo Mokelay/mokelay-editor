@@ -71,13 +71,6 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
     open: false
   }));
   expect(savedColumnContentBlocks.some((block) => block.type === 'text')).toBeFalsy();
-
-  await expect(page.getByTestId('config-json')).toContainText('MAdvanceTable');
-  await expect(page.getByTestId('config-json')).toContainText('MTag');
-  await expect(page.getByTestId('config-json')).toContainText('MLink');
-  await expect(page.getByTestId('config-json')).toContainText('columns');
-  await expect(page.getByTestId('config-json')).toContainText('data');
-  await page.getByTestId('config-dialog-close').click();
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MAdvanceTable')).toBeVisible();

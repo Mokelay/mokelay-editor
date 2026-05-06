@@ -1,7 +1,12 @@
 <script setup lang="ts">
+import type { OutputData } from '@editorjs/editorjs';
 import { TooltipProvider } from 'reka-ui';
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
+import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
+import { $message } from '@/utils/globalCalls';
+import { getInitialEditorBlocks } from '@/utils/editorData';
+import { createPage, getPage, updatePage, type MokelayPage } from '@/utils/pagesApi';
 
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
@@ -37,13 +42,27 @@ function getInitialThemeMode() {
   return false;
 }
 
+type ParsedRoute = {
+  uuid: string | null;
+  preview: boolean;
+};
+
 const isDark = ref(getInitialThemeMode());
 const routeHash = ref(window.location.hash || '#/');
 const { t, localeValue, setLocale } = useI18n();
 const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
+const currentPageUuid = ref<string | null>(null);
+const currentPageName = ref('');
+const pageBlocks = ref<OutputData['blocks']>(getInitialEditorBlocks(t));
+const isLoadingPage = ref(false);
+const isSavingPage = ref(false);
+const pageError = ref('');
+let loadRequestId = 0;
 
-const isPreviewPage = computed(() => routeHash.value === '#/preview');
-const isEditorReady = computed(() => editorPanelRef.value !== null);
+const parsedRoute = computed(() => parseRouteHash(routeHash.value));
+const routePageUuid = computed(() => parsedRoute.value.uuid);
+const isPreviewPage = computed(() => parsedRoute.value.preview);
+const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 
 function applyTheme(dark: boolean) {
   document.documentElement.classList.toggle('dark', dark);
@@ -51,6 +70,103 @@ function applyTheme(dark: boolean) {
 
 function syncRoute() {
   routeHash.value = window.location.hash || '#/';
+}
+
+function parseRouteHash(hash: string): ParsedRoute {
+  const rawPath = hash.replace(/^#/, '') || '/';
+  const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
+
+  if (pageMatch) {
+    return {
+      uuid: safeDecodeURIComponent(pageMatch[1]),
+      preview: Boolean(pageMatch[2])
+    };
+  }
+
+  return {
+    uuid: null,
+    preview: path === '/preview'
+  };
+}
+
+function safeDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function getEditorHash(uuid: string) {
+  return `/pages/${encodeURIComponent(uuid)}`;
+}
+
+function getPreviewHash(uuid: string) {
+  return `/pages/${encodeURIComponent(uuid)}/preview`;
+}
+
+function persistDraftBlocks(blocks: OutputData['blocks']) {
+  localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify({ blocks }));
+}
+
+function applyPage(page: MokelayPage) {
+  currentPageUuid.value = page.uuid;
+  currentPageName.value = page.name;
+  pageBlocks.value = page.blocks;
+  pageError.value = '';
+  persistDraftBlocks(page.blocks);
+}
+
+function resetToLocalDraft() {
+  loadRequestId += 1;
+  currentPageUuid.value = null;
+  currentPageName.value = '';
+  pageError.value = '';
+  isLoadingPage.value = false;
+  pageBlocks.value = getInitialEditorBlocks(t);
+}
+
+async function loadPage(uuid: string) {
+  const requestId = loadRequestId + 1;
+  loadRequestId = requestId;
+  isLoadingPage.value = true;
+  pageError.value = '';
+
+  try {
+    const page = await getPage(uuid);
+    if (requestId !== loadRequestId) {
+      return;
+    }
+    applyPage(page);
+  } catch (error) {
+    if (requestId !== loadRequestId) {
+      return;
+    }
+    currentPageUuid.value = uuid;
+    currentPageName.value = '';
+    pageBlocks.value = [];
+    pageError.value = toErrorMessage(error) || t('page.loadFailed');
+    void $message('error', t('page.loadFailed'));
+  } finally {
+    if (requestId === loadRequestId) {
+      isLoadingPage.value = false;
+    }
+  }
+}
+
+function toErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : '';
+}
+
+function formatPageName(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate())
+  ].join('-') + ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
 onMounted(() => {
@@ -67,20 +183,82 @@ watch(isDark, (dark) => {
   setCookieValue(THEME_MODE_COOKIE_KEY, dark ? 'dark' : 'light');
 });
 
+watch(
+  routePageUuid,
+  (uuid) => {
+    if (!uuid) {
+      resetToLocalDraft();
+      return;
+    }
+
+    if (uuid === currentPageUuid.value) {
+      return;
+    }
+
+    void loadPage(uuid);
+  },
+  { immediate: true }
+);
+
 function handleThemeModeChange(value: string) {
   isDark.value = value === 'dark';
 }
 
-function saveEditorContent() {
-  editorPanelRef.value?.save();
+function handleEditorChange(blocks: OutputData['blocks']) {
+  pageBlocks.value = blocks;
+  persistDraftBlocks(blocks);
 }
 
-function openPreviewPage() {
-  editorPanelRef.value?.openPreview();
+async function readEditorBlocks() {
+  const output = await editorPanelRef.value?.save();
+  const blocks = output?.blocks ?? pageBlocks.value;
+  pageBlocks.value = blocks;
+  persistDraftBlocks(blocks);
+
+  return blocks;
+}
+
+async function saveEditorContent() {
+  if (isSavingPage.value || isLoadingPage.value) {
+    return;
+  }
+
+  isSavingPage.value = true;
+  pageError.value = '';
+
+  try {
+    const blocks = await readEditorBlocks();
+    const uuid = currentPageUuid.value;
+    const page = uuid
+      ? await updatePage(uuid, { blocks })
+      : await createPage({ name: formatPageName(new Date()), blocks });
+
+    applyPage(page);
+    void $message('success', t('editor.saveSuccess'));
+
+    if (!uuid) {
+      window.location.hash = getEditorHash(page.uuid);
+    }
+  } catch (error) {
+    pageError.value = toErrorMessage(error) || t('editor.saveFailed');
+    void $message('error', t('editor.saveFailed'));
+  } finally {
+    isSavingPage.value = false;
+  }
+}
+
+async function openPreviewPage() {
+  if (isLoadingPage.value || isSavingPage.value) {
+    return;
+  }
+
+  await readEditorBlocks();
+  window.location.hash = currentPageUuid.value ? getPreviewHash(currentPageUuid.value) : '/preview';
 }
 
 function backToEditorPage() {
-  window.location.hash = '/';
+  const uuid = routePageUuid.value ?? currentPageUuid.value;
+  window.location.hash = uuid ? getEditorHash(uuid) : '/';
 }
 </script>
 
@@ -121,7 +299,7 @@ function backToEditorPage() {
               :disabled="!isEditorReady"
               @click="saveEditorContent"
             >
-              {{ t('editor.saveContent') }}
+              {{ isSavingPage ? t('editor.saving') : t('editor.saveContent') }}
             </button>
             <button
               data-testid="preview-button"
@@ -138,8 +316,20 @@ function backToEditorPage() {
         </div>
       </header>
 
-      <PreviewPanel v-if="isPreviewPage" />
-      <EditorPanel v-else ref="editorPanelRef" />
+      <PreviewPanel
+        v-if="isPreviewPage"
+        :blocks="pageBlocks"
+        :loading="isLoadingPage"
+        :error="pageError"
+      />
+      <EditorPanel
+        v-else
+        ref="editorPanelRef"
+        :blocks="pageBlocks"
+        :loading="isLoadingPage"
+        :error="pageError"
+        @change="handleEditorChange"
+      />
     </main>
   </TooltipProvider>
 </template>

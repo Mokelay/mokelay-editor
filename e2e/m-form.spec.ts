@@ -105,8 +105,6 @@ test('adds form item through form menu, saves items, and previews', async ({ pag
   expect(Array.isArray(editor)).toBeFalsy();
   expect(typeof editor?.id).toBe('string');
   expect(typeof editor?.data).toBe('object');
-
-  await page.getByTestId('config-dialog-close').click();
   await page.getByTestId('preview-button').click();
 
   const previewBlock = page.getByTestId('preview-block-MForm');

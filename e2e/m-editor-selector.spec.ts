@@ -61,8 +61,6 @@ test('adds selector, filters menu items, replaces selected component, and previe
   expect(Array.isArray(selectorBlock?.data?.value)).toBeFalsy();
   expect(typeof selectorValue?.id).toBe('string');
   expect(typeof selectorValue?.data).toBe('object');
-
-  await page.getByTestId('config-dialog-close').click();
   await selectSelectorTool(page, 'MInput');
   await expect(selector.getByTestId('editor-input-tool')).toBeVisible();
   await expect(selector.getByTestId('editor-tag-tool')).toHaveCount(0);
@@ -72,8 +70,6 @@ test('adds selector, filters menu items, replaces selected component, and previe
   selectorBlock = blocks.find((block) => block.type === 'MEditorSelector');
   selectorValue = selectorBlock?.data?.value as { type?: string } | undefined;
   expect(selectorValue?.type).toBe('MInput');
-
-  await page.getByTestId('config-dialog-close').click();
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MEditorSelector')).toBeVisible();

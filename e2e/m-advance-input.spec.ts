@@ -55,8 +55,6 @@ test('adds an advanced input, inserts a tag, and renders it in preview', async (
   expect(advanceInputValue?.some((block) => block.type === 'MTag')).toBeTruthy();
   expect(advanceInputValue?.some((block) => block.type === 'text')).toBeFalsy();
   expect(advanceInputValue?.every((block) => typeof block.id === 'string' && typeof block.data === 'object')).toBeTruthy();
-
-  await page.getByTestId('config-dialog-close').click();
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MAdvanceInput')).toBeVisible();

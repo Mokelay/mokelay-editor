@@ -14,6 +14,9 @@ export const zhMessages = {
     defaultParagraph: '欢迎使用 Mokelay 编辑器初始化模板。',
     fullscreenEdit: '全屏编辑',
     saveContent: '保存',
+    saving: '保存中...',
+    saveSuccess: '保存成功',
+    saveFailed: '保存失败，请稍后重试',
     previewPage: '预览',
     properties: '属性',
     propertyDialogTitle: '属性设置',
@@ -23,7 +26,7 @@ export const zhMessages = {
   preview: {
     title: '配置预览',
     backToEditor: '返回',
-    emptyState: '未找到已保存配置，请先在编辑器点击“保存”。'
+    emptyState: '暂无页面内容。'
   },
   globalCalls: {
     ok: '确定',
@@ -226,7 +229,9 @@ export const zhMessages = {
     }
   },
   page: {
-    toolboxTitle: '页面'
+    toolboxTitle: '页面',
+    loading: '正在读取页面...',
+    loadFailed: '页面读取失败，请稍后重试。'
   },
 } as const;
 

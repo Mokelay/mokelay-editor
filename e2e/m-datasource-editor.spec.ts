@@ -95,8 +95,6 @@ test('adds a datasource editor with default JSON value and renders in preview', 
     type: 'JSON',
     rawData: {}
   });
-
-  await page.getByTestId('config-dialog-close').click();
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
@@ -116,7 +114,6 @@ test('validates JSON input and only saves the last valid JSON value', async ({ p
     type: 'JSON',
     rawData: {}
   });
-  await page.getByTestId('config-dialog-close').click();
 
   await page.getByTestId('datasource-raw-data').fill('{"users":[{"id":1,"active":true}],"empty":null}');
   await expect(page.getByTestId('datasource-json-error')).toHaveCount(0);
@@ -209,7 +206,6 @@ test('edits JSON Schema manually and keeps the last valid saved value', async ({
       }
     }
   });
-  await page.getByTestId('config-dialog-close').click();
 
   await page.getByTestId('datasource-json-schema').fill('{ bad');
   await expect(page.getByTestId('datasource-json-schema-error')).toBeVisible();
@@ -235,7 +231,6 @@ test('edits JSON Schema manually and keeps the last valid saved value', async ({
       }
     }
   });
-  await page.getByTestId('config-dialog-close').click();
 
   await page.getByTestId('datasource-json-schema').fill('');
   await expect(page.getByTestId('datasource-json-schema-error')).toHaveCount(0);
