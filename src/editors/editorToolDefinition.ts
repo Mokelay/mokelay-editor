@@ -9,7 +9,9 @@ export type EditorToolPropertyField = {
   key: string;
   label: string;
   placeholder?: string;
-  type?: 'text' | 'select' | 'checkbox';
+  type?: 'text' | 'select' | 'checkbox' | 'textarea';
+  valueType?: 'string' | 'json';
+  validationMessage?: string;
   options?: Array<{
     label: string;
     value: string;

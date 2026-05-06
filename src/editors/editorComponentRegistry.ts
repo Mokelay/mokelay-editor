@@ -1,6 +1,7 @@
 import { defineAsyncComponent, markRaw } from 'vue';
 import MAdvanceInput, { mAdvanceInputEditorTool } from '@/blocks/MAdvanceInput.vue';
 import MAdvanceTable, { mAdvanceTableEditorTool } from '@/blocks/MAdvanceTable.vue';
+import MChart, { mChartEditorTool } from '@/blocks/MChart.vue';
 import MDatasourceEditor, { mDatasourceEditorTool } from '@/blocks/MDatasourceEditor.vue';
 import MDividerLine, { mDividerLineEditorTool } from '@/blocks/MDividerLine.vue';
 import { mFormEditorTool } from '@/blocks/mFormEditorTool';
@@ -58,6 +59,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MAdvanceTable)]: {
     component: markRaw(MAdvanceTable),
     ...mAdvanceTableEditorTool
+  },
+  [getEditorComponentName(MChart)]: {
+    component: markRaw(MChart),
+    ...mChartEditorTool
   },
   [getEditorComponentName(MDatasourceEditor)]: {
     component: markRaw(MDatasourceEditor),

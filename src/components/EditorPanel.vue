@@ -148,6 +148,23 @@ defineExpose({
   box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
 }
 
+:deep(.mokelay-editor-tool__property-textarea) {
+  min-height: 128px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+:deep(.mokelay-editor-tool__property-input[aria-invalid='true']) {
+  border-color: rgb(220 38 38);
+  box-shadow: 0 0 0 2px rgb(220 38 38 / 0.12);
+}
+
+:deep(.mokelay-editor-tool__property-error) {
+  color: rgb(220 38 38);
+  font-size: 12px;
+  line-height: 18px;
+}
+
 :global(.dark) :deep(.mokelay-editor-tool__property-panel) {
   background: rgb(15 23 42);
 }

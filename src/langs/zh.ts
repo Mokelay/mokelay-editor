@@ -21,7 +21,8 @@ export const zhMessages = {
     properties: '属性',
     propertyDialogTitle: '属性设置',
     configJson: '配置 JSON',
-    close: '关闭'
+    close: '关闭',
+    invalidJson: '请输入有效 JSON。'
   },
   preview: {
     title: '配置预览',
@@ -61,6 +62,24 @@ export const zhMessages = {
   },
   dividerLine: {
     toolboxTitle: '分割线'
+  },
+  chart: {
+    toolboxTitle: '图表',
+    propertyPanelTitle: '图表属性',
+    defaultSeriesName: '数据',
+    types: {
+      line: '折线图',
+      bar: '柱状图',
+      pie: '饼图'
+    },
+    properties: {
+      type: '图表类型',
+      xAxis: '横坐标数据',
+      series: '图表数据'
+    },
+    validation: {
+      invalidJson: '请输入有效 JSON。'
+    }
   },
   editorSelector: {
     toolboxTitle: '组件选择器',
