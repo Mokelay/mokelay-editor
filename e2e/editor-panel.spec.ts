@@ -17,7 +17,7 @@ test('renders editor panel with expected controls', async ({ page }) => {
 
 test('creates a new page through the pages API without showing the JSON dialog', async ({ page }) => {
   const createRequestPromise = page.waitForRequest((request) =>
-    request.method() === 'POST' && new URL(request.url()).pathname === '/api/pages'
+    request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_page'
   );
 
   await page.getByTestId('save-button').click();
@@ -78,14 +78,18 @@ test('loads an existing page from the UUID route and updates only blocks', async
   });
 
   const readRequestPromise = page.waitForRequest((request) =>
-    request.method() === 'GET' && new URL(request.url()).pathname === `/api/pages/${uuid}`
+    request.method() === 'GET' &&
+    new URL(request.url()).pathname === '/api/mokelay/read_page_by_uuid' &&
+    new URL(request.url()).searchParams.get('uuid') === uuid
   );
   await page.goto(`/#/pages/${uuid}`);
   await readRequestPromise;
   await expect(page.getByTestId('editor-panel')).toContainText('Loaded page content');
 
   const updateRequestPromise = page.waitForRequest((request) =>
-    request.method() === 'PATCH' && new URL(request.url()).pathname === `/api/pages/${uuid}`
+    request.method() === 'POST' &&
+    new URL(request.url()).pathname === '/api/mokelay/update_page_blocks_by_uuid' &&
+    new URL(request.url()).searchParams.get('uuid') === uuid
   );
   await page.getByTestId('save-button').click();
   const updateRequest = await updateRequestPromise;

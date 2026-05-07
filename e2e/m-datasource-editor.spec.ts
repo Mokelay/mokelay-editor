@@ -690,8 +690,8 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
             type: 'MEditorSelector'
           }
         ],
-        createdAt: '2026-05-06T13:41:48.823Z',
-        updatedAt: '2026-05-06T13:41:48.823Z'
+        created_at: '2026-05-06T13:41:48.823Z',
+        updated_at: '2026-05-06T13:41:48.823Z'
       },
       {
         uuid: '98c51555-00c4-47f3-bcf1-981face6dfaa',
@@ -706,8 +706,8 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
             type: 'MInput'
           }
         ],
-        createdAt: '2026-05-06T13:03:03.961Z',
-        updatedAt: '2026-05-06T13:03:03.961Z'
+        created_at: '2026-05-06T13:03:03.961Z',
+        updated_at: '2026-05-06T13:03:03.961Z'
       }
     ],
     pagination: {
@@ -720,7 +720,7 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
     }
   };
 
-  await page.route('**/api/pages**', async (route) => {
+  await page.route('**/api/mokelay/list_pages**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -731,7 +731,7 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
   await page.getByTestId('datasource-type-api').click();
   const origin = await page.evaluate(() => window.location.origin);
   await page.getByTestId('datasource-domain').fill(origin);
-  await page.getByTestId('datasource-path').fill('/api/pages');
+  await page.getByTestId('datasource-path').fill('/api/mokelay/list_pages');
 
   await page.getByTestId('datasource-query-add').click();
   await page.getByTestId('datasource-query-key-0').fill('pageSize');
@@ -741,7 +741,7 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
   await page.getByTestId('datasource-query-mock-1').fill('2');
 
   const requestPromise = page.waitForRequest((request) =>
-    request.url().includes('/api/pages') && request.method() === 'GET'
+    request.url().includes('/api/mokelay/list_pages') && request.method() === 'GET'
   );
   await page.getByTestId('datasource-json-schema-parse-button').click();
   const request = await requestPromise;
@@ -752,7 +752,7 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
   await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('pages');
   await expect(page.getByTestId('datasource-list-field-pages[].uuid')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-pages[].name')).toBeVisible();
-  await expect(page.getByTestId('datasource-list-field-pages[].createdAt')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-pages[].created_at')).toBeVisible();
 
   await page.getByTestId('datasource-schema-tab-advanced').click();
   const generatedSchema = JSON.parse(await page.getByTestId('datasource-json-schema').inputValue()) as any;

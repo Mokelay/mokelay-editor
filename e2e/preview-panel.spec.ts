@@ -37,7 +37,9 @@ test('loads and previews an existing UUID route directly', async ({ page }) => {
   });
 
   const readRequestPromise = page.waitForRequest((request) =>
-    request.method() === 'GET' && new URL(request.url()).pathname === `/api/pages/${uuid}`
+    request.method() === 'GET' &&
+    new URL(request.url()).pathname === '/api/mokelay/read_page_by_uuid' &&
+    new URL(request.url()).searchParams.get('uuid') === uuid
   );
   await page.goto(`/#/pages/${uuid}/preview`);
   await readRequestPromise;

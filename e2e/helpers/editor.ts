@@ -35,13 +35,13 @@ export async function resetEditor(page: Page, apiOptions: MockPagesApiOptions = 
 }
 
 export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}) {
-  await page.unroute('**/api/pages**').catch(() => undefined);
+  await page.unroute('**/api/mokelay/**').catch(() => undefined);
 
   const now = '2026-05-06T00:00:00.000Z';
   const pages = new Map<string, MockMokelayPage>();
   const corsHeaders = {
     'access-control-allow-origin': '*',
-    'access-control-allow-methods': 'GET,POST,PATCH,OPTIONS',
+    'access-control-allow-methods': 'GET,POST,OPTIONS',
     'access-control-allow-headers': 'content-type',
     'content-type': 'application/json'
   };
@@ -54,7 +54,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   }
 
-  await page.route('**/api/pages**', async (route) => {
+  await page.route('**/api/mokelay/**', async (route) => {
     const request = route.request();
     const method = request.method();
 
@@ -67,10 +67,8 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     }
 
     const url = new URL(request.url());
-    const pathParts = url.pathname.split('/').filter(Boolean);
-    const uuid = pathParts[0] === 'api' && pathParts[1] === 'pages' ? pathParts[2] : undefined;
 
-    if (method === 'POST' && url.pathname === '/api/pages') {
+    if (method === 'POST' && url.pathname === '/api/mokelay/create_page') {
       const payload = readJsonPayload(request.postDataJSON());
       const pageRecord: MockMokelayPage = {
         uuid: options.createUuid ?? defaultPageUuid,
@@ -84,28 +82,29 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
-    if (uuid && method === 'GET') {
+    if (method === 'GET' && url.pathname === '/api/mokelay/read_page_by_uuid') {
+      const uuid = url.searchParams.get('uuid') ?? '';
       const pageRecord = pages.get(uuid);
       if (!pageRecord) {
-        await route.fulfill({
-          status: 404,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: 'Not found' })
-        });
+        await fulfillPage(route, null, corsHeaders);
         return;
       }
       await fulfillPage(route, pageRecord, corsHeaders);
       return;
     }
 
-    if (uuid && method === 'PATCH') {
-      const existingPage = pages.get(uuid) ?? {
-        uuid,
-        name: '',
-        blocks: [],
-        createdAt: now,
-        updatedAt: now
-      };
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_pages') {
+      await fulfillPages(route, Array.from(pages.values()), corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/update_page_blocks_by_uuid') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      const existingPage = pages.get(uuid);
+      if (!existingPage) {
+        await fulfillPage(route, null, corsHeaders);
+        return;
+      }
       const payload = readJsonPayload(request.postDataJSON());
       const pageRecord = {
         ...existingPage,
@@ -245,7 +244,7 @@ function readJsonPayload(value: unknown): Record<string, unknown> {
 
 async function fulfillPage(
   route: Route,
-  pageRecord: MockMokelayPage,
+  pageRecord: MockMokelayPage | null,
   headers: Record<string, string>
 ) {
   await route.fulfill({
@@ -253,6 +252,34 @@ async function fulfillPage(
     headers,
     body: JSON.stringify({
       page: pageRecord
+    })
+  });
+}
+
+async function fulfillPages(
+  route: Route,
+  pageRecords: MockMokelayPage[],
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      pages: pageRecords.map((pageRecord) => ({
+        uuid: pageRecord.uuid,
+        name: pageRecord.name,
+        blocks: pageRecord.blocks,
+        created_at: pageRecord.createdAt,
+        updated_at: pageRecord.updatedAt
+      })),
+      pagination: {
+        page: 1,
+        pageSize: pageRecords.length,
+        total: pageRecords.length,
+        totalPages: pageRecords.length > 0 ? 1 : 0,
+        hasPreviousPage: false,
+        hasNextPage: false
+      }
     })
   });
 }
