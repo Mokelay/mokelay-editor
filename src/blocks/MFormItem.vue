@@ -122,11 +122,12 @@ export const mFormItemEditorTool = defineEditorTool<MFormItemProps>({
 </script>
 
 <script setup lang="ts">
-import { reactive, watch } from 'vue';
-import MEditorSelector from '@/blocks/MEditorSelector.vue';
+import { defineAsyncComponent, reactive, watch } from 'vue';
 import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
 import { useI18n } from '@/i18n';
 import type { MEditorSelectorProps } from '@/blocks/mEditorSelectorEditorTool';
+
+const MEditorSelector = defineAsyncComponent(() => import('@/blocks/MEditorSelector.vue'));
 
 const props = withDefaults(defineProps<MFormItemProps & {
   onChange?: (payload: MFormItemProps) => void;

@@ -93,7 +93,7 @@ export const mTagEditorTool = defineEditorTool<MTagProps>({
 
 <script setup lang="ts">
 import { nextTick, onMounted, onBeforeUnmount, ref } from 'vue';
-import { ElTag } from 'element-ui';
+import { ElTag } from 'element-ui/es/components/tag/index.mjs';
 import 'element-ui/es/components/tag/style/css';
 
 const props = defineProps<MTagProps & {
