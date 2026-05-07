@@ -21,7 +21,8 @@ export const enMessages = {
     properties: 'Properties',
     propertyDialogTitle: 'Property Settings',
     configJson: 'Config JSON',
-    close: 'Close'
+    close: 'Close',
+    invalidJson: 'Enter valid JSON.'
   },
   preview: {
     title: 'Config Preview',
@@ -61,6 +62,24 @@ export const enMessages = {
   },
   dividerLine: {
     toolboxTitle: 'Divider'
+  },
+  chart: {
+    toolboxTitle: 'Chart',
+    propertyPanelTitle: 'Chart Properties',
+    defaultSeriesName: 'Data',
+    types: {
+      line: 'Line chart',
+      bar: 'Bar chart',
+      pie: 'Pie chart'
+    },
+    properties: {
+      type: 'Chart type',
+      xAxis: 'X-axis data',
+      series: 'Series data'
+    },
+    validation: {
+      invalidJson: 'Enter valid JSON.'
+    }
   },
   editorSelector: {
     toolboxTitle: 'Component Selector',

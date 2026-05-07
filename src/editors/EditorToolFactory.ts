@@ -19,6 +19,16 @@ type EditorToolClass = new (options: EditorToolFactoryOptions) => {
   destroy: () => void;
 };
 
+type PropertyInput = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+
+type PropertyInputReadResult = {
+  valid: true;
+  value: unknown;
+} | {
+  valid: false;
+  message: string;
+};
+
 type CreateEditorToolsOptions = {
   exclude?: Iterable<string>;
 };
@@ -169,19 +179,20 @@ export default class EditorToolFactory {
 
       private syncPropertyDialogValues() {
         if (!this.propertyDialog) return;
-        this.propertyDialog.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-property-key]').forEach((input) => {
+        this.propertyDialog.querySelectorAll<PropertyInput>('[data-property-key]').forEach((input) => {
           const propertyKey = input.dataset.propertyKey;
           if (!propertyKey) return;
           const value = this.getPropertyFieldValue(propertyKey);
+          this.setPropertyInputValidity(input, '');
           if (input instanceof HTMLInputElement && input.type === 'checkbox') {
             input.checked = value === true;
             return;
           }
-          input.value = typeof value === 'string' ? value : '';
+          input.value = this.stringifyPropertyInputValue(value, input.dataset.propertyValueType);
         });
       }
 
-      private updateProperty(key: string, value: string | boolean) {
+      private updateProperty(key: string, value: unknown) {
         (this.state as Record<string, unknown>)[key] = value;
         // 属性变化后重新挂载组件，确保视图与状态同步。
         this.mountVueApp();
@@ -237,7 +248,38 @@ export default class EditorToolFactory {
           `;
         }
 
+        if (field.type === 'textarea') {
+          const value = this.getPropertyFieldValue(field.key);
+          const valueType = field.valueType ?? 'string';
+          const validationMessage = field.validationMessage ?? i18n.t('editor.invalidJson');
+          const rows = valueType === 'json' ? 6 : 4;
+          const textareaValue = this.stringifyPropertyInputValue(value, valueType);
+
+          return `
+            <label class="mokelay-editor-tool__property-field">
+              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+              <textarea
+                class="mokelay-editor-tool__property-input mokelay-editor-tool__property-textarea"
+                data-testid="tool-property-input-${field.key}"
+                data-property-key="${field.key}"
+                data-property-type="textarea"
+                data-property-value-type="${this.escapeHtml(valueType)}"
+                data-property-validation-message="${this.escapeHtml(validationMessage)}"
+                rows="${rows}"
+                placeholder="${this.escapeHtml(field.placeholder ?? '')}"
+              >${this.escapeHtml(textareaValue)}</textarea>
+              <span
+                class="mokelay-editor-tool__property-error"
+                data-testid="tool-property-error-${field.key}"
+                data-property-error-for="${field.key}"
+                hidden
+              ></span>
+            </label>
+          `;
+        }
+
         const value = this.getPropertyFieldValue(field.key);
+        const valueType = field.valueType ?? 'string';
         return `
           <label class="mokelay-editor-tool__property-field">
             <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
@@ -246,8 +288,10 @@ export default class EditorToolFactory {
               data-testid="tool-property-input-${field.key}"
               data-property-key="${field.key}"
               data-property-type="text"
+              data-property-value-type="${this.escapeHtml(valueType)}"
+              data-property-validation-message="${this.escapeHtml(field.validationMessage ?? i18n.t('editor.invalidJson'))}"
               type="text"
-              value="${this.escapeHtml(typeof value === 'string' ? value : '')}"
+              value="${this.escapeHtml(this.stringifyPropertyInputValue(value, valueType))}"
               placeholder="${this.escapeHtml(field.placeholder ?? '')}"
             />
           </label>
@@ -257,23 +301,82 @@ export default class EditorToolFactory {
       private bindPropertyInputs() {
         if (!this.propertyDialog) return;
 
-        this.propertyDialog.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-property-key]').forEach((input) => {
-          const eventName = input instanceof HTMLInputElement
-            ? (input.type === 'checkbox' ? 'change' : 'input')
-            : 'change';
+        this.propertyDialog.querySelectorAll<PropertyInput>('[data-property-key]').forEach((input) => {
+          const eventName = input instanceof HTMLSelectElement || (input instanceof HTMLInputElement && input.type === 'checkbox')
+            ? 'change'
+            : 'input';
           input.addEventListener(eventName, () => {
             const propertyKey = input.dataset.propertyKey;
             if (!propertyKey) return;
-            this.updateProperty(propertyKey, this.readPropertyInputValue(input));
+            const result = this.readPropertyInputValue(input);
+            if (!result.valid) {
+              this.setPropertyInputValidity(input, result.message);
+              return;
+            }
+
+            this.setPropertyInputValidity(input, '');
+            this.updateProperty(propertyKey, result.value);
           });
         });
       }
 
-      private readPropertyInputValue(input: HTMLInputElement | HTMLSelectElement) {
+      private readPropertyInputValue(input: PropertyInput): PropertyInputReadResult {
         if (input instanceof HTMLInputElement && input.type === 'checkbox') {
-          return input.checked;
+          return {
+            valid: true,
+            value: input.checked
+          };
         }
-        return input.value;
+
+        if (input.dataset.propertyValueType === 'json') {
+          try {
+            return {
+              valid: true,
+              value: JSON.parse(input.value)
+            };
+          } catch {
+            return {
+              valid: false,
+              message: input.dataset.propertyValidationMessage || i18n.t('editor.invalidJson')
+            };
+          }
+        }
+
+        return {
+          valid: true,
+          value: input.value
+        };
+      }
+
+      private stringifyPropertyInputValue(value: unknown, valueType?: string) {
+        if (valueType === 'json') {
+          try {
+            return JSON.stringify(value, null, 2) ?? '';
+          } catch {
+            return '';
+          }
+        }
+
+        return typeof value === 'string' ? value : '';
+      }
+
+      private setPropertyInputValidity(input: PropertyInput, message: string) {
+        if (message) {
+          input.setAttribute('aria-invalid', 'true');
+        } else {
+          input.removeAttribute('aria-invalid');
+        }
+        input.dataset.invalid = message ? 'true' : 'false';
+        input.title = message;
+
+        const propertyKey = input.dataset.propertyKey;
+        const error = propertyKey
+          ? this.propertyDialog?.querySelector<HTMLElement>(`[data-property-error-for="${propertyKey}"]`)
+          : null;
+
+        if (!error) return;
+        error.textContent = message;
+        error.hidden = !message;
       }
     }
 
