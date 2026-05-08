@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
+import type { Route } from '@playwright/test';
 import { defaultPageUuid, resetEditor, storageKey } from './helpers/editor';
+
+const pageApiHeaders = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET,POST,OPTIONS',
+  'access-control-allow-headers': 'content-type',
+  'content-type': 'application/json'
+};
 
 test.beforeEach(async ({ page }) => {
   await resetEditor(page);
@@ -102,3 +110,39 @@ test('loads an existing page from the UUID route and updates only blocks', async
   expect(Array.isArray(payload.blocks)).toBeTruthy();
   expect(payload.blocks?.[0]?.data?.text).toBe('Loaded page content');
 });
+
+test('shows backend error message when creating a page fails through the API envelope', async ({ page }) => {
+  await page.route('**/api/mokelay/create_page', async (route) => {
+    await fulfillPageApiFailure(route, 'PAGE_CREATE_FAILED', 'Cannot create page.');
+  });
+
+  await page.getByTestId('save-button').click();
+
+  await expect(page.getByTestId('editor-error-state')).toContainText('Cannot create page.');
+  await expect(page).not.toHaveURL(new RegExp('#\\/pages\\/'));
+});
+
+test('shows backend error message when loading a page fails through the API envelope', async ({ page }) => {
+  const uuid = '33333333-3333-4333-8333-333333333333';
+  await page.route('**/api/mokelay/read_page_by_uuid**', async (route) => {
+    await fulfillPageApiFailure(route, 'PAGE_READ_FAILED', 'Cannot read page.');
+  });
+
+  await page.goto(`/#/pages/${uuid}`);
+
+  await expect(page.getByTestId('editor-error-state')).toContainText('Cannot read page.');
+});
+
+async function fulfillPageApiFailure(route: Route, code: string, message: string) {
+  await route.fulfill({
+    status: 200,
+    headers: pageApiHeaders,
+    body: JSON.stringify({
+      ok: false,
+      error: {
+        code,
+        message
+      }
+    })
+  });
+}

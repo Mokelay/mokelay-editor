@@ -46,34 +46,67 @@ type PagesResponse = {
   pagination?: unknown;
 };
 
+type MokelaySuccessResponse<T> = {
+  ok: true;
+  data: T;
+};
+
+type MokelayErrorResponse = {
+  ok: false;
+  error?: {
+    code?: unknown;
+    message?: unknown;
+  };
+};
+
+type MokelayApiResponse<T> = MokelaySuccessResponse<T> | MokelayErrorResponse;
+
 export async function createPage(payload: CreatePagePayload) {
-  const response = await apiClient.post<PageResponse>('/api/mokelay/create_page', payload);
-  return normalizePageResponse(response.data);
+  const response = await apiClient.post<MokelayApiResponse<PageResponse>>('/api/mokelay/create_page', payload);
+  return normalizePageResponse(unwrapApiResponse(response.data));
 }
 
 export async function getPage(uuid: string) {
-  const response = await apiClient.get<PageResponse>('/api/mokelay/read_page_by_uuid', {
+  const response = await apiClient.get<MokelayApiResponse<PageResponse>>('/api/mokelay/read_page_by_uuid', {
     params: {
       uuid
     }
   });
-  return normalizePageResponse(response.data);
+  return normalizePageResponse(unwrapApiResponse(response.data));
 }
 
 export async function updatePage(uuid: string, payload: UpdatePagePayload) {
-  const response = await apiClient.post<PageResponse>('/api/mokelay/update_page_blocks_by_uuid', payload, {
+  const response = await apiClient.post<MokelayApiResponse<PageResponse>>('/api/mokelay/update_page_blocks_by_uuid', payload, {
     params: {
       uuid
     }
   });
-  return normalizePageResponse(response.data);
+  return normalizePageResponse(unwrapApiResponse(response.data));
 }
 
 export async function listPages(params: ListPagesParams) {
-  const response = await apiClient.get<PagesResponse>('/api/mokelay/list_pages', {
+  const response = await apiClient.get<MokelayApiResponse<PagesResponse>>('/api/mokelay/list_pages', {
     params
   });
-  return normalizePagesResponse(response.data);
+  return normalizePagesResponse(unwrapApiResponse(response.data));
+}
+
+function unwrapApiResponse<T>(value: MokelayApiResponse<T>): T {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Invalid API response.');
+  }
+
+  if (value.ok === true) {
+    return value.data;
+  }
+
+  if (value.ok === false) {
+    const code = typeof value.error?.code === 'string' ? value.error.code : '';
+    const message = typeof value.error?.message === 'string' ? value.error.message : '';
+    throw new Error(message || code || 'API request failed.');
+  }
+
+  throw new Error('Invalid API response.');
 }
 
 function normalizePageResponse(value: PageResponse): MokelayPage {

@@ -251,7 +251,10 @@ async function fulfillPage(
     status: 200,
     headers,
     body: JSON.stringify({
-      page: pageRecord
+      ok: true,
+      data: {
+        page: pageRecord
+      }
     })
   });
 }
@@ -265,20 +268,23 @@ async function fulfillPages(
     status: 200,
     headers,
     body: JSON.stringify({
-      pages: pageRecords.map((pageRecord) => ({
-        uuid: pageRecord.uuid,
-        name: pageRecord.name,
-        blocks: pageRecord.blocks,
-        created_at: pageRecord.createdAt,
-        updated_at: pageRecord.updatedAt
-      })),
-      pagination: {
-        page: 1,
-        pageSize: pageRecords.length,
-        total: pageRecords.length,
-        totalPages: pageRecords.length > 0 ? 1 : 0,
-        hasPreviousPage: false,
-        hasNextPage: false
+      ok: true,
+      data: {
+        pages: pageRecords.map((pageRecord) => ({
+          uuid: pageRecord.uuid,
+          name: pageRecord.name,
+          blocks: pageRecord.blocks,
+          created_at: pageRecord.createdAt,
+          updated_at: pageRecord.updatedAt
+        })),
+        pagination: {
+          page: 1,
+          pageSize: pageRecords.length,
+          total: pageRecords.length,
+          totalPages: pageRecords.length > 0 ? 1 : 0,
+          hasPreviousPage: false,
+          hasNextPage: false
+        }
       }
     })
   });
