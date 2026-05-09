@@ -5,7 +5,7 @@ function normalizeModuleId(id) {
     return id.replace(/\\/g, '/');
 }
 export default defineConfig(function () { return ({
-    base: '/',
+    base: './',
     define: {
         __APP_VERSION__: JSON.stringify(new Date().toISOString())
     },
