@@ -10,6 +10,7 @@ import { createPage, getPage, updatePage, type MokelayPage } from '@/utils/pages
 
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
+const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 
 const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
 
@@ -43,7 +44,9 @@ function getInitialThemeMode() {
 }
 
 type ParsedRoute = {
-  uuid: string | null;
+  pageUuid: string | null;
+  apiUuid: string | null;
+  apiBuilder: boolean;
   preview: boolean;
 };
 
@@ -60,8 +63,10 @@ const pageError = ref('');
 let loadRequestId = 0;
 
 const parsedRoute = computed(() => parseRouteHash(routeHash.value));
-const routePageUuid = computed(() => parsedRoute.value.uuid);
-const isPreviewPage = computed(() => parsedRoute.value.preview);
+const routePageUuid = computed(() => parsedRoute.value.pageUuid);
+const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
+const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
+const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 
 function applyTheme(dark: boolean) {
@@ -76,16 +81,30 @@ function parseRouteHash(hash: string): ParsedRoute {
   const rawPath = hash.replace(/^#/, '') || '/';
   const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
   const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
+  const apiMatch = path.match(/^\/apis(?:\/([^/]+))?\/?$/);
+
+  if (apiMatch) {
+    return {
+      pageUuid: null,
+      apiUuid: apiMatch[1] ? safeDecodeURIComponent(apiMatch[1]) : null,
+      apiBuilder: true,
+      preview: false
+    };
+  }
 
   if (pageMatch) {
     return {
-      uuid: safeDecodeURIComponent(pageMatch[1]),
+      pageUuid: safeDecodeURIComponent(pageMatch[1]),
+      apiUuid: null,
+      apiBuilder: false,
       preview: Boolean(pageMatch[2])
     };
   }
 
   return {
-    uuid: null,
+    pageUuid: null,
+    apiUuid: null,
+    apiBuilder: false,
     preview: path === '/preview'
   };
 }
@@ -184,8 +203,12 @@ watch(isDark, (dark) => {
 });
 
 watch(
-  routePageUuid,
-  (uuid) => {
+  [routePageUuid, isApiBuilderPage],
+  ([uuid, apiBuilder]) => {
+    if (apiBuilder) {
+      return;
+    }
+
     if (!uuid) {
       resetToLocalDraft();
       return;
@@ -292,7 +315,24 @@ function backToEditorPage() {
             </select>
           </label>
 
-          <template v-if="!isPreviewPage">
+          <nav class="flex items-center gap-2 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
+            <a
+              href="#/"
+              class="rounded-md px-3 py-1.5 font-medium"
+              :class="!isApiBuilderPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+            >
+              页面编辑
+            </a>
+            <a
+              href="#/apis"
+              class="rounded-md px-3 py-1.5 font-medium"
+              :class="isApiBuilderPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+            >
+              API Builder
+            </a>
+          </nav>
+
+          <template v-if="!isApiBuilderPage && !isPreviewPage">
             <button
               data-testid="save-button"
               class="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
@@ -310,14 +350,18 @@ function backToEditorPage() {
               {{ t('editor.previewPage') }}
             </button>
           </template>
-          <button v-else data-testid="back-to-editor-button" class="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" @click="backToEditorPage">
+          <button v-else-if="isPreviewPage" data-testid="back-to-editor-button" class="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" @click="backToEditorPage">
             {{ t('preview.backToEditor') }}
           </button>
         </div>
       </header>
 
+      <ApiBuilderShell
+        v-if="isApiBuilderPage"
+        :route-uuid="routeApiUuid"
+      />
       <PreviewPanel
-        v-if="isPreviewPage"
+        v-else-if="isPreviewPage"
         :blocks="pageBlocks"
         :loading="isLoadingPage"
         :error="pageError"
