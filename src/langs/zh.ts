@@ -6,6 +6,7 @@ export const zhMessages = {
     dark: '深色',
     light: '浅色',
     language: '语言',
+    home: '首页',
     chinese: '中文',
     english: 'English'
   },

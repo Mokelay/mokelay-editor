@@ -6,6 +6,7 @@ export const enMessages = {
     dark: 'Dark',
     light: 'Light',
     language: 'Language',
+    home: 'Home',
     chinese: '中文',
     english: 'English'
   },

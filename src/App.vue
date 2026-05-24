@@ -13,6 +13,18 @@ const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPane
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 
 const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
+const DEFAULT_WEBSITE_HOME_URL = 'https://www.mokelay.com';
+const websiteHomeUrl = normalizeWebsiteHomeUrl(import.meta.env.VITE_MOKELAY_WEBSITE_URL);
+
+function normalizeWebsiteHomeUrl(value?: string) {
+  const rawUrl = value?.trim() || DEFAULT_WEBSITE_HOME_URL;
+
+  try {
+    return new URL('/', rawUrl).toString();
+  } catch {
+    return new URL('/', DEFAULT_WEBSITE_HOME_URL).toString();
+  }
+}
 
 function getCookieValue(name: string): string | null {
   const entries = document.cookie ? document.cookie.split('; ') : [];
@@ -289,7 +301,16 @@ function backToEditorPage() {
   <TooltipProvider>
     <main data-testid="app-root" class="flex min-h-screen flex-col bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
       <header data-testid="app-header" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <h1 data-testid="app-title" class="text-xl font-semibold">{{ t('app.title') }}</h1>
+        <div class="flex flex-wrap items-center gap-3">
+          <h1 data-testid="app-title" class="text-xl font-semibold">{{ t('app.title') }}</h1>
+          <a
+            data-testid="home-link"
+            :href="websiteHomeUrl"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
+          >
+            {{ t('app.home') }}
+          </a>
+        </div>
         <div class="flex flex-wrap items-center gap-3">
           <label class="flex items-center gap-2 text-sm">
             <select
