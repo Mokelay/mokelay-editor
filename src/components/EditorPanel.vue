@@ -6,18 +6,21 @@ import { useI18n } from '@/i18n';
 
 type EditorPanelProps = {
   blocks?: OutputData['blocks'];
+  pageName?: string;
   loading?: boolean;
   error?: string;
 };
 
 const props = withDefaults(defineProps<EditorPanelProps>(), {
   blocks: () => [],
+  pageName: '',
   loading: false,
   error: ''
 });
 
 const emit = defineEmits<{
   (event: 'change', blocks: OutputData['blocks']): void;
+  (event: 'name-change', name: string): void;
 }>();
 
 const pageRef = ref<InstanceType<typeof MPage> | null>(null);
@@ -49,6 +52,17 @@ defineExpose({
     <p v-else-if="error" data-testid="editor-error-state" class="mb-3 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/60 dark:bg-red-900/30 dark:text-red-100">
       {{ error }}
     </p>
+
+    <label v-if="!loading" class="mb-4 flex flex-col gap-1.5 text-sm">
+      <span class="font-medium text-slate-700 dark:text-slate-200">页面标题</span>
+      <input
+        data-testid="page-name-input"
+        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+        :value="pageName"
+        placeholder="请输入页面标题"
+        @input="emit('name-change', ($event.target as HTMLInputElement).value)"
+      />
+    </label>
 
     <MPage v-if="!loading" ref="pageRef" :edit="true" :value="blocks" @change="handlePageChange" />
   </section>

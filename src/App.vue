@@ -67,7 +67,7 @@ const routeHash = ref(window.location.hash || '#/');
 const { t, localeValue, setLocale } = useI18n();
 const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
 const currentPageUuid = ref<string | null>(null);
-const currentPageName = ref('');
+const currentPageName = ref(formatPageName(new Date()));
 const pageBlocks = ref<OutputData['blocks']>(getInitialEditorBlocks(t));
 const isLoadingPage = ref(false);
 const isSavingPage = ref(false);
@@ -143,7 +143,7 @@ function persistDraftBlocks(blocks: OutputData['blocks']) {
 
 function applyPage(page: MokelayPage) {
   currentPageUuid.value = page.uuid;
-  currentPageName.value = page.name;
+  currentPageName.value = page.name || formatPageName(new Date());
   pageBlocks.value = page.blocks;
   pageError.value = '';
   persistDraftBlocks(page.blocks);
@@ -152,7 +152,7 @@ function applyPage(page: MokelayPage) {
 function resetToLocalDraft() {
   loadRequestId += 1;
   currentPageUuid.value = null;
-  currentPageName.value = '';
+  currentPageName.value = formatPageName(new Date());
   pageError.value = '';
   isLoadingPage.value = false;
   pageBlocks.value = getInitialEditorBlocks(t);
@@ -175,7 +175,7 @@ async function loadPage(uuid: string) {
       return;
     }
     currentPageUuid.value = uuid;
-    currentPageName.value = '';
+    currentPageName.value = formatPageName(new Date());
     pageBlocks.value = [];
     pageError.value = toErrorMessage(error) || t('page.loadFailed');
     void $message('error', t('page.loadFailed'));
@@ -244,6 +244,10 @@ function handleEditorChange(blocks: OutputData['blocks']) {
   persistDraftBlocks(blocks);
 }
 
+function handlePageNameChange(name: string) {
+  currentPageName.value = name;
+}
+
 async function readEditorBlocks() {
   const output = await editorPanelRef.value?.save();
   const blocks = output?.blocks ?? pageBlocks.value;
@@ -264,9 +268,11 @@ async function saveEditorContent() {
   try {
     const blocks = await readEditorBlocks();
     const uuid = currentPageUuid.value;
+    const name = currentPageName.value.trim() || formatPageName(new Date());
+    currentPageName.value = name;
     const page = uuid
-      ? await updatePage(uuid, { blocks })
-      : await createPage({ name: formatPageName(new Date()), blocks });
+      ? await updatePage(uuid, { name, blocks })
+      : await createPage({ name, blocks });
 
     applyPage(page);
     void $message('success', t('editor.saveSuccess'));
@@ -391,9 +397,11 @@ function backToEditorPage() {
         v-else
         ref="editorPanelRef"
         :blocks="pageBlocks"
+        :page-name="currentPageName"
         :loading="isLoadingPage"
         :error="pageError"
         @change="handleEditorChange"
+        @name-change="handlePageNameChange"
       />
     </main>
   </TooltipProvider>

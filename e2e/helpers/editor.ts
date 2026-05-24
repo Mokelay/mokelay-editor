@@ -108,6 +108,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       const payload = readJsonPayload(request.postDataJSON());
       const pageRecord = {
         ...existingPage,
+        name: typeof payload.name === 'string' ? payload.name : existingPage.name,
         blocks: Array.isArray(payload.blocks) ? payload.blocks as SavedBlock[] : existingPage.blocks,
         updatedAt: now
       };

@@ -17,6 +17,7 @@ test('renders editor panel with expected controls', async ({ page }) => {
   await expect(page.getByTestId('app-title')).toHaveText('Mokelay Editor');
   await expect(page.getByTestId('editor-panel')).toBeVisible();
   await expect(page.getByTestId('editor-surface')).toBeVisible();
+  await expect(page.getByTestId('page-name-input')).toBeVisible();
   await expect(page.getByTestId('home-link')).toBeVisible();
   await expect(page.getByTestId('home-link')).toHaveAttribute('href', 'https://www.mokelay.com/');
   await expect(page.getByTestId('theme-select')).toBeVisible();
@@ -30,6 +31,7 @@ test('creates a new page through the pages API without showing the JSON dialog',
     request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_page'
   );
 
+  await page.getByTestId('page-name-input').fill('My first DSL page');
   await page.getByTestId('save-button').click();
   const createRequest = await createRequestPromise;
   const payload = createRequest.postDataJSON() as {
@@ -37,7 +39,7 @@ test('creates a new page through the pages API without showing the JSON dialog',
     blocks?: Array<{ type?: string; data?: { text?: string } }>;
   };
 
-  expect(payload.name).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  expect(payload.name).toBe('My first DSL page');
   expect(Array.isArray(payload.blocks)).toBeTruthy();
   expect(payload.blocks?.[0]?.type).toBe('paragraph');
   await expect(page.getByTestId('config-dialog')).toHaveCount(0);
@@ -68,7 +70,7 @@ test('restores API-backed content after reload', async ({ page }) => {
   expect(storedConfig).not.toBeNull();
 });
 
-test('loads an existing page from the UUID route and updates only blocks', async ({ page }) => {
+test('loads an existing page from the UUID route and updates name and blocks', async ({ page }) => {
   const uuid = '11111111-1111-4111-8111-111111111111';
   await resetEditor(page, {
     pages: [
@@ -94,7 +96,9 @@ test('loads an existing page from the UUID route and updates only blocks', async
   );
   await page.goto(`/#/pages/${uuid}`);
   await readRequestPromise;
+  await expect(page.getByTestId('page-name-input')).toHaveValue('Existing page');
   await expect(page.getByTestId('editor-panel')).toContainText('Loaded page content');
+  await page.getByTestId('page-name-input').fill('Renamed existing page');
 
   const updateRequestPromise = page.waitForRequest((request) =>
     request.method() === 'POST' &&
@@ -108,7 +112,7 @@ test('loads an existing page from the UUID route and updates only blocks', async
     blocks?: Array<{ type?: string; data?: { text?: string } }>;
   };
 
-  expect(payload.name).toBeUndefined();
+  expect(payload.name).toBe('Renamed existing page');
   expect(Array.isArray(payload.blocks)).toBeTruthy();
   expect(payload.blocks?.[0]?.data?.text).toBe('Loaded page content');
 });

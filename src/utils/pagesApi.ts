@@ -15,6 +15,7 @@ export type CreatePagePayload = {
 };
 
 export type UpdatePagePayload = {
+  name: string;
   blocks: OutputData['blocks'];
 };
 

@@ -8,6 +8,8 @@ import { mFormEditorTool } from '@/blocks/mFormEditorTool';
 import MFormItem, { mFormItemEditorTool } from '@/blocks/MFormItem.vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
 import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
+import PageDslBlock from '@/blocks/PageDslBlock.vue';
+import { pageDslEditorToolEntries } from '@/blocks/pageDslEditorTools';
 import MTag, { mTagEditorTool } from '@/blocks/MTag.vue';
 import { mEditorSelectorEditorTool } from '@/blocks/mEditorSelectorEditorTool';
 import { mPageEditorTool } from '@/blocks/mPageEditorTool';
@@ -79,7 +81,16 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MTag)]: {
     component: markRaw(MTag),
     ...mTagEditorTool
-  }
+  },
+  ...Object.fromEntries(
+    Object.entries(pageDslEditorToolEntries).map(([toolName, definition]) => [
+      toolName,
+      {
+        component: markRaw(PageDslBlock),
+        ...definition
+      }
+    ])
+  )
 };
 
 // 根据工具名读取工具定义。
