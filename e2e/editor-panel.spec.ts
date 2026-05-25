@@ -19,7 +19,7 @@ test('renders editor panel with expected controls', async ({ page }) => {
   await expect(page.getByTestId('editor-surface')).toBeVisible();
   await expect(page.getByTestId('page-name-input')).toBeVisible();
   await expect(page.getByTestId('home-link')).toBeVisible();
-  await expect(page.getByTestId('home-link')).toHaveAttribute('href', /^(https:\/\/www\.mokelay\.com|http:\/\/localhost:3000)\/$/);
+  await expect(page.getByTestId('home-link')).toHaveAttribute('href', 'https://www.mokelay.com/');
   await expect(page.getByTestId('theme-select')).toBeVisible();
   await expect(page.getByTestId('locale-select')).toBeVisible();
   await expect(page.getByTestId('save-button')).toBeVisible();
