@@ -3,6 +3,8 @@ import type { Locator, Page, Route } from '@playwright/test';
 
 export const storageKey = 'mokelay-editor-config';
 export const defaultPageUuid = '00000000-0000-4000-8000-000000000000';
+export const defaultEditorHash = `/pages/${defaultPageUuid}`;
+export const defaultEditorUrl = `/#${defaultEditorHash}`;
 
 export type SavedBlock = {
   type?: string;
@@ -38,8 +40,10 @@ export type MockApiSnapshot = {
 
 type MockPagesApiOptions = {
   createUuid?: string;
+  initialRoute?: string;
   pages?: MockMokelayPage[];
   apis?: MockMokelayApi[];
+  seedDefaultPage?: boolean;
   apiDelays?: {
     listApis?: number;
     readApi?: number;
@@ -49,12 +53,16 @@ type MockPagesApiOptions = {
 type BoundingBox = Awaited<ReturnType<Locator['boundingBox']>>;
 
 export async function resetEditor(page: Page, apiOptions: MockPagesApiOptions = {}) {
+  const initialRoute = apiOptions.initialRoute ?? defaultEditorUrl;
   const apiState = await mockPagesApi(page, apiOptions);
-  await page.goto('/');
-  await page.evaluate((key) => {
+  await page.goto(initialRoute);
+  await page.evaluate(({ key, initialHash }) => {
     localStorage.removeItem(key);
-    window.location.hash = '/';
-  }, storageKey);
+    window.location.hash = initialHash;
+  }, {
+    key: storageKey,
+    initialHash: routeToHash(initialRoute)
+  });
   await page.reload();
   return apiState;
 }
@@ -79,6 +87,23 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       createdAt: now,
       updatedAt: now,
       ...pageRecord
+    });
+  }
+
+  if (shouldSeedDefaultPage(options) && !pages.has(defaultPageUuid)) {
+    pages.set(defaultPageUuid, {
+      uuid: defaultPageUuid,
+      name: 'Default DSL page',
+      blocks: [
+        {
+          type: 'paragraph',
+          data: {
+            text: 'Welcome to the Mokelay editor starter template.'
+          }
+        }
+      ],
+      createdAt: now,
+      updatedAt: now
     });
   }
 
@@ -130,7 +155,17 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     }
 
     if (method === 'GET' && url.pathname === '/api/mokelay/list_pages') {
-      await fulfillPages(route, Array.from(pages.values()), corsHeaders);
+      const pageNumber = Number(url.searchParams.get('page') ?? 1);
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
+      const pageRecords = Array.from(pages.values())
+        .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+      const start = Math.max(pageNumber - 1, 0) * pageSize;
+      const pageItems = pageRecords.slice(start, start + pageSize);
+      await fulfillPages(route, pageItems, {
+        page: pageNumber,
+        pageSize,
+        total: pageRecords.length
+      }, corsHeaders);
       return;
     }
 
@@ -236,12 +271,23 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
-  await page.evaluate(({ key, value }) => {
+  await page.evaluate(async ({ key, value, uuid }) => {
     localStorage.setItem(key, JSON.stringify(value));
-    window.location.hash = '/';
+    await fetch(`/api/mokelay/update_page_blocks_by_uuid?uuid=${encodeURIComponent(uuid)}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: 'Seeded DSL page',
+        blocks: Array.isArray(value.blocks) ? value.blocks : []
+      })
+    });
+    window.location.hash = `/pages/${uuid}`;
   }, {
     key: storageKey,
-    value: config
+    value: config,
+    uuid: defaultPageUuid
   });
   await page.reload();
 }
@@ -355,6 +401,26 @@ function readString(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
 
+function routeToHash(route: string) {
+  const hashIndex = route.indexOf('#');
+
+  if (hashIndex === -1) {
+    return '/';
+  }
+
+  const hash = route.slice(hashIndex + 1);
+  return hash.startsWith('/') ? hash || '/' : `/${hash}`;
+}
+
+function shouldSeedDefaultPage(options: MockPagesApiOptions) {
+  if (typeof options.seedDefaultPage === 'boolean') {
+    return options.seedDefaultPage;
+  }
+
+  const initialRoute = options.initialRoute ?? defaultEditorUrl;
+  return routeToHash(initialRoute) === defaultEditorHash;
+}
+
 async function delay(ms = 0) {
   if (ms <= 0) return;
   await new Promise((resolve) => {
@@ -382,8 +448,11 @@ async function fulfillPage(
 async function fulfillPages(
   route: Route,
   pageRecords: MockMokelayPage[],
+  paginationInput: { page: number; pageSize: number; total: number },
   headers: Record<string, string>
 ) {
+  const totalPages = paginationInput.total > 0 ? Math.ceil(paginationInput.total / paginationInput.pageSize) : 0;
+
   await route.fulfill({
     status: 200,
     headers,
@@ -398,12 +467,12 @@ async function fulfillPages(
           updated_at: pageRecord.updatedAt
         })),
         pagination: {
-          page: 1,
-          pageSize: pageRecords.length,
-          total: pageRecords.length,
-          totalPages: pageRecords.length > 0 ? 1 : 0,
-          hasPreviousPage: false,
-          hasNextPage: false
+          page: paginationInput.page,
+          pageSize: paginationInput.pageSize,
+          total: paginationInput.total,
+          totalPages,
+          hasPreviousPage: paginationInput.page > 1,
+          hasNextPage: paginationInput.page < totalPages
         }
       }
     })

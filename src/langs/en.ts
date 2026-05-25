@@ -7,6 +7,7 @@ export const enMessages = {
     light: 'Light',
     language: 'Language',
     home: 'Home',
+    pageList: 'Pages',
     chinese: '中文',
     english: 'English'
   },
@@ -256,6 +257,32 @@ export const enMessages = {
     toolboxTitle: 'Page',
     loading: 'Loading page...',
     loadFailed: 'Failed to load page. Please try again.'
+  },
+  pageList: {
+    title: 'Pages',
+    total: '{count} pages',
+    createPage: 'Create page',
+    loading: 'Loading pages...',
+    empty: 'No pages yet. Create one to get started.',
+    loadFailed: 'Failed to load pages. Please try again.',
+    createFailed: 'Failed to create page. Please try again.',
+    createDialogTitle: 'Create page',
+    pageName: 'Page name',
+    creating: 'Creating...',
+    saveAndOpen: 'Save and open',
+    open: 'Open',
+    backToList: 'Back to page list',
+    unnamedPage: 'Untitled page',
+    nameRequired: 'Page name is required.',
+    nameTooLong: 'Page name cannot exceed 120 characters.',
+    columns: {
+      name: 'Name',
+      uuid: 'UUID',
+      blocks: 'Blocks',
+      createdAt: 'Created',
+      updatedAt: 'Updated',
+      actions: 'Actions'
+    }
   },
 } as const;
 

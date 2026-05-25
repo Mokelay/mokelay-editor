@@ -7,6 +7,7 @@ export const zhMessages = {
     light: '浅色',
     language: '语言',
     home: '首页',
+    pageList: '页面列表',
     chinese: '中文',
     english: 'English'
   },
@@ -256,6 +257,32 @@ export const zhMessages = {
     toolboxTitle: '页面',
     loading: '正在读取页面...',
     loadFailed: '页面读取失败，请稍后重试。'
+  },
+  pageList: {
+    title: '页面列表',
+    total: '共 {count} 个页面',
+    createPage: '创建页面',
+    loading: '正在加载页面列表...',
+    empty: '暂无页面，可以先创建一个页面。',
+    loadFailed: '页面列表加载失败，请稍后重试。',
+    createFailed: '页面创建失败，请稍后重试。',
+    createDialogTitle: '创建页面',
+    pageName: '页面名称',
+    creating: '创建中...',
+    saveAndOpen: '保存并打开',
+    open: '打开',
+    backToList: '返回页面列表',
+    unnamedPage: '未命名页面',
+    nameRequired: '页面名称不能为空。',
+    nameTooLong: '页面名称不能超过 120 个字符。',
+    columns: {
+      name: '名称',
+      uuid: 'UUID',
+      blocks: 'Block 数',
+      createdAt: '创建时间',
+      updatedAt: '最近编辑',
+      actions: '操作'
+    }
   },
 } as const;
 

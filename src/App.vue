@@ -10,6 +10,7 @@ import { createPage, getPage, updatePage, type MokelayPage } from '@/utils/pages
 
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
+const PageListPanel = defineAsyncComponent(() => import('@/components/PageListPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 
 const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
@@ -79,6 +80,7 @@ const routePageUuid = computed(() => parsedRoute.value.pageUuid);
 const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
+const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && Boolean(routePageUuid.value));
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 
 function applyTheme(dark: boolean) {
@@ -301,6 +303,19 @@ function backToEditorPage() {
   const uuid = routePageUuid.value ?? currentPageUuid.value;
   window.location.hash = uuid ? getEditorHash(uuid) : '/';
 }
+
+function backToPageList() {
+  window.location.hash = '/';
+}
+
+function openPageFromList(uuid: string) {
+  window.location.hash = getEditorHash(uuid);
+}
+
+function handlePageCreated(page: MokelayPage) {
+  applyPage(page);
+  window.location.hash = getEditorHash(page.uuid);
+}
 </script>
 
 <template>
@@ -348,7 +363,7 @@ function backToEditorPage() {
               class="rounded-md px-3 py-1.5 font-medium"
               :class="!isApiBuilderPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
             >
-              页面编辑
+              {{ t('app.pageList') }}
             </a>
             <a
               href="#/apis"
@@ -359,10 +374,10 @@ function backToEditorPage() {
             </a>
           </nav>
 
-          <template v-if="!isApiBuilderPage && !isPreviewPage">
+          <template v-if="isEditorPage">
             <button
               data-testid="save-button"
-              class="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+              class="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
               :disabled="!isEditorReady"
               @click="saveEditorContent"
             >
@@ -393,15 +408,35 @@ function backToEditorPage() {
         :loading="isLoadingPage"
         :error="pageError"
       />
-      <EditorPanel
+      <div v-else-if="isEditorPage" class="flex flex-1 flex-col gap-4">
+        <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <button data-testid="back-to-page-list-button" class="mb-2 text-sm font-medium text-teal-700 hover:text-teal-500 dark:text-teal-300" @click="backToPageList">
+                {{ t('pageList.backToList') }}
+              </button>
+              <div class="flex flex-wrap items-center gap-3">
+                <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ currentPageName || t('pageList.unnamedPage') }}</h2>
+                <code v-if="currentPageUuid" class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ currentPageUuid }}</code>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <EditorPanel
+          ref="editorPanelRef"
+          :blocks="pageBlocks"
+          :page-name="currentPageName"
+          :loading="isLoadingPage"
+          :error="pageError"
+          @change="handleEditorChange"
+          @name-change="handlePageNameChange"
+        />
+      </div>
+      <PageListPanel
         v-else
-        ref="editorPanelRef"
-        :blocks="pageBlocks"
-        :page-name="currentPageName"
-        :loading="isLoadingPage"
-        :error="pageError"
-        @change="handleEditorChange"
-        @name-change="handlePageNameChange"
+        @open-page="openPageFromList"
+        @page-created="handlePageCreated"
       />
     </main>
   </TooltipProvider>
