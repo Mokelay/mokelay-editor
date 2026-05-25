@@ -177,7 +177,7 @@ function createMockOutputs(block: ApiBlock, inputs: Record<string, unknown>) {
   if (block.functionName === 'read') {
     return { data: row };
   }
-  if (block.functionName === 'create') {
+  if (block.functionName === 'create' || block.functionName === 'upsert') {
     return { uuid: 'mock_created_id' };
   }
   if (block.functionName === 'update' || block.functionName === 'delete') {

@@ -57,6 +57,7 @@ export type BlockFunctionName =
   | 'read'
   | 'delete'
   | 'create'
+  | 'upsert'
   | 'update'
   | 'addSession'
   | 'removeSession'
@@ -81,14 +82,6 @@ export type ApiJson = {
 
 export type ApiBuilderStatus = 'draft' | 'published';
 
-export type ApiBuilderVersion = {
-  id: string;
-  label: string;
-  apiJson: ApiJson;
-  disabledBlockIds: string[];
-  createdAt: string;
-};
-
 export type ApiBuilderTestCase = {
   id: string;
   name: string;
@@ -102,7 +95,6 @@ export type ApiBuilderDraft = {
   apiJson: ApiJson;
   status: ApiBuilderStatus;
   disabledBlockIds: string[];
-  versions: ApiBuilderVersion[];
   testCases: ApiBuilderTestCase[];
   createdAt: string;
   updatedAt: string;

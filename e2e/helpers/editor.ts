@@ -17,21 +17,46 @@ export type MockMokelayPage = {
   updatedAt?: string;
 };
 
+export type MockMokelayApi = {
+  uuid: string;
+  name: string;
+  method: string;
+  status: 'draft' | 'published';
+  apiJson: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type MockApiSnapshot = {
+  apiUuid: string;
+  name: string;
+  method: string;
+  status: 'draft' | 'published';
+  apiJson: Record<string, unknown>;
+  createdAt: string;
+};
+
 type MockPagesApiOptions = {
   createUuid?: string;
   pages?: MockMokelayPage[];
+  apis?: MockMokelayApi[];
+  apiDelays?: {
+    listApis?: number;
+    readApi?: number;
+  };
 };
 
 type BoundingBox = Awaited<ReturnType<Locator['boundingBox']>>;
 
 export async function resetEditor(page: Page, apiOptions: MockPagesApiOptions = {}) {
-  await mockPagesApi(page, apiOptions);
+  const apiState = await mockPagesApi(page, apiOptions);
   await page.goto('/');
   await page.evaluate((key) => {
     localStorage.removeItem(key);
     window.location.hash = '/';
   }, storageKey);
   await page.reload();
+  return apiState;
 }
 
 export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}) {
@@ -39,6 +64,9 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 
   const now = '2026-05-06T00:00:00.000Z';
   const pages = new Map<string, MockMokelayPage>();
+  const apis = new Map<string, MockMokelayApi>();
+  const apiSnapshots: MockApiSnapshot[] = [];
+  const apiSavePayloads: Record<string, unknown>[] = [];
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
@@ -51,6 +79,14 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       createdAt: now,
       updatedAt: now,
       ...pageRecord
+    });
+  }
+
+  for (const apiRecord of options.apis ?? []) {
+    apis.set(apiRecord.uuid, {
+      createdAt: now,
+      updatedAt: now,
+      ...apiRecord
     });
   }
 
@@ -98,6 +134,29 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_apis') {
+      const pageNumber = Number(url.searchParams.get('page') ?? 1);
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
+      const apiRecords = Array.from(apis.values())
+        .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+      const start = Math.max(pageNumber - 1, 0) * pageSize;
+      const pageItems = apiRecords.slice(start, start + pageSize);
+      await delay(options.apiDelays?.listApis);
+      await fulfillApis(route, pageItems, {
+        page: pageNumber,
+        pageSize,
+        total: apiRecords.length
+      }, corsHeaders);
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/read_api_by_uuid') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      await delay(options.apiDelays?.readApi);
+      await fulfillApi(route, apis.get(uuid) ?? null, corsHeaders);
+      return;
+    }
+
     if (method === 'POST' && url.pathname === '/api/mokelay/update_page_blocks_by_uuid') {
       const uuid = url.searchParams.get('uuid') ?? '';
       const existingPage = pages.get(uuid);
@@ -117,6 +176,55 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'POST' && url.pathname === '/api/mokelay/save_api') {
+      const payload = readJsonPayload(request.postDataJSON());
+      apiSavePayloads.push(payload);
+      const apiJson = readJsonPayload(payload.apiJson);
+      const uuid = readString(payload.uuid) || readString(apiJson.uuid);
+      const existingApi = apis.get(uuid);
+      const originalUuid = readString(payload.originalUuid);
+
+      if (existingApi && originalUuid !== uuid) {
+        await fulfillApiError(route, 'BLOCK_UNIQUE_CONFLICT', 'API 标识已存在。', corsHeaders);
+        return;
+      }
+
+      const methodName = (readString(payload.method) || readString(apiJson.method) || 'GET').toUpperCase();
+      const status = payload.status === 'published' ? 'published' : 'draft';
+      const apiRecord: MockMokelayApi = {
+        uuid,
+        name: readString(payload.name) || readString(apiJson.alias) || '未命名 API',
+        method: methodName,
+        status,
+        apiJson: {
+          ...apiJson,
+          uuid,
+          method: methodName
+        },
+        createdAt: existingApi?.createdAt ?? now,
+        updatedAt: now
+      };
+      apis.set(uuid, apiRecord);
+      apiSnapshots.push({
+        apiUuid: uuid,
+        name: apiRecord.name,
+        method: apiRecord.method,
+        status,
+        apiJson: apiRecord.apiJson,
+        createdAt: now
+      });
+      await fulfillApi(route, apiRecord, corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/delete_api_by_uuid') {
+      const payload = readJsonPayload(request.postDataJSON());
+      const uuid = readString(payload.uuid);
+      const affected = apis.delete(uuid) ? 1 : 0;
+      await fulfillDeleteApi(route, affected, corsHeaders);
+      return;
+    }
+
     await route.fulfill({
       status: 404,
       headers: corsHeaders,
@@ -124,7 +232,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages };
+  return { pages, apis, apiSnapshots, apiSavePayloads };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -243,6 +351,17 @@ function readJsonPayload(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function readString(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+async function delay(ms = 0) {
+  if (ms <= 0) return;
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 async function fulfillPage(
   route: Route,
   pageRecord: MockMokelayPage | null,
@@ -289,4 +408,98 @@ async function fulfillPages(
       }
     })
   });
+}
+
+async function fulfillApi(
+  route: Route,
+  apiRecord: MockMokelayApi | null,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        api: apiRecord ? serializeApi(apiRecord, true) : null
+      }
+    })
+  });
+}
+
+async function fulfillApis(
+  route: Route,
+  apiRecords: MockMokelayApi[],
+  paginationInput: { page: number; pageSize: number; total: number },
+  headers: Record<string, string>
+) {
+  const totalPages = paginationInput.total > 0 ? Math.ceil(paginationInput.total / paginationInput.pageSize) : 0;
+
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        apis: apiRecords.map((apiRecord) => serializeApi(apiRecord, false)),
+        pagination: {
+          page: paginationInput.page,
+          pageSize: paginationInput.pageSize,
+          total: paginationInput.total,
+          totalPages,
+          hasPreviousPage: paginationInput.page > 1,
+          hasNextPage: paginationInput.page < totalPages
+        }
+      }
+    })
+  });
+}
+
+async function fulfillDeleteApi(
+  route: Route,
+  affected: number,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        affected,
+        message: affected > 0 ? 'API deleted.' : 'API not found.'
+      }
+    })
+  });
+}
+
+async function fulfillApiError(
+  route: Route,
+  code: string,
+  message: string,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: false,
+      error: {
+        code,
+        message
+      }
+    })
+  });
+}
+
+function serializeApi(apiRecord: MockMokelayApi, includeApiJson: boolean) {
+  return {
+    uuid: apiRecord.uuid,
+    name: apiRecord.name,
+    method: apiRecord.method,
+    status: apiRecord.status,
+    ...(includeApiJson ? { apiJson: apiRecord.apiJson } : {}),
+    createdAt: apiRecord.createdAt,
+    updatedAt: apiRecord.updatedAt
+  };
 }

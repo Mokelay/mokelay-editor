@@ -89,7 +89,7 @@ export function validateApiJson(apiJson: ApiJson): ValidationIssue[] {
     validateOutputs(block.outputs, block.functionName, add, target);
 
     const inputs = block.inputs ?? {};
-    if (['list', 'page', 'count', 'read', 'delete', 'create', 'update'].includes(block.functionName)) {
+    if (['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update'].includes(block.functionName)) {
       const datasource = inputs.datasource;
       if (typeof datasource !== 'string' || !datasource.trim()) {
         add('error', '数据库 Block 必须选择数据源。', target);
@@ -107,12 +107,15 @@ export function validateApiJson(apiJson: ApiJson): ValidationIssue[] {
       }
     }
 
-    if (block.functionName === 'create') {
+    if (block.functionName === 'create' || block.functionName === 'upsert') {
       if (typeof inputs.idField !== 'string' || !inputs.idField.trim()) {
-        add('error', '创建数据必须配置返回 ID 字段。', target);
+        add('error', '写入数据必须配置唯一 ID 字段。', target);
       }
       if (!isNonEmptyRecord(inputs.fields)) {
-        add('error', '创建字段不能为空。', target);
+        add('error', '写入字段不能为空。', target);
+      }
+      if (block.functionName === 'upsert' && isNonEmptyRecord(inputs.fields) && typeof inputs.idField === 'string' && !Object.prototype.hasOwnProperty.call(inputs.fields, inputs.idField)) {
+        add('error', 'Upsert 字段必须包含唯一 ID 字段。', target);
       }
     }
 
@@ -121,12 +124,12 @@ export function validateApiJson(apiJson: ApiJson): ValidationIssue[] {
         add('error', '更新字段不能为空。', target);
       }
       if (!Array.isArray(inputs.conditions) || !inputs.conditions.length) {
-        add('warning', '更新没有条件，会更新整张表，本地发布前需要二次确认。', target);
+        add('warning', '更新没有条件，会更新整张表，发布前需要二次确认。', target);
       }
     }
 
     if (block.functionName === 'delete' && (!Array.isArray(inputs.conditions) || !inputs.conditions.length)) {
-      add('warning', '删除没有条件，会删除整张表数据，本地发布前需要二次确认。', target);
+      add('warning', '删除没有条件，会删除整张表数据，发布前需要二次确认。', target);
     }
 
     if (['list', 'page', 'count', 'read', 'delete', 'update'].includes(block.functionName)) {

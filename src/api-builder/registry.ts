@@ -153,6 +153,23 @@ export const blockDefinitions: BlockDefinition[] = [
     })
   },
   {
+    functionName: 'upsert',
+    title: '创建或更新',
+    shortTitle: 'Upsert',
+    group: 'write',
+    description: '按唯一字段插入或覆盖一条数据。',
+    outputs: ['uuid'],
+    defaultInputs: () => ({
+      datasource: 'Mokelay',
+      table: 'users',
+      idField: 'id',
+      fields: {
+        id: { template: '{{request.body.id}}' },
+        name: { template: '{{request.body.name}}' }
+      }
+    })
+  },
+  {
     functionName: 'update',
     title: '更新数据',
     shortTitle: '更新',

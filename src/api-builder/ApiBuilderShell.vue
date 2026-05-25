@@ -19,23 +19,17 @@ import {
 import { sampleApis } from '@/api-builder/samples';
 import {
   appendTestCase,
-  appendVersion,
   createDraft,
   duplicateDraft,
   generateApiJson,
-  getActiveDraftId,
-  loadDrafts,
-  restoreVersion,
-  saveDrafts,
-  setActiveDraftId,
-  upsertDraft
 } from '@/api-builder/store';
 import { hasBlockingErrors, hasDangerWarnings, validateApiJson } from '@/api-builder/validation';
 import { buildVariableOptions, makeTemplate } from '@/api-builder/variables';
+import { deleteApi, getApi, listApis, saveApi, type MokelayApiRecord } from '@/utils/apisApi';
 import type {
   ApiBlock,
   ApiBuilderDraft,
-  ApiBuilderVersion,
+  ApiJson,
   BlockFunctionName,
   BuilderSelection,
   Condition,
@@ -55,13 +49,29 @@ const props = withDefaults(defineProps<ApiBuilderShellProps>(), {
   routeUuid: null
 });
 
-const drafts = ref<ApiBuilderDraft[]>(loadDrafts());
-const activeDraftId = ref(props.routeUuid || getActiveDraftId());
+const drafts = ref<ApiBuilderDraft[]>([]);
+const activeDraftId = ref(props.routeUuid || '');
 const selection = ref<BuilderSelection>({ type: 'api' });
-const bottomTab = ref<'json' | 'validation' | 'test' | 'versions'>('json');
+const bottomTab = ref<'json' | 'validation' | 'test'>('json');
 const draggedBlockUuid = ref('');
+const apiBuilderError = ref('');
+const isApiListLoading = ref(false);
+const isApiDetailLoading = ref(false);
+const isSavingApi = ref(false);
+const isApiInfoDialogOpen = ref(false);
+const isSavingApiInfo = ref(false);
+const apiInfoDialogMode = ref<'create' | 'duplicate' | 'edit'>('create');
+const apiInfoSourceDraftId = ref('');
+const apiInfoSourceJson = ref<ApiJson | null>(null);
+const apiInfoError = ref('');
+const serverDraftIds = ref(new Set<string>());
 const testRequest = ref<RequestSnapshot>({ header: {}, query: {}, body: {} });
 const lastTestResult = ref<DryRunResult | null>(null);
+const apiInfoForm = reactive({
+  name: '',
+  uuid: '',
+  method: 'GET'
+});
 const templateOptions = reactive({
   selectedTemplateId: 'page',
   datasource: 'Mokelay',
@@ -91,26 +101,20 @@ const groupedBlocks = computed(() => ({
   write: blockDefinitions.filter((definition) => definition.group === 'write'),
   session: blockDefinitions.filter((definition) => definition.group === 'session')
 }));
+const apiUuidPattern = /^[A-Za-z0-9_-]{1,128}$/;
 
 watch(
   () => props.routeUuid,
   (uuid) => {
     if (!uuid) {
+      activeDraftId.value = '';
       return;
     }
     activeDraftId.value = uuid;
-    setActiveDraftId(uuid);
     selection.value = { type: 'api' };
+    void loadApiDetail(uuid);
   },
   { immediate: true }
-);
-
-watch(
-  drafts,
-  (value) => {
-    saveDrafts(value);
-  },
-  { deep: true }
 );
 
 watch(
@@ -121,10 +125,102 @@ watch(
       return;
     }
     testRequest.value = createRequestSnapshot(generateApiJson(draft), testRequest.value);
-    setActiveDraftId(draft.id);
   },
   { immediate: true }
 );
+
+void refreshApiList();
+
+function draftFromApiRecord(record: MokelayApiRecord, currentDraft?: ApiBuilderDraft | null): ApiBuilderDraft {
+  const apiJson = record.apiJson ?? currentDraft?.apiJson ?? {
+    uuid: record.uuid,
+    alias: record.name,
+    method: record.method,
+    request: { header: [], query: [], body: [] },
+    blocks: [],
+    response: null
+  };
+  const draft = createDraft(apiJson);
+
+  draft.id = record.uuid;
+  draft.apiJson.uuid = record.uuid;
+  draft.apiJson.alias = draft.apiJson.alias || record.name;
+  draft.apiJson.method = record.method;
+  draft.status = record.status;
+  draft.createdAt = record.createdAt || draft.createdAt;
+  draft.updatedAt = record.updatedAt || draft.updatedAt;
+
+  return draft;
+}
+
+function mergeDraftSessionState(nextDraft: ApiBuilderDraft, currentDraft?: ApiBuilderDraft | null) {
+  if (!currentDraft) {
+    return nextDraft;
+  }
+
+  nextDraft.disabledBlockIds = currentDraft.disabledBlockIds.filter((uuid) => (
+    nextDraft.apiJson.blocks?.some((block) => block.uuid === uuid)
+  ));
+  nextDraft.testCases = currentDraft.testCases;
+
+  return nextDraft;
+}
+
+function replaceDraft(draft: ApiBuilderDraft) {
+  const index = drafts.value.findIndex((item) => item.id === draft.id);
+
+  if (index === -1) {
+    drafts.value = [draft, ...drafts.value];
+    return;
+  }
+
+  const next = [...drafts.value];
+  next[index] = draft;
+  drafts.value = next;
+}
+
+async function refreshApiList() {
+  isApiListLoading.value = true;
+  apiBuilderError.value = '';
+
+  try {
+    const result = await listApis({ page: 1, pageSize: 100 });
+    const currentDrafts = new Map(drafts.value.map((draft) => [draft.id, draft]));
+    drafts.value = result.apis.map((api) => {
+      const currentDraft = currentDrafts.get(api.uuid);
+      return mergeDraftSessionState(draftFromApiRecord(api, currentDraft), currentDraft);
+    });
+    serverDraftIds.value = new Set(result.apis.map((api) => api.uuid));
+
+    if (activeDraftId.value && !drafts.value.some((draft) => draft.id === activeDraftId.value)) {
+      await loadApiDetail(activeDraftId.value);
+    }
+  } catch (error) {
+    apiBuilderError.value = error instanceof Error ? error.message : '加载 API 列表失败。';
+  } finally {
+    isApiListLoading.value = false;
+  }
+}
+
+async function loadApiDetail(uuid: string) {
+  if (!uuid) return;
+
+  isApiDetailLoading.value = true;
+  apiBuilderError.value = '';
+
+  try {
+    const api = await getApi(uuid);
+    const currentDraft = drafts.value.find((draft) => draft.id === uuid);
+    const draft = mergeDraftSessionState(draftFromApiRecord(api, currentDraft), currentDraft);
+    replaceDraft(draft);
+    serverDraftIds.value = new Set([...serverDraftIds.value, draft.id]);
+    activeDraftId.value = draft.id;
+  } catch (error) {
+    apiBuilderError.value = error instanceof Error ? error.message : '加载 API 详情失败。';
+  } finally {
+    isApiDetailLoading.value = false;
+  }
+}
 
 function navigateToList() {
   window.location.hash = '/apis';
@@ -132,20 +228,18 @@ function navigateToList() {
 
 function navigateToDraft(draft: ApiBuilderDraft) {
   activeDraftId.value = draft.id;
-  setActiveDraftId(draft.id);
   window.location.hash = `/apis/${encodeURIComponent(draft.id)}`;
+  if (serverDraftIds.value.has(draft.id)) {
+    void loadApiDetail(draft.id);
+  }
 }
 
 function createBlankDraft() {
-  const draft = createDraft(createEmptyApiJson());
-  drafts.value = upsertDraft(drafts.value, draft);
-  navigateToDraft(draft);
+  openCreateApiDialog(createEmptyApiJson());
 }
 
 function createFromApiJson(apiJson: unknown) {
-  const draft = createDraft(apiJson as never);
-  drafts.value = upsertDraft(drafts.value, draft);
-  navigateToDraft(draft);
+  openCreateApiDialog(apiJson);
 }
 
 function createFromTemplate(templateId = templateOptions.selectedTemplateId) {
@@ -162,42 +256,218 @@ function createFromTemplate(templateId = templateOptions.selectedTemplateId) {
   createFromApiJson(definition.build(options));
 }
 
-function duplicateCurrentDraft() {
-  if (!activeDraft.value) return;
-  const draft = duplicateDraft(activeDraft.value);
-  drafts.value = upsertDraft(drafts.value, draft);
-  navigateToDraft(draft);
+function openCreateApiDialog(apiJson: unknown = createEmptyApiJson()) {
+  const draft = createDraft(apiJson as never);
+
+  apiInfoDialogMode.value = 'create';
+  apiInfoSourceDraftId.value = '';
+  apiInfoSourceJson.value = cloneValue(draft.apiJson);
+  fillApiInfoForm(draft.apiJson);
+  apiInfoError.value = '';
+  isApiInfoDialogOpen.value = true;
 }
 
-function deleteDraft(draft: ApiBuilderDraft) {
-  if (!window.confirm(`删除本地草稿「${draft.apiJson.alias || draft.apiJson.uuid}」？`)) {
+function openDuplicateApiDialog() {
+  if (!activeDraft.value) return;
+
+  const draft = duplicateDraft(activeDraft.value);
+
+  apiInfoDialogMode.value = 'duplicate';
+  apiInfoSourceDraftId.value = '';
+  apiInfoSourceJson.value = generateApiJson(draft);
+  fillApiInfoForm(draft.apiJson);
+  apiInfoError.value = '';
+  isApiInfoDialogOpen.value = true;
+}
+
+function closeApiInfoDialog() {
+  if (isSavingApiInfo.value) return;
+  isApiInfoDialogOpen.value = false;
+}
+
+function fillApiInfoForm(apiJson: ApiJson) {
+  apiInfoForm.name = apiJson.alias || '未命名 API';
+  apiInfoForm.uuid = apiJson.uuid || '';
+  apiInfoForm.method = String(apiJson.method || 'GET').toUpperCase() === 'POST' ? 'POST' : 'GET';
+}
+
+function buildApiJsonFromInfo(source: ApiJson) {
+  const apiJson = cloneValue(source);
+
+  apiJson.alias = apiInfoForm.name.trim();
+  apiJson.uuid = apiInfoForm.uuid.trim();
+  apiJson.method = apiInfoForm.method === 'POST' ? 'POST' : 'GET';
+
+  return apiJson;
+}
+
+function validateApiInfo(name: string, uuid: string, method: string) {
+  if (!name.trim()) {
+    return '接口名称不能为空。';
+  }
+  if (name.trim().length > 120) {
+    return '接口名称不能超过 120 个字符。';
+  }
+  if (!apiUuidPattern.test(uuid.trim())) {
+    return 'API 标识只能包含字母、数字、下划线和连字符，长度 1-128。';
+  }
+  if (method !== 'GET' && method !== 'POST') {
+    return '请求方法必须是 GET 或 POST。';
+  }
+  return '';
+}
+
+function validateApiInfoFromJson(apiJson: ApiJson) {
+  return validateApiInfo(apiJson.alias || '未命名 API', apiJson.uuid, String(apiJson.method || 'GET').toUpperCase());
+}
+
+async function submitApiInfoDialog() {
+  const validationMessage = validateApiInfo(apiInfoForm.name, apiInfoForm.uuid, apiInfoForm.method);
+
+  if (validationMessage) {
+    apiInfoError.value = validationMessage;
     return;
   }
-  drafts.value = drafts.value.filter((item) => item.id !== draft.id);
-  if (activeDraftId.value === draft.id) {
-    activeDraftId.value = '';
-    navigateToList();
+
+  if (!apiInfoSourceJson.value) {
+    apiInfoError.value = '缺少 API JSON。';
+    return;
+  }
+
+  isSavingApiInfo.value = true;
+  apiInfoError.value = '';
+
+  try {
+    const apiJson = buildApiJsonFromInfo(apiInfoSourceJson.value);
+
+    if (apiInfoDialogMode.value === 'create' || apiInfoDialogMode.value === 'duplicate') {
+      await saveApiJsonAsDraft(apiJson);
+      isApiInfoDialogOpen.value = false;
+      return;
+    }
+
+    if (!activeDraft.value) {
+      apiInfoError.value = '当前 API 不存在。';
+      return;
+    }
+
+    activeDraft.value.apiJson.uuid = apiJson.uuid;
+    activeDraft.value.apiJson.alias = apiJson.alias;
+    activeDraft.value.apiJson.method = apiJson.method;
+
+    const saved = await saveDraftToServer(activeDraft.value.status, apiInfoSourceDraftId.value);
+    if (saved) {
+      isApiInfoDialogOpen.value = false;
+    }
+  } catch (error) {
+    apiInfoError.value = error instanceof Error ? error.message : '保存 API 基本信息失败。';
+  } finally {
+    isSavingApiInfo.value = false;
   }
 }
 
-function saveActiveDraft() {
-  if (!activeDraft.value) return;
-  drafts.value = upsertDraft(drafts.value, activeDraft.value);
+async function saveApiJsonAsDraft(apiJson: ApiJson) {
+  const api = await saveApi({
+    apiJson,
+    status: 'draft'
+  });
+  const savedDraft = draftFromApiRecord(api);
+
+  replaceDraft(savedDraft);
+  serverDraftIds.value = new Set([...serverDraftIds.value, savedDraft.id]);
+  activeDraftId.value = savedDraft.id;
+  selection.value = { type: 'api' };
+  window.location.hash = `/apis/${encodeURIComponent(savedDraft.id)}`;
 }
 
-function publishLocally() {
+function duplicateCurrentDraft() {
+  if (!activeDraft.value) return;
+  openDuplicateApiDialog();
+}
+
+async function deleteDraft(draft: ApiBuilderDraft) {
+  if (!window.confirm(`删除接口「${draft.apiJson.alias || draft.apiJson.uuid}」？`)) {
+    return;
+  }
+
+  apiBuilderError.value = '';
+
+  try {
+    if (serverDraftIds.value.has(draft.id)) {
+      await deleteApi(draft.id);
+    }
+    drafts.value = drafts.value.filter((item) => item.id !== draft.id);
+    const nextServerDraftIds = new Set(serverDraftIds.value);
+    nextServerDraftIds.delete(draft.id);
+    serverDraftIds.value = nextServerDraftIds;
+    if (activeDraftId.value === draft.id) {
+      activeDraftId.value = '';
+      navigateToList();
+    }
+  } catch (error) {
+    apiBuilderError.value = error instanceof Error ? error.message : '删除 API 失败。';
+  }
+}
+
+async function saveDraftToServer(status: ApiBuilderDraft['status'], sourceDraftId = activeDraft.value?.id ?? '') {
+  if (!activeDraft.value) return false;
+
+  const validationMessage = validateApiInfoFromJson(activeDraft.value.apiJson);
+  if (validationMessage) {
+    apiBuilderError.value = validationMessage;
+    return false;
+  }
+
+  isSavingApi.value = true;
+  apiBuilderError.value = '';
+
+  try {
+    const currentDraft = activeDraft.value;
+    const currentDraftId = sourceDraftId || currentDraft.id;
+    const shouldDeletePreviousServerRecord = currentDraftId !== currentDraft.apiJson.uuid && serverDraftIds.value.has(currentDraftId);
+    const api = await saveApi({
+      apiJson: generateApiJson(currentDraft),
+      status,
+      originalUuid: serverDraftIds.value.has(currentDraftId) ? currentDraftId : undefined
+    });
+    if (shouldDeletePreviousServerRecord) {
+      await deleteApi(currentDraftId);
+    }
+    const savedDraft = mergeDraftSessionState(draftFromApiRecord(api), currentDraft);
+    if (currentDraftId !== savedDraft.id) {
+      drafts.value = drafts.value.filter((draft) => draft.id !== currentDraftId);
+      const nextServerDraftIds = new Set(serverDraftIds.value);
+      nextServerDraftIds.delete(currentDraftId);
+      serverDraftIds.value = nextServerDraftIds;
+    }
+    replaceDraft(savedDraft);
+    serverDraftIds.value = new Set([...serverDraftIds.value, savedDraft.id]);
+    activeDraftId.value = savedDraft.id;
+    window.location.hash = `/apis/${encodeURIComponent(savedDraft.id)}`;
+    return true;
+  } catch (error) {
+    apiBuilderError.value = error instanceof Error ? error.message : '保存 API 失败。';
+    return false;
+  } finally {
+    isSavingApi.value = false;
+  }
+}
+
+async function saveActiveDraft() {
+  await saveDraftToServer('draft');
+}
+
+async function publishApi() {
   if (!activeDraft.value) return;
   const issues = validationIssues.value;
   if (hasBlockingErrors(issues)) {
     bottomTab.value = 'validation';
     return;
   }
-  if (hasDangerWarnings(issues) && !window.confirm('存在会影响整张表的高风险操作，仍然本地发布？')) {
+  if (hasDangerWarnings(issues) && !window.confirm('存在会影响整张表的高风险操作，仍然发布？')) {
     return;
   }
-  appendVersion(activeDraft.value, '本地发布快照');
-  activeDraft.value.status = 'published';
-  saveActiveDraft();
+  await saveDraftToServer('published');
 }
 
 function addBlock(functionName: BlockFunctionName) {
@@ -552,19 +822,6 @@ function copyJson() {
   void navigator.clipboard?.writeText(stringifyJson(activeApiJson.value));
 }
 
-function createVersionSnapshot() {
-  if (!activeDraft.value) return;
-  appendVersion(activeDraft.value, '手动快照');
-  bottomTab.value = 'versions';
-}
-
-function restoreVersionSnapshot(version: ApiBuilderVersion) {
-  if (!activeDraft.value) return;
-  if (!window.confirm(`回滚到「${version.label}」？当前草稿会变为未发布。`)) return;
-  restoreVersion(activeDraft.value, version);
-  selection.value = { type: 'api' };
-}
-
 function updateTestValue(location: RequestLocation, key: string, value: string) {
   testRequest.value = {
     ...testRequest.value,
@@ -624,13 +881,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             <p class="text-sm font-medium text-teal-700 dark:text-teal-300">API Builder</p>
             <h2 class="mt-1 text-2xl font-semibold text-slate-950 dark:text-white">可视化搭建内部数据 API</h2>
             <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-              纯客户端草稿工作台。先把接口入口、请求参数、编排步骤和响应结构搭顺，再导出符合 Mokelay Orchestration 的 API JSON。
+              接口编排工作台。先把接口入口、请求参数、编排步骤和响应结构搭顺，再保存为 Mokelay Orchestration API JSON。
             </p>
           </div>
           <button data-testid="api-builder-new" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="createBlankDraft">
             新建 API
           </button>
         </div>
+
+        <p v-if="apiBuilderError" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderError }}</p>
 
         <div class="mt-6 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
           <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
@@ -645,8 +904,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-              <tr v-if="!sortedDrafts.length">
-                <td colspan="6" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">暂无本地草稿，可以从右侧模板或样例开始。</td>
+              <tr v-if="isApiListLoading">
+                <td colspan="6" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">正在加载 API 列表...</td>
+              </tr>
+              <tr v-else-if="!sortedDrafts.length">
+                <td colspan="6" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">暂无 API，可以从右侧模板或样例开始。</td>
               </tr>
               <tr v-for="draft in sortedDrafts" :key="draft.id" class="bg-white dark:bg-slate-900">
                 <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ draft.apiJson.alias || '未命名 API' }}</td>
@@ -656,7 +918,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 </td>
                 <td class="px-4 py-3">
                   <span class="rounded-md px-2 py-1 text-xs font-semibold" :class="draft.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100'">
-                    {{ draft.status === 'published' ? '本地已发布' : '草稿' }}
+                    {{ draft.status === 'published' ? '已发布' : '草稿' }}
                   </span>
                 </td>
                 <td class="px-4 py-3 text-slate-500 dark:text-slate-400">{{ formatDate(draft.updatedAt) }}</td>
@@ -709,6 +971,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
     <div v-else-if="activeDraft && activeApiJson" class="flex flex-1 flex-col gap-4">
       <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <p v-if="apiBuilderError" class="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderError }}</p>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <button class="mb-2 text-sm font-medium text-teal-700 hover:text-teal-500 dark:text-teal-300" @click="navigateToList">返回 API 列表</button>
@@ -716,16 +979,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ activeDraft.apiJson.alias || '未命名 API' }}</h2>
               <span class="rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-100">{{ activeDraft.apiJson.method }}</span>
               <span class="rounded-md px-2 py-1 text-xs font-semibold" :class="activeDraft.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100'">
-                {{ activeDraft.status === 'published' ? '本地已发布' : '草稿' }}
+                {{ activeDraft.status === 'published' ? '已发布' : '草稿' }}
               </span>
               <code class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">/api/mokelay/{{ activeDraft.apiJson.uuid }}</code>
             </div>
           </div>
           <div class="flex flex-wrap gap-2">
             <button class="builder-secondary-button" @click="duplicateCurrentDraft">复制 API</button>
-            <button class="builder-secondary-button" @click="createVersionSnapshot">保存快照</button>
-            <button class="builder-secondary-button" @click="saveActiveDraft">保存本地</button>
-            <button class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="publishLocally">本地发布</button>
+            <button class="builder-secondary-button disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="saveActiveDraft">{{ isSavingApi ? '保存中...' : '保存' }}</button>
+            <button class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="publishApi">发布</button>
           </div>
         </div>
       </section>
@@ -850,6 +1112,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               <div class="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 路径预览：<code>/api/mokelay/{{ activeDraft.apiJson.uuid }}</code>
               </div>
+              <button class="builder-secondary-button w-full disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="saveActiveDraft">
+                {{ isSavingApi ? '保存中...' : '保存基本信息' }}
+              </button>
             </div>
           </template>
 
@@ -922,7 +1187,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <input :value="getBlockDefinition(activeBlock.functionName)?.title || activeBlock.functionName" class="builder-input" disabled>
               </label>
 
-              <template v-if="['list', 'page', 'count', 'read', 'delete', 'create', 'update'].includes(activeBlock.functionName)">
+              <template v-if="['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update'].includes(activeBlock.functionName)">
                 <label class="builder-field">
                   <span>数据源</span>
                   <input class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
@@ -953,14 +1218,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 </div>
               </template>
 
-              <template v-if="activeBlock.functionName === 'create'">
+              <template v-if="['create', 'upsert'].includes(activeBlock.functionName)">
                 <label class="builder-field">
-                  <span>返回 ID 字段</span>
+                  <span>ID 字段</span>
                   <input class="builder-input" :value="stringInput('idField')" @input="updateBlockInput('idField', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
 
-              <template v-if="['create', 'update'].includes(activeBlock.functionName)">
+              <template v-if="['create', 'upsert', 'update'].includes(activeBlock.functionName)">
                 <div>
                   <div class="mb-2 flex items-center justify-between">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white">写入字段</h4>
@@ -1065,7 +1330,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <button class="builder-tab-button" :class="{ 'builder-tab-button-active': bottomTab === 'json' }" @click="bottomTab = 'json'">JSON 预览</button>
           <button class="builder-tab-button" :class="{ 'builder-tab-button-active': bottomTab === 'validation' }" @click="bottomTab = 'validation'">校验 {{ validationIssues.length }}</button>
           <button class="builder-tab-button" :class="{ 'builder-tab-button-active': bottomTab === 'test' }" @click="bottomTab = 'test'">测试</button>
-          <button class="builder-tab-button" :class="{ 'builder-tab-button-active': bottomTab === 'versions' }" @click="bottomTab = 'versions'">版本 {{ activeDraft.versions.length }}</button>
         </div>
 
         <div class="p-4">
@@ -1077,7 +1341,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           </div>
 
           <div v-else-if="bottomTab === 'validation'" class="space-y-2">
-            <p v-if="!validationIssues.length" class="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-100">校验通过，可以本地发布或复制 JSON。</p>
+            <p v-if="!validationIssues.length" class="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-100">校验通过，可以发布或复制 JSON。</p>
             <button
               v-for="issue in validationIssues"
               :key="issue.id"
@@ -1128,25 +1392,65 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             </div>
           </div>
 
-          <div v-else class="space-y-2">
-            <p v-if="!activeDraft.versions.length" class="rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800 dark:text-slate-400">还没有本地版本。点击“保存快照”或“本地发布”会生成版本。</p>
-            <div v-for="version in activeDraft.versions" :key="version.id" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-              <div>
-                <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ version.label }}</p>
-                <p class="text-xs text-slate-500">{{ formatDate(version.createdAt) }} · {{ version.apiJson.blocks?.length || 0 }} steps</p>
-              </div>
-              <button class="builder-secondary-button" @click="restoreVersionSnapshot(version)">回滚</button>
-            </div>
-          </div>
         </div>
       </section>
     </div>
 
+    <section v-else-if="isApiDetailLoading" class="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <h2 class="text-xl font-semibold text-slate-950 dark:text-white">正在加载 API</h2>
+      <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">正在从服务端读取接口编排信息。</p>
+    </section>
+
     <section v-else class="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <h2 class="text-xl font-semibold text-slate-950 dark:text-white">找不到这个本地 API 草稿</h2>
-      <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">草稿只保存在当前浏览器。可以返回列表重新创建。</p>
+      <h2 class="text-xl font-semibold text-slate-950 dark:text-white">找不到这个 API</h2>
+      <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">服务端没有返回这个接口，可以返回列表重新创建。</p>
+      <p v-if="apiBuilderError" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderError }}</p>
       <button class="mt-4 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="navigateToList">返回 API 列表</button>
     </section>
+
+    <div v-if="isApiInfoDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+      <section class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="api-info-dialog-title">
+        <form class="space-y-4" @submit.prevent="submitApiInfoDialog">
+          <div>
+            <p class="text-sm font-medium text-teal-700 dark:text-teal-300">API Builder</p>
+            <h2 id="api-info-dialog-title" class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
+              {{ apiInfoDialogMode === 'edit' ? '编辑 API 基本信息' : apiInfoDialogMode === 'duplicate' ? '复制 API' : '新建 API' }}
+            </h2>
+          </div>
+
+          <p v-if="apiInfoError" class="rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiInfoError }}</p>
+
+          <label class="builder-field">
+            <span>接口名称</span>
+            <input v-model="apiInfoForm.name" data-testid="api-info-name" class="builder-input" maxlength="120" autofocus>
+          </label>
+
+          <label class="builder-field">
+            <span>API 标识</span>
+            <input v-model="apiInfoForm.uuid" data-testid="api-info-uuid" class="builder-input font-mono" maxlength="128">
+          </label>
+
+          <label class="builder-field">
+            <span>请求方法</span>
+            <select v-model="apiInfoForm.method" data-testid="api-info-method" class="builder-input">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+            </select>
+          </label>
+
+          <div class="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            路径预览：<code>/api/mokelay/{{ apiInfoForm.uuid || '-' }}</code>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <button type="button" class="builder-secondary-button" :disabled="isSavingApiInfo" @click="closeApiInfoDialog">取消</button>
+            <button data-testid="api-info-submit" type="submit" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApiInfo">
+              {{ isSavingApiInfo ? '保存中...' : '保存并打开' }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   </section>
 </template>
 
