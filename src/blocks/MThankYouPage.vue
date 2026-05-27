@@ -1,0 +1,120 @@
+<script lang="ts">
+import { defineEditorTool } from '@/editors/editorToolDefinition';
+import { flowIcon, pageDslPropertyTitle, stringValue } from '@/blocks/pageDslEditorTools';
+
+export interface MThankYouPageProps {
+  edit: boolean;
+  title?: string;
+  description?: string;
+}
+
+const thankYouPageTitle = '感谢页';
+const thankYouPageDefaults = {
+  title: '提交成功',
+  description: '谢谢你的提交，我们已经收到。'
+} as const;
+
+function normalizeThankYouPageProps(props: Partial<MThankYouPageProps>): MThankYouPageProps {
+  const merged = {
+    ...thankYouPageDefaults,
+    ...props
+  };
+
+  return {
+    edit: props.edit ?? false,
+    title: stringValue(merged.title),
+    description: stringValue(merged.description)
+  };
+}
+
+export const mThankYouPageEditorTool = defineEditorTool<MThankYouPageProps>({
+  toolbox: {
+    title: thankYouPageTitle,
+    icon: flowIcon
+  },
+  propertyPanel: {
+    get title() {
+      return pageDslPropertyTitle(thankYouPageTitle);
+    },
+    fields: [
+      { key: 'title', label: '标题' },
+      { key: 'description', label: '说明', type: 'textarea' }
+    ]
+  },
+  createInitialProps: () => ({
+    ...thankYouPageDefaults
+  }),
+  normalizeProps: normalizeThankYouPageProps,
+  serialize: (props) => {
+    const normalized = normalizeThankYouPageProps(props);
+    return {
+      title: normalized.title,
+      description: normalized.description
+    };
+  }
+});
+</script>
+
+<script setup lang="ts">
+import PageDslBlock from '@/blocks/PageDslBlock.vue';
+import type { PageDslCallbacks } from '@/blocks/pageDslEditorTools';
+
+defineProps<MThankYouPageProps & PageDslCallbacks<MThankYouPageProps>>();
+</script>
+
+<template>
+  <PageDslBlock block-type="MThankYouPage">
+    <div class="page-dsl-flow page-dsl-flow--thanks">
+      <span>感谢页</span>
+      <strong>{{ title || '提交成功' }}</strong>
+      <p>{{ description || '谢谢你的提交，我们已经收到。' }}</p>
+    </div>
+  </PageDslBlock>
+</template>
+
+<style scoped>
+.page-dsl-flow {
+  display: grid;
+  gap: 6px;
+  border: 1px dashed rgb(148 163 184);
+  border-radius: 8px;
+  padding: 14px;
+  background: rgb(248 250 252);
+}
+
+.page-dsl-flow span {
+  color: rgb(100 116 139);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.page-dsl-flow strong {
+  color: rgb(15 23 42);
+  font-size: 18px;
+}
+
+.page-dsl-flow p {
+  margin: 0;
+  color: rgb(71 85 105);
+  font-size: 13px;
+}
+
+.page-dsl-flow--thanks {
+  border-color: rgb(110 231 183);
+  background: rgb(236 253 245);
+}
+
+:global(.dark) .page-dsl-flow {
+  border-color: rgb(71 85 105);
+  background: rgb(15 23 42);
+  color: rgb(148 163 184);
+}
+
+:global(.dark) .page-dsl-flow strong {
+  color: rgb(241 245 249);
+}
+
+:global(.dark) .page-dsl-flow p {
+  color: rgb(203 213 225);
+}
+</style>

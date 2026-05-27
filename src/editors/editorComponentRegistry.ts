@@ -6,11 +6,30 @@ import MDatasourceEditor, { mDatasourceEditorTool } from '@/blocks/MDatasourceEd
 import MDividerLine, { mDividerLineEditorTool } from '@/blocks/MDividerLine.vue';
 import { mFormEditorTool } from '@/blocks/mFormEditorTool';
 import MFormItem, { mFormItemEditorTool } from '@/blocks/MFormItem.vue';
+import MButton, { mButtonEditorTool } from '@/blocks/MButton.vue';
+import MCheckboxGroupField, { mCheckboxGroupFieldEditorTool } from '@/blocks/MCheckboxGroupField.vue';
+import MEmailField, { mEmailFieldEditorTool } from '@/blocks/MEmailField.vue';
+import MEmbed, { mEmbedEditorTool } from '@/blocks/MEmbed.vue';
+import MFileUploadField, { mFileUploadFieldEditorTool } from '@/blocks/MFileUploadField.vue';
+import MHeading, { mHeadingEditorTool } from '@/blocks/MHeading.vue';
+import MImage, { mImageEditorTool } from '@/blocks/MImage.vue';
+import MImageChoiceField, { mImageChoiceFieldEditorTool } from '@/blocks/MImageChoiceField.vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
 import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
-import PageDslBlock from '@/blocks/PageDslBlock.vue';
-import { pageDslEditorToolEntries } from '@/blocks/pageDslEditorTools';
+import MLinearScaleField, { mLinearScaleFieldEditorTool } from '@/blocks/MLinearScaleField.vue';
+import MLinkField, { mLinkFieldEditorTool } from '@/blocks/MLinkField.vue';
+import MMatrixField, { mMatrixFieldEditorTool } from '@/blocks/MMatrixField.vue';
+import MPageBreak, { mPageBreakEditorTool } from '@/blocks/MPageBreak.vue';
+import MPhoneField, { mPhoneFieldEditorTool } from '@/blocks/MPhoneField.vue';
+import MRadioGroupField, { mRadioGroupFieldEditorTool } from '@/blocks/MRadioGroupField.vue';
+import MRatingField, { mRatingFieldEditorTool } from '@/blocks/MRatingField.vue';
+import MResultPage, { mResultPageEditorTool } from '@/blocks/MResultPage.vue';
+import MRichText, { mRichTextEditorTool } from '@/blocks/MRichText.vue';
+import MSelectField, { mSelectFieldEditorTool } from '@/blocks/MSelectField.vue';
 import MTag, { mTagEditorTool } from '@/blocks/MTag.vue';
+import MTextField, { mTextFieldEditorTool } from '@/blocks/MTextField.vue';
+import MTextareaField, { mTextareaFieldEditorTool } from '@/blocks/MTextareaField.vue';
+import MThankYouPage, { mThankYouPageEditorTool } from '@/blocks/MThankYouPage.vue';
 import { mEditorSelectorEditorTool } from '@/blocks/mEditorSelectorEditorTool';
 import { mPageEditorTool } from '@/blocks/mPageEditorTool';
 import type { EditorToolDefinition } from '@/editors/editorToolDefinition';
@@ -82,15 +101,90 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
     component: markRaw(MTag),
     ...mTagEditorTool
   },
-  ...Object.fromEntries(
-    Object.entries(pageDslEditorToolEntries).map(([toolName, definition]) => [
-      toolName,
-      {
-        component: markRaw(PageDslBlock),
-        ...definition
-      }
-    ])
-  )
+  [getEditorComponentName(MHeading)]: {
+    component: markRaw(MHeading),
+    ...mHeadingEditorTool
+  },
+  [getEditorComponentName(MRichText)]: {
+    component: markRaw(MRichText),
+    ...mRichTextEditorTool
+  },
+  [getEditorComponentName(MImage)]: {
+    component: markRaw(MImage),
+    ...mImageEditorTool
+  },
+  [getEditorComponentName(MEmbed)]: {
+    component: markRaw(MEmbed),
+    ...mEmbedEditorTool
+  },
+  [getEditorComponentName(MTextField)]: {
+    component: markRaw(MTextField),
+    ...mTextFieldEditorTool
+  },
+  [getEditorComponentName(MEmailField)]: {
+    component: markRaw(MEmailField),
+    ...mEmailFieldEditorTool
+  },
+  [getEditorComponentName(MPhoneField)]: {
+    component: markRaw(MPhoneField),
+    ...mPhoneFieldEditorTool
+  },
+  [getEditorComponentName(MLinkField)]: {
+    component: markRaw(MLinkField),
+    ...mLinkFieldEditorTool
+  },
+  [getEditorComponentName(MTextareaField)]: {
+    component: markRaw(MTextareaField),
+    ...mTextareaFieldEditorTool
+  },
+  [getEditorComponentName(MFileUploadField)]: {
+    component: markRaw(MFileUploadField),
+    ...mFileUploadFieldEditorTool
+  },
+  [getEditorComponentName(MSelectField)]: {
+    component: markRaw(MSelectField),
+    ...mSelectFieldEditorTool
+  },
+  [getEditorComponentName(MRadioGroupField)]: {
+    component: markRaw(MRadioGroupField),
+    ...mRadioGroupFieldEditorTool
+  },
+  [getEditorComponentName(MCheckboxGroupField)]: {
+    component: markRaw(MCheckboxGroupField),
+    ...mCheckboxGroupFieldEditorTool
+  },
+  [getEditorComponentName(MImageChoiceField)]: {
+    component: markRaw(MImageChoiceField),
+    ...mImageChoiceFieldEditorTool
+  },
+  [getEditorComponentName(MRatingField)]: {
+    component: markRaw(MRatingField),
+    ...mRatingFieldEditorTool
+  },
+  [getEditorComponentName(MLinearScaleField)]: {
+    component: markRaw(MLinearScaleField),
+    ...mLinearScaleFieldEditorTool
+  },
+  [getEditorComponentName(MMatrixField)]: {
+    component: markRaw(MMatrixField),
+    ...mMatrixFieldEditorTool
+  },
+  [getEditorComponentName(MPageBreak)]: {
+    component: markRaw(MPageBreak),
+    ...mPageBreakEditorTool
+  },
+  [getEditorComponentName(MThankYouPage)]: {
+    component: markRaw(MThankYouPage),
+    ...mThankYouPageEditorTool
+  },
+  [getEditorComponentName(MResultPage)]: {
+    component: markRaw(MResultPage),
+    ...mResultPageEditorTool
+  },
+  [getEditorComponentName(MButton)]: {
+    component: markRaw(MButton),
+    ...mButtonEditorTool
+  }
 };
 
 // 根据工具名读取工具定义。
