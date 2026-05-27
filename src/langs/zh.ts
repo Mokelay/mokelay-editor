@@ -29,7 +29,19 @@ export const zhMessages = {
   preview: {
     title: '配置预览',
     backToEditor: '返回',
-    emptyState: '暂无页面内容。'
+    emptyState: '暂无页面内容。',
+    modes: {
+      pc: 'PC',
+      h5: 'H5',
+      ios: 'IOS',
+      android: 'Android'
+    },
+    qrCodeAlt: '临时预览二维码',
+    qrCodeLoading: '二维码生成中...',
+    qrCodeFailed: '二维码生成失败，请稍后重试。',
+    qrCodePlaceholder: '当前为临时二维码，移动端上线后将替换为真实入口。',
+    iosQrCode: 'IOS 预览二维码',
+    androidQrCode: 'Android 预览二维码'
   },
   globalCalls: {
     ok: '确定',

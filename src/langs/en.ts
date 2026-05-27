@@ -29,7 +29,19 @@ export const enMessages = {
   preview: {
     title: 'Config Preview',
     backToEditor: 'Back',
-    emptyState: 'No page content yet.'
+    emptyState: 'No page content yet.',
+    modes: {
+      pc: 'PC',
+      h5: 'H5',
+      ios: 'IOS',
+      android: 'Android'
+    },
+    qrCodeAlt: 'Temporary preview QR code',
+    qrCodeLoading: 'Generating QR code...',
+    qrCodeFailed: 'Failed to generate QR code. Please try again later.',
+    qrCodePlaceholder: 'This is a temporary QR code and will be replaced when mobile preview is live.',
+    iosQrCode: 'IOS preview QR code',
+    androidQrCode: 'Android preview QR code'
   },
   globalCalls: {
     ok: 'OK',
