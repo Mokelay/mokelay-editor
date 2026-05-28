@@ -36,12 +36,15 @@ export const zhMessages = {
       ios: 'IOS',
       android: 'Android'
     },
-    qrCodeAlt: '临时预览二维码',
+    qrCodeAlt: '预览二维码',
     qrCodeLoading: '二维码生成中...',
     qrCodeFailed: '二维码生成失败，请稍后重试。',
+    qrCodeUnavailable: '请先保存页面，再生成 iOS 预览二维码。',
     qrCodePlaceholder: '当前为临时二维码，移动端上线后将替换为真实入口。',
     iosQrCode: 'IOS 预览二维码',
-    androidQrCode: 'Android 预览二维码'
+    androidQrCode: 'Android 预览二维码',
+    iosQrCodeDescription: '使用 Mokelay iOS App 扫码打开当前预览页。',
+    androidQrCodeDescription: '当前为临时二维码，Android 端上线后将替换为真实入口。'
   },
   globalCalls: {
     ok: '确定',

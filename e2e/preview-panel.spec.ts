@@ -33,13 +33,16 @@ test('switches between PC, H5, IOS, and Android preview modes', async ({ page })
   await page.getByTestId('preview-mode-ios').click();
   await expect(page.getByTestId('preview-mode-ios')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('preview-app-qrcode')).toBeVisible();
+  const previewPageUrl = await page.evaluate(() => window.location.href);
   await expect(page.getByTestId('preview-qrcode-image')).toHaveAttribute('src', /^data:image\/png/);
+  await expect(page.getByTestId('preview-qrcode-image')).toHaveAttribute('data-qr-value', previewPageUrl);
   await expect(page.getByTestId('preview-qrcode-platform')).toContainText('IOS');
   await expect(page.getByTestId('preview-pc-canvas')).toHaveCount(0);
 
   await page.getByTestId('preview-mode-android').click();
   await expect(page.getByTestId('preview-mode-android')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('preview-qrcode-image')).toHaveAttribute('src', /^data:image\/png/);
+  await expect(page.getByTestId('preview-qrcode-image')).toHaveAttribute('data-qr-value', /^mokelay:\/\/preview\/android\?ticket=/);
   await expect(page.getByTestId('preview-qrcode-platform')).toContainText('Android');
 });
 

@@ -395,6 +395,7 @@ function handlePageCreated(page: MokelayPage) {
         :blocks="pageBlocks"
         :loading="isLoadingPage"
         :error="pageError"
+        :page-uuid="routePageUuid ?? currentPageUuid"
       />
       <div v-else-if="isEditorPage" class="flex flex-1 flex-col gap-4">
         <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">

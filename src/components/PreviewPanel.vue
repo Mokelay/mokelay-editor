@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { OutputData } from '@editorjs/editorjs';
 import QRCode from 'qrcode';
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import MPage from '@/blocks/MPage.vue';
 
@@ -14,12 +14,14 @@ type PreviewPanelProps = {
   blocks?: OutputData['blocks'];
   loading?: boolean;
   error?: string;
+  pageUuid?: string | null;
 };
 
-withDefaults(defineProps<PreviewPanelProps>(), {
+const props = withDefaults(defineProps<PreviewPanelProps>(), {
   blocks: () => [],
   loading: false,
-  error: ''
+  error: '',
+  pageUuid: null
 });
 
 const { t } = useI18n();
@@ -29,11 +31,12 @@ const qrCodeUrls = ref<Record<QrPreviewMode, string>>({
   ios: '',
   android: ''
 });
+const qrCodeValues = ref<Record<QrPreviewMode, string>>({
+  ios: '',
+  android: ''
+});
 
-const temporaryPreviewLinks: Record<QrPreviewMode, string> = {
-  ios: `mokelay://preview/ios?ticket=${createTemporaryTicket()}`,
-  android: `mokelay://preview/android?ticket=${createTemporaryTicket()}`
-};
+const androidTemporaryPreviewLink = `mokelay://preview/android?ticket=${createTemporaryTicket()}`;
 
 const activeQrCodeUrl = computed(() => {
   if (previewMode.value !== 'ios' && previewMode.value !== 'android') {
@@ -43,6 +46,28 @@ const activeQrCodeUrl = computed(() => {
   return qrCodeUrls.value[previewMode.value];
 });
 
+const activeQrCodeValue = computed(() => {
+  if (previewMode.value !== 'ios' && previewMode.value !== 'android') {
+    return '';
+  }
+
+  return qrCodeValues.value[previewMode.value];
+});
+
+const activeQrCodeMessage = computed(() => {
+  if (previewMode.value === 'ios' && !getPageUuid()) {
+    return t('preview.qrCodeUnavailable');
+  }
+
+  return qrCodeError.value || t('preview.qrCodeLoading');
+});
+
+const activeQrCodeDescription = computed(() => (
+  previewMode.value === 'ios'
+    ? t('preview.iosQrCodeDescription')
+    : t('preview.androidQrCodeDescription')
+));
+
 function createTemporaryTicket() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -51,35 +76,79 @@ function setPreviewMode(mode: PreviewMode) {
   previewMode.value = mode;
 }
 
-async function generateTemporaryQrCodes() {
+function getPageUuid() {
+  return props.pageUuid?.trim() ?? '';
+}
+
+function getCurrentPreviewUrl(pageUuid: string) {
+  const url = new URL(window.location.href);
+  url.hash = `/pages/${encodeURIComponent(pageUuid)}/preview`;
+
+  return url.toString();
+}
+
+let qrCodeRequestId = 0;
+
+async function generateQrCodes() {
+  const requestId = qrCodeRequestId + 1;
+  qrCodeRequestId = requestId;
   qrCodeError.value = '';
 
-  try {
-    const [iosQrCodeUrl, androidQrCodeUrl] = await Promise.all([
-      QRCode.toDataURL(temporaryPreviewLinks.ios, {
-        errorCorrectionLevel: 'M',
-        margin: 2,
-        scale: 8
-      }),
-      QRCode.toDataURL(temporaryPreviewLinks.android, {
-        errorCorrectionLevel: 'M',
-        margin: 2,
-        scale: 8
-      })
-    ]);
+  const iosPreviewLink = getPageUuid() ? getCurrentPreviewUrl(getPageUuid()) : '';
+  const qrCodeEntries: Array<[QrPreviewMode, string]> = [
+    ['android', androidTemporaryPreviewLink]
+  ];
 
-    qrCodeUrls.value = {
-      ios: iosQrCodeUrl,
-      android: androidQrCodeUrl
+  if (iosPreviewLink) {
+    qrCodeEntries.push(['ios', iosPreviewLink]);
+  }
+
+  qrCodeValues.value = {
+    ios: iosPreviewLink,
+    android: androidTemporaryPreviewLink
+  };
+
+  try {
+    const generatedQrCodes = await Promise.all(qrCodeEntries.map(async ([mode, value]) => {
+      const dataUrl = await QRCode.toDataURL(value, {
+        errorCorrectionLevel: 'M',
+        margin: 2,
+        scale: 8
+      });
+
+      return [mode, dataUrl] as const;
+    }));
+
+    if (requestId !== qrCodeRequestId) {
+      return;
+    }
+
+    const nextQrCodeUrls: Record<QrPreviewMode, string> = {
+      ios: '',
+      android: ''
     };
+
+    for (const [mode, dataUrl] of generatedQrCodes) {
+      nextQrCodeUrls[mode] = dataUrl;
+    }
+
+    qrCodeUrls.value = nextQrCodeUrls;
   } catch {
+    if (requestId !== qrCodeRequestId) {
+      return;
+    }
+
     qrCodeError.value = t('preview.qrCodeFailed');
   }
 }
 
-onMounted(() => {
-  void generateTemporaryQrCodes();
-});
+watch(
+  () => props.pageUuid,
+  () => {
+    void generateQrCodes();
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -135,16 +204,17 @@ onMounted(() => {
             <img
               v-if="activeQrCodeUrl"
               data-testid="preview-qrcode-image"
+              :data-qr-value="activeQrCodeValue"
               :src="activeQrCodeUrl"
               :alt="t('preview.qrCodeAlt')"
               class="h-full w-full"
             >
-            <span v-else class="text-sm text-slate-500 dark:text-slate-400">{{ qrCodeError || t('preview.qrCodeLoading') }}</span>
+            <span v-else class="text-sm text-slate-500 dark:text-slate-400">{{ activeQrCodeMessage }}</span>
           </div>
           <p data-testid="preview-qrcode-platform" class="mt-4 text-base font-semibold text-slate-950 dark:text-white">
             {{ previewMode === 'ios' ? t('preview.iosQrCode') : t('preview.androidQrCode') }}
           </p>
-          <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{{ t('preview.qrCodePlaceholder') }}</p>
+          <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{{ activeQrCodeDescription }}</p>
         </div>
       </div>
     </div>

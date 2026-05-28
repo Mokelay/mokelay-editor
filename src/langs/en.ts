@@ -36,12 +36,15 @@ export const enMessages = {
       ios: 'IOS',
       android: 'Android'
     },
-    qrCodeAlt: 'Temporary preview QR code',
+    qrCodeAlt: 'Preview QR code',
     qrCodeLoading: 'Generating QR code...',
     qrCodeFailed: 'Failed to generate QR code. Please try again later.',
+    qrCodeUnavailable: 'Save the page before generating an iOS preview QR code.',
     qrCodePlaceholder: 'This is a temporary QR code and will be replaced when mobile preview is live.',
     iosQrCode: 'IOS preview QR code',
-    androidQrCode: 'Android preview QR code'
+    androidQrCode: 'Android preview QR code',
+    iosQrCodeDescription: 'Scan with the Mokelay iOS app to open the current preview page.',
+    androidQrCodeDescription: 'This is a temporary QR code and will be replaced when Android preview is live.'
   },
   globalCalls: {
     ok: 'OK',
