@@ -1,15 +1,33 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue';
+import '@vue-flow/core/dist/style.css';
+import '@vue-flow/core/dist/theme-default.css';
+import {
+  Handle,
+  MarkerType,
+  Position,
+  VueFlow,
+  type Connection,
+  type Edge,
+  type Node
+} from '@vue-flow/core';
 import { runDryApiTest, createRequestSnapshot } from '@/api-builder/dryRun';
 import {
   blockDefinitions,
   cloneValue,
+  controllerDefinitions,
   conditionTypes,
   createBlock,
+  createController,
   createEmptyApiJson,
+  createStarterBlock,
   declarationKey,
   getBlockDefinition,
+  getControllerDefinition,
   getProcessorDefinition,
+  isControllerBlock,
+  isStandardBlock,
+  isStarterBlock,
   normalizeTemplateOptions,
   processorDefinitions,
   processorName,
@@ -30,10 +48,15 @@ import type {
   ApiBlock,
   ApiBuilderDraft,
   ApiJson,
+  ApiController,
+  ApiStandardBlock,
   BlockFunctionName,
   BuilderSelection,
   Condition,
+  ControllerFunctionName,
+  ControllerNode,
   DryRunResult,
+  ExecutableApiBlock,
   ProcessableKey,
   ProcessorConfig,
   RequestLocation,
@@ -54,6 +77,7 @@ const activeDraftId = ref(props.routeUuid || '');
 const selection = ref<BuilderSelection>({ type: 'api' });
 const bottomTab = ref<'json' | 'validation' | 'test'>('json');
 const draggedBlockUuid = ref('');
+const nodePositions = ref<Record<string, { x: number; y: number }>>({});
 const apiBuilderError = ref('');
 const isApiListLoading = ref(false);
 const isApiDetailLoading = ref(false);
@@ -84,11 +108,17 @@ const templateOptions = reactive({
 const activeDraft = computed(() => drafts.value.find((draft) => draft.id === activeDraftId.value) ?? null);
 const activeApiJson = computed(() => activeDraft.value ? generateApiJson(activeDraft.value) : null);
 const validationIssues = computed(() => activeApiJson.value ? validateApiJson(activeApiJson.value) : []);
+const activeBlocks = computed(() => activeDraft.value?.apiJson.blocks ?? []);
+const starterBlock = computed(() => activeBlocks.value.find(isStarterBlock) ?? null);
+const executableBlocks = computed(() => activeBlocks.value.filter((block): block is ExecutableApiBlock => !isStarterBlock(block)));
 const activeBlock = computed(() => {
   const currentSelection = selection.value;
   if (!activeDraft.value || currentSelection.type !== 'block') return null;
-  return activeDraft.value.apiJson.blocks?.find((block) => block.uuid === currentSelection.uuid) ?? null;
+  const block = activeDraft.value.apiJson.blocks?.find((item) => item.uuid === currentSelection.uuid);
+  return block && !isStarterBlock(block) ? block : null;
 });
+const activeStandardBlock = computed(() => activeBlock.value && isStandardBlock(activeBlock.value) ? activeBlock.value : null);
+const activeController = computed(() => activeBlock.value && isControllerBlock(activeBlock.value) ? activeBlock.value : null);
 const variableOptions = computed(() => {
   if (!activeDraft.value) return [];
   const beforeBlockUuid = selection.value.type === 'block' ? selection.value.uuid : undefined;
@@ -101,6 +131,9 @@ const groupedBlocks = computed(() => ({
   write: blockDefinitions.filter((definition) => definition.group === 'write'),
   session: blockDefinitions.filter((definition) => definition.group === 'session')
 }));
+const groupedControllers = computed(() => controllerDefinitions);
+const graphNodes = computed<Node[]>(() => buildGraphNodes());
+const graphEdges = computed<Edge[]>(() => buildGraphEdges());
 const apiUuidPattern = /^[A-Za-z0-9_-]{1,128}$/;
 
 watch(
@@ -130,6 +163,82 @@ watch(
 );
 
 void refreshApiList();
+
+function buildGraphNodes(): Node[] {
+  if (!activeDraft.value) return [];
+
+  const blocks = activeDraft.value.apiJson.blocks ?? [];
+  const starter = blocks.find(isStarterBlock);
+  const nodes: Node[] = [];
+
+  nodes.push({
+    id: 'starter',
+    type: 'starterNode',
+    position: nodePositions.value.starter ?? { x: 40, y: 190 },
+    data: {
+      label: 'Starter',
+      nextBlock: starter?.nextBlock ?? null
+    },
+    draggable: false,
+    selectable: true
+  });
+
+  executableBlocks.value.forEach((block, index) => {
+    const column = Math.floor(index / 4);
+    const row = index % 4;
+    nodes.push({
+      id: block.uuid,
+      type: isControllerBlock(block) ? 'controllerNode' : 'blockNode',
+      position: nodePositions.value[block.uuid] ?? {
+        x: 190 + column * 210,
+        y: 50 + row * 150
+      },
+      data: {
+        block,
+        disabled: isBlockDisabled(block),
+        selected: selection.value.type === 'block' && selection.value.uuid === block.uuid
+      }
+    });
+  });
+
+  return nodes;
+}
+
+function buildGraphEdges(): Edge[] {
+  const blocks = activeDraft.value?.apiJson.blocks ?? [];
+  const edges: Edge[] = [];
+  const addEdge = (source: string, sourceHandle: string, target: string | null | undefined, label?: string) => {
+    if (!target) return;
+    edges.push({
+      id: `${source}:${sourceHandle}->${target}`,
+      source,
+      sourceHandle,
+      target,
+      label,
+      type: 'smoothstep',
+      animated: false,
+      markerEnd: MarkerType.ArrowClosed
+    });
+  };
+
+  for (const block of blocks) {
+    if (isStarterBlock(block)) {
+      addEdge('starter', 'next', block.nextBlock, 'start');
+      continue;
+    }
+
+    if (isControllerBlock(block)) {
+      for (const node of block.nodes) {
+        addEdge(block.uuid, node.uuid, node.nextBlock, nodeLabel(node));
+      }
+      continue;
+    }
+
+    addEdge(block.uuid, 'next', block.nextBlock);
+  }
+
+  return edges;
+}
 
 function draftFromApiRecord(record: MokelayApiRecord, currentDraft?: ApiBuilderDraft | null): ApiBuilderDraft {
   const apiJson = record.apiJson ?? currentDraft?.apiJson ?? {
@@ -472,28 +581,96 @@ async function publishApi() {
 
 function addBlock(functionName: BlockFunctionName) {
   if (!activeDraft.value) return;
+  ensureStarterBlock();
   const block = createBlock(functionName);
   activeDraft.value.apiJson.blocks = [...(activeDraft.value.apiJson.blocks ?? []), block];
+  attachNewBlockToOpenSource(block.uuid);
   selection.value = { type: 'block', uuid: block.uuid };
   nextTick(() => {
     document.querySelector(`[data-block-uuid="${block.uuid}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   });
 }
 
+function addController(functionName: ControllerFunctionName) {
+  if (!activeDraft.value) return;
+  ensureStarterBlock();
+  const controller = createController(functionName);
+  activeDraft.value.apiJson.blocks = [...(activeDraft.value.apiJson.blocks ?? []), controller];
+  attachNewBlockToOpenSource(controller.uuid);
+  selection.value = { type: 'block', uuid: controller.uuid };
+}
+
+function ensureStarterBlock() {
+  if (!activeDraft.value) return null;
+  activeDraft.value.apiJson.blocks ??= [];
+  const starter = activeDraft.value.apiJson.blocks.find(isStarterBlock);
+  if (starter) {
+    return starter;
+  }
+
+  const nextStarter = createStarterBlock();
+  activeDraft.value.apiJson.blocks = [nextStarter, ...activeDraft.value.apiJson.blocks];
+  return nextStarter;
+}
+
+function attachNewBlockToOpenSource(uuid: string) {
+  const source = findAutoConnectSource(uuid);
+  if (!source) return;
+  setNextBlock(source.uuid, source.handle, uuid);
+}
+
+function findAutoConnectSource(excludeUuid = '') {
+  const starter = starterBlock.value;
+  if (starter && starter.nextBlock == null) {
+    return { uuid: 'starter', handle: 'next' };
+  }
+
+  if (selection.value.type === 'starter' && starter && starter.nextBlock == null) {
+    return { uuid: 'starter', handle: 'next' };
+  }
+
+  if (selection.value.type === 'block') {
+    const selectedUuid = selection.value.uuid;
+    const selected = executableBlocks.value.find((block) => block.uuid === selectedUuid);
+    if (selected && isStandardBlock(selected) && selected.nextBlock == null) {
+      return { uuid: selected.uuid, handle: 'next' };
+    }
+  }
+
+  const terminal = [...executableBlocks.value]
+    .reverse()
+    .find((block) => block.uuid !== excludeUuid && isStandardBlock(block) && block.nextBlock == null);
+  return terminal ? { uuid: terminal.uuid, handle: 'next' } : null;
+}
+
 function duplicateBlock(block: ApiBlock) {
   if (!activeDraft.value) return;
+  if (isStarterBlock(block)) return;
   const copy = cloneValue(block);
   copy.uuid = `${block.uuid}_copy`;
   copy.alias = `${block.alias || block.uuid} 副本`;
+  if (isControllerBlock(copy)) {
+    delete copy.nextBlock;
+    copy.nodes = copy.nodes.map((node) => ({
+      ...node,
+      uuid: `${node.uuid}_copy`,
+      nextBlock: null
+    }));
+  } else {
+    copy.nextBlock = null;
+  }
   const blocks = activeDraft.value.apiJson.blocks ?? [];
   const index = blocks.findIndex((item) => item.uuid === block.uuid);
   blocks.splice(index + 1, 0, copy);
+  attachNewBlockToOpenSource(copy.uuid);
   selection.value = { type: 'block', uuid: copy.uuid };
 }
 
 function removeBlock(block: ApiBlock) {
   if (!activeDraft.value) return;
+  if (isStarterBlock(block)) return;
   activeDraft.value.apiJson.blocks = (activeDraft.value.apiJson.blocks ?? []).filter((item) => item.uuid !== block.uuid);
+  clearReferencesToBlock(block.uuid);
   activeDraft.value.disabledBlockIds = activeDraft.value.disabledBlockIds.filter((uuid) => uuid !== block.uuid);
   selection.value = { type: 'api' };
 }
@@ -505,12 +682,74 @@ function toggleBlockDisabled(block: ApiBlock) {
     disabled.delete(block.uuid);
   } else {
     disabled.add(block.uuid);
+    clearReferencesToBlock(block.uuid);
   }
   activeDraft.value.disabledBlockIds = Array.from(disabled);
 }
 
 function isBlockDisabled(block: ApiBlock) {
+  if (isStarterBlock(block)) return false;
   return activeDraft.value?.disabledBlockIds.includes(block.uuid) ?? false;
+}
+
+function setNextBlock(sourceUuid: string, sourceHandle: string | null | undefined, targetUuid: string | null) {
+  if (!activeDraft.value) return;
+  if (sourceUuid === 'starter') {
+    ensureStarterBlock();
+  }
+  const blocks = activeDraft.value.apiJson.blocks ?? [];
+  const source = sourceUuid === 'starter'
+    ? blocks.find(isStarterBlock)
+    : blocks.find((block) => block.uuid === sourceUuid);
+
+  if (!source) return;
+  if (targetUuid === 'starter') return;
+  if (targetUuid && !blocks.some((block) => block.uuid === targetUuid && !isStarterBlock(block))) return;
+
+  if (isStarterBlock(source)) {
+    source.nextBlock = targetUuid;
+    return;
+  }
+
+  if (isControllerBlock(source)) {
+    const node = source.nodes.find((item) => item.uuid === sourceHandle);
+    if (node) {
+      node.nextBlock = targetUuid;
+    }
+    return;
+  }
+
+  source.nextBlock = targetUuid;
+}
+
+function clearReferencesToBlock(uuid: string) {
+  if (!activeDraft.value) return;
+  for (const block of activeDraft.value.apiJson.blocks ?? []) {
+    if (isStarterBlock(block)) {
+      if (block.nextBlock === uuid) block.nextBlock = null;
+      continue;
+    }
+
+    if (isControllerBlock(block)) {
+      for (const node of block.nodes) {
+        if (node.nextBlock === uuid) node.nextBlock = null;
+      }
+      continue;
+    }
+
+    if (block.nextBlock === uuid) {
+      block.nextBlock = null;
+    }
+  }
+}
+
+function executableTargetOptions(excludeUuid = '') {
+  return executableBlocks.value
+    .filter((block) => block.uuid !== excludeUuid)
+    .map((block) => ({
+      uuid: block.uuid,
+      label: `${block.alias || block.uuid} (${block.uuid})`
+    }));
 }
 
 function onBlockDragStart(block: ApiBlock) {
@@ -529,7 +768,39 @@ function onBlockDrop(targetBlock: ApiBlock) {
 }
 
 function selectBlock(block: ApiBlock) {
-  selection.value = { type: 'block', uuid: block.uuid };
+  selection.value = isStarterBlock(block) ? { type: 'starter' } : { type: 'block', uuid: block.uuid };
+}
+
+function selectGraphNode(uuid: string) {
+  selection.value = uuid === 'starter' ? { type: 'starter' } : { type: 'block', uuid };
+}
+
+function onFlowConnect(connection: Connection) {
+  if (!connection.source || !connection.target) return;
+  setNextBlock(connection.source, connection.sourceHandle, connection.target);
+}
+
+function onFlowEdgeClick(event: { edge?: Edge }) {
+  const edge = event.edge;
+  if (!edge) return;
+  setNextBlock(edge.source, edge.sourceHandle, null);
+}
+
+function onFlowNodeClick(event: { node?: Node }) {
+  if (!event.node?.id) return;
+  selectGraphNode(event.node.id);
+}
+
+function onFlowNodeDragStop(event: { node?: Node }) {
+  const node = event.node;
+  if (!node?.id || !node.position) return;
+  nodePositions.value = {
+    ...nodePositions.value,
+    [node.id]: {
+      x: node.position.x,
+      y: node.position.y
+    }
+  };
 }
 
 function issueCount(severity: ValidationIssue['severity']) {
@@ -541,7 +812,8 @@ function selectIssue(issue: ValidationIssue) {
     selection.value = { type: issue.target };
     return;
   }
-  selection.value = { type: 'block', uuid: issue.target.replace(/^block:/, '') };
+  const uuid = issue.target.replace(/^block:/, '');
+  selection.value = uuid === 'starter' ? { type: 'starter' } : { type: 'block', uuid };
 }
 
 function getRequestList(location: RequestLocation) {
@@ -628,6 +900,7 @@ function ensureRequest() {
 
 function blockInputs(block: ApiBlock | null = activeBlock.value) {
   if (!block) return {};
+  if (isStarterBlock(block)) return {};
   block.inputs ??= {};
   return block.inputs;
 }
@@ -635,6 +908,101 @@ function blockInputs(block: ApiBlock | null = activeBlock.value) {
 function updateBlockInput(key: string, value: unknown) {
   if (!activeBlock.value) return;
   blockInputs()[key] = value;
+}
+
+function updateActiveBlockUuid(value: string) {
+  if (!activeBlock.value) return;
+  const previous = activeBlock.value.uuid;
+  const next = value.trim();
+  activeBlock.value.uuid = next;
+  if (!previous || previous === next) return;
+
+  for (const block of activeDraft.value?.apiJson.blocks ?? []) {
+    if (isStarterBlock(block)) {
+      if (block.nextBlock === previous) block.nextBlock = next;
+      continue;
+    }
+    if (isControllerBlock(block)) {
+      for (const node of block.nodes) {
+        if (node.nextBlock === previous) node.nextBlock = next;
+      }
+      continue;
+    }
+    if (block.nextBlock === previous) block.nextBlock = next;
+  }
+
+  if (nodePositions.value[previous]) {
+    nodePositions.value = {
+      ...nodePositions.value,
+      [next]: nodePositions.value[previous]
+    };
+    delete nodePositions.value[previous];
+  }
+  selection.value = { type: 'block', uuid: next };
+}
+
+function nodeLabel(node: ControllerNode) {
+  if (node.type === 'DEFAULT') return node.alias || 'DEFAULT';
+  if (typeof node.value === 'boolean') return node.value ? 'true' : 'false';
+  return node.alias || String(node.value ?? 'case');
+}
+
+function addSwitchCase(controller: ApiController) {
+  if (controller.functionName !== 'switch_controller') return;
+  const index = controller.nodes.length + 1;
+  controller.nodes.push({
+    uuid: `${controller.uuid}_case_${index}`,
+    alias: `Case ${index}`,
+    value: defaultSwitchNodeValue(controller),
+    nextBlock: null
+  });
+}
+
+function addSwitchDefault(controller: ApiController) {
+  if (controller.functionName !== 'switch_controller') return;
+  controller.nodes.push({
+    uuid: `${controller.uuid}_default_${controller.nodes.length + 1}`,
+    alias: 'Default',
+    type: 'DEFAULT',
+    nextBlock: null
+  });
+}
+
+function removeControllerNode(controller: ApiController, index: number) {
+  if (controller.functionName === 'if_controller') return;
+  controller.nodes.splice(index, 1);
+}
+
+function updateControllerNodeType(node: ControllerNode, type: 'CASE' | 'DEFAULT', controller: ApiController) {
+  if (type === 'DEFAULT') {
+    node.type = 'DEFAULT';
+    delete node.value;
+    return;
+  }
+
+  delete node.type;
+  if (node.value === undefined) {
+    node.value = defaultSwitchNodeValue(controller);
+  }
+}
+
+function defaultSwitchNodeValue(controller: ApiController) {
+  const dataType = controller.inputs?.dataType;
+  if (dataType === 'number') return 1;
+  if (dataType === 'boolean') return true;
+  return 'published';
+}
+
+function parseControllerNodeValue(value: string, controller: ApiController) {
+  const dataType = controller.inputs?.dataType;
+  if (dataType === 'number') {
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? numberValue : 0;
+  }
+  if (dataType === 'boolean') {
+    return value === 'true';
+  }
+  return value;
 }
 
 function stringInput(key: string) {
@@ -1029,13 +1397,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               </button>
             </div>
           </div>
+
+          <div>
+            <h3 class="text-sm font-semibold text-slate-900 dark:text-white">控制器</h3>
+            <div class="mt-2 grid gap-2">
+              <button v-for="controller in groupedControllers" :key="controller.functionName" class="builder-palette-button" @click="addController(controller.functionName)">
+                <span>{{ controller.title }}</span>
+                <small>{{ controller.description }}</small>
+              </button>
+            </div>
+          </div>
         </aside>
 
         <main class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <h3 class="text-base font-semibold text-slate-950 dark:text-white">编排步骤</h3>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">按顺序执行。拖动步骤卡片可以排序。</p>
+              <h3 class="text-base font-semibold text-slate-950 dark:text-white">编排画布</h3>
+              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">从 starter 开始，通过连线决定 block 和 controller 的执行流。</p>
             </div>
             <div class="flex items-center gap-2 text-xs">
               <span class="rounded-md bg-rose-100 px-2 py-1 font-semibold text-rose-700 dark:bg-rose-500/20 dark:text-rose-100">{{ issueCount('error') }} 错误</span>
@@ -1043,50 +1421,73 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             </div>
           </div>
 
-          <div class="mt-4 space-y-3">
-            <button class="w-full rounded-lg border border-dashed border-slate-300 px-4 py-5 text-sm font-medium text-slate-500 hover:border-teal-400 hover:bg-teal-50 dark:border-slate-700 dark:text-slate-400 dark:hover:border-teal-500 dark:hover:bg-teal-500/10" v-if="!activeDraft.apiJson.blocks?.length" @click="addBlock('read')">
-              添加第一个步骤
-            </button>
-
-            <article
-              v-for="(block, index) in activeDraft.apiJson.blocks"
-              :key="block.uuid"
-              :data-block-uuid="block.uuid"
-              draggable="true"
-              class="rounded-xl border p-4 transition"
-              :class="[
-                selection.type === 'block' && selection.uuid === block.uuid ? 'border-teal-400 bg-teal-50/70 dark:border-teal-400 dark:bg-teal-500/10' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50',
-                isBlockDisabled(block) ? 'opacity-55' : ''
-              ]"
-              @click="selectBlock(block)"
-              @dragstart="onBlockDragStart(block)"
-              @dragover.prevent
-              @drop="onBlockDrop(block)"
+          <div class="mt-4 h-[560px] overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950">
+            <VueFlow
+              :nodes="graphNodes"
+              :edges="graphEdges"
+              :fit-view-on-init="false"
+              :default-viewport="{ zoom: 0.72, x: 0, y: 0 }"
+              :min-zoom="0.4"
+              :max-zoom="1"
+              class="api-flow"
+              @connect="onFlowConnect"
+              @edge-click="onFlowEdgeClick"
+              @node-click="onFlowNodeClick"
+              @node-drag-stop="onFlowNodeDragStop"
             >
-              <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white dark:bg-white dark:text-slate-950">{{ index + 1 }}</span>
-                    <h4 class="font-semibold text-slate-950 dark:text-white">{{ block.alias || getBlockDefinition(block.functionName)?.title || block.functionName }}</h4>
-                    <span class="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700">{{ block.functionName }}</span>
-                    <span v-if="isBlockDisabled(block)" class="rounded-md bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">已禁用</span>
+              <template #node-starterNode="{ data }">
+                <div class="flow-node flow-node-starter" data-testid="api-flow-starter">
+                  <Handle id="next" type="source" :position="Position.Right" />
+                  <p class="text-xs font-semibold uppercase text-teal-700 dark:text-teal-200">Starter</p>
+                  <h4 class="mt-1 font-semibold text-slate-950 dark:text-white">流程入口</h4>
+                  <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">nextBlock: {{ data.nextBlock || 'null' }}</p>
+                </div>
+              </template>
+
+              <template #node-blockNode="{ data }">
+                <div
+                  class="flow-node"
+                  :class="[
+                    data.selected ? 'flow-node-selected' : '',
+                    data.disabled ? 'opacity-55' : ''
+                  ]"
+                  :data-block-uuid="data.block.uuid"
+                >
+                  <Handle type="target" :position="Position.Left" />
+                  <Handle id="next" type="source" :position="Position.Right" />
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{{ data.block.functionName }}</p>
+                      <h4 class="mt-1 truncate font-semibold text-slate-950 dark:text-white">{{ data.block.alias || getBlockDefinition(data.block.functionName)?.title || data.block.functionName }}</h4>
+                      <p class="mt-1 truncate font-mono text-xs text-slate-500 dark:text-slate-400">{{ data.block.uuid }}</p>
+                    </div>
+                    <span v-if="data.disabled" class="rounded-md bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">禁用</span>
                   </div>
-                  <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                    {{ block.uuid }} · {{ (block.outputs || []).map(declarationKey).join(', ') || '无输出' }}
-                  </p>
+                  <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">输出：{{ (data.block.outputs || []).map(declarationKey).join(', ') || '-' }}</p>
                 </div>
-                <div class="flex flex-wrap gap-1">
-                  <button class="builder-icon-button" @click.stop="toggleBlockDisabled(block)">{{ isBlockDisabled(block) ? '启用' : '禁用' }}</button>
-                  <button class="builder-icon-button" @click.stop="duplicateBlock(block)">复制</button>
-                  <button class="builder-icon-button text-rose-700 dark:text-rose-200" @click.stop="removeBlock(block)">删除</button>
+              </template>
+
+              <template #node-controllerNode="{ data }">
+                <div class="flow-node flow-node-controller" :class="{ 'flow-node-selected': data.selected }" :data-block-uuid="data.block.uuid">
+                  <Handle type="target" :position="Position.Left" />
+                  <div
+                    v-for="(node, index) in data.block.nodes"
+                    :key="node.uuid"
+                    class="flow-branch-handle"
+                    :style="{ top: `${28 + index * 28}px` }"
+                  >
+                    <span>{{ nodeLabel(node) }}</span>
+                    <Handle :id="node.uuid" type="source" :position="Position.Right" />
+                  </div>
+                  <p class="text-xs font-semibold text-violet-700 dark:text-violet-200">{{ getControllerDefinition(data.block.functionName)?.shortTitle || data.block.functionName }}</p>
+                  <h4 class="mt-1 truncate font-semibold text-slate-950 dark:text-white">{{ data.block.alias || getControllerDefinition(data.block.functionName)?.title || data.block.functionName }}</h4>
+                  <p class="mt-1 truncate font-mono text-xs text-slate-500 dark:text-slate-400">{{ data.block.uuid }}</p>
+                  <div class="mt-3 space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                    <p v-for="node in data.block.nodes" :key="node.uuid">{{ nodeLabel(node) }} -> {{ node.nextBlock || 'null' }}</p>
+                  </div>
                 </div>
-              </div>
-              <div class="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-                <div class="rounded-lg bg-white p-2 text-slate-600 dark:bg-slate-900 dark:text-slate-300">数据源：{{ isRecord(block.inputs) ? block.inputs.datasource || '-' : '-' }}</div>
-                <div class="rounded-lg bg-white p-2 text-slate-600 dark:bg-slate-900 dark:text-slate-300">表：{{ isRecord(block.inputs) ? block.inputs.table || '-' : '-' }}</div>
-                <div class="rounded-lg bg-white p-2 text-slate-600 dark:bg-slate-900 dark:text-slate-300">输出：{{ (block.outputs || []).map(declarationKey).join(', ') || '-' }}</div>
-              </div>
-            </article>
+              </template>
+            </VueFlow>
           </div>
         </main>
 
@@ -1171,23 +1572,47 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             </div>
           </template>
 
-          <template v-else-if="activeBlock">
+          <template v-else-if="selection.type === 'starter'">
+            <h3 class="text-base font-semibold text-slate-950 dark:text-white">Starter Block</h3>
+            <div class="mt-4 space-y-3">
+              <label class="builder-field">
+                <span>UUID</span>
+                <input value="starter" class="builder-input font-mono" disabled>
+              </label>
+              <label class="builder-field">
+                <span>下一个节点</span>
+                <select class="builder-input" :value="starterBlock?.nextBlock ?? ''" @change="setNextBlock('starter', 'next', ($event.target as HTMLSelectElement).value || null)">
+                  <option value="">null</option>
+                  <option v-for="option in executableTargetOptions()" :key="option.uuid" :value="option.uuid">{{ option.label }}</option>
+                </select>
+              </label>
+            </div>
+          </template>
+
+          <template v-else-if="activeStandardBlock">
             <h3 class="text-base font-semibold text-slate-950 dark:text-white">步骤配置</h3>
             <div class="mt-4 space-y-3">
               <label class="builder-field">
                 <span>业务名称</span>
-                <input v-model="activeBlock.alias" class="builder-input">
+                <input v-model="activeStandardBlock.alias" class="builder-input">
               </label>
               <label class="builder-field">
                 <span>Block UUID</span>
-                <input v-model="activeBlock.uuid" class="builder-input font-mono">
+                <input :value="activeStandardBlock.uuid" class="builder-input font-mono" @input="updateActiveBlockUuid(($event.target as HTMLInputElement).value)">
               </label>
               <label class="builder-field">
                 <span>类型</span>
-                <input :value="getBlockDefinition(activeBlock.functionName)?.title || activeBlock.functionName" class="builder-input" disabled>
+                <input :value="getBlockDefinition(activeStandardBlock.functionName)?.title || activeStandardBlock.functionName" class="builder-input" disabled>
+              </label>
+              <label class="builder-field">
+                <span>下一个节点</span>
+                <select class="builder-input" :value="activeStandardBlock.nextBlock ?? ''" @change="setNextBlock(activeStandardBlock.uuid, 'next', ($event.target as HTMLSelectElement).value || null)">
+                  <option value="">null</option>
+                  <option v-for="option in executableTargetOptions(activeStandardBlock.uuid)" :key="option.uuid" :value="option.uuid">{{ option.label }}</option>
+                </select>
               </label>
 
-              <template v-if="['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update'].includes(activeBlock.functionName)">
+              <template v-if="['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update'].includes(activeStandardBlock.functionName)">
                 <label class="builder-field">
                   <span>数据源</span>
                   <input class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
@@ -1198,14 +1623,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 </label>
               </template>
 
-              <template v-if="['list', 'page', 'read'].includes(activeBlock.functionName)">
+              <template v-if="['list', 'page', 'read'].includes(activeStandardBlock.functionName)">
                 <label class="builder-field">
                   <span>查询字段</span>
                   <input class="builder-input" :value="arrayInput('fields')" placeholder="id, name, email" @input="updateArrayInput('fields', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
 
-              <template v-if="activeBlock.functionName === 'page'">
+              <template v-if="activeStandardBlock.functionName === 'page'">
                 <div class="grid grid-cols-2 gap-2">
                   <label class="builder-field">
                     <span>页码</span>
@@ -1218,14 +1643,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 </div>
               </template>
 
-              <template v-if="['create', 'upsert'].includes(activeBlock.functionName)">
+              <template v-if="['create', 'upsert'].includes(activeStandardBlock.functionName)">
                 <label class="builder-field">
                   <span>ID 字段</span>
                   <input class="builder-input" :value="stringInput('idField')" @input="updateBlockInput('idField', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
 
-              <template v-if="['create', 'upsert', 'update'].includes(activeBlock.functionName)">
+              <template v-if="['create', 'upsert', 'update'].includes(activeStandardBlock.functionName)">
                 <div>
                   <div class="mb-2 flex items-center justify-between">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white">写入字段</h4>
@@ -1245,7 +1670,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 </div>
               </template>
 
-              <template v-if="['list', 'page', 'count', 'read', 'delete', 'update'].includes(activeBlock.functionName)">
+              <template v-if="['list', 'page', 'count', 'read', 'delete', 'update'].includes(activeStandardBlock.functionName)">
                 <div>
                   <div class="mb-2 flex items-center justify-between">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white">条件</h4>
@@ -1285,7 +1710,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 </div>
               </template>
 
-              <template v-if="['list', 'page'].includes(activeBlock.functionName)">
+              <template v-if="['list', 'page'].includes(activeStandardBlock.functionName)">
                 <div>
                   <div class="mb-2 flex items-center justify-between">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white">排序</h4>
@@ -1304,13 +1729,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 </div>
               </template>
 
-              <template v-if="['addSession', 'removeSession', 'readSession'].includes(activeBlock.functionName)">
+              <template v-if="['addSession', 'removeSession', 'readSession'].includes(activeStandardBlock.functionName)">
                 <label class="builder-field">
                   <span>Session key</span>
                   <input class="builder-input" :value="stringInput('key')" @input="updateBlockInput('key', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
-              <template v-if="activeBlock.functionName === 'addSession'">
+              <template v-if="activeStandardBlock.functionName === 'addSession'">
                 <label class="builder-field">
                   <span>Session value</span>
                   <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().value)" @input="updateBlockInput('value', parseLooseValue(($event.target as HTMLInputElement).value))">
@@ -1320,6 +1745,95 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                   <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                 </select>
               </template>
+              <div class="flex gap-1">
+                <button class="builder-icon-button" @click="toggleBlockDisabled(activeStandardBlock)">{{ isBlockDisabled(activeStandardBlock) ? '启用' : '禁用' }}</button>
+                <button class="builder-icon-button" @click="duplicateBlock(activeStandardBlock)">复制</button>
+                <button class="builder-icon-button text-rose-700 dark:text-rose-200" @click="removeBlock(activeStandardBlock)">删除</button>
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="activeController">
+            <h3 class="text-base font-semibold text-slate-950 dark:text-white">控制器配置</h3>
+            <div class="mt-4 space-y-3">
+              <label class="builder-field">
+                <span>业务名称</span>
+                <input v-model="activeController.alias" class="builder-input">
+              </label>
+              <label class="builder-field">
+                <span>Controller UUID</span>
+                <input :value="activeController.uuid" class="builder-input font-mono" @input="updateActiveBlockUuid(($event.target as HTMLInputElement).value)">
+              </label>
+              <label class="builder-field">
+                <span>类型</span>
+                <input :value="getControllerDefinition(activeController.functionName)?.title || activeController.functionName" class="builder-input" disabled>
+              </label>
+              <label class="builder-field">
+                <span>inputs.value</span>
+                <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().value)" @input="updateBlockInput('value', parseLooseValue(($event.target as HTMLInputElement).value))">
+              </label>
+              <select class="builder-input" @change="setTemplateValue((next) => updateBlockInput('value', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                <option value="">选择变量</option>
+                <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
+              </select>
+
+              <label v-if="activeController.functionName === 'switch_controller'" class="builder-field">
+                <span>inputs.dataType</span>
+                <select class="builder-input" :value="String(blockInputs().dataType || 'string')" @change="updateBlockInput('dataType', ($event.target as HTMLSelectElement).value)">
+                  <option value="string">string</option>
+                  <option value="number">number</option>
+                  <option value="boolean">boolean</option>
+                </select>
+              </label>
+
+              <div>
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <h4 class="text-sm font-semibold text-slate-900 dark:text-white">分支节点</h4>
+                  <div v-if="activeController.functionName === 'switch_controller'" class="flex gap-1">
+                    <button class="builder-small-button" @click="addSwitchCase(activeController)">添加 Case</button>
+                    <button class="builder-small-button" @click="addSwitchDefault(activeController)">添加 DEFAULT</button>
+                  </div>
+                </div>
+                <div class="space-y-2">
+                  <div v-for="(node, index) in activeController.nodes" :key="node.uuid" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                    <div class="grid gap-2">
+                      <label class="builder-field">
+                        <span>Node UUID</span>
+                        <input v-model="node.uuid" class="builder-input font-mono">
+                      </label>
+                      <label class="builder-field">
+                        <span>别名</span>
+                        <input v-model="node.alias" class="builder-input">
+                      </label>
+                      <label v-if="activeController.functionName === 'switch_controller'" class="builder-field">
+                        <span>类型</span>
+                        <select class="builder-input" :value="node.type === 'DEFAULT' ? 'DEFAULT' : 'CASE'" @change="updateControllerNodeType(node, ($event.target as HTMLSelectElement).value as 'CASE' | 'DEFAULT', activeController)">
+                          <option value="CASE">CASE</option>
+                          <option value="DEFAULT">DEFAULT</option>
+                        </select>
+                      </label>
+                      <label v-if="node.type !== 'DEFAULT'" class="builder-field">
+                        <span>value</span>
+                        <input class="builder-input font-mono text-xs" :value="String(node.value ?? '')" :disabled="activeController.functionName === 'if_controller'" @input="node.value = parseControllerNodeValue(($event.target as HTMLInputElement).value, activeController)">
+                      </label>
+                      <label class="builder-field">
+                        <span>nextBlock</span>
+                        <select class="builder-input" :value="node.nextBlock ?? ''" @change="node.nextBlock = (($event.target as HTMLSelectElement).value || null)">
+                          <option value="">null</option>
+                          <option v-for="option in executableTargetOptions(activeController.uuid)" :key="option.uuid" :value="option.uuid">{{ option.label }}</option>
+                        </select>
+                      </label>
+                    </div>
+                    <button v-if="activeController.functionName === 'switch_controller'" class="mt-2 text-xs text-rose-600" @click="removeControllerNode(activeController, index)">删除分支</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex gap-1">
+                <button class="builder-icon-button" @click="toggleBlockDisabled(activeController)">{{ isBlockDisabled(activeController) ? '启用' : '禁用' }}</button>
+                <button class="builder-icon-button" @click="duplicateBlock(activeController)">复制</button>
+                <button class="builder-icon-button text-rose-700 dark:text-rose-200" @click="removeBlock(activeController)">删除</button>
+              </div>
             </div>
           </template>
         </aside>
@@ -1501,5 +2015,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 .builder-tab-button-active {
   @apply bg-slate-900 text-white hover:bg-slate-900 dark:bg-white dark:text-slate-950 dark:hover:bg-white;
+}
+
+.api-flow {
+  @apply h-full;
+}
+
+.flow-node {
+  @apply relative w-44 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition dark:border-slate-700 dark:bg-slate-900;
+}
+
+.flow-node-selected {
+  @apply border-teal-400 bg-teal-50 dark:border-teal-400 dark:bg-teal-500/10;
+}
+
+.flow-node-starter {
+  @apply border-teal-300 bg-teal-50 dark:border-teal-500/60 dark:bg-teal-500/10;
+}
+
+.flow-node-controller {
+  @apply border-violet-300 bg-violet-50 dark:border-violet-500/60 dark:bg-violet-500/10;
+}
+
+.flow-branch-handle {
+  @apply absolute right-0 flex translate-x-full items-center gap-2 pr-4 text-xs font-semibold text-slate-500 dark:text-slate-300;
+}
+
+.api-flow :deep(.vue-flow__handle) {
+  @apply h-3 w-3 border-2 border-white bg-teal-500 dark:border-slate-900;
 }
 </style>

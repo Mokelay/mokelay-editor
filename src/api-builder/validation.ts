@@ -1,12 +1,17 @@
 import {
   declarationKey,
   getBlockDefinition,
+  isControllerBlock,
+  isStandardBlock,
+  isStarterBlock,
   processorName,
   supportedOutputKeys
 } from '@/api-builder/registry';
 import type {
   ApiJson,
+  ApiStandardBlock,
   Condition,
+  ControllerNode,
   ProcessableKey,
   ProcessorConfig,
   ValidationIssue
@@ -70,20 +75,92 @@ export function validateApiJson(apiJson: ApiJson): ValidationIssue[] {
   }
 
   const blockUuids = new Set<string>();
+  const executableUuids = new Set<string>();
+  const nodeUuids = new Set<string>();
+  let starterCount = 0;
+
   for (const block of apiJson.blocks ?? []) {
     const target = `block:${block.uuid}` as const;
     if (!block.uuid?.trim()) {
       add('error', 'Block UUID 不能为空。', target);
     }
-    if (blockUuids.has(block.uuid)) {
+    if (blockUuids.has(block.uuid) || nodeUuids.has(block.uuid)) {
       add('error', `Block UUID ${block.uuid} 重复。`, target);
     }
     blockUuids.add(block.uuid);
 
+    if (isStarterBlock(block)) {
+      starterCount += 1;
+      continue;
+    }
+
+    executableUuids.add(block.uuid);
+
+    if (isControllerBlock(block)) {
+      for (const node of block.nodes) {
+        const nodeTarget = `block:${block.uuid}` as const;
+        if (!node.uuid?.trim()) {
+          add('error', 'Controller node UUID 不能为空。', nodeTarget);
+        }
+        if (blockUuids.has(node.uuid) || nodeUuids.has(node.uuid)) {
+          add('error', `UUID ${node.uuid} 重复。`, nodeTarget);
+        }
+        nodeUuids.add(node.uuid);
+      }
+      continue;
+    }
+  }
+
+  if (starterCount !== 1) {
+    add('error', 'API JSON 必须且只能配置一个 uuid 为 starter 的 Starter Block。', 'api');
+  }
+
+  for (const block of apiJson.blocks ?? []) {
+    const target = `block:${block.uuid}` as const;
+
+    if (isStarterBlock(block)) {
+      validateNextBlock(block.uuid, block.nextBlock, executableUuids, nodeUuids, add, target);
+      continue;
+    }
+
+    if (isControllerBlock(block)) {
+      if (Object.prototype.hasOwnProperty.call(block, 'nextBlock')) {
+        add('error', 'Controller 不能配置 nextBlock，请通过 node.nextBlock 连线。', target);
+      }
+      validateController(block.functionName, block.inputs ?? {}, block.nodes, add, target);
+      for (const node of block.nodes) {
+        validateNextBlock(node.uuid, node.nextBlock, executableUuids, nodeUuids, add, target);
+      }
+      continue;
+    }
+
+    validateNextBlock(block.uuid, block.nextBlock, executableUuids, nodeUuids, add, target);
+    validateStandardBlock(block, add, target);
+  }
+
+  validateGraph(apiJson, executableUuids, add);
+  validateTemplateReferences(apiJson, add);
+
+  return issues;
+}
+
+export function hasBlockingErrors(issues: ValidationIssue[]) {
+  return issues.some((issue) => issue.severity === 'error');
+}
+
+export function hasDangerWarnings(issues: ValidationIssue[]) {
+  return issues.some((issue) => issue.severity === 'warning' && /整张表/.test(issue.message));
+}
+
+function validateStandardBlock(
+  block: ApiStandardBlock,
+  add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void,
+  target: ValidationIssue['target']
+) {
     const definition = getBlockDefinition(block.functionName);
     if (!definition) {
       add('error', `不支持的 Block 类型：${block.functionName}。`, target);
-      continue;
+      return;
     }
 
     validateOutputs(block.outputs, block.functionName, add, target);
@@ -148,19 +225,142 @@ export function validateApiJson(apiJson: ApiJson): ValidationIssue[] {
     if (block.functionName === 'addSession' && !Object.prototype.hasOwnProperty.call(inputs, 'value')) {
       add('error', '写入 Session 必须配置 value。', target);
     }
+}
+
+function validateNextBlock(
+  sourceUuid: string,
+  nextBlock: string | null | undefined,
+  executableUuids: Set<string>,
+  nodeUuids: Set<string>,
+  add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void,
+  target: ValidationIssue['target']
+) {
+  if (nextBlock === undefined) {
+    add('error', `${sourceUuid}.nextBlock 缺失。`, target);
+    return;
+  }
+  if (nextBlock === null) return;
+  if (!nextBlock.trim()) {
+    add('error', `${sourceUuid}.nextBlock 不能为空字符串。`, target);
+    return;
+  }
+  if (nextBlock === 'starter') {
+    add('error', `${sourceUuid}.nextBlock 不能指向 starter。`, target);
+    return;
+  }
+  if (nodeUuids.has(nextBlock)) {
+    add('error', `${sourceUuid}.nextBlock 不能指向 Controller node：${nextBlock}。`, target);
+    return;
+  }
+  if (!executableUuids.has(nextBlock)) {
+    add('error', `${sourceUuid}.nextBlock 指向不存在的 block：${nextBlock}。`, target);
+  }
+}
+
+function validateController(
+  functionName: string,
+  inputs: Record<string, unknown>,
+  nodes: ControllerNode[],
+  add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void,
+  target: ValidationIssue['target']
+) {
+  if (functionName !== 'if_controller' && functionName !== 'switch_controller') {
+    add('error', `不支持的 Controller 类型：${functionName}。`, target);
+    return;
   }
 
-  validateTemplateReferences(apiJson, add);
+  if (!Object.prototype.hasOwnProperty.call(inputs, 'value')) {
+    add('error', 'Controller inputs.value 不能为空。', target);
+  }
 
-  return issues;
+  if (!nodes.length) {
+    add('error', 'Controller nodes 不能为空。', target);
+    return;
+  }
+
+  if (functionName === 'if_controller') {
+    const trueNodes = nodes.filter((node) => node.value === true);
+    const falseNodes = nodes.filter((node) => node.value === false);
+    const unsupportedNodes = nodes.filter((node) => node.type === 'DEFAULT' || typeof node.value !== 'boolean');
+    if (trueNodes.length !== 1 || falseNodes.length !== 1 || unsupportedNodes.length > 0) {
+      add('error', 'if_controller 必须且只能配置一个 value=true node 和一个 value=false node。', target);
+    }
+    return;
+  }
+
+  const dataType = inputs.dataType;
+  if (dataType !== 'string' && dataType !== 'number' && dataType !== 'boolean') {
+    add('error', 'switch_controller inputs.dataType 必须是 string、number 或 boolean。', target);
+  }
+
+  const defaultNodes = nodes.filter((node) => node.type === 'DEFAULT');
+  if (defaultNodes.length > 1) {
+    add('error', 'switch_controller 只能配置一个 DEFAULT node。', target);
+  }
+
+  const expectedType = typeof dataType === 'string' ? dataType : '';
+  for (const node of nodes.filter((item) => item.type !== 'DEFAULT')) {
+    if (expectedType && typeof node.value !== expectedType) {
+      add('error', `switch_controller 普通 node.value 必须是 ${expectedType} 类型。`, target);
+    }
+  }
 }
 
-export function hasBlockingErrors(issues: ValidationIssue[]) {
-  return issues.some((issue) => issue.severity === 'error');
+function validateGraph(
+  apiJson: ApiJson,
+  executableUuids: Set<string>,
+  add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void
+) {
+  const blocks = apiJson.blocks ?? [];
+  const starter = blocks.find(isStarterBlock);
+  if (!starter || starter.nextBlock === undefined) return;
+
+  const blockMap = new Map(blocks.filter((block) => !isStarterBlock(block)).map((block) => [block.uuid, block]));
+  const reached = new Set<string>();
+  walkBranch(starter.nextBlock, blockMap, reached, new Set(), add);
+
+  for (const uuid of executableUuids) {
+    if (!reached.has(uuid)) {
+      add('error', `节点 ${uuid} 未从 starter 流程到达。`, `block:${uuid}`);
+    }
+  }
 }
 
-export function hasDangerWarnings(issues: ValidationIssue[]) {
-  return issues.some((issue) => issue.severity === 'warning' && /整张表/.test(issue.message));
+function walkBranch(
+  nextBlock: string | null | undefined,
+  blockMap: Map<string, Exclude<ApiJson['blocks'], undefined>[number]>,
+  reached: Set<string>,
+  path: Set<string>,
+  add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void
+) {
+  if (nextBlock === null || nextBlock === undefined) return;
+
+  if (path.has(nextBlock)) {
+    add('error', `API JSON 流程存在循环：${nextBlock}。`, `block:${nextBlock}`);
+    return;
+  }
+
+  if (reached.has(nextBlock)) {
+    return;
+  }
+
+  reached.add(nextBlock);
+  const block = blockMap.get(nextBlock);
+  if (!block) return;
+
+  const nextPath = new Set(path);
+  nextPath.add(nextBlock);
+
+  if (isControllerBlock(block)) {
+    for (const node of block.nodes) {
+      walkBranch(node.nextBlock, blockMap, reached, nextPath, add);
+    }
+    return;
+  }
+
+  if (isStandardBlock(block)) {
+    walkBranch(block.nextBlock, blockMap, reached, nextPath, add);
+  }
 }
 
 function validateOutputs(
@@ -279,6 +479,9 @@ function validateTemplateReferences(
   };
   const blockOutputs = new Map<string, Set<string>>();
   for (const block of apiJson.blocks ?? []) {
+    if (!isStandardBlock(block)) {
+      continue;
+    }
     blockOutputs.set(block.uuid, new Set((block.outputs ?? supportedOutputKeys(block.functionName)).map(declarationKey)));
   }
 

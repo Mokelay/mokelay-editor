@@ -1,6 +1,23 @@
 import { expect, test } from '@playwright/test';
 import { resetEditor } from './helpers/editor';
 
+type TestApiBlock = Record<string, unknown> & { uuid: string; nextBlock?: string | null };
+
+function linearBlocks(blocks: TestApiBlock[]) {
+  return [
+    {
+      uuid: 'starter',
+      nextBlock: blocks[0]?.uuid ?? null
+    },
+    ...blocks.map((block, index) => ({
+      ...block,
+      nextBlock: Object.prototype.hasOwnProperty.call(block, 'nextBlock')
+        ? block.nextBlock
+        : blocks[index + 1]?.uuid ?? null
+    }))
+  ];
+}
+
 test.beforeEach(async ({ page }) => {
   await resetEditor(page);
 });
@@ -21,7 +38,8 @@ test('renders API builder list and creates a blank API draft', async ({ page }) 
   await page.getByTestId('api-info-submit').click();
 
   await expect(page).toHaveURL(/#\/apis\/blank_api/);
-  await expect(page.getByText('编排步骤')).toBeVisible();
+  await expect(page.getByText('编排画布')).toBeVisible();
+  await expect(page.getByTestId('api-flow-starter')).toBeVisible();
   await expect(page.getByText('接口入口')).toBeVisible();
   await expect(page.getByText('JSON 预览')).toBeVisible();
 });
@@ -39,7 +57,7 @@ test('loads API list from the server and opens API details', async ({ page }) =>
           alias: 'users 登录接口',
           method: 'POST',
           request: { body: ['email', 'password'] },
-          blocks: [
+          blocks: linearBlocks([
             {
               uuid: 'read_user',
               alias: '按邮箱读取用户',
@@ -52,7 +70,7 @@ test('loads API list from the server and opens API details', async ({ page }) =>
               },
               outputs: ['data']
             }
-          ],
+          ]),
           response: {
             user: { template: "{{blocks['read_user'].outputs.data}}" }
           }
@@ -89,7 +107,7 @@ test('keeps API detail blocks when the list response finishes after detail refre
           alias: 'users 登录接口',
           method: 'POST',
           request: { body: ['email', 'password'] },
-          blocks: [
+          blocks: linearBlocks([
             {
               uuid: 'read_user',
               alias: '按邮箱读取用户',
@@ -104,7 +122,7 @@ test('keeps API detail blocks when the list response finishes after detail refre
             },
             {
               uuid: 'set_user_session',
-              alias: '校验密码并写入 Session',
+              alias: '写入用户 Session',
               functionName: 'addSession',
               inputs: {
                 key: 'user',
@@ -112,7 +130,7 @@ test('keeps API detail blocks when the list response finishes after detail refre
               },
               outputs: []
             }
-          ],
+          ]),
           response: {
             user: { template: "{{blocks['read_user'].outputs.data}}" }
           }
@@ -126,12 +144,12 @@ test('keeps API detail blocks when the list response finishes after detail refre
 
   await page.goto('/#/apis/login_users');
   await expect(page.getByRole('heading', { name: '按邮箱读取用户' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '校验密码并写入 Session' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '写入用户 Session' })).toBeVisible();
 
   await listResponse;
 
   await expect(page.getByRole('heading', { name: '按邮箱读取用户' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '校验密码并写入 Session' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '写入用户 Session' })).toBeVisible();
 });
 
 test('duplicates an API through the basic info dialog before opening the copy URL', async ({ page }) => {
@@ -147,7 +165,7 @@ test('duplicates an API through the basic info dialog before opening the copy UR
           alias: 'users 登录接口',
           method: 'POST',
           request: { body: ['email', 'password'] },
-          blocks: [
+          blocks: linearBlocks([
             {
               uuid: 'read_user',
               alias: '按邮箱读取用户',
@@ -160,7 +178,7 @@ test('duplicates an API through the basic info dialog before opening the copy UR
               },
               outputs: ['data']
             }
-          ],
+          ]),
           response: {
             user: { template: "{{blocks['read_user'].outputs.data}}" }
           }
@@ -187,7 +205,7 @@ test('duplicates an API through the basic info dialog before opening the copy UR
   await expect.poll(() => apiState.apis.get(copiedUuid)?.name).toBe('users 登录接口 copy');
   await expect.poll(() => Array.isArray(apiState.apis.get(copiedUuid)?.apiJson.blocks)
     ? apiState.apis.get(copiedUuid)?.apiJson.blocks.length
-    : 0).toBe(1);
+    : 0).toBe(2);
 });
 
 test('creates an API from a sample, configures response, and dry-runs it', async ({ page }) => {
@@ -198,7 +216,8 @@ test('creates an API from a sample, configures response, and dry-runs it', async
   await page.getByTestId('api-info-submit').click();
   await expect(page).toHaveURL(/#\/apis\/login_users/);
   await expect(page.getByRole('heading', { name: '按邮箱读取用户' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '校验密码并写入 Session' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '校验密码' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '写入用户 Session' })).toBeVisible();
 
   await page.getByRole('button', { name: '响应' }).click();
   await expect(page.getByText('响应组装')).toBeVisible();
@@ -208,7 +227,92 @@ test('creates an API from a sample, configures response, and dry-runs it', async
   await page.getByRole('button', { name: '运行 Dry-run' }).click();
 
   await expect(page.getByText('Dry-run 通过')).toBeVisible();
-  await expect(page.getByText('校验密码并写入 Session').first()).toBeVisible();
+  await expect(page.getByText('命中分支：password_true_node')).toBeVisible();
+});
+
+test('adds graph blocks and controllers with starter nextBlock JSON', async ({ page }) => {
+  await page.goto('/#/apis');
+  await page.getByTestId('api-builder-new').click();
+  await page.getByTestId('api-info-name').fill('图式 API');
+  await page.getByTestId('api-info-uuid').fill('graph_api');
+  await page.getByTestId('api-info-submit').click();
+
+  await page.getByRole('button', { name: /读取单条/ }).click();
+  let apiJson = JSON.parse(await page.getByTestId('api-builder-json').innerText()) as { blocks: Array<Record<string, unknown>> };
+  expect(apiJson.blocks[0]).toMatchObject({
+    uuid: 'starter',
+    nextBlock: expect.stringMatching(/^read_/)
+  });
+  expect(apiJson.blocks[1]).toMatchObject({
+    functionName: 'read',
+    nextBlock: null
+  });
+
+  await page.getByRole('button', { name: /IF 控制器/ }).click();
+  apiJson = JSON.parse(await page.getByTestId('api-builder-json').innerText()) as { blocks: Array<Record<string, unknown>> };
+  const ifController = apiJson.blocks.find((block) => block.functionName === 'if_controller') as Record<string, unknown>;
+  expect(ifController).toMatchObject({
+    type: 'controller',
+    functionName: 'if_controller'
+  });
+  expect(ifController).not.toHaveProperty('nextBlock');
+  expect(ifController.nodes).toEqual(expect.arrayContaining([
+    expect.objectContaining({ value: true, nextBlock: null }),
+    expect.objectContaining({ value: false, nextBlock: null })
+  ]));
+});
+
+test('adds a real starter when editing legacy ordered block DSL', async ({ page }) => {
+  await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'legacy_login',
+        name: '旧登录接口',
+        method: 'POST',
+        status: 'draft',
+        apiJson: {
+          uuid: 'legacy_login',
+          alias: '旧登录接口',
+          method: 'POST',
+          blocks: [
+            {
+              uuid: 'read_user',
+              alias: '按邮箱读取用户',
+              functionName: 'read',
+              inputs: {
+                datasource: 'Mokelay',
+                table: 'users',
+                fields: ['id', 'email'],
+                conditions: []
+              },
+              outputs: ['data']
+            }
+          ],
+          response: null
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis/legacy_login');
+  await expect(page.getByTestId('api-flow-starter')).toBeVisible();
+
+  let apiJson = JSON.parse(await page.getByTestId('api-builder-json').innerText()) as { blocks: Array<Record<string, unknown>> };
+  expect(apiJson.blocks[0]).toEqual({
+    uuid: 'starter',
+    nextBlock: null
+  });
+
+  await page.getByRole('button', { name: /分页查询/ }).click();
+  apiJson = JSON.parse(await page.getByTestId('api-builder-json').innerText()) as { blocks: Array<Record<string, unknown>> };
+  expect(apiJson.blocks[0]).toMatchObject({
+    uuid: 'starter',
+    nextBlock: expect.stringMatching(/^page_/)
+  });
+
+  await page.getByRole('button', { name: /校验/ }).click();
+
+  await expect(page.getByText('read_user.nextBlock 缺失。')).toBeVisible();
 });
 
 test('hides manual snapshot controls while keeping save actions available', async ({ page }) => {

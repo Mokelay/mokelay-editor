@@ -1,9 +1,13 @@
 import type {
   ApiBlock,
+  ApiController,
   ApiJson,
+  ApiStandardBlock,
   BlockFunctionName,
   Condition,
   ConditionType,
+  ControllerFunctionName,
+  ExecutableApiBlock,
   ProcessorConfig,
   ProcessableKey,
   RequestLocation
@@ -18,6 +22,14 @@ export type BlockDefinition = {
   group: BlockGroup;
   description: string;
   outputs: string[];
+  defaultInputs: () => Record<string, unknown>;
+};
+
+export type ControllerDefinition = {
+  functionName: ControllerFunctionName;
+  title: string;
+  shortTitle: string;
+  description: string;
   defaultInputs: () => Record<string, unknown>;
 };
 
@@ -234,6 +246,28 @@ export const blockDefinitions: BlockDefinition[] = [
   }
 ];
 
+export const controllerDefinitions: ControllerDefinition[] = [
+  {
+    functionName: 'if_controller',
+    title: 'IF 控制器',
+    shortTitle: 'IF',
+    description: '根据 inputs.value 的真假选择 true / false 分支。',
+    defaultInputs: () => ({
+      value: { template: '{{request.body.value}}' }
+    })
+  },
+  {
+    functionName: 'switch_controller',
+    title: 'Switch 控制器',
+    shortTitle: 'Switch',
+    description: '根据 inputs.value 和 dataType 严格匹配分支，未命中走 DEFAULT。',
+    defaultInputs: () => ({
+      value: { template: '{{request.body.status}}' },
+      dataType: 'string'
+    })
+  }
+];
+
 export const templateDefinitions: ApiTemplateDefinition[] = [
   {
     id: 'register',
@@ -255,7 +289,7 @@ export const templateDefinitions: ApiTemplateDefinition[] = [
       uuid: 'me',
       alias: '当前用户接口',
       method: 'GET',
-      blocks: [createBlock('readSession', 'read_user_session', '读取用户 Session')],
+      blocks: linearFlow([createBlock('readSession', 'read_user_session', '读取用户 Session')]),
       response: {
         user: template("blocks['read_user_session'].outputs.value"),
         loggedIn: {
@@ -273,7 +307,7 @@ export const templateDefinitions: ApiTemplateDefinition[] = [
       uuid: 'logout',
       alias: '退出登录接口',
       method: 'POST',
-      blocks: [createBlock('removeSession', 'clear_user_session', '清除用户 Session')],
+      blocks: linearFlow([createBlock('removeSession', 'clear_user_session', '清除用户 Session')]),
       response: { success: true }
     })
   },
@@ -310,7 +344,7 @@ export const templateDefinitions: ApiTemplateDefinition[] = [
       alias: `删除 ${options.table}`,
       method: 'POST',
       request: { body: [requiredKey(options.idField)] },
-      blocks: [
+      blocks: linearFlow([
         {
           ...createBlock('delete', 'delete_record', '删除记录'),
           inputs: {
@@ -319,7 +353,7 @@ export const templateDefinitions: ApiTemplateDefinition[] = [
             conditions: [leafCondition(options.idField, template(`request.body.${options.idField}`))]
           }
         }
-      ],
+      ]),
       response: { affected: template("blocks['delete_record'].outputs.affected") }
     })
   },
@@ -331,7 +365,7 @@ export const templateDefinitions: ApiTemplateDefinition[] = [
       uuid: `count_${options.table}`,
       alias: `统计 ${options.table}`,
       method: 'GET',
-      blocks: [
+      blocks: linearFlow([
         {
           ...createBlock('count', 'count_records', '统计数量'),
           inputs: {
@@ -340,7 +374,7 @@ export const templateDefinitions: ApiTemplateDefinition[] = [
             conditions: []
           }
         }
-      ],
+      ]),
       response: { total: template("blocks['count_records'].outputs.total") }
     })
   }
@@ -348,6 +382,10 @@ export const templateDefinitions: ApiTemplateDefinition[] = [
 
 export function getBlockDefinition(functionName: string) {
   return blockDefinitions.find((definition) => definition.functionName === functionName);
+}
+
+export function getControllerDefinition(functionName: string) {
+  return controllerDefinitions.find((definition) => definition.functionName === functionName);
 }
 
 export function getProcessorDefinition(name: string) {
@@ -366,7 +404,26 @@ export function processorName(config: ProcessorConfig) {
   return typeof config === 'string' ? config : config.processor;
 }
 
-export function createBlock(functionName: BlockFunctionName, uuid?: string, alias?: string): ApiBlock {
+export function isStarterBlock(block: ApiBlock): block is { uuid: 'starter'; nextBlock?: string | null } {
+  return block.uuid === 'starter';
+}
+
+export function isControllerBlock(block: ApiBlock): block is ApiController {
+  return block.uuid !== 'starter' && 'type' in block && block.type === 'controller';
+}
+
+export function isStandardBlock(block: ApiBlock): block is ApiStandardBlock {
+  return block.uuid !== 'starter' && (!('type' in block) || block.type !== 'controller');
+}
+
+export function createStarterBlock(nextBlock: string | null = null): ApiBlock {
+  return {
+    uuid: 'starter',
+    nextBlock
+  };
+}
+
+export function createBlock(functionName: BlockFunctionName, uuid?: string, alias?: string): ApiStandardBlock {
   const definition = getBlockDefinition(functionName);
   const blockUuid = uuid || `${functionName}_${randomToken()}`;
 
@@ -375,7 +432,50 @@ export function createBlock(functionName: BlockFunctionName, uuid?: string, alia
     alias: alias || definition?.title,
     functionName,
     inputs: cloneValue(definition?.defaultInputs() ?? {}),
-    outputs: (definition?.outputs ?? []).map((key) => key)
+    outputs: (definition?.outputs ?? []).map((key) => key),
+    nextBlock: null
+  };
+}
+
+export function createController(functionName: ControllerFunctionName, uuid?: string, alias?: string): ApiController {
+  const definition = getControllerDefinition(functionName);
+  const controllerUuid = uuid || `${functionName.replace(/_controller$/, '')}_${randomToken()}`;
+
+  return {
+    uuid: controllerUuid,
+    alias: alias || definition?.title,
+    functionName,
+    type: 'controller',
+    inputs: cloneValue(definition?.defaultInputs() ?? {}),
+    nodes: functionName === 'if_controller'
+      ? [
+          {
+            uuid: `${controllerUuid}_true`,
+            alias: 'True',
+            value: true,
+            nextBlock: null
+          },
+          {
+            uuid: `${controllerUuid}_false`,
+            alias: 'False',
+            value: false,
+            nextBlock: null
+          }
+        ]
+      : [
+          {
+            uuid: `${controllerUuid}_case`,
+            alias: 'Case',
+            value: 'published',
+            nextBlock: null
+          },
+          {
+            uuid: `${controllerUuid}_default`,
+            alias: 'Default',
+            type: 'DEFAULT',
+            nextBlock: null
+          }
+        ]
   };
 }
 
@@ -389,7 +489,7 @@ export function createEmptyApiJson(): ApiJson {
       query: [],
       body: []
     },
-    blocks: [],
+    blocks: [createStarterBlock()],
     response: null
   };
 }
@@ -430,6 +530,22 @@ export function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function linearFlow(blocks: ExecutableApiBlock[]): ApiBlock[] {
+  return [
+    createStarterBlock(blocks[0]?.uuid ?? null),
+    ...blocks.map((block, index) => {
+      if (isControllerBlock(block)) {
+        return block;
+      }
+
+      return {
+        ...block,
+        nextBlock: blocks[index + 1]?.uuid ?? null
+      };
+    })
+  ];
+}
+
 function normalizeFieldList(value: unknown, fallback: string[]) {
   if (!Array.isArray(value)) return fallback;
   const fields = value
@@ -457,7 +573,7 @@ function buildRegisterTemplate(options: TemplateOptions): ApiJson {
         requiredKey('password', ['is_not_null', { processor: 'min', param: [8] }, { processor: 'max', param: [128] }])
       ]
     },
-    blocks: [
+    blocks: linearFlow([
       {
         ...createBlock('count', 'check_duplicate', '校验邮箱重复'),
         inputs: {
@@ -499,7 +615,7 @@ function buildRegisterTemplate(options: TemplateOptions): ApiJson {
           value: template("blocks['read_record'].outputs.data")
         }
       }
-    ],
+    ]),
     response: {
       user: returnValue
     }
@@ -507,6 +623,53 @@ function buildRegisterTemplate(options: TemplateOptions): ApiJson {
 }
 
 function buildLoginTemplate(options: TemplateOptions): ApiJson {
+  const passwordController = createController('if_controller', 'check_user_password', '校验密码');
+  passwordController.inputs = {
+    value: {
+      template: "{{blocks['read_user'].outputs.data.password_hash}}",
+      processors: [
+        {
+          processor: 'hash_check',
+          param: [template('request.body.password')]
+        }
+      ]
+    }
+  };
+  passwordController.nodes = [
+    {
+      uuid: 'password_true_node',
+      alias: '校验通过',
+      value: true,
+      nextBlock: 'set_user_session'
+    },
+    {
+      uuid: 'password_false_node',
+      alias: '校验失败',
+      value: false,
+      nextBlock: null
+    }
+  ];
+
+  const readUser = {
+    ...createBlock('read', 'read_user', '按邮箱读取用户'),
+    inputs: {
+      datasource: options.datasource,
+      table: options.table,
+      fields: Array.from(new Set([...options.returnFields, 'password_hash'])),
+      conditions: [leafCondition('email', template('request.body.email'))]
+    },
+    outputs: [{ key: 'data', processors: ['is_not_null'] }],
+    nextBlock: 'check_user_password'
+  };
+  const setSession = {
+    ...createBlock('addSession', 'set_user_session', '写入用户 Session'),
+    inputs: {
+      key: 'user',
+      value: objectFromFields(options.returnFields, "blocks['read_user'].outputs.data")
+    },
+    nextBlock: null
+  };
+
   return {
     uuid: `login_${options.table}`,
     alias: `${options.table} 登录接口`,
@@ -518,32 +681,10 @@ function buildLoginTemplate(options: TemplateOptions): ApiJson {
       ]
     },
     blocks: [
-      {
-        ...createBlock('read', 'read_user', '按邮箱读取用户'),
-        inputs: {
-          datasource: options.datasource,
-          table: options.table,
-          fields: Array.from(new Set([...options.returnFields, 'password_hash'])),
-          conditions: [leafCondition('email', template('request.body.email'))]
-        },
-        outputs: [{ key: 'data', processors: ['is_not_null'] }]
-      },
-      {
-        ...createBlock('addSession', 'set_user_session', '校验密码并写入 Session'),
-        inputs: {
-          key: 'user',
-          password_check: {
-            template: "{{blocks['read_user'].outputs.data.password_hash}}",
-            processors: [
-              {
-                processor: 'hash_check',
-                param: [template('request.body.password')]
-              }
-            ]
-          },
-          value: objectFromFields(options.returnFields, "blocks['read_user'].outputs.data")
-        }
-      }
+      createStarterBlock('read_user'),
+      readUser,
+      passwordController,
+      setSession
     ],
     response: {
       user: objectFromFields(options.returnFields, "blocks['read_user'].outputs.data")
@@ -559,7 +700,7 @@ function buildPageTemplate(options: TemplateOptions): ApiJson {
     request: {
       query: ['page', 'pageSize']
     },
-    blocks: [
+    blocks: linearFlow([
       {
         ...createBlock('page', 'page_records', '分页查询'),
         inputs: {
@@ -571,7 +712,7 @@ function buildPageTemplate(options: TemplateOptions): ApiJson {
           orderBy: [{ fieldName: options.idField, direction: 'DESC' }]
         }
       }
-    ],
+    ]),
     response: {
       datas: template("blocks['page_records'].outputs.datas"),
       pagination: {
@@ -594,7 +735,7 @@ function buildDetailTemplate(options: TemplateOptions): ApiJson {
     request: {
       query: [requiredKey(options.idField)]
     },
-    blocks: [
+    blocks: linearFlow([
       {
         ...createBlock('read', 'read_record', '读取详情'),
         inputs: {
@@ -604,7 +745,7 @@ function buildDetailTemplate(options: TemplateOptions): ApiJson {
           conditions: [leafCondition(options.idField, template(`request.query.${options.idField}`))]
         }
       }
-    ],
+    ]),
     response: {
       data: template("blocks['read_record'].outputs.data")
     }
@@ -619,7 +760,7 @@ function buildCreateReadTemplate(options: TemplateOptions): ApiJson {
     request: {
       body: options.requestFields.map((field) => requiredKey(field))
     },
-    blocks: [
+    blocks: linearFlow([
       {
         ...createBlock('create', 'create_record', '创建记录'),
         inputs: {
@@ -638,7 +779,7 @@ function buildCreateReadTemplate(options: TemplateOptions): ApiJson {
           conditions: [leafCondition(options.idField, template("blocks['create_record'].outputs.uuid"))]
         }
       }
-    ],
+    ]),
     response: {
       uuid: template("blocks['create_record'].outputs.uuid"),
       data: template("blocks['read_record'].outputs.data")
@@ -655,7 +796,7 @@ function buildUpdateReadTemplate(options: TemplateOptions): ApiJson {
       query: [requiredKey(options.idField)],
       body: options.requestFields.map((field) => requiredKey(field))
     },
-    blocks: [
+    blocks: linearFlow([
       {
         ...createBlock('update', 'update_record', '更新记录'),
         inputs: {
@@ -674,7 +815,7 @@ function buildUpdateReadTemplate(options: TemplateOptions): ApiJson {
           conditions: [leafCondition(options.idField, template(`request.query.${options.idField}`))]
         }
       }
-    ],
+    ]),
     response: {
       affected: template("blocks['update_record'].outputs.affected"),
       data: template("blocks['read_record'].outputs.data")

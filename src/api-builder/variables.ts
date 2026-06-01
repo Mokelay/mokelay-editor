@@ -1,4 +1,10 @@
-import { declarationKey, supportedOutputKeys } from '@/api-builder/registry';
+import {
+  declarationKey,
+  isControllerBlock,
+  isStarterBlock,
+  isStandardBlock,
+  supportedOutputKeys
+} from '@/api-builder/registry';
 import type { ApiJson, VariableOption } from '@/api-builder/types';
 
 export function buildVariableOptions(apiJson: ApiJson, beforeBlockUuid?: string): VariableOption[] {
@@ -16,7 +22,7 @@ export function buildVariableOptions(apiJson: ApiJson, beforeBlockUuid?: string)
     }
   }
 
-  for (const block of apiJson.blocks ?? []) {
+  for (const block of orderedReachableBlocks(apiJson)) {
     if (beforeBlockUuid && block.uuid === beforeBlockUuid) {
       break;
     }
@@ -58,4 +64,43 @@ export function makeTemplate(path: string) {
   return {
     template: `{{${path}}}`
   };
+}
+
+function orderedReachableBlocks(apiJson: ApiJson) {
+  const blocks = apiJson.blocks ?? [];
+  const starter = blocks.find(isStarterBlock);
+  const executableBlocks = blocks.filter(isStandardBlock);
+  const blockMap = new Map(blocks.filter((block) => !isStarterBlock(block)).map((block) => [block.uuid, block]));
+  const ordered: typeof executableBlocks = [];
+  const visited = new Set<string>();
+
+  const visit = (uuid: string | null | undefined) => {
+    if (!uuid || visited.has(uuid)) return;
+    visited.add(uuid);
+
+    const block = blockMap.get(uuid);
+    if (!block) return;
+
+    if (isStandardBlock(block)) {
+      ordered.push(block);
+      visit(block.nextBlock);
+      return;
+    }
+
+    if (isControllerBlock(block)) {
+      for (const node of block.nodes) {
+        visit(node.nextBlock);
+      }
+    }
+  };
+
+  visit(starter?.nextBlock);
+
+  for (const block of executableBlocks) {
+    if (!visited.has(block.uuid)) {
+      ordered.push(block);
+    }
+  }
+
+  return ordered;
 }

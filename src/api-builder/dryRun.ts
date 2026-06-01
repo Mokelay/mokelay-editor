@@ -1,12 +1,17 @@
 import {
   declarationKey,
+  isControllerBlock,
+  isStandardBlock,
+  isStarterBlock,
   processorName,
   supportedOutputKeys
 } from '@/api-builder/registry';
 import { validateApiJson } from '@/api-builder/validation';
 import type {
-  ApiBlock,
+  ApiController,
   ApiJson,
+  ApiStandardBlock,
+  ControllerNode,
   DryRunBlockLog,
   DryRunResult,
   ProcessableKey,
@@ -64,8 +69,9 @@ export function runDryApiTest(apiJson: ApiJson, request: RequestSnapshot): DryRu
     errors.push(readErrorMessage(error));
   }
 
-  for (const block of apiJson.blocks ?? []) {
-    if (errors.length) {
+  if (errors.length) {
+    for (const block of apiJson.blocks ?? []) {
+      if (isStarterBlock(block)) continue;
       logs.push({
         uuid: block.uuid,
         alias: block.alias || block.uuid,
@@ -75,36 +81,9 @@ export function runDryApiTest(apiJson: ApiJson, request: RequestSnapshot): DryRu
         status: 'skipped',
         message: '前置校验失败，已跳过。'
       });
-      continue;
     }
-
-    try {
-      const inputs = resolveTemplates(block.inputs ?? {}, context) as Record<string, unknown>;
-      const outputs = createMockOutputs(block, inputs);
-      context.blocks[block.uuid] = { inputs, outputs };
-      logs.push({
-        uuid: block.uuid,
-        alias: block.alias || block.uuid,
-        functionName: block.functionName,
-        inputs,
-        outputs,
-        status: 'success',
-        message: '已模拟执行。'
-      });
-    } catch (error) {
-      const message = readErrorMessage(error);
-      errors.push(message);
-      context.blocks[block.uuid] = { inputs: block.inputs ?? {}, outputs: {} };
-      logs.push({
-        uuid: block.uuid,
-        alias: block.alias || block.uuid,
-        functionName: block.functionName,
-        inputs: block.inputs ?? {},
-        outputs: {},
-        status: 'error',
-        message
-      });
-    }
+  } else {
+    executeDryRunGraph(apiJson, context, logs, errors);
   }
 
   let data: unknown = null;
@@ -151,7 +130,152 @@ function applyRequestProcessors(apiJson: ApiJson, context: DryRunContext) {
   }
 }
 
-function createMockOutputs(block: ApiBlock, inputs: Record<string, unknown>) {
+function executeDryRunGraph(
+  apiJson: ApiJson,
+  context: DryRunContext,
+  logs: DryRunBlockLog[],
+  errors: string[]
+) {
+  const blocks = apiJson.blocks ?? [];
+  const starter = blocks.find(isStarterBlock);
+  const blockMap = new Map(blocks.filter((block) => !isStarterBlock(block)).map((block) => [block.uuid, block]));
+  const visited = new Set<string>();
+  let nextBlock = starter?.nextBlock ?? null;
+
+  while (nextBlock !== null) {
+    if (visited.has(nextBlock)) {
+      errors.push(`流程存在循环：${nextBlock}`);
+      return;
+    }
+    visited.add(nextBlock);
+
+    const block = blockMap.get(nextBlock);
+    if (!block) {
+      errors.push(`流程指向不存在的节点：${nextBlock}`);
+      return;
+    }
+
+    if (isControllerBlock(block)) {
+      nextBlock = executeDryRunController(block, context, logs, errors);
+      if (errors.length) return;
+      continue;
+    }
+
+    if (isStandardBlock(block)) {
+      nextBlock = executeDryRunBlock(block, context, logs, errors);
+      if (errors.length) return;
+    }
+  }
+}
+
+function executeDryRunBlock(
+  block: ApiStandardBlock,
+  context: DryRunContext,
+  logs: DryRunBlockLog[],
+  errors: string[]
+) {
+  try {
+    const inputs = resolveTemplates(block.inputs ?? {}, context) as Record<string, unknown>;
+    const outputs = createMockOutputs(block, inputs);
+    context.blocks[block.uuid] = { inputs, outputs };
+    logs.push({
+      uuid: block.uuid,
+      alias: block.alias || block.uuid,
+      functionName: block.functionName,
+      inputs,
+      outputs,
+      status: 'success',
+      message: '已模拟执行。'
+    });
+  } catch (error) {
+    const message = readErrorMessage(error);
+    errors.push(message);
+    context.blocks[block.uuid] = { inputs: block.inputs ?? {}, outputs: {} };
+    logs.push({
+      uuid: block.uuid,
+      alias: block.alias || block.uuid,
+      functionName: block.functionName,
+      inputs: block.inputs ?? {},
+      outputs: {},
+      status: 'error',
+      message
+    });
+  }
+
+  return block.nextBlock ?? null;
+}
+
+function executeDryRunController(
+  controller: ApiController,
+  context: DryRunContext,
+  logs: DryRunBlockLog[],
+  errors: string[]
+) {
+  try {
+    const inputs = resolveTemplates(controller.inputs ?? {}, context) as Record<string, unknown>;
+    const node = selectControllerNode(controller, inputs);
+    logs.push({
+      uuid: controller.uuid,
+      alias: controller.alias || controller.uuid,
+      functionName: controller.functionName,
+      inputs,
+      outputs: {},
+      status: 'success',
+      message: `命中分支：${node.uuid}`
+    });
+    return node.nextBlock ?? null;
+  } catch (error) {
+    const message = readErrorMessage(error);
+    errors.push(message);
+    logs.push({
+      uuid: controller.uuid,
+      alias: controller.alias || controller.uuid,
+      functionName: controller.functionName,
+      inputs: controller.inputs ?? {},
+      outputs: {},
+      status: 'error',
+      message
+    });
+    return null;
+  }
+}
+
+function selectControllerNode(controller: ApiController, inputs: Record<string, unknown>): ControllerNode {
+  if (controller.functionName === 'if_controller') {
+    const selectedValue = truthyControllerValue(inputs.value);
+    const node = controller.nodes.find((item) => item.value === selectedValue);
+    if (!node) throw new Error(`IF 控制器缺少 ${selectedValue ? 'true' : 'false'} 分支`);
+    return node;
+  }
+
+  if (controller.functionName !== 'switch_controller') {
+    throw new Error(`不支持的 Controller 类型：${controller.functionName}`);
+  }
+
+  const dataType = inputs.dataType;
+  if (dataType !== 'string' && dataType !== 'number' && dataType !== 'boolean') {
+    throw new Error('Switch 控制器 dataType 必须是 string、number 或 boolean');
+  }
+  if (typeof inputs.value !== dataType) {
+    throw new Error(`Switch 控制器 value 必须是 ${dataType} 类型`);
+  }
+
+  const matched = controller.nodes.find((node) => node.type !== 'DEFAULT' && node.value === inputs.value);
+  if (matched) return matched;
+
+  const defaultNode = controller.nodes.find((node) => node.type === 'DEFAULT');
+  if (!defaultNode) throw new Error('Switch 控制器缺少 DEFAULT 分支');
+  return defaultNode;
+}
+
+function truthyControllerValue(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value > 0;
+  if (typeof value === 'string') return value.length > 0;
+  return false;
+}
+
+function createMockOutputs(block: ApiStandardBlock, inputs: Record<string, unknown>) {
   const fields = Array.isArray(inputs.fields)
     ? inputs.fields.filter((field): field is string => typeof field === 'string')
     : ['id', 'name'];

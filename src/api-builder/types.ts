@@ -63,13 +63,46 @@ export type BlockFunctionName =
   | 'removeSession'
   | 'readSession';
 
-export type ApiBlock = {
+export type ControllerFunctionName = 'if_controller' | 'switch_controller';
+
+export type NextBlockUuid = string | null;
+
+export type StarterBlock = {
+  uuid: 'starter';
+  nextBlock?: NextBlockUuid;
+};
+
+export type ApiStandardBlock = {
   uuid: string;
   alias?: string;
   functionName: BlockFunctionName | string;
+  type?: string;
   inputs?: Record<string, unknown>;
   outputs?: ProcessableKey[] | null;
+  nextBlock?: NextBlockUuid;
 };
+
+export type ControllerNode = {
+  uuid: string;
+  alias?: string;
+  type?: 'DEFAULT';
+  value?: string | number | boolean;
+  nextBlock?: NextBlockUuid;
+};
+
+export type ApiController = {
+  uuid: string;
+  alias?: string;
+  functionName: ControllerFunctionName | string;
+  type: 'controller';
+  inputs?: Record<string, unknown>;
+  nodes: ControllerNode[];
+  nextBlock?: NextBlockUuid;
+};
+
+export type ExecutableApiBlock = ApiStandardBlock | ApiController;
+
+export type ApiBlock = StarterBlock | ExecutableApiBlock;
 
 export type ApiJson = {
   uuid: string;
@@ -139,6 +172,7 @@ export type DryRunResult = {
 
 export type BuilderSelection =
   | { type: 'api' }
+  | { type: 'starter' }
   | { type: 'request' }
   | { type: 'response' }
   | { type: 'block'; uuid: string };
