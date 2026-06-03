@@ -115,6 +115,16 @@ export type ApiJson = {
 
 export type ApiBuilderStatus = 'draft' | 'published';
 
+export type ApiBuilderNodePosition = {
+  x: number;
+  y: number;
+};
+
+export type ApiBuilderLayout = {
+  version: 1;
+  nodes: Record<string, ApiBuilderNodePosition>;
+};
+
 export type ApiBuilderTestCase = {
   id: string;
   name: string;
@@ -126,6 +136,7 @@ export type ApiBuilderTestCase = {
 export type ApiBuilderDraft = {
   id: string;
   apiJson: ApiJson;
+  layout: ApiBuilderLayout;
   status: ApiBuilderStatus;
   disabledBlockIds: string[];
   testCases: ApiBuilderTestCase[];

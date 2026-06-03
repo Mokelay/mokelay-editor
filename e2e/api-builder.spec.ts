@@ -262,6 +262,86 @@ test('adds graph blocks and controllers with starter nextBlock JSON', async ({ p
   ]));
 });
 
+test('persists graph node layout after saving and reopening an API', async ({ page }) => {
+  const apiState = await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'layout_api',
+        name: '布局 API',
+        method: 'POST',
+        status: 'draft',
+        apiJson: {
+          uuid: 'layout_api',
+          alias: '布局 API',
+          method: 'POST',
+          request: { body: ['id'] },
+          blocks: linearBlocks([
+            {
+              uuid: 'read_user',
+              alias: '读取用户',
+              functionName: 'read',
+              inputs: {
+                datasource: 'Mokelay',
+                table: 'users',
+                fields: ['id', 'name'],
+                conditions: []
+              },
+              outputs: ['data']
+            }
+          ]),
+          response: {
+            user: { template: "{{blocks['read_user'].outputs.data}}" }
+          }
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis/layout_api');
+  const readNode = page.locator('[data-block-uuid="read_user"]');
+  await expect(readNode).toBeVisible();
+
+  const beforeBox = await readNode.boundingBox();
+  expect(beforeBox).not.toBeNull();
+
+  await page.mouse.move(beforeBox!.x + beforeBox!.width / 2, beforeBox!.y + beforeBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(beforeBox!.x + beforeBox!.width / 2 + 160, beforeBox!.y + beforeBox!.height / 2 + 80, { steps: 12 });
+  await page.mouse.up();
+
+  await expect.poll(async () => {
+    const box = await readNode.boundingBox();
+    return box ? Math.round(box.x - beforeBox!.x) : 0;
+  }).toBeGreaterThan(20);
+
+  const draggedBox = await readNode.boundingBox();
+  expect(draggedBox).not.toBeNull();
+
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+
+  await expect.poll(() => {
+    const layout = apiState.apiSavePayloads.at(-1)?.layout as { nodes?: Record<string, { x?: number; y?: number }> } | undefined;
+    return layout?.nodes?.read_user?.x;
+  }).toBeGreaterThan(190);
+  await expect.poll(() => apiState.apis.get('layout_api')?.layout).toMatchObject({
+    version: 1,
+    nodes: {
+      read_user: expect.objectContaining({
+        x: expect.any(Number),
+        y: expect.any(Number)
+      })
+    }
+  });
+
+  await page.reload();
+  await expect(readNode).toBeVisible();
+
+  const reopenedBox = await readNode.boundingBox();
+  expect(reopenedBox).not.toBeNull();
+  expect(Math.abs(reopenedBox!.x - draggedBox!.x)).toBeLessThan(8);
+  expect(Math.abs(reopenedBox!.y - draggedBox!.y)).toBeLessThan(8);
+});
+
 test('adds a real starter when editing legacy ordered block DSL', async ({ page }) => {
   await resetEditor(page, {
     apis: [

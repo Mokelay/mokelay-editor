@@ -25,6 +25,7 @@ export type MockMokelayApi = {
   method: string;
   status: 'draft' | 'published';
   apiJson: Record<string, unknown>;
+  layout?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -111,6 +112,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     apis.set(apiRecord.uuid, {
       createdAt: now,
       updatedAt: now,
+      layout: defaultApiLayout(),
       ...apiRecord
     });
   }
@@ -226,6 +228,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 
       const methodName = (readString(payload.method) || readString(apiJson.method) || 'GET').toUpperCase();
       const status = payload.status === 'published' ? 'published' : 'draft';
+      const layout = normalizeMockApiLayout(payload.layout);
       const apiRecord: MockMokelayApi = {
         uuid,
         name: readString(payload.name) || readString(apiJson.alias) || '未命名 API',
@@ -236,6 +239,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
           uuid,
           method: methodName
         },
+        layout,
         createdAt: existingApi?.createdAt ?? now,
         updatedAt: now
       };
@@ -399,6 +403,23 @@ function readJsonPayload(value: unknown): Record<string, unknown> {
 
 function readString(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function defaultApiLayout() {
+  return {
+    version: 1,
+    nodes: {}
+  };
+}
+
+function normalizeMockApiLayout(value: unknown): Record<string, unknown> {
+  const layout = readJsonPayload(value);
+
+  if (layout.version !== 1 || typeof layout.nodes !== 'object' || layout.nodes === null || Array.isArray(layout.nodes)) {
+    return defaultApiLayout();
+  }
+
+  return layout;
 }
 
 function routeToHash(route: string) {
@@ -568,6 +589,7 @@ function serializeApi(apiRecord: MockMokelayApi, includeApiJson: boolean) {
     method: apiRecord.method,
     status: apiRecord.status,
     ...(includeApiJson ? { apiJson: apiRecord.apiJson } : {}),
+    ...(includeApiJson ? { layout: normalizeMockApiLayout(apiRecord.layout) } : {}),
     createdAt: apiRecord.createdAt,
     updatedAt: apiRecord.updatedAt
   };

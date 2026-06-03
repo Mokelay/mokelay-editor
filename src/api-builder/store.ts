@@ -2,21 +2,24 @@ import { cloneValue, createEmptyApiJson, createStarterBlock } from '@/api-builde
 import type {
   ApiBlock,
   ApiBuilderDraft,
+  ApiBuilderLayout,
   ApiBuilderTestCase,
   ApiController,
   ApiJson,
+  ApiBuilderNodePosition,
   ApiStandardBlock,
   ControllerNode,
   StarterBlock
 } from '@/api-builder/types';
 
-export function createDraft(apiJson: ApiJson = createEmptyApiJson()): ApiBuilderDraft {
+export function createDraft(apiJson: ApiJson = createEmptyApiJson(), layout: unknown = undefined): ApiBuilderDraft {
   const now = new Date().toISOString();
   const normalized = normalizeApiJson(apiJson);
 
   return {
     id: normalized.uuid || `api_${randomToken()}`,
     apiJson: normalized,
+    layout: normalizeApiBuilderLayout(layout),
     status: 'draft',
     disabledBlockIds: [],
     testCases: [],
@@ -30,9 +33,38 @@ export function duplicateDraft(draft: ApiBuilderDraft): ApiBuilderDraft {
   const suffix = randomToken();
   apiJson.uuid = `${apiJson.uuid || 'api'}_copy_${suffix}`;
   apiJson.alias = `${apiJson.alias || '未命名 API'} copy`;
-  const copy = createDraft(apiJson);
+  const copy = createDraft(apiJson, draft.layout);
   copy.disabledBlockIds = [...draft.disabledBlockIds];
   return copy;
+}
+
+export function createDefaultApiBuilderLayout(): ApiBuilderLayout {
+  return {
+    version: 1,
+    nodes: {}
+  };
+}
+
+export function normalizeApiBuilderLayout(value: unknown): ApiBuilderLayout {
+  if (!isRecord(value) || !isRecord(value.nodes)) {
+    return createDefaultApiBuilderLayout();
+  }
+
+  const nodes = Object.entries(value.nodes).reduce<Record<string, ApiBuilderNodePosition>>((normalized, [uuid, position]) => {
+    if (!uuid || !isRecord(position)) return normalized;
+
+    const x = readFiniteNumber(position.x);
+    const y = readFiniteNumber(position.y);
+    if (x === undefined || y === undefined) return normalized;
+
+    normalized[uuid] = { x, y };
+    return normalized;
+  }, {});
+
+  return {
+    version: 1,
+    nodes
+  };
 }
 
 export function normalizeApiJson(value: unknown): ApiJson {
@@ -224,6 +256,10 @@ function clearDisabledReferences(blocks: ApiBlock[], disabled: Set<string>) {
 
 function readString(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function readFiniteNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function cloneOptionalValue<T>(value: T): T {

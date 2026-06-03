@@ -40,6 +40,7 @@ import {
   createDraft,
   duplicateDraft,
   generateApiJson,
+  normalizeApiBuilderLayout,
 } from '@/api-builder/store';
 import { hasBlockingErrors, hasDangerWarnings, validateApiJson } from '@/api-builder/validation';
 import { buildVariableOptions, makeTemplate } from '@/api-builder/variables';
@@ -47,6 +48,8 @@ import { deleteApi, getApi, listApis, saveApi, type MokelayApiRecord } from '@/u
 import type {
   ApiBlock,
   ApiBuilderDraft,
+  ApiBuilderLayout,
+  ApiBuilderNodePosition,
   ApiJson,
   ApiController,
   ApiStandardBlock,
@@ -77,7 +80,6 @@ const activeDraftId = ref(props.routeUuid || '');
 const selection = ref<BuilderSelection>({ type: 'api' });
 const bottomTab = ref<'json' | 'validation' | 'test'>('json');
 const draggedBlockUuid = ref('');
-const nodePositions = ref<Record<string, { x: number; y: number }>>({});
 const apiBuilderError = ref('');
 const isApiListLoading = ref(false);
 const isApiDetailLoading = ref(false);
@@ -87,6 +89,7 @@ const isSavingApiInfo = ref(false);
 const apiInfoDialogMode = ref<'create' | 'duplicate' | 'edit'>('create');
 const apiInfoSourceDraftId = ref('');
 const apiInfoSourceJson = ref<ApiJson | null>(null);
+const apiInfoSourceLayout = ref<ApiBuilderLayout | null>(null);
 const apiInfoError = ref('');
 const serverDraftIds = ref(new Set<string>());
 const testRequest = ref<RequestSnapshot>({ header: {}, query: {}, body: {} });
@@ -169,12 +172,13 @@ function buildGraphNodes(): Node[] {
 
   const blocks = activeDraft.value.apiJson.blocks ?? [];
   const starter = blocks.find(isStarterBlock);
+  const layoutNodes = activeDraft.value.layout.nodes;
   const nodes: Node[] = [];
 
   nodes.push({
     id: 'starter',
     type: 'starterNode',
-    position: nodePositions.value.starter ?? { x: 40, y: 190 },
+    position: layoutNodes.starter ?? { x: 40, y: 190 },
     data: {
       label: 'Starter',
       nextBlock: starter?.nextBlock ?? null
@@ -189,7 +193,7 @@ function buildGraphNodes(): Node[] {
     nodes.push({
       id: block.uuid,
       type: isControllerBlock(block) ? 'controllerNode' : 'blockNode',
-      position: nodePositions.value[block.uuid] ?? {
+      position: layoutNodes[block.uuid] ?? {
         x: 190 + column * 210,
         y: 50 + row * 150
       },
@@ -249,7 +253,7 @@ function draftFromApiRecord(record: MokelayApiRecord, currentDraft?: ApiBuilderD
     blocks: [],
     response: null
   };
-  const draft = createDraft(apiJson);
+  const draft = createDraft(apiJson, record.layout ?? currentDraft?.layout);
 
   draft.id = record.uuid;
   draft.apiJson.uuid = record.uuid;
@@ -371,6 +375,7 @@ function openCreateApiDialog(apiJson: unknown = createEmptyApiJson()) {
   apiInfoDialogMode.value = 'create';
   apiInfoSourceDraftId.value = '';
   apiInfoSourceJson.value = cloneValue(draft.apiJson);
+  apiInfoSourceLayout.value = normalizeApiBuilderLayout(draft.layout);
   fillApiInfoForm(draft.apiJson);
   apiInfoError.value = '';
   isApiInfoDialogOpen.value = true;
@@ -384,6 +389,7 @@ function openDuplicateApiDialog() {
   apiInfoDialogMode.value = 'duplicate';
   apiInfoSourceDraftId.value = '';
   apiInfoSourceJson.value = generateApiJson(draft);
+  apiInfoSourceLayout.value = normalizeApiBuilderLayout(draft.layout);
   fillApiInfoForm(draft.apiJson);
   apiInfoError.value = '';
   isApiInfoDialogOpen.value = true;
@@ -450,7 +456,7 @@ async function submitApiInfoDialog() {
     const apiJson = buildApiJsonFromInfo(apiInfoSourceJson.value);
 
     if (apiInfoDialogMode.value === 'create' || apiInfoDialogMode.value === 'duplicate') {
-      await saveApiJsonAsDraft(apiJson);
+      await saveApiJsonAsDraft(apiJson, apiInfoSourceLayout.value ?? undefined);
       isApiInfoDialogOpen.value = false;
       return;
     }
@@ -475,9 +481,10 @@ async function submitApiInfoDialog() {
   }
 }
 
-async function saveApiJsonAsDraft(apiJson: ApiJson) {
+async function saveApiJsonAsDraft(apiJson: ApiJson, layout: ApiBuilderLayout = normalizeApiBuilderLayout(undefined)) {
   const api = await saveApi({
     apiJson,
+    layout,
     status: 'draft'
   });
   const savedDraft = draftFromApiRecord(api);
@@ -536,6 +543,7 @@ async function saveDraftToServer(status: ApiBuilderDraft['status'], sourceDraftI
     const shouldDeletePreviousServerRecord = currentDraftId !== currentDraft.apiJson.uuid && serverDraftIds.value.has(currentDraftId);
     const api = await saveApi({
       apiJson: generateApiJson(currentDraft),
+      layout: currentDraft.layout,
       status,
       originalUuid: serverDraftIds.value.has(currentDraftId) ? currentDraftId : undefined
     });
@@ -659,9 +667,11 @@ function duplicateBlock(block: ApiBlock) {
   } else {
     copy.nextBlock = null;
   }
+  const sourcePosition = readGraphNodePosition(block.uuid);
   const blocks = activeDraft.value.apiJson.blocks ?? [];
   const index = blocks.findIndex((item) => item.uuid === block.uuid);
   blocks.splice(index + 1, 0, copy);
+  copyNodePosition(block.uuid, copy.uuid, { x: 24, y: 24 }, sourcePosition);
   attachNewBlockToOpenSource(copy.uuid);
   selection.value = { type: 'block', uuid: copy.uuid };
 }
@@ -672,6 +682,7 @@ function removeBlock(block: ApiBlock) {
   activeDraft.value.apiJson.blocks = (activeDraft.value.apiJson.blocks ?? []).filter((item) => item.uuid !== block.uuid);
   clearReferencesToBlock(block.uuid);
   activeDraft.value.disabledBlockIds = activeDraft.value.disabledBlockIds.filter((uuid) => uuid !== block.uuid);
+  removeNodePosition(block.uuid);
   selection.value = { type: 'api' };
 }
 
@@ -794,11 +805,88 @@ function onFlowNodeClick(event: { node?: Node }) {
 function onFlowNodeDragStop(event: { node?: Node }) {
   const node = event.node;
   if (!node?.id || !node.position) return;
-  nodePositions.value = {
-    ...nodePositions.value,
-    [node.id]: {
-      x: node.position.x,
-      y: node.position.y
+  setNodePosition(node.id, node.position);
+}
+
+function ensureDraftLayout(draft: ApiBuilderDraft | null = activeDraft.value) {
+  if (!draft) return null;
+  draft.layout = normalizeApiBuilderLayout(draft.layout);
+  return draft.layout;
+}
+
+function setNodePosition(uuid: string, position: ApiBuilderNodePosition) {
+  if (!activeDraft.value || !uuid) return;
+
+  const layout = ensureDraftLayout();
+  if (!layout) return;
+
+  activeDraft.value.layout = {
+    ...layout,
+    nodes: {
+      ...layout.nodes,
+      [uuid]: {
+        x: position.x,
+        y: position.y
+      }
+    }
+  };
+}
+
+function removeNodePosition(uuid: string) {
+  if (!activeDraft.value || !uuid) return;
+
+  const layout = ensureDraftLayout();
+  if (!layout || !layout.nodes[uuid]) return;
+
+  const nodes = { ...layout.nodes };
+  delete nodes[uuid];
+  activeDraft.value.layout = {
+    ...layout,
+    nodes
+  };
+}
+
+function moveNodePosition(previous: string, next: string) {
+  if (!activeDraft.value || !previous || !next || previous === next) return;
+
+  const layout = ensureDraftLayout();
+  const position = layout?.nodes[previous];
+  if (!layout || !position) return;
+
+  const nodes = { ...layout.nodes };
+  delete nodes[previous];
+  nodes[next] = position;
+  activeDraft.value.layout = {
+    ...layout,
+    nodes
+  };
+}
+
+function readGraphNodePosition(uuid: string) {
+  const position = graphNodes.value.find((node) => node.id === uuid)?.position;
+  return position
+    ? {
+        x: position.x,
+        y: position.y
+      }
+    : undefined;
+}
+
+function copyNodePosition(source: string, target: string, offset: ApiBuilderNodePosition, fallbackPosition?: ApiBuilderNodePosition) {
+  if (!activeDraft.value || !source || !target) return;
+
+  const layout = ensureDraftLayout();
+  const position = layout?.nodes[source] ?? fallbackPosition;
+  if (!layout || !position) return;
+
+  activeDraft.value.layout = {
+    ...layout,
+    nodes: {
+      ...layout.nodes,
+      [target]: {
+        x: position.x + offset.x,
+        y: position.y + offset.y
+      }
     }
   };
 }
@@ -931,13 +1019,7 @@ function updateActiveBlockUuid(value: string) {
     if (block.nextBlock === previous) block.nextBlock = next;
   }
 
-  if (nodePositions.value[previous]) {
-    nodePositions.value = {
-      ...nodePositions.value,
-      [next]: nodePositions.value[previous]
-    };
-    delete nodePositions.value[previous];
-  }
+  moveNodePosition(previous, next);
   selection.value = { type: 'block', uuid: next };
 }
 

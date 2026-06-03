@@ -1,4 +1,5 @@
-import type { ApiBuilderStatus, ApiJson } from '@/api-builder/types';
+import { normalizeApiBuilderLayout } from '@/api-builder/store';
+import type { ApiBuilderLayout, ApiBuilderStatus, ApiJson } from '@/api-builder/types';
 import { apiClient } from '@/composables/useApi';
 
 export type MokelayApiRecord = {
@@ -7,6 +8,7 @@ export type MokelayApiRecord = {
   method: string;
   status: ApiBuilderStatus;
   apiJson?: ApiJson;
+  layout?: ApiBuilderLayout;
   createdAt: string;
   updatedAt: string;
 };
@@ -32,6 +34,7 @@ export type ListApisResult = {
 
 export type SaveApiPayload = {
   apiJson: ApiJson;
+  layout?: ApiBuilderLayout;
   status: ApiBuilderStatus;
   originalUuid?: string;
 };
@@ -94,7 +97,8 @@ export async function saveApi(payload: SaveApiPayload) {
     name: apiJson.alias || '未命名 API',
     method: String(apiJson.method || 'GET').toUpperCase(),
     status: payload.status,
-    apiJson
+    apiJson,
+    layout: payload.layout ?? normalizeApiBuilderLayout(undefined)
   });
 
   return normalizeApiResponse(unwrapApiResponse(response.data));
@@ -161,6 +165,9 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
     : isRecord(value.api_json)
       ? value.api_json
       : undefined;
+  const layout = Object.prototype.hasOwnProperty.call(value, 'layout')
+    ? normalizeApiBuilderLayout(value.layout)
+    : undefined;
 
   if (!uuid) {
     throw new Error('Invalid API record.');
@@ -172,6 +179,7 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
     method,
     status,
     apiJson: apiJsonValue as ApiJson | undefined,
+    ...(layout ? { layout } : {}),
     createdAt: readString(value.createdAt) || readString(value.created_at),
     updatedAt: readString(value.updatedAt) || readString(value.updated_at)
   };
