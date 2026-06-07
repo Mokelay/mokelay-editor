@@ -24,7 +24,19 @@ export const enMessages = {
     propertyDialogTitle: 'Property Settings',
     configJson: 'Config JSON',
     close: 'Close',
-    invalidJson: 'Enter valid JSON.'
+    invalidJson: 'Enter valid JSON.',
+    events: {
+      menu: 'Events',
+      title: 'Event Settings',
+      add: 'Add event',
+      remove: 'Remove event',
+      empty: 'No events yet.',
+      fields: {
+        event: 'Trigger event',
+        block: 'Trigger block',
+        method: 'Trigger method'
+      }
+    }
   },
   preview: {
     title: 'Config Preview',

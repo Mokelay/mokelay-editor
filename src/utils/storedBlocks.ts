@@ -1,7 +1,10 @@
+import { cloneBlockEvents, type BlockEvent } from '@/utils/blockEvents';
+
 export type StoredBlock = {
   id: string;
   type: string;
   data: Record<string, unknown>;
+  events?: BlockEvent[];
 };
 
 export function generateBlockId() {
@@ -43,10 +46,14 @@ export function toPlainRecord(value: unknown): Record<string, unknown> {
 }
 
 export function cloneStoredBlock(block: StoredBlock): StoredBlock {
+  const events = cloneBlockEvents(block.events);
+  const hasEvents = Object.prototype.hasOwnProperty.call(block, 'events');
+
   return {
     id: block.id,
     type: block.type,
-    data: toPlainRecord(block.data)
+    data: toPlainRecord(block.data),
+    ...(events.length || hasEvents ? { events } : {})
   };
 }
 
@@ -100,10 +107,11 @@ export function normalizeStoredBlocks(value?: StoredBlock[]): StoredBlock[] {
     const block = {
       id: record.id,
       type: record.type,
-      data: toPlainRecord(record.data)
+      data: toPlainRecord(record.data),
+      events: cloneBlockEvents(record.events)
     };
 
-    normalizedBlocks.push(block.type === 'paragraph' ? createParagraphBlock(getParagraphText(block), block.id) : block);
+    normalizedBlocks.push(block.type === 'paragraph' ? createParagraphBlock(getParagraphText(block), block.id) : cloneStoredBlock(block));
   });
 
   return mergeParagraphBlocks(normalizedBlocks);

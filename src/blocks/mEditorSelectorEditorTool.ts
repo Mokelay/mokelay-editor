@@ -1,10 +1,12 @@
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
+import { cloneBlockEvents, finalizeEditorBlocksWithEvents, type BlockEvent } from '@/utils/blockEvents';
 
 export type StoredBlock = {
   id: string;
   type: string;
   data: Record<string, unknown>;
+  events?: BlockEvent[];
 };
 
 export interface MEditorSelectorProps {
@@ -42,18 +44,25 @@ export function normalizeSelectorBlock(value?: unknown): StoredBlock | undefined
     return undefined;
   }
 
+  const events = cloneBlockEvents(record.events);
+
   return {
     id: typeof record.id === 'string' && record.id ? record.id : generateBlockId(),
     type: record.type,
-    data: toPlainRecord(record.data)
+    data: toPlainRecord(record.data),
+    ...(events.length || Object.prototype.hasOwnProperty.call(record, 'events') ? { events } : {})
   };
 }
 
 export function cloneSelectorBlock(block: StoredBlock): StoredBlock {
+  const events = cloneBlockEvents(block.events);
+  const hasEvents = Object.prototype.hasOwnProperty.call(block, 'events');
+
   return {
     id: block.id,
     type: block.type,
-    data: toPlainRecord(block.data)
+    data: toPlainRecord(block.data),
+    ...(events.length || hasEvents ? { events } : {})
   };
 }
 
@@ -76,6 +85,6 @@ export const mEditorSelectorEditorTool = defineEditorTool<MEditorSelectorProps>(
   }),
   serialize: (props) => {
     const value = normalizeSelectorBlock(props.value);
-    return value ? { value } : {};
+    return value ? { value: finalizeEditorBlocksWithEvents([value])[0] } : {};
   }
 });

@@ -2,10 +2,19 @@
 import EditorJS, { type OutputData, type ToolSettings } from '@editorjs/editorjs';
 import EditorJsColumns from '@calumk/editorjs-columns';
 import Table from '@editorjs/table';
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
 import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
+import {
+  finalizeEditorBlocksWithEvents,
+  finalizeEditorOutputWithEvents,
+  prepareEditorOutputWithEvents
+} from '@/utils/blockEvents';
+import {
+  createPreviewBlockRuntime,
+  PreviewBlockRuntimeKey
+} from '@/utils/previewBlockRuntime';
 
 // MPage 作为容器块，既支持 EditorJS 编辑态，也支持组件化预览态。
 export interface MPageProps {
@@ -27,14 +36,18 @@ const shouldRenderEditor = computed(() => props.edit);
 let editor: EditorJS | null = null;
 let isSyncingFromProps = false;
 let skipNextPropSync = false;
+let editorMutationObserver: MutationObserver | null = null;
+let scheduledEditorSync: number | null = null;
 // 缓存最近一次编辑器输出，用于编辑态与预览态切换时保留数据。
-let editorDataCache: OutputData = {
-  blocks: props.value
-};
+let editorDataCache: OutputData = buildOutput(props.value);
 
 const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
 const previewBlocks = computed(() => (Array.isArray(props.value) ? props.value : []));
+const parentPreviewRuntime = inject(PreviewBlockRuntimeKey, null);
+const previewRuntime = parentPreviewRuntime ?? createPreviewBlockRuntime();
+
+provide(PreviewBlockRuntimeKey, previewRuntime);
 
 type EditorBlock = OutputData['blocks'][number];
 type EditorColumnData = { blocks?: OutputData['blocks'] };
@@ -51,8 +64,33 @@ function getColumnBlocks(column: EditorColumnData): OutputData['blocks'] {
 
 function buildOutput(blocks: OutputData['blocks']): OutputData {
   return {
-    blocks
+    blocks: finalizeEditorBlocksWithEvents(blocks)
   };
+}
+
+async function saveEditorJsInstance(instance: EditorJS): Promise<OutputData | undefined> {
+  await instance.isReady?.catch(() => undefined);
+
+  const editorApi = instance as EditorJS & {
+    save?: () => Promise<OutputData>;
+    saver?: {
+      save?: () => Promise<OutputData>;
+    };
+  };
+
+  if (typeof editorApi.save === 'function') {
+    return editorApi.save();
+  }
+
+  if (typeof editorApi.saver?.save === 'function') {
+    return editorApi.saver.save();
+  }
+
+  if (import.meta.env.DEV) {
+    console.warn('[Mokelay editor] EditorJS save API is not ready; using cached page data.');
+  }
+
+  return undefined;
 }
 
 // 当前通过 JSON 深比较 blocks，保证外部同步时能正确判断是否需要重建编辑器。
@@ -69,6 +107,72 @@ function notifyChanges(blocks: OutputData['blocks']) {
   props.onToolChange?.(payload);
   skipNextPropSync = true;
   emit('change', blocks);
+}
+
+async function syncFromEditorOutput(output: OutputData) {
+  const previousBlocks = Array.isArray(editorDataCache.blocks) ? editorDataCache.blocks : ([] as OutputData['blocks']);
+  const finalizedOutput = finalizeEditorOutputWithEvents(output);
+  editorDataCache = finalizedOutput;
+
+  if (!isSyncingFromProps && !isSameBlocks(previousBlocks, finalizedOutput.blocks)) {
+    notifyChanges(finalizedOutput.blocks);
+  }
+}
+
+function clearScheduledEditorSync() {
+  if (scheduledEditorSync === null) return;
+  window.clearTimeout(scheduledEditorSync);
+  scheduledEditorSync = null;
+}
+
+function scheduleEditorSync() {
+  if (!editor) return;
+
+  clearScheduledEditorSync();
+  scheduledEditorSync = window.setTimeout(async () => {
+    scheduledEditorSync = null;
+    if (!editor) return;
+
+    try {
+      const output = await saveEditorJsInstance(editor);
+      if (output) {
+        await syncFromEditorOutput(output);
+      }
+    } catch {
+      // EditorJS can reject while a nested block is still mounting; the next DOM event will sync again.
+    }
+  }, 0);
+}
+
+function startEditorSyncListeners() {
+  const holder = holderRef.value;
+  if (!holder) return;
+
+  stopEditorSyncListeners();
+  editorMutationObserver = new MutationObserver(() => {
+    scheduleEditorSync();
+  });
+  editorMutationObserver.observe(holder, {
+    attributes: true,
+    characterData: true,
+    childList: true,
+    subtree: true
+  });
+
+  holder.addEventListener('input', scheduleEditorSync);
+  holder.addEventListener('change', scheduleEditorSync);
+  holder.addEventListener('click', scheduleEditorSync);
+}
+
+function stopEditorSyncListeners() {
+  const holder = holderRef.value;
+  editorMutationObserver?.disconnect();
+  editorMutationObserver = null;
+  clearScheduledEditorSync();
+
+  holder?.removeEventListener('input', scheduleEditorSync);
+  holder?.removeEventListener('change', scheduleEditorSync);
+  holder?.removeEventListener('click', scheduleEditorSync);
 }
 
 async function mountEditor() {
@@ -93,27 +197,32 @@ async function mountEditor() {
         }
       }
     },
-    data: editorDataCache,
+    data: prepareEditorOutputWithEvents(editorDataCache),
     i18n: {
       messages: getEditorJsI18nMessages(localeValue.value)
     },
     onChange: async () => {
-      if (!editor) return;
-      const output = await editor.save();
-      editorDataCache = output;
-      if (isSyncingFromProps) return;
-      notifyChanges(output.blocks);
+      const currentEditor = editor;
+      if (!currentEditor) return;
+      const output = await saveEditorJsInstance(currentEditor);
+      if (output) {
+        await syncFromEditorOutput(output);
+      }
     }
   });
+
+  startEditorSyncListeners();
 }
 
 async function unmountEditor() {
   const currentEditor = editor;
   if (!currentEditor) return;
   editor = null;
+  stopEditorSyncListeners();
 
   try {
-    editorDataCache = await currentEditor.save();
+    const output = await saveEditorJsInstance(currentEditor);
+    editorDataCache = output ? finalizeEditorOutputWithEvents(output) : editorDataCache;
   } catch {
     // 销毁阶段若保存失败，回退到当前 props，避免丢失可用数据。
     editorDataCache = buildOutput(props.value);
@@ -132,7 +241,7 @@ async function saveEditor() {
   if (!editor) {
     return editorDataCache;
   }
-  const output = await editor.save();
+  const output = finalizeEditorOutputWithEvents((await saveEditorJsInstance(editor)) ?? editorDataCache);
   editorDataCache = output;
   return output;
 }

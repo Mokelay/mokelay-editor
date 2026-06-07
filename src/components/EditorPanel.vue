@@ -121,6 +121,66 @@ defineExpose({
   gap: 14px;
 }
 
+:deep(.mokelay-editor-tool__events-dialog) {
+  width: min(100%, 680px);
+}
+
+:deep(.mokelay-editor-tool__events-body) {
+  gap: 12px;
+}
+
+:deep(.mokelay-editor-tool__events-empty) {
+  margin: 0;
+  color: rgb(100 116 139);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+:deep(.mokelay-editor-tool__event-row) {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+:deep(.mokelay-editor-tool__event-fields) {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+:deep(.mokelay-editor-tool__event-field) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:deep(.mokelay-editor-tool__event-add),
+:deep(.mokelay-editor-tool__event-remove) {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 14px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+:deep(.mokelay-editor-tool__event-add) {
+  align-self: flex-start;
+  background: rgb(79 70 229);
+  color: white;
+}
+
+:deep(.mokelay-editor-tool__event-remove) {
+  flex: none;
+  background: rgb(254 226 226);
+  color: rgb(185 28 28);
+}
+
 :deep(.mokelay-editor-tool__property-field) {
   display: flex;
   flex-direction: column;
@@ -200,5 +260,33 @@ defineExpose({
   background: rgb(15 23 42);
   color: rgb(226 232 240);
   border-color: rgb(71 85 105 / 0.9);
+}
+
+:global(.dark) :deep(.mokelay-editor-tool__events-empty) {
+  color: rgb(148 163 184);
+}
+
+:global(.dark) :deep(.mokelay-editor-tool__event-row) {
+  border-color: rgb(51 65 85);
+}
+
+:global(.dark) :deep(.mokelay-editor-tool__event-remove) {
+  background: rgb(127 29 29 / 0.45);
+  color: rgb(254 202 202);
+}
+
+@media (max-width: 720px) {
+  :deep(.mokelay-editor-tool__event-row) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  :deep(.mokelay-editor-tool__event-fields) {
+    grid-template-columns: 1fr;
+  }
+
+  :deep(.mokelay-editor-tool__event-remove) {
+    align-self: flex-start;
+  }
 }
 </style>

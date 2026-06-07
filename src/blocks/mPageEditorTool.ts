@@ -1,6 +1,7 @@
 import type { OutputData } from '@editorjs/editorjs';
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
+import { finalizeEditorBlocksWithEvents } from '@/utils/blockEvents';
 
 // MPage 工具在编辑器中的数据结构定义：
 // - edit: 是否为编辑态
@@ -27,6 +28,6 @@ export const mPageEditorTool = defineEditorTool<MPageToolProps>({
     value: Array.isArray(props.value) ? props.value : []
   }),
   serialize: (props) => ({
-    value: props.value
+    value: finalizeEditorBlocksWithEvents(Array.isArray(props.value) ? props.value : [])
   })
 });

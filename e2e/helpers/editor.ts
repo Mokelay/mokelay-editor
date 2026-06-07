@@ -7,8 +7,14 @@ export const defaultEditorHash = `/pages/${defaultPageUuid}`;
 export const defaultEditorUrl = `/#${defaultEditorHash}`;
 
 export type SavedBlock = {
+  id?: string;
   type?: string;
   data?: Record<string, unknown>;
+  events?: Array<{
+    event: string;
+    block: string;
+    method: string;
+  }>;
 };
 
 export type MockMokelayPage = {
@@ -373,6 +379,39 @@ export async function openToolPropertyPanel(page: Page, toolTestId: string) {
   await expect(page.getByTestId('tool-property-panel')).toBeVisible();
 
   return propertyDialog;
+}
+
+export async function openToolEventsPanel(page: Page, toolTestId: string) {
+  const { settingsButton } = await expectToolToolbarBeside(page, toolTestId);
+  await settingsButton.click();
+
+  const eventButton = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '事件' });
+  await expect(eventButton).toBeVisible();
+  await eventButton.click();
+
+  const eventsDialog = page.locator('[data-testid="tool-events-dialog"][open]');
+  await expect(eventsDialog).toBeVisible();
+  await expect(eventsDialog.getByTestId('tool-events-panel')).toBeVisible();
+
+  return eventsDialog;
+}
+
+export async function fillEventRow(
+  eventsDialog: Locator,
+  index: number,
+  values: { event?: string; block?: string; method?: string }
+) {
+  if (values.event !== undefined) {
+    await eventsDialog.getByTestId(`tool-event-input-${index}-event`).fill(values.event);
+  }
+
+  if (values.block !== undefined) {
+    await eventsDialog.getByTestId(`tool-event-input-${index}-block`).fill(values.block);
+  }
+
+  if (values.method !== undefined) {
+    await eventsDialog.getByTestId(`tool-event-input-${index}-method`).fill(values.method);
+  }
 }
 
 function expectToolbarBesideTool(

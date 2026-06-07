@@ -24,7 +24,19 @@ export const zhMessages = {
     propertyDialogTitle: '属性设置',
     configJson: '配置 JSON',
     close: '关闭',
-    invalidJson: '请输入有效 JSON。'
+    invalidJson: '请输入有效 JSON。',
+    events: {
+      menu: '事件',
+      title: '事件设置',
+      add: '添加事件',
+      remove: '删除事件',
+      empty: '暂无事件。',
+      fields: {
+        event: '触发事件 event',
+        block: '触发组件 block',
+        method: '触发方法 method'
+      }
+    }
   },
   preview: {
     title: '配置预览',

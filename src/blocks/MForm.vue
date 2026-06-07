@@ -6,7 +6,8 @@ export type { MFormItemData, MFormProps } from '@/blocks/mFormEditorTool';
 <script setup lang="ts">
 import EditorJS, { type OutputData, type ToolSettings } from '@editorjs/editorjs';
 import type { MenuConfig } from '@editorjs/editorjs/types/tools';
-import { createApp, type App, computed, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { createApp, type App, computed, h, inject, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { BlockEventsDialogController, blockEventsIcon } from '@/editors/blockEventsDialog';
 import MFormItem, {
   mFormItemEditorTool,
   normalizeFormItemProps,
@@ -32,10 +33,18 @@ import {
 } from '@/editors/editorComponentRegistry';
 import type { EditorToolComponentProps, EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import { getEditorJsI18nMessages, i18n, useI18n } from '@/i18n';
+import { cloneBlockEvents, normalizeBlockEvents, type BlockEvent } from '@/utils/blockEvents';
+import {
+  PreviewBlockRuntimeKey,
+  type PreviewRuntimeBlock
+} from '@/utils/previewBlockRuntime';
 
 type FormItemToolOptions = {
   data?: Record<string, unknown>;
   config?: Record<string, unknown>;
+  block?: {
+    dispatchChange: () => void;
+  };
 };
 
 type FormItemToolClass = new (options: FormItemToolOptions) => {
@@ -63,6 +72,7 @@ const emit = defineEmits<{
 const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
 const previewItems = computed(() => normalizeMFormItems(props.items));
+const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 
 let editor: EditorJS | null = null;
 let isSyncingFromProps = false;
@@ -139,14 +149,19 @@ function createFormItemTool(toolName: string): FormItemToolClass {
     private contentRoot: HTMLElement | null = null;
     private vueApp: App<Element> | null = null;
     private propertyDialog: HTMLDialogElement | null = null;
+    private eventsDialog: BlockEventsDialogController | null = null;
+    private events: BlockEvent[] = [];
     private toolbarAlignTimer: number | null = null;
+    private readonly blockApi?: FormItemToolOptions['block'];
     private readonly handleToolbarPointer = () => {
       this.scheduleToolbarAlignment();
     };
 
-    constructor({ data, config }: FormItemToolOptions) {
+    constructor({ data, config, block }: FormItemToolOptions) {
+      this.blockApi = block;
       const edit = typeof config?.edit === 'boolean' ? config.edit : true;
       const existingEditor = normalizeSelectorBlock(data?.editor);
+      this.events = cloneBlockEvents(data?.events);
 
       this.state = reactive(normalizeFormItemProps({
         ...(data ?? {}),
@@ -170,6 +185,7 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       wrapper.addEventListener('mouseenter', this.handleToolbarPointer);
       wrapper.addEventListener('mousemove', this.handleToolbarPointer);
       this.createPropertyDialog();
+      this.createEventsDialog();
       this.mountVueApp();
       return wrapper;
     }
@@ -180,28 +196,45 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       this.wrapper?.removeEventListener('mousemove', this.handleToolbarPointer);
       this.unmountVueApp();
       this.propertyDialog?.remove();
+      this.eventsDialog?.destroy();
+      this.eventsDialog = null;
       this.propertyDialog = null;
       this.contentRoot = null;
       this.wrapper = null;
     }
 
     save() {
-      return serializeFormItemProps(this.state);
+      const events = cloneBlockEvents(this.events);
+      return {
+        ...serializeFormItemProps(this.state),
+        events
+      };
     }
 
     renderSettings(): MenuConfig {
-      if (!this.getPropertyFields().length) {
-        return [];
+      const settings = [];
+
+      if (this.getPropertyFields().length) {
+        settings.push({
+          icon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19.14 12.94C19.18 12.63 19.2 12.32 19.2 12C19.2 11.68 19.18 11.36 19.13 11.06L21.11 9.51C21.29 9.37 21.34 9.11 21.23 8.9L19.35 5.64C19.24 5.43 18.99 5.35 18.77 5.42L16.44 6.17C15.96 5.8 15.44 5.48 14.87 5.23L14.51 2.75C14.48 2.52 14.28 2.35 14.04 2.35H10.28C10.04 2.35 9.84 2.52 9.81 2.75L9.45 5.23C8.88 5.48 8.36 5.81 7.88 6.17L5.55 5.42C5.33 5.35 5.08 5.43 4.97 5.64L3.09 8.9C2.98 9.11 3.03 9.37 3.21 9.51L5.19 11.06C5.14 11.36 5.12 11.68 5.12 12C5.12 12.32 5.14 12.64 5.19 12.94L3.21 14.49C3.03 14.63 2.98 14.89 3.09 15.1L4.97 18.36C5.08 18.57 5.33 18.65 5.55 18.58L7.88 17.83C8.36 18.2 8.88 18.52 9.45 18.77L9.81 21.25C9.84 21.48 10.04 21.65 10.28 21.65H14.04C14.28 21.65 14.48 21.48 14.51 21.25L14.87 18.77C15.44 18.52 15.96 18.19 16.44 17.83L18.77 18.58C18.99 18.65 19.24 18.57 19.35 18.36L21.23 15.1C21.34 14.89 21.29 14.63 21.11 14.49L19.14 12.94ZM12.16 15.6C10.17 15.6 8.56 13.99 8.56 12C8.56 10.01 10.17 8.4 12.16 8.4C14.15 8.4 15.76 10.01 15.76 12C15.76 13.99 14.15 15.6 12.16 15.6Z" fill="currentColor"/></svg>',
+          title: i18n.t('editor.properties'),
+          onActivate: () => {
+            this.openPropertyDialog();
+          },
+          closeOnActivate: true
+        });
       }
 
-      return {
-        icon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19.14 12.94C19.18 12.63 19.2 12.32 19.2 12C19.2 11.68 19.18 11.36 19.13 11.06L21.11 9.51C21.29 9.37 21.34 9.11 21.23 8.9L19.35 5.64C19.24 5.43 18.99 5.35 18.77 5.42L16.44 6.17C15.96 5.8 15.44 5.48 14.87 5.23L14.51 2.75C14.48 2.52 14.28 2.35 14.04 2.35H10.28C10.04 2.35 9.84 2.52 9.81 2.75L9.45 5.23C8.88 5.48 8.36 5.81 7.88 6.17L5.55 5.42C5.33 5.35 5.08 5.43 4.97 5.64L3.09 8.9C2.98 9.11 3.03 9.37 3.21 9.51L5.19 11.06C5.14 11.36 5.12 11.68 5.12 12C5.12 12.32 5.14 12.64 5.19 12.94L3.21 14.49C3.03 14.63 2.98 14.89 3.09 15.1L4.97 18.36C5.08 18.57 5.33 18.65 5.55 18.58L7.88 17.83C8.36 18.2 8.88 18.52 9.45 18.77L9.81 21.25C9.84 21.48 10.04 21.65 10.28 21.65H14.04C14.28 21.65 14.48 21.48 14.51 21.25L14.87 18.77C15.44 18.52 15.96 18.19 16.44 17.83L18.77 18.58C18.99 18.65 19.24 18.57 19.35 18.36L21.23 15.1C21.34 14.89 21.29 14.63 21.11 14.49L19.14 12.94ZM12.16 15.6C10.17 15.6 8.56 13.99 8.56 12C8.56 10.01 10.17 8.4 12.16 8.4C14.15 8.4 15.76 10.01 15.76 12C15.76 13.99 14.15 15.6 12.16 15.6Z" fill="currentColor"/></svg>',
-        title: i18n.t('editor.properties'),
+      settings.push({
+        icon: blockEventsIcon,
+        title: i18n.t('editor.events.menu'),
         onActivate: () => {
-          this.openPropertyDialog();
+          this.openEventsDialog();
         },
         closeOnActivate: true
-      };
+      });
+
+      return settings as MenuConfig;
     }
 
     private mountVueApp() {
@@ -294,12 +327,31 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       this.bindPropertyInputs();
     }
 
+    private createEventsDialog() {
+      if (!this.wrapper) return;
+
+      this.eventsDialog = new BlockEventsDialogController({
+        owner: this.wrapper,
+        toolName,
+        getEvents: () => cloneBlockEvents(this.events),
+        setEvents: (events) => {
+          this.events = cloneBlockEvents(events);
+          this.blockApi?.dispatchChange();
+        }
+      });
+      this.eventsDialog.mount();
+    }
+
     private openPropertyDialog() {
       if (!this.propertyDialog) return;
       this.syncPropertyDialogValues();
       if (!this.propertyDialog.open) {
         this.propertyDialog.showModal();
       }
+    }
+
+    private openEventsDialog() {
+      this.eventsDialog?.open();
     }
 
     private syncPropertyDialogValues() {
@@ -451,6 +503,31 @@ function buildOutput(items: MFormItemData[]): OutputData {
       .map((item, index) => formItemToBlock(item, index))
       .filter((block): block is OutputData['blocks'][number] => block !== undefined)
   };
+}
+
+function getFormItemRuntimeBlock(item: MFormItemData, index: number): PreviewRuntimeBlock {
+  return {
+    id: `form-item-${item.variableName || index}`,
+    type: 'MFormItem',
+    data: cloneFormItemData(item),
+    events: cloneBlockEvents(item.events)
+  };
+}
+
+function getFormItemEventListeners(item: MFormItemData, index: number) {
+  const listeners: Record<string, (event: unknown) => void> = {};
+  const sourceBlock = getFormItemRuntimeBlock(item, index);
+
+  normalizeBlockEvents(item.events).forEach((eventConfig) => {
+    if (!eventConfig.event) return;
+    const previousListener = listeners[eventConfig.event];
+    listeners[eventConfig.event] = (event: unknown) => {
+      previousListener?.(event);
+      previewRuntime?.invokeBlockMethod(eventConfig, sourceBlock, event);
+    };
+  });
+
+  return listeners;
 }
 
 function getItemsFromOutput(output: OutputData) {
@@ -676,6 +753,7 @@ onBeforeUnmount(async () => {
         :variable-name="item.variableName"
         :editor="item.editor ? cloneSelectorBlock(item.editor) : undefined"
         :layout="item.layout"
+        v-on="getFormItemEventListeners(item, index)"
       />
     </div>
   </div>

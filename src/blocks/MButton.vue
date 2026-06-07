@@ -91,6 +91,9 @@ import PageDslBlock from '@/blocks/PageDslBlock.vue';
 import type { PageDslCallbacks } from '@/blocks/pageDslEditorTools';
 
 const props = defineProps<MButtonProps & PageDslCallbacks<MButtonProps>>();
+const emit = defineEmits<{
+  (event: 'click', payload: MouseEvent): void;
+}>();
 
 const buttonClass = computed(() => {
   const variant = props.variant === 'secondary' ? 'secondary' : props.variant === 'ghost' ? 'ghost' : 'primary';
@@ -102,12 +105,18 @@ const buttonWrapClass = computed(() => {
   if (props.align === 'right') return 'page-dsl-button-wrap page-dsl-button-wrap--right';
   return 'page-dsl-button-wrap';
 });
+
+function handleClick(event: MouseEvent) {
+  if (!props.edit) {
+    emit('click', event);
+  }
+}
 </script>
 
 <template>
   <PageDslBlock block-type="MButton">
     <div :class="buttonWrapClass">
-      <button type="button" :class="buttonClass">
+      <button type="button" :class="buttonClass" @click="handleClick">
         {{ label || '提交' }}
       </button>
     </div>

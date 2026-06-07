@@ -53,10 +53,14 @@ export const mInputEditorTool = defineEditorTool<MInputProps>({
 </script>
 
 <script setup lang="ts">
+import { ref } from 'vue';
+
 const props = defineProps<MInputProps & {
   onChange?: (payload: MInputProps) => void;
   onToolChange?: (payload: MInputProps) => void;
 }>();
+
+const inputRef = ref<HTMLInputElement | null>(null);
 
 // 组件内任意字段变更后，向外抛出完整 payload，保持工具状态一致。
 function emitChange(payload: Partial<MInputProps>) {
@@ -69,11 +73,20 @@ function emitChange(payload: Partial<MInputProps>) {
   props.onToolChange?.(nextPayload);
   props.onChange?.(nextPayload);
 }
+
+function focus() {
+  inputRef.value?.focus();
+}
+
+defineExpose({
+  focus
+});
 </script>
 
 <template>
   <div class="ce-input-tool" data-testid="editor-input-tool">
     <input
+      ref="inputRef"
       data-testid="editor-input-control"
       class="ce-input-tool__control"
       type="text"

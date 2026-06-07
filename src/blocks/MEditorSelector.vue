@@ -11,6 +11,10 @@ import { createEditorTools } from '@/editors/EditorToolFactory';
 import { getEditorComponentDefinition } from '@/editors/editorComponentRegistry';
 import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
 import {
+  finalizeEditorOutputWithEvents,
+  prepareEditorOutputWithEvents
+} from '@/utils/blockEvents';
+import {
   cloneSelectorBlock,
   normalizeSelectorBlock,
   type MEditorSelectorProps,
@@ -69,7 +73,8 @@ function toStoredBlock(block: OutputData['blocks'][number]): StoredBlock | undef
 }
 
 function getSelectedBlockFromOutput(output: OutputData) {
-  const blocks = Array.isArray(output.blocks) ? output.blocks : [];
+  const finalizedOutput = finalizeEditorOutputWithEvents(output);
+  const blocks = Array.isArray(finalizedOutput.blocks) ? finalizedOutput.blocks : [];
   const selectorBlocks = blocks
     .map((block) => toStoredBlock(block))
     .filter((block): block is StoredBlock => block !== undefined);
@@ -105,7 +110,7 @@ async function renderCanonicalValue(block?: StoredBlock) {
   editorDataCache = buildOutput(block);
 
   try {
-    await currentEditor.blocks.render(editorDataCache);
+    await currentEditor.blocks.render(prepareEditorOutputWithEvents(editorDataCache));
   } finally {
     await nextTick();
     isRenderingCanonicalValue = false;
@@ -146,7 +151,7 @@ function scheduleEditorSync() {
     if (!editor || isRenderingCanonicalValue) return;
 
     try {
-      const output = await editor.save();
+      const output = finalizeEditorOutputWithEvents(await editor.save());
       await syncFromEditorOutput(output);
     } catch {
       // EditorJS can reject while a block is still being mounted; the next DOM/input event will sync again.
@@ -240,14 +245,14 @@ async function mountEditor() {
     holder: holderRef.value,
     placeholder: t('editorSelector.placeholder'),
     tools,
-    data: editorDataCache,
+    data: prepareEditorOutputWithEvents(editorDataCache),
     minHeight: 0,
     i18n: {
       messages: getEditorJsI18nMessages(localeValue.value)
     },
     onChange: async () => {
       if (!editor) return;
-      const output = await editor.save();
+      const output = finalizeEditorOutputWithEvents(await editor.save());
       await syncFromEditorOutput(output);
     }
   });
@@ -262,7 +267,7 @@ async function unmountEditor() {
   stopEditorSyncListeners();
 
   try {
-    const output = await currentEditor.save();
+    const output = finalizeEditorOutputWithEvents(await currentEditor.save());
     selectedBlock.value = getSelectedBlockFromOutput(output);
     editorDataCache = buildOutput(selectedBlock.value);
   } catch {

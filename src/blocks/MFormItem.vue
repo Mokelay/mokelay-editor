@@ -137,6 +137,9 @@ const props = withDefaults(defineProps<MFormItemProps & {
   editor: undefined,
   layout: 'Vertical'
 });
+const emit = defineEmits<{
+  (event: 'click', payload: MouseEvent): void;
+}>();
 
 const { t } = useI18n();
 const selectorExcludeToolNames = ['MFormItem', 'MForm'];
@@ -181,6 +184,12 @@ function handleEditorChange(payload: MEditorSelectorProps) {
   });
 }
 
+function handlePreviewClick(event: MouseEvent) {
+  if (!props.edit) {
+    emit('click', event);
+  }
+}
+
 watch(
   () => ({
     labelName: props.labelName,
@@ -204,6 +213,7 @@ watch(
       'ce-form-item-tool--horizontal': formItem.layout === 'Horizontal'
     }"
     data-testid="editor-form-item-tool"
+    @click="handlePreviewClick"
   >
     <template v-if="edit">
       <div class="ce-form-item-tool__edit-shell" data-testid="form-item-edit-shell">

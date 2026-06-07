@@ -1,6 +1,7 @@
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
 import { cloneSelectorBlock, type StoredBlock } from '@/blocks/mEditorSelectorEditorTool';
+import { cloneBlockEvents, type BlockEvent } from '@/utils/blockEvents';
 import {
   normalizeFormItemProps,
   type MFormItemLayout,
@@ -12,6 +13,7 @@ export interface MFormItemData {
   variableName: string;
   editor?: StoredBlock;
   layout: MFormItemLayout;
+  events?: BlockEvent[];
 }
 
 export interface MFormProps {
@@ -28,12 +30,14 @@ export function cloneFormItemData(item: Partial<MFormItemProps>): MFormItemData 
     ...item,
     edit: false
   });
+  const events = cloneBlockEvents((item as Partial<MFormItemProps> & { events?: unknown }).events);
 
   return {
     labelName: normalized.labelName,
     variableName: normalized.variableName,
     ...(normalized.editor ? { editor: cloneSelectorBlock(normalized.editor) } : {}),
-    layout: normalized.layout
+    layout: normalized.layout,
+    events
   };
 }
 
