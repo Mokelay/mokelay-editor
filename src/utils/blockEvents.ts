@@ -141,7 +141,7 @@ function mapBlock(block: OutputBlockData, mode: 'runtime' | 'saved'): OutputBloc
       ? blockRecord.events
       : nestedData[INTERNAL_BLOCK_EVENTS_DATA_KEY];
     const data = attachInternalBlockEventsToData(nestedData, events, hasTopLevelEvents || hasInternalEvents);
-    const nextBlock = {
+    const nextBlock: PlainRecord = {
       ...blockRecord,
       data
     };
@@ -155,7 +155,7 @@ function mapBlock(block: OutputBlockData, mode: 'runtime' | 'saved'): OutputBloc
     ? getInternalBlockEventsFromData(nestedData)
     : normalizeBlockEvents(blockRecord.events);
   const data = removeInternalBlockEventsFromData(nestedData);
-  const nextBlock = {
+  const nextBlock: PlainRecord = {
     ...blockRecord,
     data
   };
