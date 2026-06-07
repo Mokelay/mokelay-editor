@@ -22,13 +22,11 @@ export default defineConfig(() => ({
             if (
               moduleId.includes('/src/blocks/MForm.vue') ||
               moduleId.includes('/src/blocks/MFormItem.vue') ||
-              moduleId.includes('/src/blocks/mFormEditorTool.ts')
+              moduleId.includes('/src/blocks/mFormEditorTool.ts') ||
+              moduleId.includes('/src/blocks/MEditorSelector.vue') ||
+              moduleId.includes('/src/blocks/mEditorSelectorEditorTool.ts')
             ) {
-              return 'block-form';
-            }
-
-            if (moduleId.includes('/src/blocks/MEditorSelector.vue')) {
-              return 'block-editor-selector';
+              return 'block-form-selector';
             }
 
             if (moduleId.includes('/src/blocks/MChart.vue')) {

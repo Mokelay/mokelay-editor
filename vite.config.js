@@ -18,11 +18,10 @@ export default defineConfig(function () { return ({
                     if (!moduleId.includes('node_modules')) {
                         if (moduleId.includes('/src/blocks/MForm.vue') ||
                             moduleId.includes('/src/blocks/MFormItem.vue') ||
-                            moduleId.includes('/src/blocks/mFormEditorTool.ts')) {
-                            return 'block-form';
-                        }
-                        if (moduleId.includes('/src/blocks/MEditorSelector.vue')) {
-                            return 'block-editor-selector';
+                            moduleId.includes('/src/blocks/mFormEditorTool.ts') ||
+                            moduleId.includes('/src/blocks/MEditorSelector.vue') ||
+                            moduleId.includes('/src/blocks/mEditorSelectorEditorTool.ts')) {
+                            return 'block-form-selector';
                         }
                         if (moduleId.includes('/src/blocks/MChart.vue')) {
                             return 'block-chart';
