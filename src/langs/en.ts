@@ -212,6 +212,7 @@ export const enMessages = {
       invalidNumber: 'Enter a valid number.',
       invalidObject: 'Enter a valid JSON object.',
       invalidArray: 'Enter a valid JSON array.',
+      missingFile: 'Choose a file in Body.',
       fixJsonBeforeSchema: 'Fix JSON data before parsing JSON Schema.',
       fixBodyBeforeSchema: 'Fix Body mock data before parsing JSON Schema.',
       nonJsonResponse: 'The API response is not JSON.',

@@ -26,12 +26,15 @@ import {
   getDefaultBodyMock,
   getDefaultDatasource,
   normalizeBodyDataType,
+  normalizeBodyFileMock,
   normalizeBodyMock,
   normalizeDatasource,
   normalizeJsonValue,
   normalizeMethod,
+  type DatasourceRequestOptions,
   type MDatasourceApiObject,
   type MDatasourceBodyDataType,
+  type MDatasourceBodyFileMock,
   type MDatasourceBodyItem,
   type MDatasourceJsonObject,
   type MDatasourceKeyMockItem,
@@ -124,6 +127,7 @@ const apiState = reactive<ApiState>(
 );
 const bodyMockInputs = ref<string[]>(apiState.bodyData.map((item) => getBodyMockInputValue(item)));
 const bodyMockErrors = ref<string[]>(apiState.bodyData.map(() => ''));
+const bodyFileInputs = ref<Array<File | undefined>>(apiState.bodyData.map(() => undefined));
 const isReadOnly = computed(() => !props.edit);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
@@ -239,9 +243,31 @@ function emitApiChange() {
   emitDatasource(buildApiDatasource());
 }
 
+function getBodyFileMock(file: File): MDatasourceBodyFileMock {
+  return {
+    name: file.name,
+    size: file.size,
+    type: file.type
+  };
+}
+
+function isSameBodyFileMock(file: File, mock: unknown) {
+  const normalizedMock = normalizeBodyFileMock(mock);
+  return normalizedMock.name === file.name &&
+    normalizedMock.size === file.size &&
+    normalizedMock.type === file.type;
+}
+
 function syncBodyMockInputs() {
+  const previousBodyFileInputs = bodyFileInputs.value;
   bodyMockInputs.value = apiState.bodyData.map((item) => getBodyMockInputValue(item));
   bodyMockErrors.value = apiState.bodyData.map(() => '');
+  bodyFileInputs.value = apiState.bodyData.map((item, index) => {
+    const previousFile = previousBodyFileInputs[index];
+    return item.dataType === 'file' && previousFile && isSameBodyFileMock(previousFile, item.mock)
+      ? previousFile
+      : undefined;
+  });
 }
 
 function syncJsonSchemaState(value?: JSONSchema, selections?: DatasourceSchemaSelections) {
@@ -406,6 +432,7 @@ function addBodyItem() {
   apiState.bodyData.push(item);
   bodyMockInputs.value.push(getBodyMockInputValue(item));
   bodyMockErrors.value.push('');
+  bodyFileInputs.value.push(undefined);
   emitApiChange();
 }
 
@@ -429,6 +456,7 @@ function updateBodyDataType(index: number, value: string) {
   item.mock = getDefaultBodyMock(item.dataType);
   bodyMockInputs.value[index] = getBodyMockInputValue(item);
   bodyMockErrors.value[index] = '';
+  bodyFileInputs.value[index] = undefined;
   emitApiChange();
 }
 
@@ -450,12 +478,26 @@ function updateBodyMock(index: number, inputValue: string) {
   emitApiChange();
 }
 
+function updateBodyFile(index: number, file?: File) {
+  if (!props.edit) return;
+
+  const item = apiState.bodyData[index];
+  if (!item || item.dataType !== 'file') return;
+
+  bodyFileInputs.value[index] = file;
+  item.mock = file ? getBodyFileMock(file) : getDefaultBodyMock('file');
+  bodyMockInputs.value[index] = getBodyMockInputValue(item);
+  bodyMockErrors.value[index] = '';
+  emitApiChange();
+}
+
 function removeBodyItem(index: number) {
   if (!props.edit) return;
 
   apiState.bodyData.splice(index, 1);
   bodyMockInputs.value.splice(index, 1);
   bodyMockErrors.value.splice(index, 1);
+  bodyFileInputs.value.splice(index, 1);
   emitApiChange();
 }
 
@@ -549,6 +591,39 @@ function updateSelectionEnabled(selectionType: 'list' | 'form', path: string, en
   });
 }
 
+function validateBodyFilesForRequest() {
+  if (apiState.method !== 'POST') {
+    return true;
+  }
+
+  let isValid = true;
+  apiState.bodyData.forEach((item, index) => {
+    if (item.dataType !== 'file') return;
+
+    if (!item.key.trim() || bodyFileInputs.value[index]) {
+      bodyMockErrors.value[index] = '';
+      return;
+    }
+
+    bodyMockErrors.value[index] = t('datasource.validation.missingFile');
+    isValid = false;
+  });
+
+  return isValid;
+}
+
+function getDatasourceRequestOptions(): DatasourceRequestOptions {
+  const bodyFiles: Record<number, File> = {};
+  bodyFileInputs.value.forEach((file, index) => {
+    if (!file) return;
+    bodyFiles[index] = file;
+  });
+
+  return {
+    bodyFiles
+  };
+}
+
 async function parseJsonSchema() {
   if (!props.edit || jsonSchemaLoading.value) return;
 
@@ -561,6 +636,11 @@ async function parseJsonSchema() {
     }
 
   } else {
+    if (!validateBodyFilesForRequest()) {
+      jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
+      return;
+    }
+
     const invalidBodyIndex = bodyMockErrors.value.findIndex((error) => Boolean(error));
     if (invalidBodyIndex >= 0) {
       jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
@@ -571,7 +651,9 @@ async function parseJsonSchema() {
   jsonSchemaLoading.value = true;
 
   try {
-    const schema = await resolveDatasourceSchema(currentType.value === 'JSON' ? buildJsonDatasource() : buildApiDatasource());
+    const schema = currentType.value === 'JSON'
+      ? await resolveDatasourceSchema(buildJsonDatasource())
+      : await resolveDatasourceSchema(buildApiDatasource(), getDatasourceRequestOptions());
     applyGeneratedJsonSchema(schema);
   } catch (error) {
     jsonSchemaError.value = getDatasourceErrorMessage(error);
@@ -618,6 +700,17 @@ function parseBodyMock(dataType: MDatasourceBodyDataType, inputValue: string): B
     };
   }
 
+  if (dataType === 'file') {
+    return {
+      ok: true,
+      value: normalizeBodyFileMock({
+        name: inputValue,
+        size: 0,
+        type: ''
+      })
+    };
+  }
+
   try {
     const parsed = JSON.parse(inputValue) as unknown;
     if (dataType === 'object') {
@@ -657,6 +750,10 @@ function parseBodyMock(dataType: MDatasourceBodyDataType, inputValue: string): B
 
 function getBodyMockInputValue(item: ApiStateBodyItem) {
   const normalizedMock = normalizeBodyMock(item.dataType, item.mock);
+  if (item.dataType === 'file') {
+    return normalizeBodyFileMock(normalizedMock).name;
+  }
+
   if (item.dataType === 'object' || item.dataType === 'array') {
     return formatJsonValue(normalizedMock);
   }
@@ -932,6 +1029,23 @@ watch(
             type="text"
             readonly
             value="null"
+          />
+          <input
+            v-else-if="body.dataType === 'file' && edit"
+            class="ce-datasource-tool__input"
+            :data-testid="`datasource-body-mock-${index}`"
+            type="file"
+            :disabled="isReadOnly"
+            @change="updateBodyFile(index, ($event.target as HTMLInputElement).files?.[0])"
+            @keydown.stop
+          />
+          <input
+            v-else-if="body.dataType === 'file'"
+            class="ce-datasource-tool__input"
+            :data-testid="`datasource-body-mock-${index}`"
+            type="text"
+            readonly
+            :value="getBodyMockInputValue(body)"
           />
           <textarea
             v-else-if="body.dataType === 'object' || body.dataType === 'array'"

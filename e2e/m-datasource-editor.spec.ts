@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { expect, test } from '@playwright/test';
 import {
   addEditorTool,
@@ -419,6 +420,51 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
   });
 });
 
+test('saves API datasource file body metadata without file content', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  const fileBuffer = Buffer.from('hello file');
+
+  await page.getByTestId('datasource-type-api').click();
+  await page.getByTestId('datasource-method').selectOption('POST');
+  await page.getByTestId('datasource-body-add').click();
+  await page.getByTestId('datasource-body-key-0').fill('avatar');
+  await page.getByTestId('datasource-body-type-0').selectOption('file');
+  await page.getByTestId('datasource-body-mock-0').setInputFiles({
+    name: 'avatar.txt',
+    mimeType: 'text/plain',
+    buffer: fileBuffer
+  });
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toEqual({
+    type: 'API',
+    domain: '',
+    path: '',
+    method: 'POST',
+    headerData: [],
+    bodyData: [
+      {
+        key: 'avatar',
+        dataType: 'file',
+        mock: {
+          name: 'avatar.txt',
+          size: fileBuffer.length,
+          type: 'text/plain'
+        }
+      }
+    ],
+    queryData: []
+  });
+
+  await page.getByTestId('preview-button').click();
+  await expect(
+    page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-body-mock-0')
+  ).toHaveValue('avatar.txt');
+});
+
 test('parses API datasource response into JSON Schema and saves it', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
@@ -585,6 +631,108 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
       }
     }
   });
+});
+
+test('uploads API datasource file body params as multipart form data', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  const fileBuffer = Buffer.from('hello multipart');
+  const apiSchema = {
+    type: 'object',
+    properties: {
+      ok: {
+        type: 'boolean'
+      }
+    }
+  };
+
+  await page.route('**/datasource-upload**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true
+      })
+    });
+  });
+
+  await page.getByTestId('datasource-type-api').click();
+  const origin = await page.evaluate(() => window.location.origin);
+  await page.getByTestId('datasource-domain').fill(origin);
+  await page.getByTestId('datasource-path').fill('/datasource-upload');
+  await page.getByTestId('datasource-method').selectOption('POST');
+
+  await page.getByTestId('datasource-header-add').click();
+  await page.getByTestId('datasource-header-key-0').fill('Content-Type');
+  await page.getByTestId('datasource-header-mock-0').fill('application/json');
+  await page.getByTestId('datasource-header-add').click();
+  await page.getByTestId('datasource-header-key-1').fill('X-Demo');
+  await page.getByTestId('datasource-header-mock-1').fill('multipart-demo');
+
+  await page.getByTestId('datasource-body-add').click();
+  await page.getByTestId('datasource-body-key-0').fill('avatar');
+  await page.getByTestId('datasource-body-type-0').selectOption('file');
+  await page.getByTestId('datasource-body-mock-0').setInputFiles({
+    name: 'avatar.txt',
+    mimeType: 'text/plain',
+    buffer: fileBuffer
+  });
+  await page.getByTestId('datasource-body-add').click();
+  await page.getByTestId('datasource-body-key-1').fill('count');
+  await page.getByTestId('datasource-body-type-1').selectOption('number');
+  await page.getByTestId('datasource-body-mock-1').fill('2');
+
+  const requestPromise = page.waitForRequest((request) =>
+    request.url().includes('/datasource-upload') && request.method() === 'POST'
+  );
+  await page.getByTestId('datasource-json-schema-parse-button').click();
+  const request = await requestPromise;
+
+  const contentType = request.headers()['content-type'] ?? '';
+  const postData = request.postData() ?? '';
+  expect(contentType).toContain('multipart/form-data');
+  expect(contentType).not.toContain('application/json');
+  expect(request.headers()['x-demo']).toBe('multipart-demo');
+  expect(postData).toContain('name="avatar"');
+  expect(postData).toContain('filename="avatar.txt"');
+  expect(postData).toContain('hello multipart');
+  expect(postData).toContain('name="count"');
+  expect(postData).toContain('2');
+  await page.getByTestId('datasource-schema-tab-advanced').click();
+  await expect(page.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(apiSchema, null, 2));
+});
+
+test('requires selecting a file before generating API datasource schema', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  let requestCount = 0;
+  await page.route('**/datasource-missing-file**', async (route) => {
+    requestCount += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true
+      })
+    });
+  });
+
+  await page.getByTestId('datasource-type-api').click();
+  const origin = await page.evaluate(() => window.location.origin);
+  await page.getByTestId('datasource-domain').fill(origin);
+  await page.getByTestId('datasource-path').fill('/datasource-missing-file');
+  await page.getByTestId('datasource-method').selectOption('POST');
+  await page.getByTestId('datasource-body-add').click();
+  await page.getByTestId('datasource-body-key-0').fill('avatar');
+  await page.getByTestId('datasource-body-type-0').selectOption('file');
+
+  await page.getByTestId('datasource-json-schema-parse-button').click();
+
+  await expect(page.getByTestId('datasource-body-error-0')).toContainText('请选择 Body 中的文件。');
+  await expect(page.getByTestId('datasource-json-schema-error')).toContainText('请先修正 Body 中的 Mock 数据。');
+  expect(requestCount).toBe(0);
 });
 
 test('parses API datasource response with mixed array item fields into anyOf JSON Schema', async ({ page }) => {

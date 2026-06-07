@@ -13,7 +13,13 @@ import {
 
 export type MDatasourceType = 'JSON' | 'API';
 export type MDatasourceApiMethod = 'GET' | 'POST';
-export type MDatasourceBodyDataType = 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array';
+export type MDatasourceBodyDataType = 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array' | 'file';
+export type MDatasourceBodyFileMock = {
+  [key: string]: JsonValue;
+  name: string;
+  size: number;
+  type: string;
+};
 
 export type {
   DatasourceSchemaSelections,
@@ -53,11 +59,15 @@ export interface MDatasourceApiObject {
 
 export type MDatasourceObject = MDatasourceJsonObject | MDatasourceApiObject;
 
-export type RemoteFunction = (value: MDatasourceObject) => Promise<JsonValue>;
-export type SchemaFunction = (value: MDatasourceObject) => Promise<JSONSchema>;
+export type DatasourceRequestOptions = {
+  bodyFiles?: Record<number, File>;
+};
+export type RemoteFunction = (value: MDatasourceObject, options?: DatasourceRequestOptions) => Promise<JsonValue>;
+export type SchemaFunction = (value: MDatasourceObject, options?: DatasourceRequestOptions) => Promise<JSONSchema>;
 
 export type DatasourceErrorCode =
   | 'apiRequestFailed'
+  | 'missingFile'
   | 'nonJsonResponse'
   | 'invalidJsonResponse'
   | 'emptyArraySchema'
@@ -80,7 +90,7 @@ export class DatasourceError extends Error {
   }
 }
 
-export const bodyDataTypes = ['string', 'number', 'boolean', 'null', 'object', 'array'] as const;
+export const bodyDataTypes = ['string', 'number', 'boolean', 'null', 'object', 'array', 'file'] as const;
 
 export function normalizeString(value: unknown) {
   return typeof value === 'string' ? value : '';
@@ -100,12 +110,33 @@ export function normalizeJsonValue(value: unknown, fallback: JsonValue = {}) {
   return isJsonValue(value) ? cloneJsonValue(value) : fallback;
 }
 
+export function getDefaultBodyFileMock(): MDatasourceBodyFileMock {
+  return {
+    name: '',
+    size: 0,
+    type: ''
+  };
+}
+
+export function normalizeBodyFileMock(mock: unknown): MDatasourceBodyFileMock {
+  if (!isRecord(mock)) {
+    return getDefaultBodyFileMock();
+  }
+
+  return {
+    name: normalizeString(mock.name),
+    size: typeof mock.size === 'number' && Number.isFinite(mock.size) ? mock.size : 0,
+    type: normalizeString(mock.type)
+  };
+}
+
 export function getDefaultBodyMock(dataType: MDatasourceBodyDataType): JsonValue {
   if (dataType === 'number') return 0;
   if (dataType === 'boolean') return false;
   if (dataType === 'null') return null;
   if (dataType === 'object') return {};
   if (dataType === 'array') return [];
+  if (dataType === 'file') return getDefaultBodyFileMock();
   return '';
 }
 
@@ -128,6 +159,10 @@ export function normalizeBodyMock(dataType: MDatasourceBodyDataType, mock: unkno
 
   if (dataType === 'object') {
     return isJsonObjectValue(mock) ? cloneJsonValue(mock) : {};
+  }
+
+  if (dataType === 'file') {
+    return normalizeBodyFileMock(mock);
   }
 
   if (Array.isArray(mock) && isJsonValue(mock)) {
@@ -253,22 +288,64 @@ export function getDatasourceRequestUrl(datasource: MDatasourceApiObject) {
 
 export function getDatasourceRequestHeaders(datasource: MDatasourceApiObject) {
   const headers = new Headers();
+  const hasFileBody = hasDatasourceFileBody(datasource);
   datasource.headerData.forEach((item) => {
     const key = item.key.trim();
     if (!key) return;
+    if (hasFileBody && key.toLowerCase() === 'content-type') return;
     headers.set(key, item.mock);
   });
 
-  if (datasource.method === 'POST' && !headers.has('Content-Type')) {
+  if (datasource.method === 'POST' && !hasFileBody && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
   return headers;
 }
 
-export function getDatasourceRequestBody(datasource: MDatasourceApiObject) {
+function hasDatasourceFileBody(datasource: MDatasourceApiObject) {
+  return datasource.method === 'POST' && datasource.bodyData.some((item) => item.dataType === 'file');
+}
+
+function getFormDataMockValue(item: MDatasourceBodyItem) {
+  const normalizedMock = normalizeBodyMock(item.dataType, item.mock);
+  if (item.dataType === 'object' || item.dataType === 'array') {
+    return JSON.stringify(normalizedMock);
+  }
+
+  if (item.dataType === 'null') {
+    return '';
+  }
+
+  return String(normalizedMock);
+}
+
+export function getDatasourceRequestBody(datasource: MDatasourceApiObject, options?: DatasourceRequestOptions) {
   if (datasource.method !== 'POST') {
     return undefined;
+  }
+
+  if (hasDatasourceFileBody(datasource)) {
+    const formData = new FormData();
+
+    datasource.bodyData.forEach((item, index) => {
+      const key = item.key.trim();
+      if (!key) return;
+
+      if (item.dataType === 'file') {
+        const file = options?.bodyFiles?.[index];
+        if (!file) {
+          throw new DatasourceError('missingFile', 'A file is required for the datasource body.');
+        }
+
+        formData.append(key, file);
+        return;
+      }
+
+      formData.append(key, getFormDataMockValue(item));
+    });
+
+    return formData;
   }
 
   const body = datasource.bodyData.reduce<Record<string, JsonValue>>((result, item) => {
@@ -303,7 +380,7 @@ async function readDatasourceJsonResponse(response: Response) {
   }
 }
 
-export const $remote: RemoteFunction = async (value) => {
+export const $remote: RemoteFunction = async (value, options) => {
   const datasource = normalizeDatasource(value);
   if (datasource.type === 'JSON') {
     return cloneJsonValue(datasource.rawData);
@@ -312,7 +389,7 @@ export const $remote: RemoteFunction = async (value) => {
   const response = await fetch(getDatasourceRequestUrl(datasource), {
     method: datasource.method,
     headers: getDatasourceRequestHeaders(datasource),
-    body: getDatasourceRequestBody(datasource)
+    body: getDatasourceRequestBody(datasource, options)
   });
 
   if (!response.ok) {
@@ -329,8 +406,8 @@ export const $remote: RemoteFunction = async (value) => {
   return await readDatasourceJsonResponse(response);
 };
 
-export const $schema: SchemaFunction = async (value) => {
-  const data = await $remote(value);
+export const $schema: SchemaFunction = async (value, options) => {
+  const data = await $remote(value, options);
   const inferredSchema = inferJSONSchema(data);
   if (inferredSchema.ok) {
     return inferredSchema.schema;

@@ -212,6 +212,7 @@ export const zhMessages = {
       invalidNumber: '请输入有效数字。',
       invalidObject: '请输入标准 JSON 对象。',
       invalidArray: '请输入标准 JSON 数组。',
+      missingFile: '请选择 Body 中的文件。',
       fixJsonBeforeSchema: '请先修正 JSON 数据。',
       fixBodyBeforeSchema: '请先修正 Body 中的 Mock 数据。',
       nonJsonResponse: 'API 响应不是 JSON 数据。',
