@@ -86,6 +86,21 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
 <script setup lang="ts">
 import { computed, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
+import {
+  getApi,
+  getApifoxApiDetail,
+  getMokelayApiBaseUrl,
+  listApis,
+  listApifoxProjects,
+  type ApifoxProjectRecord,
+  type MokelayApiRecord
+} from '@/utils/apisApi';
+import {
+  buildDatasourceFromApifoxApi,
+  buildDatasourceFromMokelayApi,
+  DatasourceApiImportError,
+  type ImportedApiDatasource
+} from '@/utils/datasourceApiImport';
 
 type KeyMockListName = 'headerData' | 'queryData';
 type BodyMockParseResult = {
@@ -102,6 +117,7 @@ type ApiState = Omit<MDatasourceApiObject, 'bodyData' | 'jsonSchema' | 'schemaSe
   bodyData: ApiStateBodyItem[];
 };
 type SchemaTab = 'list' | 'form' | 'advanced';
+type ApiImportSource = 'mokelay' | 'apifox';
 
 const props = defineProps<MDatasourceEditorProps & {
   onChange?: (payload: MDatasourceEditorProps) => void;
@@ -128,6 +144,17 @@ const apiState = reactive<ApiState>(
 const bodyMockInputs = ref<string[]>(apiState.bodyData.map((item) => getBodyMockInputValue(item)));
 const bodyMockErrors = ref<string[]>(apiState.bodyData.map(() => ''));
 const bodyFileInputs = ref<Array<File | undefined>>(apiState.bodyData.map(() => undefined));
+const apiImportSource = ref<ApiImportSource>('mokelay');
+const mokelayApiOptions = ref<MokelayApiRecord[]>([]);
+const selectedMokelayApiUuid = ref('');
+const apifoxProjectOptions = ref<ApifoxProjectRecord[]>([]);
+const selectedApifoxProjectId = ref('');
+const apifoxApiId = ref('');
+const apiImportOptionsLoading = ref(false);
+const apiImportLoading = ref(false);
+const apiImportError = ref('');
+const hasLoadedMokelayApis = ref(false);
+const hasLoadedApifoxProjects = ref(false);
 const isReadOnly = computed(() => !props.edit);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
@@ -140,6 +167,18 @@ const visibleFormSelectionFields = computed(() => filterSelectionFields(formSele
 const selectedListRecordPath = computed(() => schemaSelectionsValue.value?.list?.recordPath ?? '');
 const enabledListFieldCount = computed(() => listSelectionFields.value.filter((field) => field.enabled).length);
 const enabledFormFieldCount = computed(() => formSelectionFields.value.filter((field) => field.enabled).length);
+const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value);
+const canImportApi = computed(() => {
+  if (isReadOnly.value || isApiImportBusy.value) {
+    return false;
+  }
+
+  if (apiImportSource.value === 'mokelay') {
+    return Boolean(selectedMokelayApiUuid.value);
+  }
+
+  return Boolean(selectedApifoxProjectId.value && apifoxApiId.value.trim());
+});
 
 function formatJsonValue(value: JsonValue) {
   return JSON.stringify(value, null, 2);
@@ -292,6 +331,131 @@ function syncApiState(value: MDatasourceApiObject) {
     queryData: value.queryData.map((item) => ({ ...item }))
   });
   syncBodyMockInputs();
+}
+
+function applyImportedApiDatasource(imported: ImportedApiDatasource) {
+  currentType.value = 'API';
+  syncApiState(imported.datasource);
+  syncJsonSchemaState(imported.jsonSchema, undefined);
+  apiImportError.value = '';
+  emitApiChange();
+}
+
+function updateApiImportSource(value: string) {
+  if (!props.edit || (value !== 'mokelay' && value !== 'apifox')) return;
+
+  apiImportSource.value = value;
+  apiImportError.value = '';
+}
+
+function selectDefaultMokelayApi() {
+  if (mokelayApiOptions.value.some((api) => api.uuid === selectedMokelayApiUuid.value)) {
+    return;
+  }
+
+  selectedMokelayApiUuid.value = mokelayApiOptions.value[0]?.uuid ?? '';
+}
+
+function selectDefaultApifoxProject() {
+  if (apifoxProjectOptions.value.some((project) => project.id === selectedApifoxProjectId.value)) {
+    return;
+  }
+
+  selectedApifoxProjectId.value = apifoxProjectOptions.value[0]?.id ?? '';
+}
+
+function getApiImportErrorMessage(error: unknown) {
+  if (error instanceof DatasourceApiImportError) {
+    if (error.code === 'unsupportedMethod') {
+      return `${t('datasource.import.errors.unsupportedMethod')} ${error.method || ''}`.trim();
+    }
+
+    return t(`datasource.import.errors.${error.code}`);
+  }
+
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function loadMokelayApiOptions(force = false) {
+  if (apiImportOptionsLoading.value || (!force && hasLoadedMokelayApis.value)) {
+    return;
+  }
+
+  apiImportOptionsLoading.value = true;
+  apiImportError.value = '';
+
+  try {
+    const result = await listApis({ page: 1, pageSize: 100 });
+    mokelayApiOptions.value = result.apis;
+    hasLoadedMokelayApis.value = true;
+    selectDefaultMokelayApi();
+  } catch (error) {
+    apiImportError.value = error instanceof Error ? error.message : t('datasource.import.errors.loadOptions');
+  } finally {
+    apiImportOptionsLoading.value = false;
+  }
+}
+
+async function loadApifoxProjectOptions(force = false) {
+  if (apiImportOptionsLoading.value || (!force && hasLoadedApifoxProjects.value)) {
+    return;
+  }
+
+  apiImportOptionsLoading.value = true;
+  apiImportError.value = '';
+
+  try {
+    const result = await listApifoxProjects();
+    apifoxProjectOptions.value = result.projects;
+    hasLoadedApifoxProjects.value = true;
+    selectDefaultApifoxProject();
+  } catch (error) {
+    apiImportError.value = error instanceof Error ? error.message : t('datasource.import.errors.loadOptions');
+  } finally {
+    apiImportOptionsLoading.value = false;
+  }
+}
+
+async function ensureApiImportOptions(force = false) {
+  if (!props.edit || currentType.value !== 'API') {
+    return;
+  }
+
+  if (apiImportSource.value === 'mokelay') {
+    await loadMokelayApiOptions(force);
+    return;
+  }
+
+  await loadApifoxProjectOptions(force);
+}
+
+function refreshApiImportOptions() {
+  void ensureApiImportOptions(true);
+}
+
+async function importSelectedApi() {
+  if (!props.edit || !canImportApi.value) return;
+
+  apiImportLoading.value = true;
+  apiImportError.value = '';
+
+  try {
+    if (apiImportSource.value === 'mokelay') {
+      const api = await getApi(selectedMokelayApiUuid.value);
+      applyImportedApiDatasource(buildDatasourceFromMokelayApi(api, getMokelayApiBaseUrl()));
+      return;
+    }
+
+    const result = await getApifoxApiDetail({
+      projectId: selectedApifoxProjectId.value,
+      apiId: apifoxApiId.value.trim()
+    });
+    applyImportedApiDatasource(buildDatasourceFromApifoxApi(result, apifoxApiId.value.trim()));
+  } catch (error) {
+    apiImportError.value = getApiImportErrorMessage(error);
+  } finally {
+    apiImportLoading.value = false;
+  }
 }
 
 function syncLocalState(value: unknown) {
@@ -766,6 +930,18 @@ function getBodyMockInputValue(item: ApiStateBodyItem) {
 }
 
 watch(
+  () => [currentType.value, apiImportSource.value, props.edit] as const,
+  () => {
+    if (currentType.value !== 'API' || !props.edit) {
+      return;
+    }
+
+    void ensureApiImportOptions();
+  },
+  { immediate: true }
+);
+
+watch(
   () => props.value,
   (value) => {
     syncLocalState(value);
@@ -821,6 +997,99 @@ watch(
     </div>
 
     <div v-else class="ce-datasource-tool__panel" data-testid="datasource-api-panel">
+      <div v-if="edit" class="ce-datasource-tool__import-panel" data-testid="datasource-api-import-panel">
+        <div class="ce-datasource-tool__import-header">
+          <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.importApi') }}</div>
+          <div class="ce-datasource-tool__import-actions">
+            <button
+              class="ce-datasource-tool__action"
+              type="button"
+              data-testid="datasource-import-refresh"
+              :disabled="isApiImportBusy"
+              @click="refreshApiImportOptions"
+            >
+              {{ apiImportOptionsLoading ? t('datasource.actions.refreshing') : t('datasource.actions.refresh') }}
+            </button>
+            <button
+              class="ce-datasource-tool__schema-button"
+              type="button"
+              data-testid="datasource-import-apply"
+              :disabled="!canImportApi"
+              @click="importSelectedApi"
+            >
+              {{ apiImportLoading ? t('datasource.actions.importingApi') : t('datasource.actions.importApi') }}
+            </button>
+          </div>
+        </div>
+        <div class="ce-datasource-tool__import-controls">
+          <label class="ce-datasource-tool__field">
+            <span class="ce-datasource-tool__label">{{ t('datasource.fields.importSource') }}</span>
+            <select
+              class="ce-datasource-tool__input"
+              data-testid="datasource-import-source"
+              :disabled="isApiImportBusy"
+              :value="apiImportSource"
+              @change="updateApiImportSource(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="mokelay">{{ t('datasource.import.sources.mokelay') }}</option>
+              <option value="apifox">{{ t('datasource.import.sources.apifox') }}</option>
+            </select>
+          </label>
+          <label v-if="apiImportSource === 'mokelay'" class="ce-datasource-tool__field ce-datasource-tool__field--wide">
+            <span class="ce-datasource-tool__label">{{ t('datasource.fields.mokelayApi') }}</span>
+            <select
+              class="ce-datasource-tool__input"
+              data-testid="datasource-import-mokelay-api"
+              :disabled="isApiImportBusy || !mokelayApiOptions.length"
+              :value="selectedMokelayApiUuid"
+              @change="selectedMokelayApiUuid = ($event.target as HTMLSelectElement).value"
+            >
+              <option v-if="!mokelayApiOptions.length" value="">
+                {{ t('datasource.import.emptyMokelayApis') }}
+              </option>
+              <option v-for="api in mokelayApiOptions" :key="api.uuid" :value="api.uuid">
+                {{ api.name }} ({{ api.method }})
+              </option>
+            </select>
+          </label>
+          <template v-else>
+            <label class="ce-datasource-tool__field">
+              <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxProject') }}</span>
+              <select
+                class="ce-datasource-tool__input"
+                data-testid="datasource-import-apifox-project"
+                :disabled="isApiImportBusy || !apifoxProjectOptions.length"
+                :value="selectedApifoxProjectId"
+                @change="selectedApifoxProjectId = ($event.target as HTMLSelectElement).value"
+              >
+                <option v-if="!apifoxProjectOptions.length" value="">
+                  {{ t('datasource.import.emptyApifoxProjects') }}
+                </option>
+                <option v-for="project in apifoxProjectOptions" :key="project.id" :value="project.id">
+                  {{ project.name }}
+                </option>
+              </select>
+            </label>
+            <label class="ce-datasource-tool__field">
+              <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxApiId') }}</span>
+              <input
+                class="ce-datasource-tool__input"
+                data-testid="datasource-import-apifox-api-id"
+                type="text"
+                :readonly="isApiImportBusy"
+                :placeholder="t('datasource.import.placeholders.apifoxApiId')"
+                :value="apifoxApiId"
+                @input="apifoxApiId = ($event.target as HTMLInputElement).value"
+                @keydown.stop
+              />
+            </label>
+          </template>
+        </div>
+        <p v-if="apiImportError" class="ce-datasource-tool__error" data-testid="datasource-import-error">
+          {{ apiImportError }}
+        </p>
+      </div>
+
       <div class="ce-datasource-tool__grid">
         <label class="ce-datasource-tool__field">
           <span class="ce-datasource-tool__label">{{ t('datasource.fields.domain') }}</span>
@@ -1427,11 +1696,45 @@ watch(
   gap: 10px;
 }
 
+.ce-datasource-tool__import-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgb(248 250 252);
+}
+
+.ce-datasource-tool__import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ce-datasource-tool__import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ce-datasource-tool__import-controls {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.35fr) minmax(220px, 1fr) minmax(160px, 0.35fr);
+  gap: 10px;
+}
+
 .ce-datasource-tool__field {
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 6px;
+}
+
+.ce-datasource-tool__field--wide {
+  grid-column: span 2;
 }
 
 .ce-datasource-tool__label,
@@ -1563,6 +1866,12 @@ watch(
 .ce-datasource-tool__schema-button:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+.ce-datasource-tool__action:disabled,
+.ce-datasource-tool__remove:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 
 .ce-datasource-tool__tabs {
@@ -1748,11 +2057,21 @@ watch(
   }
 
   .ce-datasource-tool__grid,
+  .ce-datasource-tool__import-controls,
   .ce-datasource-tool__row,
   .ce-datasource-tool__body-row,
   .ce-datasource-tool__schema-field,
   .ce-datasource-tool__schema-node {
     grid-template-columns: 1fr;
+  }
+
+  .ce-datasource-tool__import-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ce-datasource-tool__field--wide {
+    grid-column: auto;
   }
 
   .ce-datasource-tool__body-error {
@@ -1817,6 +2136,11 @@ watch(
 
 :global(.dark) .ce-datasource-tool__tabs {
   border-color: rgb(71 85 105);
+  background: rgb(30 41 59);
+}
+
+:global(.dark) .ce-datasource-tool__import-panel {
+  border-color: rgb(51 65 85);
   background: rgb(30 41 59);
 }
 

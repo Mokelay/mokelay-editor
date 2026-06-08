@@ -32,6 +32,29 @@ export type ListApisResult = {
   pagination: MokelayApisPagination;
 };
 
+export type ApifoxProjectRecord = {
+  id: string;
+  name: string;
+  raw: Record<string, unknown>;
+};
+
+export type ListApifoxProjectsResult = {
+  projects: ApifoxProjectRecord[];
+  count: number;
+  raw?: unknown;
+};
+
+export type GetApifoxApiDetailParams = {
+  projectId: string;
+  apiId: string;
+};
+
+export type ApifoxApisResult = {
+  apis: unknown[];
+  count: number;
+  openapi?: unknown;
+};
+
 export type SaveApiPayload = {
   apiJson: ApiJson;
   layout?: ApiBuilderLayout;
@@ -51,6 +74,18 @@ type ApiResponse = {
 type ApisResponse = {
   apis?: unknown;
   pagination?: unknown;
+};
+
+type ApifoxProjectsResponse = {
+  projects?: unknown;
+  count?: unknown;
+  raw?: unknown;
+};
+
+type ApifoxApisResponse = {
+  apis?: unknown;
+  count?: unknown;
+  openapi?: unknown;
 };
 
 type DeleteResponse = {
@@ -87,6 +122,22 @@ export async function getApi(uuid: string) {
     }
   });
   return normalizeApiResponse(unwrapApiResponse(response.data));
+}
+
+export async function listApifoxProjects() {
+  const response = await apiClient.get<MokelayApiResponse<ApifoxProjectsResponse>>('/api/mokelay/list-apifox-projects');
+  return normalizeApifoxProjectsResponse(unwrapApiResponse(response.data));
+}
+
+export async function getApifoxApiDetail(params: GetApifoxApiDetailParams) {
+  const response = await apiClient.get<MokelayApiResponse<ApifoxApisResponse>>('/api/mokelay/list-apifox-apis', {
+    params
+  });
+  return normalizeApifoxApisResponse(unwrapApiResponse(response.data));
+}
+
+export function getMokelayApiBaseUrl() {
+  return typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
 }
 
 export async function saveApi(payload: SaveApiPayload) {
@@ -151,6 +202,28 @@ function normalizeApisResponse(value: ApisResponse): ListApisResult {
   };
 }
 
+function normalizeApifoxProjectsResponse(value: ApifoxProjectsResponse): ListApifoxProjectsResult {
+  const projects = Array.isArray(value.projects)
+    ? value.projects
+        .map((project) => normalizeApifoxProjectRecord(project))
+        .filter((project): project is ApifoxProjectRecord => Boolean(project))
+    : [];
+
+  return {
+    projects,
+    count: readNumber(value.count, projects.length),
+    raw: value.raw
+  };
+}
+
+function normalizeApifoxApisResponse(value: ApifoxApisResponse): ApifoxApisResult {
+  return {
+    apis: Array.isArray(value.apis) ? [...value.apis] : [],
+    count: readNumber(value.count, Array.isArray(value.apis) ? value.apis.length : 0),
+    ...(value.openapi !== undefined ? { openapi: value.openapi } : {})
+  };
+}
+
 function normalizeApiRecord(value: unknown): MokelayApiRecord {
   if (!isRecord(value)) {
     throw new Error('Invalid API record.');
@@ -185,6 +258,26 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
   };
 }
 
+function normalizeApifoxProjectRecord(value: unknown): ApifoxProjectRecord | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const id = readLooseString(value.id) ||
+    readLooseString(value.projectId) ||
+    readLooseString(value.project_id);
+
+  if (!id) {
+    return undefined;
+  }
+
+  return {
+    id,
+    name: readString(value.name) || readString(value.title) || id,
+    raw: value
+  };
+}
+
 function normalizePagination(value: unknown): MokelayApisPagination {
   const record = isRecord(value) ? value : {};
 
@@ -200,6 +293,12 @@ function normalizePagination(value: unknown): MokelayApisPagination {
 
 function readString(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function readLooseString(value: unknown) {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return '';
 }
 
 function readNumber(value: unknown, fallback: number) {

@@ -168,6 +168,10 @@ export const zhMessages = {
       domain: 'API 域名',
       path: 'API Path',
       method: '调用方法',
+      importSource: '导入来源',
+      mokelayApi: 'Mokelay API',
+      apifoxProject: 'APIFox 项目',
+      apifoxApiId: 'API ID',
       key: 'Key',
       mock: 'Mock 数据',
       jsonSchema: 'JSON Schema',
@@ -182,12 +186,17 @@ export const zhMessages = {
       headers: 'Header',
       queries: 'Query',
       body: 'Body',
+      importApi: '导入 API 信息',
       generateFields: '生成字段配置',
       fieldSelection: '字段选择'
     },
     actions: {
       add: '添加',
       remove: '删除',
+      refresh: '刷新',
+      refreshing: '刷新中...',
+      importApi: '导入',
+      importingApi: '导入中...',
       parseJsonSchema: '解析JSON Schema',
       parsingJsonSchema: '解析中...',
       generateFields: '生成字段配置',
@@ -232,6 +241,23 @@ export const zhMessages = {
       apiRequestFailed: 'API 请求失败：',
       emptyArraySchema: '空数组无法推断 JSON Schema。',
       mixedArraySchema: '数组中包含无法合并的类型，无法推断 JSON Schema。'
+    },
+    import: {
+      sources: {
+        mokelay: 'Mokelay 编排接口',
+        apifox: 'APIFox 接口'
+      },
+      placeholders: {
+        apifoxApiId: '请输入 API ID'
+      },
+      emptyMokelayApis: '暂无 Mokelay API',
+      emptyApifoxProjects: '暂无 APIFox 项目',
+      errors: {
+        loadOptions: '加载导入选项失败。',
+        missingApiJson: 'API 详情缺少 apiJson，无法导入。',
+        unsupportedMethod: '当前数据源只支持 GET/POST，无法导入方法：',
+        apifoxApiNotFound: '没有找到对应的 APIFox API。'
+      }
     }
   },
   formItem: {

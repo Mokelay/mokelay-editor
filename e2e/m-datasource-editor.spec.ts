@@ -420,6 +420,373 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
   });
 });
 
+test('imports API datasource from a Mokelay orchestration API', async ({ page }) => {
+  await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'import_users',
+        name: '用户导入 API',
+        method: 'POST',
+        status: 'published',
+        apiJson: {
+          uuid: 'import_users',
+          alias: '用户导入 API',
+          method: 'POST',
+          request: {
+            header: ['Authorization', { key: 'X-Tenant' }],
+            query: ['page', { key: 'pageSize' }],
+            body: [{ key: 'keyword' }, 'limit']
+          },
+          blocks: [],
+          response: null
+        }
+      }
+    ]
+  });
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  await page.getByTestId('datasource-type-api').click();
+  await expect(page.getByTestId('datasource-api-import-panel')).toBeVisible();
+  await expect(page.getByTestId('datasource-import-mokelay-api')).toContainText('用户导入 API');
+  await page.getByTestId('datasource-import-mokelay-api').selectOption('import_users');
+  await page.getByTestId('datasource-import-apply').click();
+
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('http://127.0.0.1:8787');
+  await expect(page.getByTestId('datasource-path')).toHaveValue('/api/mokelay/import_users');
+  await expect(page.getByTestId('datasource-method')).toHaveValue('POST');
+  await expect(page.getByTestId('datasource-header-key-0')).toHaveValue('Authorization');
+  await expect(page.getByTestId('datasource-header-key-1')).toHaveValue('X-Tenant');
+  await expect(page.getByTestId('datasource-query-key-0')).toHaveValue('page');
+  await expect(page.getByTestId('datasource-query-key-1')).toHaveValue('pageSize');
+  await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('keyword');
+  await expect(page.getByTestId('datasource-body-key-1')).toHaveValue('limit');
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toEqual({
+    type: 'API',
+    domain: 'http://127.0.0.1:8787',
+    path: '/api/mokelay/import_users',
+    method: 'POST',
+    headerData: [
+      { key: 'Authorization', mock: '' },
+      { key: 'X-Tenant', mock: '' }
+    ],
+    bodyData: [
+      { key: 'keyword', dataType: 'string', mock: '' },
+      { key: 'limit', dataType: 'string', mock: '' }
+    ],
+    queryData: [
+      { key: 'page', mock: '' },
+      { key: 'pageSize', mock: '' }
+    ]
+  });
+});
+
+test('imports API datasource from APIFox project and API ID', async ({ page }) => {
+  await page.route('**/api/mokelay/list-apifox-projects**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          projects: [
+            { id: 42, name: 'CRM 项目' }
+          ],
+          count: 1
+        }
+      })
+    });
+  });
+  await page.route('**/api/mokelay/list-apifox-apis**', async (route) => {
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get('projectId')).toBe('42');
+    expect(url.searchParams.get('apiId')).toBe('91011');
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          apis: [],
+          count: 0,
+          openapi: {
+            openapi: '3.0.0',
+            servers: [
+              { url: 'https://api.example.com/v1' }
+            ],
+            paths: {
+              '/users/search': {
+                post: {
+                  operationId: '91011',
+                  summary: '搜索用户',
+                  parameters: [
+                    { name: 'token', in: 'query', schema: { type: 'string' }, example: 'abc' },
+                    { name: 'X-Trace', in: 'header', schema: { type: 'string' }, example: 'trace-1' }
+                  ],
+                  requestBody: {
+                    content: {
+                      'application/json': {
+                        schema: {
+                          type: 'object',
+                          properties: {
+                            keyword: { type: 'string', example: 'Ada' },
+                            limit: { type: 'integer', default: 20 },
+                            filters: {
+                              type: 'object',
+                              properties: {
+                                active: { type: 'boolean' }
+                              },
+                              example: { active: true }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  responses: {
+                    200: {
+                      description: 'OK',
+                      content: {
+                        'application/json': {
+                          schema: {
+                            type: 'object',
+                            properties: {
+                              data: {
+                                type: 'array',
+                                items: {
+                                  type: 'object',
+                                  properties: {
+                                    id: { type: 'string' },
+                                    age: { type: 'integer' }
+                                  },
+                                  required: ['id']
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      })
+    });
+  });
+
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+  await page.getByTestId('datasource-type-api').click();
+  await page.getByTestId('datasource-import-source').selectOption('apifox');
+  await expect(page.getByTestId('datasource-import-apifox-project')).toContainText('CRM 项目');
+  await page.getByTestId('datasource-import-apifox-project').selectOption('42');
+  await page.getByTestId('datasource-import-apifox-api-id').fill('91011');
+  await page.getByTestId('datasource-import-apply').click();
+
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('https://api.example.com');
+  await expect(page.getByTestId('datasource-path')).toHaveValue('/v1/users/search');
+  await expect(page.getByTestId('datasource-method')).toHaveValue('POST');
+  await expect(page.getByTestId('datasource-header-key-0')).toHaveValue('X-Trace');
+  await expect(page.getByTestId('datasource-header-mock-0')).toHaveValue('trace-1');
+  await expect(page.getByTestId('datasource-query-key-0')).toHaveValue('token');
+  await expect(page.getByTestId('datasource-query-mock-0')).toHaveValue('abc');
+  await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('keyword');
+  await expect(page.getByTestId('datasource-body-mock-0')).toHaveValue('Ada');
+  await expect(page.getByTestId('datasource-body-key-1')).toHaveValue('limit');
+  await expect(page.getByTestId('datasource-body-type-1')).toHaveValue('number');
+  await expect(page.getByTestId('datasource-body-mock-1')).toHaveValue('20');
+  await expect(page.getByTestId('datasource-body-key-2')).toHaveValue('filters');
+  await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('data');
+
+  await page.getByTestId('datasource-schema-tab-advanced').click();
+  const importedSchema = JSON.parse(await page.getByTestId('datasource-json-schema').inputValue()) as any;
+  expect(importedSchema.properties.data.items.properties.age.type).toBe('number');
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
+  expect(datasourceValue).toMatchObject({
+    type: 'API',
+    domain: 'https://api.example.com',
+    path: '/v1/users/search',
+    method: 'POST',
+    headerData: [
+      { key: 'X-Trace', mock: 'trace-1' }
+    ],
+    bodyData: [
+      { key: 'keyword', dataType: 'string', mock: 'Ada' },
+      { key: 'limit', dataType: 'number', mock: 20 },
+      { key: 'filters', dataType: 'object', mock: { active: true } }
+    ],
+    queryData: [
+      { key: 'token', mock: 'abc' }
+    ]
+  });
+  expect(datasourceValue.jsonSchema.properties.data.type).toBe('array');
+});
+
+test('imports APIFox grouped query parameters and request body parameters', async ({ page }) => {
+  await page.route('**/api/mokelay/list-apifox-projects**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          projects: [
+            { id: 'mokelay-project', name: 'Mokelay Project' }
+          ],
+          count: 1
+        }
+      })
+    });
+  });
+  await page.route('**/api/mokelay/list-apifox-apis**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          apis: [
+            {
+              path: '/config/load-page-data/{id}_{name}',
+              method: 'POST',
+              summary: '加载页面数据',
+              operationId: null,
+              parameters: {
+                cookie: [
+                  { name: 'v', in: 'cookie', required: false }
+                ],
+                header: [],
+                path: [
+                  { name: 'id', in: 'path', required: true }
+                ],
+                query: [
+                  'alias',
+                  'aaaa',
+                  'nnnnn'
+                ]
+              },
+              requestBodyParameters: [
+                { contentType: 'multipart/form-data', name: 'ggggg', path: 'ggggg' },
+                { contentType: 'multipart/form-data', name: 'bbbbbb', path: 'bbbbbb' }
+              ],
+              responses: {}
+            }
+          ],
+          count: 1,
+          openapi: null
+        }
+      })
+    });
+  });
+
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+  await page.getByTestId('datasource-type-api').click();
+  await page.getByTestId('datasource-import-source').selectOption('apifox');
+  await page.getByTestId('datasource-import-apifox-project').selectOption('mokelay-project');
+  await page.getByTestId('datasource-import-apifox-api-id').fill('217306455');
+  await page.getByTestId('datasource-import-apply').click();
+
+  await expect(page.getByTestId('datasource-path')).toHaveValue('/config/load-page-data/{id}_{name}');
+  await expect(page.getByTestId('datasource-method')).toHaveValue('POST');
+  await expect(page.getByTestId('datasource-query-key-0')).toHaveValue('alias');
+  await expect(page.getByTestId('datasource-query-key-1')).toHaveValue('aaaa');
+  await expect(page.getByTestId('datasource-query-key-2')).toHaveValue('nnnnn');
+  await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('ggggg');
+  await expect(page.getByTestId('datasource-body-key-1')).toHaveValue('bbbbbb');
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toMatchObject({
+    type: 'API',
+    domain: '',
+    path: '/config/load-page-data/{id}_{name}',
+    method: 'POST',
+    headerData: [],
+    bodyData: [
+      { key: 'ggggg', dataType: 'string', mock: '' },
+      { key: 'bbbbbb', dataType: 'string', mock: '' }
+    ],
+    queryData: [
+      { key: 'alias', mock: '' },
+      { key: 'aaaa', mock: '' },
+      { key: 'nnnnn', mock: '' }
+    ]
+  });
+});
+
+test('does not overwrite API datasource when APIFox method is unsupported', async ({ page }) => {
+  await page.route('**/api/mokelay/list-apifox-projects**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          projects: [
+            { id: 'project-delete', name: '删除接口项目' }
+          ],
+          count: 1
+        }
+      })
+    });
+  });
+  await page.route('**/api/mokelay/list-apifox-apis**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          apis: [],
+          count: 0,
+          openapi: {
+            openapi: '3.0.0',
+            servers: [
+              { url: 'https://api.example.com' }
+            ],
+            paths: {
+              '/users/{id}': {
+                delete: {
+                  operationId: 'delete-user',
+                  responses: {
+                    204: {
+                      description: 'No content'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      })
+    });
+  });
+
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+  await page.getByTestId('datasource-type-api').click();
+  await page.getByTestId('datasource-domain').fill('https://existing.example.com');
+  await page.getByTestId('datasource-path').fill('/keep');
+  await page.getByTestId('datasource-import-source').selectOption('apifox');
+  await expect(page.getByTestId('datasource-import-apifox-project')).toContainText('删除接口项目');
+  await page.getByTestId('datasource-import-apifox-api-id').fill('delete-user');
+  await page.getByTestId('datasource-import-apply').click();
+
+  await expect(page.getByTestId('datasource-import-error')).toContainText('GET/POST');
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('https://existing.example.com');
+  await expect(page.getByTestId('datasource-path')).toHaveValue('/keep');
+});
+
 test('saves API datasource file body metadata without file content', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');

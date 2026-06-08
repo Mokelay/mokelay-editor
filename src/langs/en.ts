@@ -168,6 +168,10 @@ export const enMessages = {
       domain: 'API domain',
       path: 'API path',
       method: 'Method',
+      importSource: 'Import source',
+      mokelayApi: 'Mokelay API',
+      apifoxProject: 'APIFox project',
+      apifoxApiId: 'API ID',
       key: 'Key',
       mock: 'Mock data',
       jsonSchema: 'JSON Schema',
@@ -182,12 +186,17 @@ export const enMessages = {
       headers: 'Header',
       queries: 'Query',
       body: 'Body',
+      importApi: 'Import API info',
       generateFields: 'Generate field config',
       fieldSelection: 'Field selection'
     },
     actions: {
       add: 'Add',
       remove: 'Remove',
+      refresh: 'Refresh',
+      refreshing: 'Refreshing...',
+      importApi: 'Import',
+      importingApi: 'Importing...',
       parseJsonSchema: 'Parse JSON Schema',
       parsingJsonSchema: 'Parsing...',
       generateFields: 'Generate field config',
@@ -232,6 +241,23 @@ export const enMessages = {
       apiRequestFailed: 'API request failed:',
       emptyArraySchema: 'Cannot infer JSON Schema from an empty array.',
       mixedArraySchema: 'The array contains incompatible types, so JSON Schema cannot be inferred.'
+    },
+    import: {
+      sources: {
+        mokelay: 'Mokelay orchestration API',
+        apifox: 'APIFox API'
+      },
+      placeholders: {
+        apifoxApiId: 'Enter API ID'
+      },
+      emptyMokelayApis: 'No Mokelay APIs',
+      emptyApifoxProjects: 'No APIFox projects',
+      errors: {
+        loadOptions: 'Failed to load import options.',
+        missingApiJson: 'The API detail is missing apiJson and cannot be imported.',
+        unsupportedMethod: 'The datasource only supports GET/POST. Cannot import method:',
+        apifoxApiNotFound: 'Could not find the APIFox API.'
+      }
     }
   },
   formItem: {
