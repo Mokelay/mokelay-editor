@@ -175,6 +175,7 @@ export const enMessages = {
       key: 'Key',
       mock: 'Mock data',
       jsonSchema: 'JSON Schema',
+      responseExample: 'Response example',
       generatedFields: 'Fields',
       searchFields: 'Search fields or paths',
       recordPath: 'List data path',

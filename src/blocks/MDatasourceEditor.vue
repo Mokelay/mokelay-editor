@@ -7,6 +7,7 @@ import {
   flattenSchemaTree,
   getArrayRecordOptions,
   getSchemaTreeNodes,
+  inferJSONSchema,
   isJsonObjectValue,
   isJsonValue,
   normalizeJSONSchema,
@@ -19,7 +20,7 @@ import {
   type SchemaTreeNode
 } from '@/utils/datasourceSchema';
 import {
-  $schema as resolveDatasourceSchema,
+  $remote as resolveDatasourceRemote,
   DatasourceError,
   bodyDataTypes,
   getDefaultApiDatasource,
@@ -142,6 +143,7 @@ const jsonSchemaText = ref(formatJsonSchema(jsonSchemaValue.value));
 const jsonSchemaError = ref('');
 const jsonSchemaLoading = ref(false);
 const schemaSelectionsValue = shallowRef<DatasourceSchemaSelections | undefined>(normalizedInitialValue.schemaSelections);
+const responseExampleValue = shallowRef<JsonValue | undefined>(normalizedInitialValue.responseExample);
 const schemaTab = ref<SchemaTab>('list');
 const schemaSearch = ref('');
 const apiState = reactive<ApiState>(
@@ -179,6 +181,8 @@ const enabledListFieldCount = computed(() => listSelectionFields.value.filter((f
 const enabledFormFieldCount = computed(() => formSelectionFields.value.filter((field) => field.enabled).length);
 const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value || apiDomainLoading.value);
 const isApiDomainSelectDisabled = computed(() => isReadOnly.value || apiDomainLoading.value || !apiDomainOptions.value.length);
+const hasResponseExample = computed(() => responseExampleValue.value !== undefined);
+const responseExampleText = computed(() => hasResponseExample.value ? formatJsonValue(responseExampleValue.value!) : '');
 const apiDomainEmptyOptionText = computed(() => {
   if (apiDomainLoading.value) {
     return t('datasource.import.loadingApiDomains');
@@ -274,7 +278,8 @@ function buildJsonDatasource(): MDatasourceJsonObject {
     type: 'JSON',
     rawData: normalizeJsonValue(jsonValue.value, {}),
     jsonSchema: jsonSchemaValue.value,
-    schemaSelections: schemaSelectionsValue.value
+    schemaSelections: schemaSelectionsValue.value,
+    responseExample: responseExampleValue.value
   }) as MDatasourceJsonObject;
 }
 
@@ -288,7 +293,8 @@ function buildApiDatasource(): MDatasourceApiObject {
     bodyData: apiState.bodyData,
     queryData: apiState.queryData,
     jsonSchema: jsonSchemaValue.value,
-    schemaSelections: schemaSelectionsValue.value
+    schemaSelections: schemaSelectionsValue.value,
+    responseExample: responseExampleValue.value
   }) as MDatasourceApiObject;
 }
 
@@ -327,10 +333,11 @@ function syncBodyMockInputs() {
   });
 }
 
-function syncJsonSchemaState(value?: JSONSchema, selections?: DatasourceSchemaSelections) {
+function syncJsonSchemaState(value?: JSONSchema, selections?: DatasourceSchemaSelections, responseExample?: JsonValue) {
   jsonSchemaValue.value = value ? cloneJsonSchema(value) : undefined;
   jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
   schemaSelectionsValue.value = normalizeSchemaSelections(selections, jsonSchemaValue.value);
+  responseExampleValue.value = responseExample !== undefined ? cloneJsonValue(responseExample) : undefined;
   jsonSchemaError.value = '';
 }
 
@@ -358,7 +365,8 @@ function normalizeApiDomainState(shouldEmit = props.edit) {
 
   const currentDomain = apiState.domain;
   const normalizedDomain = normalizeApiDomainUuid(currentDomain, apiDomainOptions.value);
-  const nextDomain = normalizedDomain || (currentDomain.trim() ? '' : getDefaultApiDomainUuid(apiDomainOptions.value));
+  const nextDomain = normalizedDomain ||
+    (currentDomain.trim() && !isDefaultBlankApiState() ? '' : getDefaultApiDomainUuid(apiDomainOptions.value));
 
   if (nextDomain === currentDomain) {
     return;
@@ -391,13 +399,41 @@ async function ensureApiDomainOptions(force = false) {
 }
 
 function getImportApiDomainUuid(hostOrUuid: string) {
-  return normalizeApiDomainUuid(hostOrUuid, apiDomainOptions.value);
+  const matchedValue = normalizeApiDomainUuid(hostOrUuid, apiDomainOptions.value);
+  if (matchedValue) {
+    return matchedValue;
+  }
+
+  const trimmedValue = hostOrUuid.trim();
+  if (!trimmedValue || /^[a-z][a-z\d+\-.]*:/i.test(trimmedValue) || trimmedValue.startsWith('/')) {
+    return '';
+  }
+
+  return normalizeApiDomainUuid(`https://${trimmedValue}`, apiDomainOptions.value) ||
+    normalizeApiDomainUuid(`http://${trimmedValue}`, apiDomainOptions.value);
+}
+
+function getFallbackApifoxApiDomainUuid(importedDomain: string) {
+  if (importedDomain.trim()) {
+    return '';
+  }
+
+  return normalizeApiDomainUuid(apiState.domain, apiDomainOptions.value) ||
+    getDefaultApiDomainUuid(apiDomainOptions.value);
+}
+
+function isDefaultBlankApiState() {
+  return apiState.domain === DEFAULT_API_DOMAIN_UUID &&
+    !apiState.path.trim() &&
+    !apiState.headerData.length &&
+    !apiState.bodyData.length &&
+    !apiState.queryData.length;
 }
 
 function applyImportedApiDatasource(imported: ImportedApiDatasource) {
   currentType.value = 'API';
   syncApiState(imported.datasource);
-  syncJsonSchemaState(imported.jsonSchema, undefined);
+  syncJsonSchemaState(imported.jsonSchema, undefined, imported.responseExample);
   apiImportError.value = '';
   emitApiChange();
 }
@@ -519,7 +555,8 @@ async function importSelectedApi() {
       apiId: apifoxApiId.value.trim()
     });
     const imported = buildDatasourceFromApifoxApi(result, apifoxApiId.value.trim());
-    const domainUuid = getImportApiDomainUuid(imported.datasource.domain);
+    const domainUuid = getImportApiDomainUuid(imported.datasource.domain) ||
+      getFallbackApifoxApiDomainUuid(imported.datasource.domain);
     if (!domainUuid) {
       throw new Error(t('datasource.import.errors.apiDomainNotFound'));
     }
@@ -541,7 +578,7 @@ async function importSelectedApi() {
 function syncLocalState(value: unknown) {
   const normalized = normalizeDatasource(value);
   currentType.value = normalized.type;
-  syncJsonSchemaState(normalized.jsonSchema, normalized.schemaSelections);
+  syncJsonSchemaState(normalized.jsonSchema, normalized.schemaSelections, normalized.responseExample);
 
   if (normalized.type === 'JSON') {
     jsonValue.value = normalized.rawData;
@@ -760,12 +797,28 @@ function getDatasourceErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function applyGeneratedJsonSchema(schema: JSONSchema) {
+function applyGeneratedJsonSchema(schema: JSONSchema, responseExample?: JsonValue) {
   jsonSchemaValue.value = cloneJsonSchema(schema);
   jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
   schemaSelectionsValue.value = reconcileSchemaSelections(jsonSchemaValue.value, schemaSelectionsValue.value);
+  if (responseExample !== undefined) {
+    responseExampleValue.value = cloneJsonValue(responseExample);
+  }
   jsonSchemaError.value = '';
   emitCurrentDatasource();
+}
+
+function inferDatasourceSchemaFromData(data: JsonValue) {
+  const inferredSchema = inferJSONSchema(data);
+  if (inferredSchema.ok) {
+    return inferredSchema.schema;
+  }
+
+  if (inferredSchema.reason === 'emptyArray') {
+    throw new DatasourceError('emptyArraySchema', 'Cannot infer JSON Schema from an empty array.');
+  }
+
+  throw new DatasourceError('mixedArraySchema', 'The array contains incompatible types, so JSON Schema cannot be inferred.');
 }
 
 function updateListRecordPath(recordPath: string) {
@@ -898,10 +951,11 @@ async function parseJsonSchema() {
   jsonSchemaLoading.value = true;
 
   try {
-    const schema = currentType.value === 'JSON'
-      ? await resolveDatasourceSchema(buildJsonDatasource())
-      : await resolveDatasourceSchema(buildApiDatasource(), getDatasourceRequestOptions());
-    applyGeneratedJsonSchema(schema);
+    const responseData = currentType.value === 'JSON'
+      ? await resolveDatasourceRemote(buildJsonDatasource())
+      : await resolveDatasourceRemote(buildApiDatasource(), getDatasourceRequestOptions());
+    const schema = inferDatasourceSchemaFromData(responseData);
+    applyGeneratedJsonSchema(schema, responseData);
   } catch (error) {
     jsonSchemaError.value = getDatasourceErrorMessage(error);
   } finally {
@@ -1053,22 +1107,22 @@ watch(
         <button
           type="button"
           class="ce-datasource-tool__type-button"
-          :class="{ 'ce-datasource-tool__type-button--active': currentType === 'JSON' }"
-          :disabled="isReadOnly"
-          data-testid="datasource-type-json"
-          @click="setDatasourceType('JSON')"
-        >
-          JSON
-        </button>
-        <button
-          type="button"
-          class="ce-datasource-tool__type-button"
           :class="{ 'ce-datasource-tool__type-button--active': currentType === 'API' }"
           :disabled="isReadOnly"
           data-testid="datasource-type-api"
           @click="setDatasourceType('API')"
         >
           API
+        </button>
+        <button
+          type="button"
+          class="ce-datasource-tool__type-button"
+          :class="{ 'ce-datasource-tool__type-button--active': currentType === 'JSON' }"
+          :disabled="isReadOnly"
+          data-testid="datasource-type-json"
+          @click="setDatasourceType('JSON')"
+        >
+          JSON
         </button>
       </div>
     </div>
@@ -1484,6 +1538,17 @@ watch(
       <p v-if="jsonSchemaError" class="ce-datasource-tool__error" data-testid="datasource-json-schema-error">
         {{ jsonSchemaError }}
       </p>
+      <label v-if="hasResponseExample" class="ce-datasource-tool__field">
+        <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExample') }}</span>
+        <textarea
+          class="ce-datasource-tool__textarea ce-datasource-tool__textarea--response-example"
+          data-testid="datasource-response-example"
+          spellcheck="false"
+          readonly
+          :value="responseExampleText"
+          @keydown.stop
+        ></textarea>
+      </label>
     </div>
 
     <div class="ce-datasource-tool__schema-panel" data-testid="datasource-json-schema-panel">
@@ -1880,6 +1945,13 @@ watch(
 }
 
 .ce-datasource-tool__textarea--schema {
+  min-height: 130px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.ce-datasource-tool__textarea--response-example {
   min-height: 130px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 13px;

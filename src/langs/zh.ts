@@ -175,6 +175,7 @@ export const zhMessages = {
       key: 'Key',
       mock: 'Mock 数据',
       jsonSchema: 'JSON Schema',
+      responseExample: '响应示例数据',
       generatedFields: '字段数',
       searchFields: '搜索字段名称或路径',
       recordPath: '列表数据位置',

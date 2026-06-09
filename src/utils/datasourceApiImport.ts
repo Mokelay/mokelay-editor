@@ -11,6 +11,7 @@ import {
   type MDatasourceKeyMockItem
 } from '@/utils/datasource';
 import {
+  inferJSONSchema,
   isJsonValue,
   normalizeJSONSchema,
   type JSONSchema,
@@ -20,6 +21,7 @@ import {
 export type ImportedApiDatasource = {
   datasource: MDatasourceApiObject;
   jsonSchema?: JSONSchema;
+  responseExample?: JsonValue;
 };
 
 export type DatasourceApiImportErrorCode =
@@ -48,6 +50,8 @@ type ApiCandidate = {
   parameters: unknown[];
   requestBody?: unknown;
   responses?: unknown;
+  responseDetails: unknown[];
+  responseBodyParameters: unknown[];
   openapiRoot?: unknown;
 };
 
@@ -68,6 +72,8 @@ export function buildDatasourceFromMokelayApi(
   }
 
   const method = normalizeImportedMethod(apiJson.method || api.method);
+  const responseExample = getMokelayResponseExample(apiJson.response);
+  const jsonSchema = responseExample !== undefined ? getJsonSchemaFromExample(responseExample) : undefined;
 
   return {
     datasource: normalizeDatasource({
@@ -78,7 +84,9 @@ export function buildDatasourceFromMokelayApi(
       headerData: requestDeclarationsToKeyMockItems(apiJson, 'header'),
       queryData: requestDeclarationsToKeyMockItems(apiJson, 'query'),
       bodyData: requestDeclarationsToBodyItems(apiJson)
-    }) as MDatasourceApiObject
+    }) as MDatasourceApiObject,
+    ...(jsonSchema ? { jsonSchema } : {}),
+    ...(responseExample !== undefined ? { responseExample } : {})
   };
 }
 
@@ -93,7 +101,18 @@ export function buildDatasourceFromApifoxApi(
 
   const method = normalizeImportedMethod(candidate.method);
   const endpoint = splitEndpoint(candidate.path, candidate.serverUrl);
-  const jsonSchema = getResponseJsonSchema(candidate.responses, candidate.openapiRoot);
+  const openapiJsonSchema = getResponseJsonSchema(candidate.responses, candidate.openapiRoot);
+  const responseBodyParametersExample = getResponseExampleFromBodyParameters(candidate.responseBodyParameters);
+  const responseBodyParametersSchema = responseBodyParametersExample !== undefined
+    ? getJsonSchemaFromExample(responseBodyParametersExample)
+    : undefined;
+  const importedJsonSchema = openapiJsonSchema ?? responseBodyParametersSchema;
+  const responseExample = getResponseExample(candidate.responses, candidate.openapiRoot) ??
+    getResponseExampleFromDetails(candidate.responseDetails) ??
+    responseBodyParametersExample ??
+    (importedJsonSchema ? createExampleFromJsonSchema(importedJsonSchema) : undefined);
+  const inferredJsonSchema = responseExample !== undefined ? getJsonSchemaFromExample(responseExample) : undefined;
+  const jsonSchema = importedJsonSchema ?? inferredJsonSchema;
 
   return {
     datasource: normalizeDatasource({
@@ -105,8 +124,21 @@ export function buildDatasourceFromApifoxApi(
       queryData: parametersToKeyMockItems(candidate.parameters, 'query', candidate.openapiRoot),
       bodyData: requestBodyToBodyItems(candidate.requestBody, candidate.openapiRoot)
     }) as MDatasourceApiObject,
-    ...(jsonSchema ? { jsonSchema } : {})
+    ...(jsonSchema ? { jsonSchema } : {}),
+    ...(responseExample !== undefined ? { responseExample } : {})
   };
+}
+
+function getMokelayResponseExample(response: ApiJson['response']): JsonValue | undefined {
+  return {
+    ok: true,
+    data: isJsonValue(response) ? response : null
+  };
+}
+
+function getJsonSchemaFromExample(value: JsonValue): JSONSchema | undefined {
+  const inferredSchema = inferJSONSchema(value);
+  return inferredSchema.ok ? inferredSchema.schema : undefined;
 }
 
 function normalizeImportedMethod(value: unknown): MDatasourceApiMethod {
@@ -192,6 +224,8 @@ function normalizeApifoxApiCandidate(value: unknown, openapiRoot: unknown): ApiC
     parameters: readParameters(record),
     requestBody: readFirstValue(record, ['requestBody', 'body', 'requestBodyParameters']),
     responses: readFirstValue(record, ['responses', 'response']),
+    responseDetails: Array.isArray(record.responseDetails) ? [...record.responseDetails] : [],
+    responseBodyParameters: Array.isArray(record.responseBodyParameters) ? [...record.responseBodyParameters] : [],
     openapiRoot
   };
 }
@@ -241,6 +275,8 @@ function collectOpenapiCandidates(openapiRoot: unknown) {
         ],
         requestBody: operation.requestBody,
         responses: operation.responses,
+        responseDetails: [],
+        responseBodyParameters: [],
         openapiRoot
       });
     });
@@ -479,6 +515,29 @@ function createBodyMock(
 }
 
 function getResponseJsonSchema(responses: unknown, openapiRoot: unknown): JSONSchema | undefined {
+  const content = getSuccessJsonResponseContent(responses, openapiRoot);
+  if (!content) {
+    return undefined;
+  }
+
+  return convertOpenapiSchema(content.schema, openapiRoot);
+}
+
+function getResponseExample(
+  responses: unknown,
+  openapiRoot: unknown
+): JsonValue | undefined {
+  const content = getSuccessJsonResponseContent(responses, openapiRoot);
+  if (!content) {
+    return undefined;
+  }
+
+  return readExampleValue(content.response, openapiRoot) ??
+    readExampleValue(content.content, openapiRoot) ??
+    readExampleValue(content.schema, openapiRoot);
+}
+
+function getSuccessJsonResponseContent(responses: unknown, openapiRoot: unknown) {
   const responseRecord = resolveOpenapiSchema(responses, openapiRoot);
   if (!isRecord(responseRecord)) {
     return undefined;
@@ -498,15 +557,10 @@ function getResponseJsonSchema(responses: unknown, openapiRoot: unknown): JSONSc
     return undefined;
   }
 
-  const content = selectJsonContent(response.content);
-  if (!content) {
-    return undefined;
-  }
-
-  return convertOpenapiSchema(content.schema, openapiRoot);
+  return selectJsonContent(response.content, response);
 }
 
-function selectJsonContent(content: unknown) {
+function selectJsonContent(content: unknown, response: Record<string, unknown>) {
   if (!isRecord(content)) {
     return undefined;
   }
@@ -520,8 +574,138 @@ function selectJsonContent(content: unknown) {
   }
 
   return {
+    response,
+    content: entry[1],
     schema: entry[1].schema
   };
+}
+
+function createExampleFromJsonSchema(schema: JSONSchema): JsonValue {
+  if ('anyOf' in schema) {
+    return createExampleFromJsonSchema(schema.anyOf[0]);
+  }
+
+  if (schema.type === 'object') {
+    return Object.entries(schema.properties).reduce<Record<string, JsonValue>>((result, [key, property]) => {
+      result[key] = createExampleFromJsonSchema(property);
+      return result;
+    }, {});
+  }
+
+  if (schema.type === 'array') {
+    return [createExampleFromJsonSchema(schema.items)];
+  }
+
+  if (schema.type === 'number') return 0;
+  if (schema.type === 'boolean') return false;
+  if (schema.type === 'null') return null;
+  return '';
+}
+
+function getResponseExampleFromDetails(details: unknown[]) {
+  const detail = details
+    .filter((item): item is Record<string, unknown> => isRecord(item))
+    .filter((item) => /^2\d\d$/.test(readLooseString(item.statusCode)))
+    .sort((left, right) => readLooseString(left.statusCode).localeCompare(readLooseString(right.statusCode)))
+    .find((item) => Array.isArray(item.contents));
+
+  if (!detail || !Array.isArray(detail.contents)) {
+    return undefined;
+  }
+
+  const content = detail.contents
+    .filter((item): item is Record<string, unknown> => isRecord(item))
+    .find((item) => readString(item.contentType).toLowerCase().includes('json'));
+
+  return content ? readExampleValue(content, undefined) : undefined;
+}
+
+function getResponseExampleFromBodyParameters(parameters: unknown[]) {
+  const selectedParameters = selectSuccessJsonBodyParameters(parameters);
+  if (!selectedParameters.length) {
+    return undefined;
+  }
+
+  const childPaths = new Set(
+    selectedParameters
+      .map((parameter) => readString(parameter.path))
+      .filter(Boolean)
+      .flatMap((path) => getParentPaths(path))
+  );
+  const example: Record<string, JsonValue> = {};
+
+  selectedParameters.forEach((parameter) => {
+    const path = readString(parameter.path);
+    if (!path) {
+      return;
+    }
+
+    const value = readExampleValue(parameter, undefined);
+    if (value === undefined && childPaths.has(path)) {
+      return;
+    }
+
+    assignExampleValue(example, path, value ?? '');
+  });
+
+  return isJsonValue(example) ? example : undefined;
+}
+
+function selectSuccessJsonBodyParameters(parameters: unknown[]) {
+  const records = parameters.filter((item): item is Record<string, unknown> => isRecord(item));
+  const statusCode = records
+    .map((item) => readLooseString(item.statusCode))
+    .filter((item) => /^2\d\d$/.test(item))
+    .sort((left, right) => left.localeCompare(right))[0];
+
+  if (!statusCode) {
+    return [];
+  }
+
+  return records.filter((item) =>
+    readLooseString(item.statusCode) === statusCode &&
+    readString(item.contentType).toLowerCase().includes('json')
+  );
+}
+
+function getParentPaths(path: string) {
+  const segments = path.split('.').filter(Boolean);
+  return segments.slice(0, -1).map((_, index) => segments.slice(0, index + 1).join('.'));
+}
+
+function assignExampleValue(target: Record<string, JsonValue>, path: string, value: JsonValue) {
+  const segments = path.split('.').filter(Boolean);
+  let current: Record<string, JsonValue> = target;
+
+  segments.forEach((segment, index) => {
+    const isLast = index === segments.length - 1;
+    const isArraySegment = segment.endsWith('[]');
+    const key = isArraySegment ? segment.slice(0, -2) : segment;
+    if (!key) {
+      return;
+    }
+
+    if (isLast) {
+      current[key] = isArraySegment ? [value] : value;
+      return;
+    }
+
+    if (isArraySegment) {
+      const existingValue = current[key];
+      if (!Array.isArray(existingValue) || !isRecord(existingValue[0])) {
+        current[key] = [{}];
+      }
+
+      current = (current[key] as JsonValue[])[0] as Record<string, JsonValue>;
+      return;
+    }
+
+    if (!isRecord(current[key])) {
+      current[key] = {};
+    }
+
+    current = current[key] as Record<string, JsonValue>;
+  });
 }
 
 function convertOpenapiSchema(
@@ -734,12 +918,12 @@ function readExampleValue(value: unknown, openapiRoot: unknown): JsonValue | und
 
   if (isRecord(record.examples)) {
     const firstExample = Object.values(record.examples)[0];
-    if (isJsonValue(firstExample)) {
-      return firstExample;
-    }
-
     if (isRecord(firstExample) && isJsonValue(firstExample.value)) {
       return firstExample.value;
+    }
+
+    if (isJsonValue(firstExample)) {
+      return firstExample;
     }
   }
 

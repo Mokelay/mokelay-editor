@@ -87,31 +87,40 @@ const userSchemaSelections = {
   }
 };
 
-test('adds a datasource editor with default JSON value and renders in preview', async ({ page }) => {
+test('adds a datasource editor with default API value and renders in preview', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
   await expect(page.getByTestId('editor-datasource-tool')).toBeVisible();
-  await expect(page.getByTestId('datasource-json-panel')).toBeVisible();
-  await expect(page.getByTestId('datasource-raw-data')).toHaveValue('{}');
+  await expect(page.getByTestId('datasource-api-panel')).toBeVisible();
+  await expect(page.locator('.ce-datasource-tool__type-button')).toHaveText(['API', 'JSON']);
+  await expect(page.getByTestId('datasource-type-api')).toHaveClass(/ce-datasource-tool__type-button--active/);
+  await expect(page.getByTestId('datasource-path')).toHaveValue('');
+  await expect(page.getByTestId('datasource-method')).toHaveValue('GET');
   await expect(page.locator('.ce-block')).toHaveCount(2);
 
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
-    type: 'JSON',
-    rawData: {}
+    type: 'API',
+    domain: 'mokelay',
+    path: '',
+    method: 'GET',
+    headerData: [],
+    bodyData: [],
+    queryData: []
   });
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
-  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-raw-data')).toHaveValue('{}');
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-api-panel')).toBeVisible();
 });
 
 test('validates JSON input and only saves the last valid JSON value', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
+  await page.getByTestId('datasource-type-json').click();
   await page.getByTestId('datasource-raw-data').fill('{ bad');
   await expect(page.getByTestId('datasource-json-error')).toBeVisible();
 
@@ -145,6 +154,7 @@ test('parses JSON datasource data into JSON Schema and saves it', async ({ page 
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
+  await page.getByTestId('datasource-type-json').click();
   const rawData = {
     name: 'Tom',
     age: 18,
@@ -169,7 +179,8 @@ test('parses JSON datasource data into JSON Schema and saves it', async ({ page 
     type: 'JSON',
     rawData,
     jsonSchema: userSchema,
-    schemaSelections: userSchemaSelections
+    schemaSelections: userSchemaSelections,
+    responseExample: rawData
   });
 });
 
@@ -177,6 +188,7 @@ test('edits JSON Schema manually and keeps the last valid saved value', async ({
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
+  await page.getByTestId('datasource-type-json').click();
   const manualSchema = {
     type: 'object',
     properties: {
@@ -254,6 +266,7 @@ test('selects list and form fields from generated Schema and saves friendly labe
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
+  await page.getByTestId('datasource-type-json').click();
   const rawData = {
     title: '用户列表',
     users: [
@@ -348,7 +361,8 @@ test('selects list and form fields from generated Schema and saves friendly labe
           }
         ]
       }
-    }
+    },
+    responseExample: rawData
   });
 });
 
@@ -514,6 +528,21 @@ test('shares one API domain request across multiple datasource editors', async (
 });
 
 test('imports API datasource from a Mokelay orchestration API', async ({ page }) => {
+  const responseData = {
+    users: [
+      {
+        id: 1,
+        name: 'Ada',
+        active: true
+      }
+    ],
+    total: 1
+  };
+  const responseExample = {
+    ok: true,
+    data: responseData
+  };
+
   await resetEditor(page, {
     apis: [
       {
@@ -531,7 +560,7 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
             body: [{ key: 'keyword' }, 'limit']
           },
           blocks: [],
-          response: null
+          response: responseData
         }
       }
     ]
@@ -554,10 +583,12 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
   await expect(page.getByTestId('datasource-query-key-1')).toHaveValue('pageSize');
   await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('keyword');
   await expect(page.getByTestId('datasource-body-key-1')).toHaveValue('limit');
+  await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify(responseExample, null, 2));
+  await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('data.users');
 
   await page.getByTestId('save-button').click();
-  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
-  expect(datasourceValue).toEqual({
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
+  expect(datasourceValue).toMatchObject({
     type: 'API',
     domain: 'mokelay',
     path: '/api/mokelay/import_users',
@@ -573,8 +604,12 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
     queryData: [
       { key: 'page', mock: '' },
       { key: 'pageSize', mock: '' }
-    ]
+    ],
+    responseExample
   });
+  expect(datasourceValue.jsonSchema.properties.ok.type).toBe('boolean');
+  expect(datasourceValue.jsonSchema.properties.data.properties.users.type).toBe('array');
+  expect(datasourceValue.schemaSelections.list.recordPath).toBe('data.users');
 });
 
 test('imports API datasource from APIFox project and API ID', async ({ page }) => {
@@ -670,6 +705,14 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
                                 }
                               }
                             }
+                          },
+                          example: {
+                            data: [
+                              {
+                                id: 'u_1',
+                                age: 18
+                              }
+                            ]
                           }
                         }
                       }
@@ -707,6 +750,14 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
   await expect(page.getByTestId('datasource-body-mock-1')).toHaveValue('20');
   await expect(page.getByTestId('datasource-body-key-2')).toHaveValue('filters');
   await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('data');
+  await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify({
+    data: [
+      {
+        id: 'u_1',
+        age: 18
+      }
+    ]
+  }, null, 2));
 
   await page.getByTestId('datasource-schema-tab-advanced').click();
   const importedSchema = JSON.parse(await page.getByTestId('datasource-json-schema').inputValue()) as any;
@@ -729,9 +780,100 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
     ],
     queryData: [
       { key: 'token', mock: 'abc' }
-    ]
+    ],
+    responseExample: {
+      data: [
+        {
+          id: 'u_1',
+          age: 18
+        }
+      ]
+    }
   });
   expect(datasourceValue.jsonSchema.properties.data.type).toBe('array');
+});
+
+test('imports APIFox relative API path with the selected API domain', async ({ page }) => {
+  await resetEditor(page);
+
+  await page.route('**/api/mokelay/list-apifox-projects**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          projects: [
+            { id: 'mokelay-project', name: 'Mokelay Project' }
+          ],
+          count: 1
+        }
+      })
+    });
+  });
+  await page.route('**/api/mokelay/list-apifox-apis**', async (route) => {
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get('projectId')).toBe('mokelay-project');
+    expect(url.searchParams.get('apiId')).toBe('258626714');
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          apis: [
+            {
+              path: '/api/mokelay/login_users',
+              method: 'POST',
+              summary: '用户登录',
+              operationId: '258626714',
+              parameters: {
+                query: ['debug']
+              },
+              requestBodyParameters: [
+                { contentType: 'application/json', name: 'email', path: 'email' }
+              ],
+              responses: {}
+            }
+          ],
+          count: 1,
+          openapi: null
+        }
+      })
+    });
+  });
+
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+  await page.getByTestId('datasource-type-api').click();
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
+  await page.getByTestId('datasource-import-source').selectOption('apifox');
+  await page.getByTestId('datasource-import-apifox-project').selectOption('mokelay-project');
+  await page.getByTestId('datasource-import-apifox-api-id').fill('258626714');
+  await page.getByTestId('datasource-import-apply').click();
+
+  await expect(page.getByTestId('datasource-import-error')).toHaveCount(0);
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
+  await expect(page.getByTestId('datasource-path')).toHaveValue('/api/mokelay/login_users');
+  await expect(page.getByTestId('datasource-method')).toHaveValue('POST');
+  await expect(page.getByTestId('datasource-query-key-0')).toHaveValue('debug');
+  await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('email');
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toMatchObject({
+    type: 'API',
+    domain: 'mokelay',
+    path: '/api/mokelay/login_users',
+    method: 'POST',
+    bodyData: [
+      { key: 'email', dataType: 'string', mock: '' }
+    ],
+    queryData: [
+      { key: 'debug', mock: '' }
+    ]
+  });
 });
 
 test('does not import APIFox datasource when the API host is missing from the domain list', async ({ page }) => {
@@ -796,6 +938,15 @@ test('does not import APIFox datasource when the API host is missing from the do
 });
 
 test('imports APIFox grouped query parameters and request body parameters', async ({ page }) => {
+  const responseExample = {
+    data: [
+      {
+        id: 'page-1',
+        title: 'Home'
+      }
+    ]
+  };
+
   await resetEditor(page, {
     apiDomains: [
       {
@@ -853,7 +1004,57 @@ test('imports APIFox grouped query parameters and request body parameters', asyn
                 { contentType: 'multipart/form-data', name: 'ggggg', path: 'ggggg' },
                 { contentType: 'multipart/form-data', name: 'bbbbbb', path: 'bbbbbb' }
               ],
-              responses: {}
+              responses: {},
+              responseDetails: [
+                {
+                  statusCode: '200',
+                  description: 'OK',
+                  contentTypes: ['application/json'],
+                  contents: [
+                    {
+                      contentType: 'application/json',
+                      schemaDescription: null,
+                      example: responseExample,
+                      examples: null
+                    }
+                  ]
+                }
+              ],
+              responseBodyParameters: [
+                {
+                  statusCode: '200',
+                  contentType: 'application/json',
+                  name: 'data',
+                  path: 'data',
+                  description: null,
+                  required: true,
+                  deprecated: false,
+                  example: null,
+                  examples: null
+                },
+                {
+                  statusCode: '200',
+                  contentType: 'application/json',
+                  name: 'id',
+                  path: 'data[].id',
+                  description: null,
+                  required: true,
+                  deprecated: false,
+                  example: 'page-1',
+                  examples: null
+                },
+                {
+                  statusCode: '200',
+                  contentType: 'application/json',
+                  name: 'title',
+                  path: 'data[].title',
+                  description: null,
+                  required: false,
+                  deprecated: false,
+                  example: 'Home',
+                  examples: null
+                }
+              ]
             }
           ],
           count: 1,
@@ -878,9 +1079,11 @@ test('imports APIFox grouped query parameters and request body parameters', asyn
   await expect(page.getByTestId('datasource-query-key-2')).toHaveValue('nnnnn');
   await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('ggggg');
   await expect(page.getByTestId('datasource-body-key-1')).toHaveValue('bbbbbb');
+  await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify(responseExample, null, 2));
+  await expect(page.getByTestId('datasource-list-record-path')).toHaveValue('data');
 
   await page.getByTestId('save-button').click();
-  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue).toMatchObject({
     type: 'API',
     domain: 'apifox',
@@ -895,8 +1098,10 @@ test('imports APIFox grouped query parameters and request body parameters', asyn
       { key: 'alias', mock: '' },
       { key: 'aaaa', mock: '' },
       { key: 'nnnnn', mock: '' }
-    ]
+    ],
+    responseExample
   });
+  expect(datasourceValue.jsonSchema.properties.data.type).toBe('array');
 });
 
 test('does not overwrite API datasource when APIFox method is unsupported', async ({ page }) => {
@@ -1049,21 +1254,22 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
       }
     }
   };
+  const responseData = {
+    ok: true,
+    users: [
+      {
+        id: 1,
+        name: 'Ada',
+        active: true
+      }
+    ]
+  };
 
   await page.route('**/datasource-schema**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({
-        ok: true,
-        users: [
-          {
-            id: 1,
-            name: 'Ada',
-            active: true
-          }
-        ]
-      })
+      body: JSON.stringify(responseData)
     });
   });
 
@@ -1108,6 +1314,7 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
   await expect(page.getByTestId('datasource-form-field-ok')).toBeVisible();
   await page.getByTestId('datasource-schema-tab-advanced').click();
   await expect(page.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(apiSchema, null, 2));
+  await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify(responseData, null, 2));
 
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
@@ -1183,7 +1390,8 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
           }
         ]
       }
-    }
+    },
+    responseExample: responseData
   });
 });
 

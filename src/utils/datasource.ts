@@ -44,6 +44,7 @@ export interface MDatasourceJsonObject {
   rawData: JsonValue;
   jsonSchema?: JSONSchema;
   schemaSelections?: DatasourceSchemaSelections;
+  responseExample?: JsonValue;
 }
 
 export interface MDatasourceApiObject {
@@ -56,6 +57,7 @@ export interface MDatasourceApiObject {
   queryData: MDatasourceKeyMockItem[];
   jsonSchema?: JSONSchema;
   schemaSelections?: DatasourceSchemaSelections;
+  responseExample?: JsonValue;
 }
 
 export type MDatasourceObject = MDatasourceJsonObject | MDatasourceApiObject;
@@ -111,6 +113,10 @@ export function normalizeBodyDataType(value: unknown): MDatasourceBodyDataType {
 
 export function normalizeJsonValue(value: unknown, fallback: JsonValue = {}) {
   return isJsonValue(value) ? cloneJsonValue(value) : fallback;
+}
+
+function normalizeOptionalJsonValue(value: unknown) {
+  return isJsonValue(value) ? cloneJsonValue(value) : undefined;
 }
 
 export function getDefaultBodyFileMock(): MDatasourceBodyFileMock {
@@ -214,10 +220,7 @@ export function getDefaultApiDatasource(): MDatasourceApiObject {
 }
 
 export function getDefaultDatasource(): MDatasourceObject {
-  return {
-    type: 'JSON',
-    rawData: {}
-  };
+  return getDefaultApiDatasource();
 }
 
 export function normalizeDatasource(value: unknown): MDatasourceObject {
@@ -227,6 +230,7 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
 
   const jsonSchema = normalizeJSONSchema(value.jsonSchema);
   const schemaSelections = normalizeSchemaSelections(value.schemaSelections, jsonSchema);
+  const responseExample = normalizeOptionalJsonValue(value.responseExample);
 
   if (value.type === 'API') {
     const datasource: MDatasourceApiObject = {
@@ -247,6 +251,10 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
       datasource.schemaSelections = schemaSelections;
     }
 
+    if (responseExample !== undefined) {
+      datasource.responseExample = responseExample;
+    }
+
     return datasource;
   }
 
@@ -261,6 +269,10 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
 
   if (schemaSelections) {
     datasource.schemaSelections = schemaSelections;
+  }
+
+  if (responseExample !== undefined) {
+    datasource.responseExample = responseExample;
   }
 
   return datasource;
