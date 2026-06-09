@@ -239,6 +239,8 @@ export const zhMessages = {
       nonJsonResponse: 'API 响应不是 JSON 数据。',
       invalidJsonResponse: 'API 响应不是有效 JSON 数据。',
       apiRequestFailed: 'API 请求失败：',
+      missingApiDomain: '请选择 API 域名。',
+      apiDomainNotFound: '没有找到对应的 API 域名。',
       emptyArraySchema: '空数组无法推断 JSON Schema。',
       mixedArraySchema: '数组中包含无法合并的类型，无法推断 JSON Schema。'
     },
@@ -252,11 +254,15 @@ export const zhMessages = {
       },
       emptyMokelayApis: '暂无 Mokelay API',
       emptyApifoxProjects: '暂无 APIFox 项目',
+      emptyApiDomains: '暂无 API 域名',
+      loadingApiDomains: '加载 API 域名中...',
+      selectApiDomain: '请选择 API 域名',
       errors: {
         loadOptions: '加载导入选项失败。',
         missingApiJson: 'API 详情缺少 apiJson，无法导入。',
         unsupportedMethod: '当前数据源只支持 GET/POST，无法导入方法：',
-        apifoxApiNotFound: '没有找到对应的 APIFox API。'
+        apifoxApiNotFound: '没有找到对应的 APIFox API。',
+        apiDomainNotFound: '没有找到匹配的 API 域名，请先维护域名列表。'
       }
     }
   },

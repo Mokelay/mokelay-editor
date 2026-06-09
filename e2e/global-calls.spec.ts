@@ -11,8 +11,16 @@ type GlobalCallTestWindow = Window & {
   $schema: (value: MDatasourceObject) => Promise<JSONSchema>;
 };
 
+const localApiDomain = {
+  uuid: 'local',
+  alias: 'Local API',
+  host: 'http://127.0.0.1:4173'
+};
+
 test.beforeEach(async ({ page }) => {
-  await resetEditor(page);
+  await resetEditor(page, {
+    apiDomains: [localApiDomain]
+  });
 });
 
 test('registers global call functions on window and Vue global properties', async ({ page }) => {
@@ -126,7 +134,7 @@ test('resolves datasource remote data and schema from window globals', async ({ 
   const apiResult = await page.evaluate(async () => (
     await (window as unknown as GlobalCallTestWindow).$remote({
       type: 'API',
-      domain: window.location.origin,
+      domain: 'local',
       path: '/global-remote',
       method: 'POST',
       headerData: [
@@ -191,7 +199,7 @@ test('rejects datasource globals for API failures and non-JSON responses', async
       try {
         await (window as unknown as GlobalCallTestWindow).$remote({
           type: 'API',
-          domain: window.location.origin,
+          domain: 'local',
           path,
           method: 'GET',
           headerData: [],

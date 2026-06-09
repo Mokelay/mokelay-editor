@@ -12,6 +12,12 @@ test.beforeEach(async ({ page }) => {
   await resetEditor(page);
 });
 
+const localApiDomain = {
+  uuid: 'local',
+  alias: 'Local API',
+  host: 'http://127.0.0.1:4173'
+};
+
 function getDatasourceValue(blocks: Awaited<ReturnType<typeof getSavedBlocks>>) {
   return blocks.find((block) => block.type === 'MDatasourceEditor')?.data?.value;
 }
@@ -354,7 +360,7 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
   await expect(page.getByTestId('datasource-api-panel')).toBeVisible();
   await expect(page.getByTestId('datasource-test-button')).toHaveCount(0);
 
-  await page.getByTestId('datasource-domain').fill('https://api.mokelay.com');
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
   await page.getByTestId('datasource-path').fill('/v1/users');
   await page.getByTestId('datasource-method').selectOption('POST');
 
@@ -387,7 +393,7 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
     type: 'API',
-    domain: 'https://api.mokelay.com',
+    domain: 'mokelay',
     path: '/v1/users',
     method: 'POST',
     headerData: [
@@ -418,6 +424,93 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
       }
     ]
   });
+});
+
+test('loads API domain options and saves the selected domain uuid', async ({ page }) => {
+  const apiState = await resetEditor(page, {
+    apiDomains: [
+      {
+        uuid: 'mokelay',
+        alias: 'Mokelay 域名',
+        host: 'https://api.mokelay.com'
+      },
+      {
+        uuid: 'manager',
+        alias: '管理台',
+        host: 'https://manager.example.com'
+      }
+    ]
+  });
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  await page.getByTestId('datasource-type-api').click();
+  await expect(page.getByTestId('datasource-domain')).toContainText('管理台');
+  await page.getByTestId('datasource-domain').selectOption('manager');
+  await page.getByTestId('datasource-path').fill('/v1/users');
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toMatchObject({
+    type: 'API',
+    domain: 'manager',
+    path: '/v1/users'
+  });
+  expect(apiState.apiDomainRequests).toHaveLength(1);
+});
+
+test('shares one API domain request across multiple datasource editors', async ({ page }) => {
+  const apiState = await resetEditor(page, {
+    apiDomains: [
+      {
+        uuid: 'mokelay',
+        alias: 'Mokelay 域名',
+        host: 'https://api.mokelay.com'
+      }
+    ]
+  });
+
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'datasource-api-one',
+        type: 'MDatasourceEditor',
+        data: {
+          value: {
+            type: 'API',
+            domain: 'mokelay',
+            path: '/one',
+            method: 'GET',
+            headerData: [],
+            bodyData: [],
+            queryData: []
+          }
+        }
+      },
+      {
+        id: 'datasource-api-two',
+        type: 'MDatasourceEditor',
+        data: {
+          value: {
+            type: 'API',
+            domain: 'mokelay',
+            path: '/two',
+            method: 'GET',
+            headerData: [],
+            bodyData: [],
+            queryData: []
+          }
+        }
+      }
+    ]
+  });
+
+  await expect(page.getByTestId('datasource-domain')).toHaveCount(2);
+  await expect(page.getByTestId('datasource-domain').first()).toHaveValue('mokelay');
+  await expect(page.getByTestId('datasource-domain').nth(1)).toHaveValue('mokelay');
+  await expect.poll(() => apiState.apiDomainRequests.length).toBe(1);
 });
 
 test('imports API datasource from a Mokelay orchestration API', async ({ page }) => {
@@ -452,7 +545,7 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
   await page.getByTestId('datasource-import-mokelay-api').selectOption('import_users');
   await page.getByTestId('datasource-import-apply').click();
 
-  await expect(page.getByTestId('datasource-domain')).toHaveValue('http://127.0.0.1:8787');
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
   await expect(page.getByTestId('datasource-path')).toHaveValue('/api/mokelay/import_users');
   await expect(page.getByTestId('datasource-method')).toHaveValue('POST');
   await expect(page.getByTestId('datasource-header-key-0')).toHaveValue('Authorization');
@@ -466,7 +559,7 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
     type: 'API',
-    domain: 'http://127.0.0.1:8787',
+    domain: 'mokelay',
     path: '/api/mokelay/import_users',
     method: 'POST',
     headerData: [
@@ -485,6 +578,16 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
 });
 
 test('imports API datasource from APIFox project and API ID', async ({ page }) => {
+  await resetEditor(page, {
+    apiDomains: [
+      {
+        uuid: 'apifox',
+        alias: 'APIFox API',
+        host: 'https://api.example.com'
+      }
+    ]
+  });
+
   await page.route('**/api/mokelay/list-apifox-projects**', async (route) => {
     await route.fulfill({
       status: 200,
@@ -590,7 +693,7 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
   await page.getByTestId('datasource-import-apifox-api-id').fill('91011');
   await page.getByTestId('datasource-import-apply').click();
 
-  await expect(page.getByTestId('datasource-domain')).toHaveValue('https://api.example.com');
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('apifox');
   await expect(page.getByTestId('datasource-path')).toHaveValue('/v1/users/search');
   await expect(page.getByTestId('datasource-method')).toHaveValue('POST');
   await expect(page.getByTestId('datasource-header-key-0')).toHaveValue('X-Trace');
@@ -613,7 +716,7 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue).toMatchObject({
     type: 'API',
-    domain: 'https://api.example.com',
+    domain: 'apifox',
     path: '/v1/users/search',
     method: 'POST',
     headerData: [
@@ -631,7 +734,78 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
   expect(datasourceValue.jsonSchema.properties.data.type).toBe('array');
 });
 
+test('does not import APIFox datasource when the API host is missing from the domain list', async ({ page }) => {
+  await page.route('**/api/mokelay/list-apifox-projects**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          projects: [
+            { id: 'project-unknown-host', name: '未知域名项目' }
+          ],
+          count: 1
+        }
+      })
+    });
+  });
+  await page.route('**/api/mokelay/list-apifox-apis**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          apis: [],
+          count: 0,
+          openapi: {
+            openapi: '3.0.0',
+            servers: [
+              { url: 'https://unknown.example.com' }
+            ],
+            paths: {
+              '/users': {
+                get: {
+                  operationId: 'unknown-host-api',
+                  responses: {
+                    200: {
+                      description: 'OK'
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      })
+    });
+  });
+
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+  await page.getByTestId('datasource-type-api').click();
+  await page.getByTestId('datasource-import-source').selectOption('apifox');
+  await page.getByTestId('datasource-import-apifox-project').selectOption('project-unknown-host');
+  await page.getByTestId('datasource-import-apifox-api-id').fill('unknown-host-api');
+  await page.getByTestId('datasource-import-apply').click();
+
+  await expect(page.getByTestId('datasource-import-error')).toContainText('域名列表');
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
+  await expect(page.getByTestId('datasource-path')).toHaveValue('');
+});
+
 test('imports APIFox grouped query parameters and request body parameters', async ({ page }) => {
+  await resetEditor(page, {
+    apiDomains: [
+      {
+        uuid: 'apifox',
+        alias: 'APIFox API',
+        host: 'https://api.example.com'
+      }
+    ]
+  });
+
   await page.route('**/api/mokelay/list-apifox-projects**', async (route) => {
     await route.fulfill({
       status: 200,
@@ -657,6 +831,7 @@ test('imports APIFox grouped query parameters and request body parameters', asyn
           apis: [
             {
               path: '/config/load-page-data/{id}_{name}',
+              serverUrl: 'https://api.example.com',
               method: 'POST',
               summary: '加载页面数据',
               operationId: null,
@@ -708,7 +883,7 @@ test('imports APIFox grouped query parameters and request body parameters', asyn
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toMatchObject({
     type: 'API',
-    domain: '',
+    domain: 'apifox',
     path: '/config/load-page-data/{id}_{name}',
     method: 'POST',
     headerData: [],
@@ -725,6 +900,16 @@ test('imports APIFox grouped query parameters and request body parameters', asyn
 });
 
 test('does not overwrite API datasource when APIFox method is unsupported', async ({ page }) => {
+  await resetEditor(page, {
+    apiDomains: [
+      {
+        uuid: 'existing',
+        alias: 'Existing API',
+        host: 'https://existing.example.com'
+      }
+    ]
+  });
+
   await page.route('**/api/mokelay/list-apifox-projects**', async (route) => {
     await route.fulfill({
       status: 200,
@@ -775,7 +960,7 @@ test('does not overwrite API datasource when APIFox method is unsupported', asyn
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
   await page.getByTestId('datasource-type-api').click();
-  await page.getByTestId('datasource-domain').fill('https://existing.example.com');
+  await page.getByTestId('datasource-domain').selectOption('existing');
   await page.getByTestId('datasource-path').fill('/keep');
   await page.getByTestId('datasource-import-source').selectOption('apifox');
   await expect(page.getByTestId('datasource-import-apifox-project')).toContainText('删除接口项目');
@@ -783,7 +968,7 @@ test('does not overwrite API datasource when APIFox method is unsupported', asyn
   await page.getByTestId('datasource-import-apply').click();
 
   await expect(page.getByTestId('datasource-import-error')).toContainText('GET/POST');
-  await expect(page.getByTestId('datasource-domain')).toHaveValue('https://existing.example.com');
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('existing');
   await expect(page.getByTestId('datasource-path')).toHaveValue('/keep');
 });
 
@@ -808,7 +993,7 @@ test('saves API datasource file body metadata without file content', async ({ pa
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
     type: 'API',
-    domain: '',
+    domain: 'mokelay',
     path: '',
     method: 'POST',
     headerData: [],
@@ -833,6 +1018,9 @@ test('saves API datasource file body metadata without file content', async ({ pa
 });
 
 test('parses API datasource response into JSON Schema and saves it', async ({ page }) => {
+  await resetEditor(page, {
+    apiDomains: [localApiDomain]
+  });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
@@ -880,8 +1068,7 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
   });
 
   await page.getByTestId('datasource-type-api').click();
-  const origin = await page.evaluate(() => window.location.origin);
-  await page.getByTestId('datasource-domain').fill(origin);
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('local');
   await page.getByTestId('datasource-path').fill('/datasource-schema');
   await page.getByTestId('datasource-method').selectOption('POST');
 
@@ -926,7 +1113,7 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
     type: 'API',
-    domain: origin,
+    domain: 'local',
     path: '/datasource-schema',
     method: 'POST',
     headerData: [
@@ -1001,6 +1188,9 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
 });
 
 test('uploads API datasource file body params as multipart form data', async ({ page }) => {
+  await resetEditor(page, {
+    apiDomains: [localApiDomain]
+  });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
@@ -1025,8 +1215,7 @@ test('uploads API datasource file body params as multipart form data', async ({ 
   });
 
   await page.getByTestId('datasource-type-api').click();
-  const origin = await page.evaluate(() => window.location.origin);
-  await page.getByTestId('datasource-domain').fill(origin);
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('local');
   await page.getByTestId('datasource-path').fill('/datasource-upload');
   await page.getByTestId('datasource-method').selectOption('POST');
 
@@ -1071,6 +1260,9 @@ test('uploads API datasource file body params as multipart form data', async ({ 
 });
 
 test('requires selecting a file before generating API datasource schema', async ({ page }) => {
+  await resetEditor(page, {
+    apiDomains: [localApiDomain]
+  });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
@@ -1087,8 +1279,7 @@ test('requires selecting a file before generating API datasource schema', async 
   });
 
   await page.getByTestId('datasource-type-api').click();
-  const origin = await page.evaluate(() => window.location.origin);
-  await page.getByTestId('datasource-domain').fill(origin);
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('local');
   await page.getByTestId('datasource-path').fill('/datasource-missing-file');
   await page.getByTestId('datasource-method').selectOption('POST');
   await page.getByTestId('datasource-body-add').click();
@@ -1103,6 +1294,9 @@ test('requires selecting a file before generating API datasource schema', async 
 });
 
 test('parses API datasource response with mixed array item fields into anyOf JSON Schema', async ({ page }) => {
+  await resetEditor(page, {
+    apiDomains: [localApiDomain]
+  });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
@@ -1244,8 +1438,7 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
   });
 
   await page.getByTestId('datasource-type-api').click();
-  const origin = await page.evaluate(() => window.location.origin);
-  await page.getByTestId('datasource-domain').fill(origin);
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('local');
   await page.getByTestId('datasource-path').fill('/api/mokelay/list_pages');
 
   await page.getByTestId('datasource-query-add').click();
@@ -1279,6 +1472,9 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
 });
 
 test('parses API datasource response with empty arrays into JSON Schema', async ({ page }) => {
+  await resetEditor(page, {
+    apiDomains: [localApiDomain]
+  });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
@@ -1351,8 +1547,7 @@ test('parses API datasource response with empty arrays into JSON Schema', async 
   });
 
   await page.getByTestId('datasource-type-api').click();
-  const origin = await page.evaluate(() => window.location.origin);
-  await page.getByTestId('datasource-domain').fill(origin);
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('local');
   await page.getByTestId('datasource-path').fill('/datasource-api-config');
 
   await page.getByTestId('datasource-json-schema-parse-button').click();
@@ -1412,6 +1607,70 @@ test('loads saved JSON datasource in editor and preview', async ({ page }) => {
   expect(pageErrors).toEqual([]);
 });
 
+test('migrates a saved API datasource host to a matching domain uuid', async ({ page }) => {
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'datasource-api-legacy-host',
+        type: 'MDatasourceEditor',
+        data: {
+          value: {
+            type: 'API',
+            domain: 'https://api.mokelay.com/',
+            path: '/v1/users',
+            method: 'GET',
+            headerData: [],
+            bodyData: [],
+            queryData: []
+          }
+        }
+      }
+    ]
+  });
+
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
+  expect(datasourceValue).toMatchObject({
+    type: 'API',
+    domain: 'mokelay',
+    path: '/v1/users'
+  });
+});
+
+test('clears an unmatched saved API datasource host and blocks execution', async ({ page }) => {
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'datasource-api-unknown-host',
+        type: 'MDatasourceEditor',
+        data: {
+          value: {
+            type: 'API',
+            domain: 'https://unknown.example.com',
+            path: '/v1/users',
+            method: 'GET',
+            headerData: [],
+            bodyData: [],
+            queryData: []
+          }
+        }
+      }
+    ]
+  });
+  await switchLocaleToChinese(page);
+
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('');
+  await page.getByTestId('datasource-json-schema-parse-button').click();
+
+  await expect(page.getByTestId('datasource-json-schema-error')).toContainText('请选择 API 域名');
+});
+
 test('loads saved API datasource in editor and preview', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => {
@@ -1463,7 +1722,7 @@ test('loads saved API datasource in editor and preview', async ({ page }) => {
 
   await expect(page.getByTestId('editor-datasource-tool')).toBeVisible();
   await expect(page.getByTestId('datasource-api-panel')).toBeVisible();
-  await expect(page.getByTestId('datasource-domain')).toHaveValue('https://api.mokelay.com');
+  await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
   await expect(page.getByTestId('datasource-header-key-0')).toHaveValue('Authorization');
   await expect(page.getByTestId('datasource-body-mock-0')).toHaveValue('20');
   await expect(page.getByTestId('datasource-body-mock-1')).toHaveValue(JSON.stringify([1, 2, 3], null, 2));

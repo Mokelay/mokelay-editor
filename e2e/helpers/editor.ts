@@ -36,6 +36,12 @@ export type MockMokelayApi = {
   updatedAt?: string;
 };
 
+export type MockApiDomain = {
+  uuid: string;
+  alias: string;
+  host: string;
+};
+
 export type MockApiSnapshot = {
   apiUuid: string;
   name: string;
@@ -50,6 +56,7 @@ type MockPagesApiOptions = {
   initialRoute?: string;
   pages?: MockMokelayPage[];
   apis?: MockMokelayApi[];
+  apiDomains?: MockApiDomain[];
   seedDefaultPage?: boolean;
   apiDelays?: {
     listApis?: number;
@@ -80,8 +87,10 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const now = '2026-05-06T00:00:00.000Z';
   const pages = new Map<string, MockMokelayPage>();
   const apis = new Map<string, MockMokelayApi>();
+  const apiDomains = new Map<string, MockApiDomain>();
   const apiSnapshots: MockApiSnapshot[] = [];
   const apiSavePayloads: Record<string, unknown>[] = [];
+  const apiDomainRequests: string[] = [];
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
@@ -112,6 +121,10 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       createdAt: now,
       updatedAt: now
     });
+  }
+
+  for (const domainRecord of options.apiDomains ?? [defaultApiDomain()]) {
+    apiDomains.set(domainRecord.uuid, domainRecord);
   }
 
   for (const apiRecord of options.apis ?? []) {
@@ -174,6 +187,12 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
         pageSize,
         total: pageRecords.length
       }, corsHeaders);
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_api_domains') {
+      apiDomainRequests.push(request.url());
+      await fulfillApiDomains(route, Array.from(apiDomains.values()), corsHeaders);
       return;
     }
 
@@ -277,7 +296,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, apis, apiSnapshots, apiSavePayloads };
+  return { pages, apis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -451,6 +470,14 @@ function defaultApiLayout() {
   };
 }
 
+function defaultApiDomain(): MockApiDomain {
+  return {
+    uuid: 'mokelay',
+    alias: 'Mokelay 域名',
+    host: 'https://api.mokelay.com'
+  };
+}
+
 function normalizeMockApiLayout(value: unknown): Record<string, unknown> {
   const layout = readJsonPayload(value);
 
@@ -579,6 +606,27 @@ async function fulfillApis(
           hasPreviousPage: paginationInput.page > 1,
           hasNextPage: paginationInput.page < totalPages
         }
+      }
+    })
+  });
+}
+
+async function fulfillApiDomains(
+  route: Route,
+  domainRecords: MockApiDomain[],
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        domains: domainRecords.map((domainRecord) => ({
+          uuid: domainRecord.uuid,
+          alias: domainRecord.alias,
+          host: domainRecord.host
+        }))
       }
     })
   });

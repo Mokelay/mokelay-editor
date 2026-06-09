@@ -239,6 +239,8 @@ export const enMessages = {
       nonJsonResponse: 'The API response is not JSON.',
       invalidJsonResponse: 'The API response is not valid JSON.',
       apiRequestFailed: 'API request failed:',
+      missingApiDomain: 'Choose an API domain.',
+      apiDomainNotFound: 'Could not find the API domain.',
       emptyArraySchema: 'Cannot infer JSON Schema from an empty array.',
       mixedArraySchema: 'The array contains incompatible types, so JSON Schema cannot be inferred.'
     },
@@ -252,11 +254,15 @@ export const enMessages = {
       },
       emptyMokelayApis: 'No Mokelay APIs',
       emptyApifoxProjects: 'No APIFox projects',
+      emptyApiDomains: 'No API domains',
+      loadingApiDomains: 'Loading API domains...',
+      selectApiDomain: 'Choose API domain',
       errors: {
         loadOptions: 'Failed to load import options.',
         missingApiJson: 'The API detail is missing apiJson and cannot be imported.',
         unsupportedMethod: 'The datasource only supports GET/POST. Cannot import method:',
-        apifoxApiNotFound: 'Could not find the APIFox API.'
+        apifoxApiNotFound: 'Could not find the APIFox API.',
+        apiDomainNotFound: 'No matching API domain was found. Add it to the domain list first.'
       }
     }
   },

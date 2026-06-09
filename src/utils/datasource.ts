@@ -10,6 +10,7 @@ import {
   type JSONSchema,
   type JsonValue
 } from '@/utils/datasourceSchema';
+import { ApiDomainError, DEFAULT_API_DOMAIN_UUID, resolveApiDomainHost } from '@/utils/apiDomains';
 
 export type MDatasourceType = 'JSON' | 'API';
 export type MDatasourceApiMethod = 'GET' | 'POST';
@@ -67,6 +68,8 @@ export type SchemaFunction = (value: MDatasourceObject, options?: DatasourceRequ
 
 export type DatasourceErrorCode =
   | 'apiRequestFailed'
+  | 'missingApiDomain'
+  | 'apiDomainNotFound'
   | 'missingFile'
   | 'nonJsonResponse'
   | 'invalidJsonResponse'
@@ -201,7 +204,7 @@ function normalizeBodyList(value: unknown): MDatasourceBodyItem[] {
 export function getDefaultApiDatasource(): MDatasourceApiObject {
   return {
     type: 'API',
-    domain: '',
+    domain: DEFAULT_API_DOMAIN_UUID,
     path: '',
     method: 'GET',
     headerData: [],
@@ -263,8 +266,8 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
   return datasource;
 }
 
-export function getDatasourceRequestUrl(datasource: MDatasourceApiObject) {
-  const domain = datasource.domain.trim();
+export function getDatasourceRequestUrl(datasource: MDatasourceApiObject, domainHost = datasource.domain) {
+  const domain = domainHost.trim();
   const path = datasource.path.trim();
   const absolutePath = /^[a-z][a-z\d+\-.]*:/i.test(path);
   const baseUrl = domain || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -284,6 +287,19 @@ export function getDatasourceRequestUrl(datasource: MDatasourceApiObject) {
   });
 
   return url.toString();
+}
+
+async function getResolvedDatasourceRequestUrl(datasource: MDatasourceApiObject) {
+  try {
+    const domainHost = await resolveApiDomainHost(datasource.domain);
+    return getDatasourceRequestUrl(datasource, domainHost);
+  } catch (error) {
+    if (error instanceof ApiDomainError) {
+      throw new DatasourceError(error.code, error.message);
+    }
+
+    throw error;
+  }
 }
 
 export function getDatasourceRequestHeaders(datasource: MDatasourceApiObject) {
@@ -386,7 +402,7 @@ export const $remote: RemoteFunction = async (value, options) => {
     return cloneJsonValue(datasource.rawData);
   }
 
-  const response = await fetch(getDatasourceRequestUrl(datasource), {
+  const response = await fetch(await getResolvedDatasourceRequestUrl(datasource), {
     method: datasource.method,
     headers: getDatasourceRequestHeaders(datasource),
     body: getDatasourceRequestBody(datasource, options)

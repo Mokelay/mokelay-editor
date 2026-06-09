@@ -89,12 +89,18 @@ import { useI18n } from '@/i18n';
 import {
   getApi,
   getApifoxApiDetail,
-  getMokelayApiBaseUrl,
   listApis,
   listApifoxProjects,
   type ApifoxProjectRecord,
   type MokelayApiRecord
 } from '@/utils/apisApi';
+import {
+  DEFAULT_API_DOMAIN_UUID,
+  type ApiDomainRecord,
+  getDefaultApiDomainUuid,
+  listApiDomains,
+  normalizeApiDomainUuid
+} from '@/utils/apiDomains';
 import {
   buildDatasourceFromApifoxApi,
   buildDatasourceFromMokelayApi,
@@ -144,6 +150,10 @@ const apiState = reactive<ApiState>(
 const bodyMockInputs = ref<string[]>(apiState.bodyData.map((item) => getBodyMockInputValue(item)));
 const bodyMockErrors = ref<string[]>(apiState.bodyData.map(() => ''));
 const bodyFileInputs = ref<Array<File | undefined>>(apiState.bodyData.map(() => undefined));
+const apiDomainOptions = ref<ApiDomainRecord[]>([]);
+const apiDomainLoading = ref(false);
+const apiDomainError = ref('');
+const hasLoadedApiDomains = ref(false);
 const apiImportSource = ref<ApiImportSource>('mokelay');
 const mokelayApiOptions = ref<MokelayApiRecord[]>([]);
 const selectedMokelayApiUuid = ref('');
@@ -167,7 +177,15 @@ const visibleFormSelectionFields = computed(() => filterSelectionFields(formSele
 const selectedListRecordPath = computed(() => schemaSelectionsValue.value?.list?.recordPath ?? '');
 const enabledListFieldCount = computed(() => listSelectionFields.value.filter((field) => field.enabled).length);
 const enabledFormFieldCount = computed(() => formSelectionFields.value.filter((field) => field.enabled).length);
-const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value);
+const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value || apiDomainLoading.value);
+const isApiDomainSelectDisabled = computed(() => isReadOnly.value || apiDomainLoading.value || !apiDomainOptions.value.length);
+const apiDomainEmptyOptionText = computed(() => {
+  if (apiDomainLoading.value) {
+    return t('datasource.import.loadingApiDomains');
+  }
+
+  return apiDomainError.value || t('datasource.import.emptyApiDomains');
+});
 const canImportApi = computed(() => {
   if (isReadOnly.value || isApiImportBusy.value) {
     return false;
@@ -333,6 +351,49 @@ function syncApiState(value: MDatasourceApiObject) {
   syncBodyMockInputs();
 }
 
+function normalizeApiDomainState(shouldEmit = props.edit) {
+  if (!apiDomainOptions.value.length || currentType.value !== 'API') {
+    return;
+  }
+
+  const currentDomain = apiState.domain;
+  const normalizedDomain = normalizeApiDomainUuid(currentDomain, apiDomainOptions.value);
+  const nextDomain = normalizedDomain || (currentDomain.trim() ? '' : getDefaultApiDomainUuid(apiDomainOptions.value));
+
+  if (nextDomain === currentDomain) {
+    return;
+  }
+
+  apiState.domain = nextDomain;
+
+  if (shouldEmit) {
+    emitApiChange();
+  }
+}
+
+async function ensureApiDomainOptions(force = false) {
+  if (!force && hasLoadedApiDomains.value) {
+    return;
+  }
+
+  apiDomainLoading.value = true;
+  apiDomainError.value = '';
+
+  try {
+    apiDomainOptions.value = await listApiDomains(force);
+    hasLoadedApiDomains.value = true;
+    normalizeApiDomainState();
+  } catch (error) {
+    apiDomainError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    apiDomainLoading.value = false;
+  }
+}
+
+function getImportApiDomainUuid(hostOrUuid: string) {
+  return normalizeApiDomainUuid(hostOrUuid, apiDomainOptions.value);
+}
+
 function applyImportedApiDatasource(imported: ImportedApiDatasource) {
   currentType.value = 'API';
   syncApiState(imported.datasource);
@@ -440,9 +501,16 @@ async function importSelectedApi() {
   apiImportError.value = '';
 
   try {
+    await ensureApiDomainOptions();
+
     if (apiImportSource.value === 'mokelay') {
       const api = await getApi(selectedMokelayApiUuid.value);
-      applyImportedApiDatasource(buildDatasourceFromMokelayApi(api, getMokelayApiBaseUrl()));
+      const domainUuid = getImportApiDomainUuid(DEFAULT_API_DOMAIN_UUID) || getDefaultApiDomainUuid(apiDomainOptions.value);
+      if (!domainUuid) {
+        throw new Error(t('datasource.import.errors.apiDomainNotFound'));
+      }
+
+      applyImportedApiDatasource(buildDatasourceFromMokelayApi(api, domainUuid));
       return;
     }
 
@@ -450,7 +518,19 @@ async function importSelectedApi() {
       projectId: selectedApifoxProjectId.value,
       apiId: apifoxApiId.value.trim()
     });
-    applyImportedApiDatasource(buildDatasourceFromApifoxApi(result, apifoxApiId.value.trim()));
+    const imported = buildDatasourceFromApifoxApi(result, apifoxApiId.value.trim());
+    const domainUuid = getImportApiDomainUuid(imported.datasource.domain);
+    if (!domainUuid) {
+      throw new Error(t('datasource.import.errors.apiDomainNotFound'));
+    }
+
+    applyImportedApiDatasource({
+      ...imported,
+      datasource: {
+        ...imported.datasource,
+        domain: domainUuid
+      }
+    });
   } catch (error) {
     apiImportError.value = getApiImportErrorMessage(error);
   } finally {
@@ -471,6 +551,7 @@ function syncLocalState(value: unknown) {
   }
 
   syncApiState(normalized);
+  normalizeApiDomainState();
 }
 
 function setDatasourceType(type: MDatasourceType) {
@@ -482,6 +563,8 @@ function setDatasourceType(type: MDatasourceType) {
     return;
   }
 
+  normalizeApiDomainState(false);
+  void ensureApiDomainOptions();
   emitApiChange();
 }
 
@@ -942,6 +1025,18 @@ watch(
 );
 
 watch(
+  () => currentType.value,
+  () => {
+    if (currentType.value !== 'API') {
+      return;
+    }
+
+    void ensureApiDomainOptions();
+  },
+  { immediate: true }
+);
+
+watch(
   () => props.value,
   (value) => {
     syncLocalState(value);
@@ -1093,15 +1188,26 @@ watch(
       <div class="ce-datasource-tool__grid">
         <label class="ce-datasource-tool__field">
           <span class="ce-datasource-tool__label">{{ t('datasource.fields.domain') }}</span>
-          <input
+          <select
             class="ce-datasource-tool__input"
             data-testid="datasource-domain"
-            type="text"
-            :readonly="isReadOnly"
+            :disabled="isApiDomainSelectDisabled"
             :value="apiState.domain"
-            @input="updateApiField('domain', ($event.target as HTMLInputElement).value)"
-            @keydown.stop
-          />
+            @change="updateApiField('domain', ($event.target as HTMLSelectElement).value)"
+          >
+            <option v-if="!apiDomainOptions.length" value="">
+              {{ apiDomainEmptyOptionText }}
+            </option>
+            <option v-else-if="!apiState.domain" value="">
+              {{ t('datasource.import.selectApiDomain') }}
+            </option>
+            <option v-for="domain in apiDomainOptions" :key="domain.uuid" :value="domain.uuid">
+              {{ domain.alias }} ({{ domain.host }})
+            </option>
+          </select>
+          <p v-if="apiDomainError" class="ce-datasource-tool__error" data-testid="datasource-domain-error">
+            {{ apiDomainError }}
+          </p>
         </label>
         <label class="ce-datasource-tool__field">
           <span class="ce-datasource-tool__label">{{ t('datasource.fields.path') }}</span>
