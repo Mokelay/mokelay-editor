@@ -243,6 +243,7 @@ export const zhMessages = {
       apiRequestFailed: 'API 请求失败：',
       missingApiDomain: '请选择 API 域名。',
       apiDomainNotFound: '没有找到对应的 API 域名。',
+      invalidApiDomainList: 'API 域名列表无效。',
       emptyArraySchema: '空数组无法推断 JSON Schema。',
       mixedArraySchema: '数组中包含无法合并的类型，无法推断 JSON Schema。'
     },

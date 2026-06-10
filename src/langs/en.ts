@@ -243,6 +243,7 @@ export const enMessages = {
       apiRequestFailed: 'API request failed:',
       missingApiDomain: 'Choose an API domain.',
       apiDomainNotFound: 'Could not find the API domain.',
+      invalidApiDomainList: 'The API domain list is invalid.',
       emptyArraySchema: 'Cannot infer JSON Schema from an empty array.',
       mixedArraySchema: 'The array contains incompatible types, so JSON Schema cannot be inferred.'
     },

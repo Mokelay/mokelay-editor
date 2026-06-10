@@ -10,7 +10,12 @@ import {
   type JSONSchema,
   type JsonValue
 } from '@/utils/datasourceSchema';
-import { ApiDomainError, DEFAULT_API_DOMAIN_UUID, resolveApiDomainHost } from '@/utils/apiDomains';
+import {
+  ApiDomainError,
+  DEFAULT_API_DOMAIN_UUID,
+  resolveApiDomainHost,
+  type ApiDomainErrorCode
+} from '@/utils/apiDomains';
 
 export type MDatasourceType = 'JSON' | 'API';
 export type MDatasourceApiMethod = 'GET' | 'POST';
@@ -69,9 +74,8 @@ export type RemoteFunction = (value: MDatasourceObject, options?: DatasourceRequ
 export type SchemaFunction = (value: MDatasourceObject, options?: DatasourceRequestOptions) => Promise<JSONSchema>;
 
 export type DatasourceErrorCode =
+  | ApiDomainErrorCode
   | 'apiRequestFailed'
-  | 'missingApiDomain'
-  | 'apiDomainNotFound'
   | 'missingFile'
   | 'nonJsonResponse'
   | 'invalidJsonResponse'
