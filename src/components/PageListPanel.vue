@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from '@/i18n';
-import { createPage, listPages, type MokelayPage } from '@/utils/pagesApi';
+import { $confirm, $message } from '@/utils/globalCalls';
+import { createPage, deletePage, listPages, type MokelayPage, type MokelayPagesPagination } from '@/utils/pagesApi';
 
 const emit = defineEmits<{
   (event: 'open-page', uuid: string): void;
   (event: 'page-created', page: MokelayPage): void;
 }>();
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 10;
 
 const { t, localeValue } = useI18n();
 const pages = ref<MokelayPage[]>([]);
@@ -18,41 +19,55 @@ const isCreateDialogOpen = ref(false);
 const isCreatingPage = ref(false);
 const createPageName = ref('');
 const createPageError = ref('');
+const isDeletingPageUuid = ref<string | null>(null);
+const currentPage = ref(1);
+const pagination = ref<MokelayPagesPagination>(createEmptyPagination(1));
 let loadRequestId = 0;
 
-const pageTotalLabel = computed(() => t('pageList.total').replace('{count}', String(pages.value.length)));
+const pageTotalLabel = computed(() => t('pageList.total').replace('{count}', String(pagination.value.total)));
+const pageRangeLabel = computed(() => {
+  const total = pagination.value.total;
+
+  if (total <= 0) {
+    return t('pageList.pageRangeEmpty');
+  }
+
+  const start = (pagination.value.page - 1) * pagination.value.pageSize + 1;
+  const end = Math.min(start + pages.value.length - 1, total);
+
+  return t('pageList.pageRange')
+    .replace('{start}', String(start))
+    .replace('{end}', String(end))
+    .replace('{total}', String(total));
+});
+const currentPageLabel = computed(() => t('pageList.currentPage')
+  .replace('{page}', String(pagination.value.page))
+  .replace('{totalPages}', String(Math.max(pagination.value.totalPages, 1))));
 
 onMounted(() => {
   void refreshPages();
 });
 
-async function refreshPages() {
+async function refreshPages(pageNumber = currentPage.value) {
+  const normalizedPageNumber = Math.max(1, Math.floor(pageNumber));
   const requestId = loadRequestId + 1;
   loadRequestId = requestId;
   isLoadingPages.value = true;
   pageListError.value = '';
 
   try {
-    const loadedPages: MokelayPage[] = [];
-    let pageNumber = 1;
-    let hasNextPage = true;
+    const result = await listPages({
+      page: normalizedPageNumber,
+      pageSize: PAGE_SIZE
+    });
 
-    while (hasNextPage) {
-      const result = await listPages({
-        page: pageNumber,
-        pageSize: PAGE_SIZE
-      });
-
-      if (requestId !== loadRequestId) {
-        return;
-      }
-
-      loadedPages.push(...result.pages);
-      hasNextPage = result.pagination.hasNextPage;
-      pageNumber += 1;
+    if (requestId !== loadRequestId) {
+      return;
     }
 
-    pages.value = loadedPages;
+    pages.value = result.pages;
+    pagination.value = normalizePaginationForDisplay(result.pagination, normalizedPageNumber);
+    currentPage.value = pagination.value.page;
   } catch (error) {
     if (requestId !== loadRequestId) {
       return;
@@ -63,6 +78,16 @@ async function refreshPages() {
       isLoadingPages.value = false;
     }
   }
+}
+
+function goToPreviousPage() {
+  if (isLoadingPages.value || !pagination.value.hasPreviousPage) return;
+  void refreshPages(currentPage.value - 1);
+}
+
+function goToNextPage() {
+  if (isLoadingPages.value || !pagination.value.hasNextPage) return;
+  void refreshPages(currentPage.value + 1);
 }
 
 function openCreateDialog() {
@@ -103,6 +128,48 @@ async function submitCreatePage() {
   }
 }
 
+async function confirmDeletePage(page: MokelayPage) {
+  if (isDeletingPageUuid.value) return;
+
+  const pageName = page.name || t('pageList.unnamedPage');
+  const confirmed = await $confirm(
+    t('pageList.deleteDialogTitle'),
+    t('pageList.deleteDialogContent').replace('{name}', pageName)
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  await submitDeletePage(page.uuid);
+}
+
+async function submitDeletePage(uuid: string) {
+  if (isDeletingPageUuid.value) return;
+
+  isDeletingPageUuid.value = uuid;
+  pageListError.value = '';
+
+  try {
+    const result = await deletePage(uuid);
+    pages.value = pages.value.filter((page) => page.uuid !== uuid);
+
+    if (result.affected > 0) {
+      const nextPage = pages.value.length > 0 ? currentPage.value : Math.max(currentPage.value - 1, 1);
+      void $message('success', t('pageList.deleteSuccess'));
+      await refreshPages(nextPage);
+      return;
+    }
+
+    pageListError.value = t('pageList.deleteNotFound');
+    await refreshPages();
+  } catch (error) {
+    pageListError.value = error instanceof Error ? error.message : t('pageList.deleteFailed');
+  } finally {
+    isDeletingPageUuid.value = null;
+  }
+}
+
 function validatePageName(name: string) {
   if (!name) {
     return t('pageList.nameRequired');
@@ -113,6 +180,32 @@ function validatePageName(name: string) {
   }
 
   return '';
+}
+
+function createEmptyPagination(page: number): MokelayPagesPagination {
+  return {
+    page,
+    pageSize: PAGE_SIZE,
+    total: 0,
+    totalPages: 0,
+    hasPreviousPage: page > 1,
+    hasNextPage: false
+  };
+}
+
+function normalizePaginationForDisplay(value: MokelayPagesPagination, requestedPage: number): MokelayPagesPagination {
+  const pageSize = value.pageSize || PAGE_SIZE;
+  const totalPages = value.totalPages || (value.total > 0 ? Math.ceil(value.total / pageSize) : 0);
+  const page = value.page || requestedPage;
+
+  return {
+    page,
+    pageSize,
+    total: value.total,
+    totalPages,
+    hasPreviousPage: value.hasPreviousPage || page > 1,
+    hasNextPage: value.hasNextPage || (totalPages > 0 && page < totalPages)
+  };
 }
 
 function formatDate(value?: string) {
@@ -191,14 +284,50 @@ function formatPageName(date: Date) {
                 <td class="px-4 py-3 text-slate-500 dark:text-slate-400">{{ formatDate(page.createdAt) }}</td>
                 <td class="px-4 py-3 text-slate-500 dark:text-slate-400">{{ formatDate(page.updatedAt) }}</td>
                 <td class="px-4 py-3 text-right">
-                  <button class="rounded-md px-2 py-1 text-teal-700 hover:bg-teal-50 dark:text-teal-200 dark:hover:bg-teal-500/10" @click="emit('open-page', page.uuid)">
-                    {{ t('pageList.open') }}
-                  </button>
+                  <div class="flex justify-end gap-2 whitespace-nowrap">
+                    <button class="rounded-md px-2 py-1 text-teal-700 hover:bg-teal-50 dark:text-teal-200 dark:hover:bg-teal-500/10" @click="emit('open-page', page.uuid)">
+                      {{ t('pageList.open') }}
+                    </button>
+                    <button
+                      :data-testid="`delete-page-button-${page.uuid}`"
+                      class="rounded-md px-2 py-1 text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-rose-200 dark:hover:bg-rose-500/10"
+                      :disabled="isDeletingPageUuid !== null"
+                      @click="confirmDeletePage(page)"
+                    >
+                      {{ isDeletingPageUuid === page.uuid ? t('pageList.deleting') : t('pageList.delete') }}
+                    </button>
+                  </div>
                 </td>
               </tr>
             </template>
           </tbody>
         </table>
+      </div>
+
+      <div v-if="pagination.total > 0" data-testid="page-list-pagination" class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600 dark:text-slate-300">
+        <p data-testid="page-list-pagination-info">
+          {{ pageRangeLabel }} · {{ currentPageLabel }}
+        </p>
+        <div class="flex items-center gap-2">
+          <button
+            data-testid="page-list-prev-button"
+            type="button"
+            class="page-list-secondary-button"
+            :disabled="isLoadingPages || !pagination.hasPreviousPage"
+            @click="goToPreviousPage"
+          >
+            {{ t('pageList.previousPage') }}
+          </button>
+          <button
+            data-testid="page-list-next-button"
+            type="button"
+            class="page-list-secondary-button"
+            :disabled="isLoadingPages || !pagination.hasNextPage"
+            @click="goToNextPage"
+          >
+            {{ t('pageList.nextPage') }}
+          </button>
+        </div>
       </div>
     </section>
 

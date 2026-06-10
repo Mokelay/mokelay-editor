@@ -238,6 +238,14 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'POST' && url.pathname === '/api/mokelay/delete_page_by_uuid') {
+      const payload = readJsonPayload(request.postDataJSON());
+      const uuid = readString(payload.uuid);
+      const affected = pages.delete(uuid) ? 1 : 0;
+      await fulfillDeletePage(route, affected, corsHeaders);
+      return;
+    }
+
     if (method === 'POST' && url.pathname === '/api/mokelay/save_api') {
       const payload = readJsonPayload(request.postDataJSON());
       apiSavePayloads.push(payload);
@@ -645,6 +653,24 @@ async function fulfillDeleteApi(
       data: {
         affected,
         message: affected > 0 ? 'API deleted.' : 'API not found.'
+      }
+    })
+  });
+}
+
+async function fulfillDeletePage(
+  route: Route,
+  affected: number,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        affected,
+        message: affected > 0 ? 'Page deleted.' : 'Page not found.'
       }
     })
   });

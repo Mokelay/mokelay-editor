@@ -38,6 +38,11 @@ export type ListPagesResult = {
   pagination: MokelayPagesPagination;
 };
 
+export type DeletePageResult = {
+  affected: number;
+  message: string;
+};
+
 type PageResponse = {
   page?: unknown;
 };
@@ -45,6 +50,11 @@ type PageResponse = {
 type PagesResponse = {
   pages?: unknown;
   pagination?: unknown;
+};
+
+type DeleteResponse = {
+  affected?: unknown;
+  message?: unknown;
 };
 
 type MokelaySuccessResponse<T> = {
@@ -92,6 +102,13 @@ export async function listPages(params: ListPagesParams) {
   return normalizePagesResponse(unwrapApiResponse(response.data));
 }
 
+export async function deletePage(uuid: string) {
+  const response = await apiClient.post<MokelayApiResponse<DeleteResponse>>('/api/mokelay/delete_page_by_uuid', {
+    uuid
+  });
+  return normalizeDeleteResponse(unwrapApiResponse(response.data));
+}
+
 function unwrapApiResponse<T>(value: MokelayApiResponse<T>): T {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('Invalid API response.');
@@ -126,6 +143,13 @@ function normalizePagesResponse(value: PagesResponse): ListPagesResult {
   return {
     pages,
     pagination: normalizePagination(value.pagination)
+  };
+}
+
+function normalizeDeleteResponse(value: DeleteResponse): DeletePageResult {
+  return {
+    affected: readAffected(value.affected),
+    message: typeof value.message === 'string' ? value.message : ''
   };
 }
 
@@ -171,4 +195,17 @@ function readString(value: unknown) {
 
 function readNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function readAffected(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : 0;
+  }
+
+  return 0;
 }
