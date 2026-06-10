@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { resetEditor } from './helpers/editor';
 
-test('renders the home page list and opens a page editor', async ({ page }) => {
+test('renders the page list and opens a page editor', async ({ page }) => {
   const uuid = '11111111-2222-4333-8444-555555555555';
   await resetEditor(page, {
-    initialRoute: '/',
+    initialRoute: '/#/pages',
     pages: [
       {
         uuid,
@@ -36,13 +36,13 @@ test('renders the home page list and opens a page editor', async ({ page }) => {
 
   await page.getByTestId('back-to-page-list-button').click();
 
-  await expect(page).toHaveURL(/#\/$/);
+  await expect(page).toHaveURL(/#\/pages$/);
   await expect(page.getByTestId('page-list-panel')).toBeVisible();
 });
 
 test('shows the empty state when there are no pages', async ({ page }) => {
   await resetEditor(page, {
-    initialRoute: '/'
+    initialRoute: '/#/pages'
   });
 
   await expect(page.getByTestId('page-list-panel')).toBeVisible();
@@ -59,7 +59,7 @@ test('supports going to the next page in the page list', async ({ page }) => {
   }));
 
   await resetEditor(page, {
-    initialRoute: '/',
+    initialRoute: '/#/pages',
     pages
   });
 
@@ -87,7 +87,7 @@ test('supports going to the next page in the page list', async ({ page }) => {
 test('deletes a page from the page list after confirmation', async ({ page }) => {
   const uuid = 'delete-page-1111';
   const apiState = await resetEditor(page, {
-    initialRoute: '/',
+    initialRoute: '/#/pages',
     pages: [
       {
         uuid,

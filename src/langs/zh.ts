@@ -7,6 +7,7 @@ export const zhMessages = {
     light: '浅色',
     language: '语言',
     home: '首页',
+    apps: 'Apps',
     pageList: '页面列表',
     chinese: '中文',
     english: 'English'
@@ -318,6 +319,35 @@ export const zhMessages = {
     toolboxTitle: '页面',
     loading: '正在读取页面...',
     loadFailed: '页面读取失败，请稍后重试。'
+  },
+  appList: {
+    title: 'App 列表',
+    total: '共 {count} 个 App',
+    createApp: '创建 App',
+    loading: '正在加载 App 列表...',
+    empty: '暂无 App，可以先创建一个 App。',
+    loadFailed: 'App 列表加载失败，请稍后重试。',
+    createFailed: 'App 创建失败，请稍后重试。',
+    createSuccess: 'App 已创建。',
+    createDialogTitle: '创建 App',
+    appAlias: 'App 名称',
+    appDescription: '描述',
+    creating: '创建中...',
+    save: '保存',
+    pageRange: '第 {start}-{end} 条，共 {total} 条',
+    pageRangeEmpty: '暂无分页数据',
+    currentPage: '第 {page} / {totalPages} 页',
+    previousPage: '上一页',
+    nextPage: '下一页',
+    unnamedApp: '未命名 App',
+    aliasRequired: 'App 名称不能为空。',
+    aliasTooLong: 'App 名称不能超过 120 个字符。',
+    columns: {
+      id: 'ID',
+      uuid: 'UUID',
+      alias: '名称',
+      description: '描述'
+    }
   },
   pageList: {
     title: '页面列表',

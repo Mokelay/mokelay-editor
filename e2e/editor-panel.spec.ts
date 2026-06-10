@@ -28,7 +28,7 @@ test('renders editor panel with expected controls', async ({ page }) => {
 
 test('creates a new page through the pages API without showing the JSON dialog', async ({ page }) => {
   await resetEditor(page, {
-    initialRoute: '/'
+    initialRoute: '/#/pages'
   });
 
   const createRequestPromise = page.waitForRequest((request) =>
@@ -124,7 +124,7 @@ test('loads an existing page from the UUID route and updates name and blocks', a
 
 test('shows backend error message when creating a page fails through the API envelope', async ({ page }) => {
   await resetEditor(page, {
-    initialRoute: '/'
+    initialRoute: '/#/pages'
   });
 
   await page.route('**/api/mokelay/create_page', async (route) => {

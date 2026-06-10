@@ -7,6 +7,7 @@ export const enMessages = {
     light: 'Light',
     language: 'Language',
     home: 'Home',
+    apps: 'Apps',
     pageList: 'Pages',
     chinese: '中文',
     english: 'English'
@@ -318,6 +319,35 @@ export const enMessages = {
     toolboxTitle: 'Page',
     loading: 'Loading page...',
     loadFailed: 'Failed to load page. Please try again.'
+  },
+  appList: {
+    title: 'Apps',
+    total: '{count} apps',
+    createApp: 'Create app',
+    loading: 'Loading apps...',
+    empty: 'No apps yet. Create one to get started.',
+    loadFailed: 'Failed to load apps. Please try again.',
+    createFailed: 'Failed to create app. Please try again.',
+    createSuccess: 'App created.',
+    createDialogTitle: 'Create app',
+    appAlias: 'App name',
+    appDescription: 'Description',
+    creating: 'Creating...',
+    save: 'Save',
+    pageRange: '{start}-{end} of {total}',
+    pageRangeEmpty: 'No paginated data',
+    currentPage: 'Page {page} / {totalPages}',
+    previousPage: 'Previous',
+    nextPage: 'Next',
+    unnamedApp: 'Untitled app',
+    aliasRequired: 'App name is required.',
+    aliasTooLong: 'App name cannot exceed 120 characters.',
+    columns: {
+      id: 'ID',
+      uuid: 'UUID',
+      alias: 'Name',
+      description: 'Description'
+    }
   },
   pageList: {
     title: 'Pages',

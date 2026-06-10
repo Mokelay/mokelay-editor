@@ -25,6 +25,13 @@ export type MockMokelayPage = {
   updatedAt?: string;
 };
 
+export type MockMokelayApp = {
+  id: number;
+  uuid: string;
+  alias: string;
+  description: string;
+};
+
 export type MockMokelayApi = {
   uuid: string;
   name: string;
@@ -53,8 +60,10 @@ export type MockApiSnapshot = {
 
 type MockPagesApiOptions = {
   createUuid?: string;
+  createAppUuid?: string;
   initialRoute?: string;
   pages?: MockMokelayPage[];
+  apps?: MockMokelayApp[];
   apis?: MockMokelayApi[];
   apiDomains?: MockApiDomain[];
   seedDefaultPage?: boolean;
@@ -86,6 +95,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 
   const now = '2026-05-06T00:00:00.000Z';
   const pages = new Map<string, MockMokelayPage>();
+  const apps = new Map<string, MockMokelayApp>();
   const apis = new Map<string, MockMokelayApi>();
   const apiDomains = new Map<string, MockApiDomain>();
   const apiSnapshots: MockApiSnapshot[] = [];
@@ -121,6 +131,10 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       createdAt: now,
       updatedAt: now
     });
+  }
+
+  for (const appRecord of options.apps ?? []) {
+    apps.set(appRecord.uuid, appRecord);
   }
 
   for (const domainRecord of options.apiDomains ?? [defaultApiDomain()]) {
@@ -161,6 +175,35 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       };
       pages.set(pageRecord.uuid, pageRecord);
       await fulfillPage(route, pageRecord, corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/create_app') {
+      const payload = readJsonPayload(request.postDataJSON());
+      const nextId = nextAppId(apps);
+      const appRecord: MockMokelayApp = {
+        id: nextId,
+        uuid: options.createAppUuid ?? createMockAppUuid(nextId),
+        alias: readString(payload.alias).trim(),
+        description: readString(payload.description).trim()
+      };
+      apps.set(appRecord.uuid, appRecord);
+      await fulfillApp(route, appRecord, corsHeaders);
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_apps') {
+      const pageNumber = Number(url.searchParams.get('page') ?? 1);
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
+      const appRecords = Array.from(apps.values())
+        .sort((a, b) => b.id - a.id);
+      const start = Math.max(pageNumber - 1, 0) * pageSize;
+      const pageItems = appRecords.slice(start, start + pageSize);
+      await fulfillApps(route, pageItems, {
+        page: pageNumber,
+        pageSize,
+        total: appRecords.length
+      }, corsHeaders);
       return;
     }
 
@@ -304,7 +347,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, apis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests };
+  return { pages, apps, apis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -516,10 +559,63 @@ function shouldSeedDefaultPage(options: MockPagesApiOptions) {
   return routeToHash(initialRoute) === defaultEditorHash;
 }
 
+function nextAppId(apps: Map<string, MockMokelayApp>) {
+  return Math.max(0, ...Array.from(apps.values()).map((app) => app.id)) + 1;
+}
+
+function createMockAppUuid(id: number) {
+  return String(id).padStart(8, '0');
+}
+
 async function delay(ms = 0) {
   if (ms <= 0) return;
   await new Promise((resolve) => {
     setTimeout(resolve, ms);
+  });
+}
+
+async function fulfillApp(
+  route: Route,
+  appRecord: MockMokelayApp | null,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        app: appRecord
+      }
+    })
+  });
+}
+
+async function fulfillApps(
+  route: Route,
+  appRecords: MockMokelayApp[],
+  paginationInput: { page: number; pageSize: number; total: number },
+  headers: Record<string, string>
+) {
+  const totalPages = paginationInput.total > 0 ? Math.ceil(paginationInput.total / paginationInput.pageSize) : 0;
+
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        apps: appRecords,
+        pagination: {
+          page: paginationInput.page,
+          pageSize: paginationInput.pageSize,
+          total: paginationInput.total,
+          totalPages,
+          hasPreviousPage: paginationInput.page > 1,
+          hasNextPage: paginationInput.page < totalPages
+        }
+      }
+    })
   });
 }
 

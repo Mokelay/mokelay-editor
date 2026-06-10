@@ -11,6 +11,7 @@ import { createPage, getPage, updatePage, type MokelayPage } from '@/utils/pages
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
 const PageListPanel = defineAsyncComponent(() => import('@/components/PageListPanel.vue'));
+const AppListPanel = defineAsyncComponent(() => import('@/components/AppListPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 
 const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
@@ -48,6 +49,7 @@ type ParsedRoute = {
   pageUuid: string | null;
   apiUuid: string | null;
   apiBuilder: boolean;
+  pageList: boolean;
   preview: boolean;
 };
 
@@ -68,7 +70,10 @@ const routePageUuid = computed(() => parsedRoute.value.pageUuid);
 const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
+const isPageListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.pageList);
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && Boolean(routePageUuid.value));
+const isAppListPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && !isEditorPage.value && !isPageListPage.value);
+const isPagesSection = computed(() => isPageListPage.value || isEditorPage.value || isPreviewPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 
 function applyTheme(dark: boolean) {
@@ -90,6 +95,17 @@ function parseRouteHash(hash: string): ParsedRoute {
       pageUuid: null,
       apiUuid: apiMatch[1] ? safeDecodeURIComponent(apiMatch[1]) : null,
       apiBuilder: true,
+      pageList: false,
+      preview: false
+    };
+  }
+
+  if (path === '/pages') {
+    return {
+      pageUuid: null,
+      apiUuid: null,
+      apiBuilder: false,
+      pageList: true,
       preview: false
     };
   }
@@ -99,6 +115,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       pageUuid: safeDecodeURIComponent(pageMatch[1]),
       apiUuid: null,
       apiBuilder: false,
+      pageList: false,
       preview: Boolean(pageMatch[2])
     };
   }
@@ -107,6 +124,7 @@ function parseRouteHash(hash: string): ParsedRoute {
     pageUuid: null,
     apiUuid: null,
     apiBuilder: false,
+    pageList: false,
     preview: path === '/preview'
   };
 }
@@ -293,7 +311,7 @@ function backToEditorPage() {
 }
 
 function backToPageList() {
-  window.location.hash = '/';
+  window.location.hash = '/pages';
 }
 
 function openPageFromList(uuid: string) {
@@ -349,7 +367,14 @@ function handlePageCreated(page: MokelayPage) {
             <a
               href="#/"
               class="rounded-md px-3 py-1.5 font-medium"
-              :class="!isApiBuilderPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+              :class="isAppListPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+            >
+              {{ t('app.apps') }}
+            </a>
+            <a
+              href="#/pages"
+              class="rounded-md px-3 py-1.5 font-medium"
+              :class="isPagesSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
             >
               {{ t('app.pageList') }}
             </a>
@@ -423,10 +448,11 @@ function handlePageCreated(page: MokelayPage) {
         />
       </div>
       <PageListPanel
-        v-else
+        v-else-if="isPageListPage"
         @open-page="openPageFromList"
         @page-created="handlePageCreated"
       />
+      <AppListPanel v-else />
     </main>
   </TooltipProvider>
 </template>
