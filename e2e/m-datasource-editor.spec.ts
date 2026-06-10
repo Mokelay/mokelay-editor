@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   addEditorTool,
   getSavedBlocks,
@@ -20,6 +20,22 @@ const localApiDomain = {
 
 function getDatasourceValue(blocks: Awaited<ReturnType<typeof getSavedBlocks>>) {
   return blocks.find((block) => block.type === 'MDatasourceEditor')?.data?.value;
+}
+
+async function openMokelayApiImport(page: Page) {
+  await page.getByTestId('datasource-import-open-mokelay').click();
+  const dialog = page.getByTestId('datasource-api-import-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('datasource-api-import-dialog-title')).toContainText('Mokelay');
+  return dialog;
+}
+
+async function openApifoxApiImport(page: Page) {
+  await page.getByTestId('datasource-import-open-apifox').click();
+  const dialog = page.getByTestId('datasource-api-import-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('datasource-api-import-dialog-title')).toContainText('APIFox');
+  return dialog;
 }
 
 const userSchema = {
@@ -570,9 +586,15 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
 
   await page.getByTestId('datasource-type-api').click();
   await expect(page.getByTestId('datasource-api-import-panel')).toBeVisible();
-  await expect(page.getByTestId('datasource-import-mokelay-api')).toContainText('用户导入 API');
-  await page.getByTestId('datasource-import-mokelay-api').selectOption('import_users');
-  await page.getByTestId('datasource-import-apply').click();
+  await expect(page.getByTestId('datasource-import-open-mokelay')).toBeVisible();
+  await expect(page.getByTestId('datasource-import-open-apifox')).toBeVisible();
+  await expect(page.getByTestId('datasource-import-source')).toHaveCount(0);
+
+  const importDialog = await openMokelayApiImport(page);
+  await expect(importDialog.getByTestId('datasource-import-mokelay-api')).toContainText('用户导入 API');
+  await importDialog.getByTestId('datasource-import-mokelay-api').selectOption('import_users');
+  await importDialog.getByTestId('datasource-import-apply').click();
+  await expect(importDialog).not.toBeVisible();
 
   await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
   await expect(page.getByTestId('datasource-path')).toHaveValue('/api/mokelay/import_users');
@@ -730,11 +752,12 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
   await page.getByTestId('datasource-type-api').click();
-  await page.getByTestId('datasource-import-source').selectOption('apifox');
-  await expect(page.getByTestId('datasource-import-apifox-project')).toContainText('CRM 项目');
-  await page.getByTestId('datasource-import-apifox-project').selectOption('42');
-  await page.getByTestId('datasource-import-apifox-api-id').fill('91011');
-  await page.getByTestId('datasource-import-apply').click();
+  const importDialog = await openApifoxApiImport(page);
+  await expect(importDialog.getByTestId('datasource-import-apifox-project')).toContainText('CRM 项目');
+  await importDialog.getByTestId('datasource-import-apifox-project').selectOption('42');
+  await importDialog.getByTestId('datasource-import-apifox-api-id').fill('91011');
+  await importDialog.getByTestId('datasource-import-apply').click();
+  await expect(importDialog).not.toBeVisible();
 
   await expect(page.getByTestId('datasource-domain')).toHaveValue('apifox');
   await expect(page.getByTestId('datasource-path')).toHaveValue('/v1/users/search');
@@ -848,10 +871,11 @@ test('imports APIFox relative API path with the selected API domain', async ({ p
   await addEditorTool(page, '数据源编辑器');
   await page.getByTestId('datasource-type-api').click();
   await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
-  await page.getByTestId('datasource-import-source').selectOption('apifox');
-  await page.getByTestId('datasource-import-apifox-project').selectOption('mokelay-project');
-  await page.getByTestId('datasource-import-apifox-api-id').fill('258626714');
-  await page.getByTestId('datasource-import-apply').click();
+  const importDialog = await openApifoxApiImport(page);
+  await importDialog.getByTestId('datasource-import-apifox-project').selectOption('mokelay-project');
+  await importDialog.getByTestId('datasource-import-apifox-api-id').fill('258626714');
+  await importDialog.getByTestId('datasource-import-apply').click();
+  await expect(importDialog).not.toBeVisible();
 
   await expect(page.getByTestId('datasource-import-error')).toHaveCount(0);
   await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
@@ -927,12 +951,13 @@ test('does not import APIFox datasource when the API host is missing from the do
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
   await page.getByTestId('datasource-type-api').click();
-  await page.getByTestId('datasource-import-source').selectOption('apifox');
-  await page.getByTestId('datasource-import-apifox-project').selectOption('project-unknown-host');
-  await page.getByTestId('datasource-import-apifox-api-id').fill('unknown-host-api');
-  await page.getByTestId('datasource-import-apply').click();
+  const importDialog = await openApifoxApiImport(page);
+  await importDialog.getByTestId('datasource-import-apifox-project').selectOption('project-unknown-host');
+  await importDialog.getByTestId('datasource-import-apifox-api-id').fill('unknown-host-api');
+  await importDialog.getByTestId('datasource-import-apply').click();
 
-  await expect(page.getByTestId('datasource-import-error')).toContainText('域名列表');
+  await expect(importDialog).toBeVisible();
+  await expect(importDialog.getByTestId('datasource-import-error')).toContainText('域名列表');
   await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
   await expect(page.getByTestId('datasource-path')).toHaveValue('');
 });
@@ -1067,10 +1092,11 @@ test('imports APIFox grouped query parameters and request body parameters', asyn
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
   await page.getByTestId('datasource-type-api').click();
-  await page.getByTestId('datasource-import-source').selectOption('apifox');
-  await page.getByTestId('datasource-import-apifox-project').selectOption('mokelay-project');
-  await page.getByTestId('datasource-import-apifox-api-id').fill('217306455');
-  await page.getByTestId('datasource-import-apply').click();
+  const importDialog = await openApifoxApiImport(page);
+  await importDialog.getByTestId('datasource-import-apifox-project').selectOption('mokelay-project');
+  await importDialog.getByTestId('datasource-import-apifox-api-id').fill('217306455');
+  await importDialog.getByTestId('datasource-import-apply').click();
+  await expect(importDialog).not.toBeVisible();
 
   await expect(page.getByTestId('datasource-path')).toHaveValue('/config/load-page-data/{id}_{name}');
   await expect(page.getByTestId('datasource-method')).toHaveValue('POST');
@@ -1167,12 +1193,13 @@ test('does not overwrite API datasource when APIFox method is unsupported', asyn
   await page.getByTestId('datasource-type-api').click();
   await page.getByTestId('datasource-domain').selectOption('existing');
   await page.getByTestId('datasource-path').fill('/keep');
-  await page.getByTestId('datasource-import-source').selectOption('apifox');
-  await expect(page.getByTestId('datasource-import-apifox-project')).toContainText('删除接口项目');
-  await page.getByTestId('datasource-import-apifox-api-id').fill('delete-user');
-  await page.getByTestId('datasource-import-apply').click();
+  const importDialog = await openApifoxApiImport(page);
+  await expect(importDialog.getByTestId('datasource-import-apifox-project')).toContainText('删除接口项目');
+  await importDialog.getByTestId('datasource-import-apifox-api-id').fill('delete-user');
+  await importDialog.getByTestId('datasource-import-apply').click();
 
-  await expect(page.getByTestId('datasource-import-error')).toContainText('GET/POST');
+  await expect(importDialog).toBeVisible();
+  await expect(importDialog.getByTestId('datasource-import-error')).toContainText('GET/POST');
   await expect(page.getByTestId('datasource-domain')).toHaveValue('existing');
   await expect(page.getByTestId('datasource-path')).toHaveValue('/keep');
 });

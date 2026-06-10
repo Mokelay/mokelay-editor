@@ -157,6 +157,8 @@ const apiDomainLoading = ref(false);
 const apiDomainError = ref('');
 const hasLoadedApiDomains = ref(false);
 const apiImportSource = ref<ApiImportSource>('mokelay');
+const apiImportDialogRef = ref<HTMLDialogElement | null>(null);
+const isApiImportDialogOpen = ref(false);
 const mokelayApiOptions = ref<MokelayApiRecord[]>([]);
 const selectedMokelayApiUuid = ref('');
 const apifoxProjectOptions = ref<ApifoxProjectRecord[]>([]);
@@ -183,6 +185,7 @@ const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImpor
 const isApiDomainSelectDisabled = computed(() => isReadOnly.value || apiDomainLoading.value || !apiDomainOptions.value.length);
 const hasResponseExample = computed(() => responseExampleValue.value !== undefined);
 const responseExampleText = computed(() => hasResponseExample.value ? formatJsonValue(responseExampleValue.value!) : '');
+const apiImportDialogTitle = computed(() => t(`datasource.import.sources.${apiImportSource.value}`));
 const apiDomainEmptyOptionText = computed(() => {
   if (apiDomainLoading.value) {
     return t('datasource.import.loadingApiDomains');
@@ -438,11 +441,29 @@ function applyImportedApiDatasource(imported: ImportedApiDatasource) {
   emitApiChange();
 }
 
-function updateApiImportSource(value: string) {
-  if (!props.edit || (value !== 'mokelay' && value !== 'apifox')) return;
+function setApiImportSource(value: ApiImportSource) {
+  if (!props.edit) return;
 
   apiImportSource.value = value;
   apiImportError.value = '';
+}
+
+function openApiImportDialog(source: ApiImportSource) {
+  if (!props.edit || currentType.value !== 'API') return;
+
+  setApiImportSource(source);
+  isApiImportDialogOpen.value = true;
+  if (!apiImportDialogRef.value?.open) {
+    apiImportDialogRef.value?.showModal();
+  }
+  void ensureApiImportOptions();
+}
+
+function closeApiImportDialog() {
+  isApiImportDialogOpen.value = false;
+  if (apiImportDialogRef.value?.open) {
+    apiImportDialogRef.value.close();
+  }
 }
 
 function selectDefaultMokelayApi() {
@@ -547,6 +568,7 @@ async function importSelectedApi() {
       }
 
       applyImportedApiDatasource(buildDatasourceFromMokelayApi(api, domainUuid));
+      closeApiImportDialog();
       return;
     }
 
@@ -568,6 +590,7 @@ async function importSelectedApi() {
         domain: domainUuid
       }
     });
+    closeApiImportDialog();
   } catch (error) {
     apiImportError.value = getApiImportErrorMessage(error);
   } finally {
@@ -1067,21 +1090,10 @@ function getBodyMockInputValue(item: ApiStateBodyItem) {
 }
 
 watch(
-  () => [currentType.value, apiImportSource.value, props.edit] as const,
-  () => {
-    if (currentType.value !== 'API' || !props.edit) {
-      return;
-    }
-
-    void ensureApiImportOptions();
-  },
-  { immediate: true }
-);
-
-watch(
   () => currentType.value,
   () => {
     if (currentType.value !== 'API') {
+      closeApiImportDialog();
       return;
     }
 
@@ -1149,7 +1161,125 @@ watch(
       <div v-if="edit" class="ce-datasource-tool__import-panel" data-testid="datasource-api-import-panel">
         <div class="ce-datasource-tool__import-header">
           <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.importApi') }}</div>
-          <div class="ce-datasource-tool__import-actions">
+        </div>
+        <div class="ce-datasource-tool__import-sources">
+          <button
+            class="ce-datasource-tool__import-source-button"
+            type="button"
+            data-testid="datasource-import-open-mokelay"
+            :disabled="apiImportOptionsLoading || apiImportLoading"
+            @click="openApiImportDialog('mokelay')"
+          >
+            <span class="ce-datasource-tool__import-source-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <ellipse cx="12" cy="6" rx="7" ry="3" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" fill="none" stroke="currentColor" stroke-width="2" />
+              </svg>
+            </span>
+            <span class="ce-datasource-tool__import-source-label">{{ t('datasource.import.sources.mokelay') }}</span>
+          </button>
+          <button
+            class="ce-datasource-tool__import-source-button"
+            type="button"
+            data-testid="datasource-import-open-apifox"
+            :disabled="apiImportOptionsLoading || apiImportLoading"
+            @click="openApiImportDialog('apifox')"
+          >
+            <span class="ce-datasource-tool__import-source-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M12 3 20 7.5v9L12 21l-8-4.5v-9L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                <path d="M12 8v8M8.5 10.2l7 3.6M15.5 10.2l-7 3.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </span>
+            <span class="ce-datasource-tool__import-source-label">{{ t('datasource.import.sources.apifox') }}</span>
+          </button>
+        </div>
+      </div>
+
+      <dialog
+        v-if="edit"
+        ref="apiImportDialogRef"
+        class="ce-datasource-tool__import-dialog"
+        data-testid="datasource-api-import-dialog"
+        :aria-hidden="!isApiImportDialogOpen"
+        aria-labelledby="datasource-api-import-dialog-title"
+        @close="isApiImportDialogOpen = false"
+      >
+        <div class="ce-datasource-tool__import-dialog-panel">
+          <div class="ce-datasource-tool__import-dialog-header">
+            <h3
+              id="datasource-api-import-dialog-title"
+              class="ce-datasource-tool__import-dialog-title"
+              data-testid="datasource-api-import-dialog-title"
+            >
+              {{ apiImportDialogTitle }}
+            </h3>
+            <button
+              class="ce-datasource-tool__import-dialog-close"
+              type="button"
+              data-testid="datasource-api-import-dialog-close"
+              @click="closeApiImportDialog"
+            >
+              {{ t('editor.close') }}
+            </button>
+          </div>
+
+          <div class="ce-datasource-tool__import-dialog-body">
+            <label v-if="apiImportSource === 'mokelay'" class="ce-datasource-tool__field">
+              <span class="ce-datasource-tool__label">{{ t('datasource.fields.mokelayApi') }}</span>
+              <select
+                class="ce-datasource-tool__input"
+                data-testid="datasource-import-mokelay-api"
+                :disabled="isApiImportBusy || !mokelayApiOptions.length"
+                :value="selectedMokelayApiUuid"
+                @change="selectedMokelayApiUuid = ($event.target as HTMLSelectElement).value"
+              >
+                <option v-if="!mokelayApiOptions.length" value="">
+                  {{ t('datasource.import.emptyMokelayApis') }}
+                </option>
+                <option v-for="api in mokelayApiOptions" :key="api.uuid" :value="api.uuid">
+                  {{ api.name }} ({{ api.method }})
+                </option>
+              </select>
+            </label>
+            <template v-else>
+              <label class="ce-datasource-tool__field">
+                <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxProject') }}</span>
+                <select
+                  class="ce-datasource-tool__input"
+                  data-testid="datasource-import-apifox-project"
+                  :disabled="isApiImportBusy || !apifoxProjectOptions.length"
+                  :value="selectedApifoxProjectId"
+                  @change="selectedApifoxProjectId = ($event.target as HTMLSelectElement).value"
+                >
+                  <option v-if="!apifoxProjectOptions.length" value="">
+                    {{ t('datasource.import.emptyApifoxProjects') }}
+                  </option>
+                  <option v-for="project in apifoxProjectOptions" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
+                </select>
+              </label>
+              <label class="ce-datasource-tool__field">
+                <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxApiId') }}</span>
+                <input
+                  class="ce-datasource-tool__input"
+                  data-testid="datasource-import-apifox-api-id"
+                  type="text"
+                  :readonly="isApiImportBusy"
+                  :placeholder="t('datasource.import.placeholders.apifoxApiId')"
+                  :value="apifoxApiId"
+                  @input="apifoxApiId = ($event.target as HTMLInputElement).value"
+                  @keydown.stop
+                />
+              </label>
+            </template>
+            <p v-if="apiImportError" class="ce-datasource-tool__error" data-testid="datasource-import-error">
+              {{ apiImportError }}
+            </p>
+          </div>
+
+          <div class="ce-datasource-tool__import-dialog-actions">
             <button
               class="ce-datasource-tool__action"
               type="button"
@@ -1170,74 +1300,7 @@ watch(
             </button>
           </div>
         </div>
-        <div class="ce-datasource-tool__import-controls">
-          <label class="ce-datasource-tool__field">
-            <span class="ce-datasource-tool__label">{{ t('datasource.fields.importSource') }}</span>
-            <select
-              class="ce-datasource-tool__input"
-              data-testid="datasource-import-source"
-              :disabled="isApiImportBusy"
-              :value="apiImportSource"
-              @change="updateApiImportSource(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="mokelay">{{ t('datasource.import.sources.mokelay') }}</option>
-              <option value="apifox">{{ t('datasource.import.sources.apifox') }}</option>
-            </select>
-          </label>
-          <label v-if="apiImportSource === 'mokelay'" class="ce-datasource-tool__field ce-datasource-tool__field--wide">
-            <span class="ce-datasource-tool__label">{{ t('datasource.fields.mokelayApi') }}</span>
-            <select
-              class="ce-datasource-tool__input"
-              data-testid="datasource-import-mokelay-api"
-              :disabled="isApiImportBusy || !mokelayApiOptions.length"
-              :value="selectedMokelayApiUuid"
-              @change="selectedMokelayApiUuid = ($event.target as HTMLSelectElement).value"
-            >
-              <option v-if="!mokelayApiOptions.length" value="">
-                {{ t('datasource.import.emptyMokelayApis') }}
-              </option>
-              <option v-for="api in mokelayApiOptions" :key="api.uuid" :value="api.uuid">
-                {{ api.name }} ({{ api.method }})
-              </option>
-            </select>
-          </label>
-          <template v-else>
-            <label class="ce-datasource-tool__field">
-              <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxProject') }}</span>
-              <select
-                class="ce-datasource-tool__input"
-                data-testid="datasource-import-apifox-project"
-                :disabled="isApiImportBusy || !apifoxProjectOptions.length"
-                :value="selectedApifoxProjectId"
-                @change="selectedApifoxProjectId = ($event.target as HTMLSelectElement).value"
-              >
-                <option v-if="!apifoxProjectOptions.length" value="">
-                  {{ t('datasource.import.emptyApifoxProjects') }}
-                </option>
-                <option v-for="project in apifoxProjectOptions" :key="project.id" :value="project.id">
-                  {{ project.name }}
-                </option>
-              </select>
-            </label>
-            <label class="ce-datasource-tool__field">
-              <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxApiId') }}</span>
-              <input
-                class="ce-datasource-tool__input"
-                data-testid="datasource-import-apifox-api-id"
-                type="text"
-                :readonly="isApiImportBusy"
-                :placeholder="t('datasource.import.placeholders.apifoxApiId')"
-                :value="apifoxApiId"
-                @input="apifoxApiId = ($event.target as HTMLInputElement).value"
-                @keydown.stop
-              />
-            </label>
-          </template>
-        </div>
-        <p v-if="apiImportError" class="ce-datasource-tool__error" data-testid="datasource-import-error">
-          {{ apiImportError }}
-        </p>
-      </div>
+      </dialog>
 
       <div class="ce-datasource-tool__grid">
         <label class="ce-datasource-tool__field">
@@ -1870,7 +1933,7 @@ watch(
 .ce-datasource-tool__import-panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid rgb(226 232 240);
   border-radius: 8px;
   padding: 10px;
@@ -1884,17 +1947,127 @@ watch(
   gap: 10px;
 }
 
-.ce-datasource-tool__import-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+.ce-datasource-tool__import-sources {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.ce-datasource-tool__import-controls {
+.ce-datasource-tool__import-source-button {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: rgb(255 255 255);
+  color: rgb(30 64 175);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ce-datasource-tool__import-source-button:hover {
+  border-color: rgb(37 99 235 / 0.55);
+  background: rgb(239 246 255);
+}
+
+.ce-datasource-tool__import-source-button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.ce-datasource-tool__import-source-icon {
   display: grid;
-  grid-template-columns: minmax(150px, 0.35fr) minmax(220px, 1fr) minmax(160px, 0.35fr);
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  background: rgb(219 234 254);
+}
+
+.ce-datasource-tool__import-source-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.ce-datasource-tool__import-source-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.ce-datasource-tool__import-dialog {
+  width: min(100%, 520px);
+  border: 0;
+  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
+  color: rgb(15 23 42);
+}
+
+.ce-datasource-tool__import-dialog::backdrop {
+  background: rgb(15 23 42 / 0.45);
+}
+
+.ce-datasource-tool__import-dialog-panel {
+  margin: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgb(255 255 255);
+}
+
+.ce-datasource-tool__import-dialog-header,
+.ce-datasource-tool__import-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  padding: 14px 16px;
+}
+
+.ce-datasource-tool__import-dialog-header {
+  border-bottom: 1px solid rgb(226 232 240);
+}
+
+.ce-datasource-tool__import-dialog-actions {
+  border-top: 1px solid rgb(226 232 240);
+  justify-content: flex-end;
+}
+
+.ce-datasource-tool__import-dialog-title {
+  margin: 0;
+  color: rgb(15 23 42);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.ce-datasource-tool__import-dialog-close {
+  min-height: 32px;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 8px;
+  padding: 5px 10px;
+  background: rgb(255 255 255);
+  color: rgb(71 85 105);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ce-datasource-tool__import-dialog-close:hover {
+  background: rgb(248 250 252);
+}
+
+.ce-datasource-tool__import-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
 }
 
 .ce-datasource-tool__field {
@@ -2235,7 +2408,7 @@ watch(
   }
 
   .ce-datasource-tool__grid,
-  .ce-datasource-tool__import-controls,
+  .ce-datasource-tool__import-sources,
   .ce-datasource-tool__row,
   .ce-datasource-tool__body-row,
   .ce-datasource-tool__schema-field,
@@ -2244,6 +2417,12 @@ watch(
   }
 
   .ce-datasource-tool__import-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ce-datasource-tool__import-dialog-header,
+  .ce-datasource-tool__import-dialog-actions {
     align-items: stretch;
     flex-direction: column;
   }
@@ -2319,6 +2498,44 @@ watch(
 
 :global(.dark) .ce-datasource-tool__import-panel {
   border-color: rgb(51 65 85);
+  background: rgb(30 41 59);
+}
+
+:global(.dark) .ce-datasource-tool__import-source-button {
+  border-color: rgb(71 85 105);
+  background: rgb(15 23 42);
+  color: rgb(191 219 254);
+}
+
+:global(.dark) .ce-datasource-tool__import-source-button:hover {
+  border-color: rgb(96 165 250 / 0.7);
+  background: rgb(30 41 59);
+}
+
+:global(.dark) .ce-datasource-tool__import-source-icon {
+  background: rgb(30 64 175 / 0.45);
+}
+
+:global(.dark) .ce-datasource-tool__import-dialog-panel {
+  background: rgb(15 23 42);
+}
+
+:global(.dark) .ce-datasource-tool__import-dialog-header,
+:global(.dark) .ce-datasource-tool__import-dialog-actions {
+  border-color: rgb(51 65 85);
+}
+
+:global(.dark) .ce-datasource-tool__import-dialog-title {
+  color: rgb(241 245 249);
+}
+
+:global(.dark) .ce-datasource-tool__import-dialog-close {
+  border-color: rgb(71 85 105);
+  background: rgb(15 23 42);
+  color: rgb(203 213 225);
+}
+
+:global(.dark) .ce-datasource-tool__import-dialog-close:hover {
   background: rgb(30 41 59);
 }
 
