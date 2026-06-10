@@ -152,8 +152,8 @@ function replaceDatasource(updated: MokelayDatasource) {
 }
 
 function schemaLabel(datasource: MokelayDatasource) {
-  return datasource.schema.length
-    ? t('datasourceList.schemaTables').replace('{count}', String(datasource.schema.length))
+  return datasource.schemaData.length
+    ? t('datasourceList.schemaTables').replace('{count}', String(datasource.schemaData.length))
     : t('datasourceList.schemaNotSynced');
 }
 

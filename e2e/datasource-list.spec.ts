@@ -10,7 +10,7 @@ test('opens the datasource list from navigation and shows schema status', async 
         uuid: 'a1b2c3d4',
         alias: 'Analytics',
         description: 'Reporting database',
-        schema: [
+        schema_data: [
           { name: 'orders', columns: [{ name: 'id', type: 'integer', dataType: 'integer' }] },
           { name: 'users', columns: [{ name: 'uuid', type: 'uuid', dataType: 'uuid' }] }
         ]
@@ -91,7 +91,7 @@ test('syncs datasource schema and keeps the old status on failure', async ({ pag
     uuid: 'b1c2d3e4',
     alias: 'Operations',
     description: '',
-    schema: []
+    schema_data: []
   };
   await resetEditor(page, {
     initialRoute: '/#/datasources',
@@ -130,7 +130,7 @@ test('paginates datasource records', async ({ page }) => {
       uuid: `c${String(index + 1).padStart(7, '0')}`,
       alias: `Datasource ${index + 1}`,
       description: '',
-      schema: []
+      schema_data: []
     }))
   });
 

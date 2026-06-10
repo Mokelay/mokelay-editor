@@ -16,7 +16,7 @@ export type MokelayDatasource = {
   uuid: string;
   alias: string;
   description: string;
-  schema: DatasourceTableSchema[];
+  schemaData: DatasourceTableSchema[];
 };
 
 export type CreateDatasourcePayload = {
@@ -152,7 +152,7 @@ function normalizeDatasource(value: unknown): MokelayDatasource {
     uuid,
     alias: typeof record.alias === 'string' ? record.alias : '',
     description: typeof record.description === 'string' ? record.description : '',
-    schema: normalizeSchema(record.schema)
+    schemaData: normalizeSchema(record.schema_data)
   };
 }
 

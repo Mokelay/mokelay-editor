@@ -42,7 +42,7 @@ export type MockMokelayDatasource = {
   uuid: string;
   alias: string;
   description: string;
-  schema: MockDatasourceTableSchema[];
+  schema_data: MockDatasourceTableSchema[];
 };
 
 export type MockMokelayApi = {
@@ -238,7 +238,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
         uuid: readString(payload.uuid).trim(),
         alias: readString(payload.alias).trim(),
         description: readString(payload.description).trim(),
-        schema: []
+        schema_data: []
       };
       datasources.set(datasourceRecord.uuid, datasourceRecord);
       await fulfillDatasource(route, datasourceRecord, corsHeaders);
@@ -276,7 +276,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       }
       const updated: MockMokelayDatasource = {
         ...existing,
-        schema: options.syncedDatasourceSchemas?.[uuid] ?? []
+        schema_data: options.syncedDatasourceSchemas?.[uuid] ?? []
       };
       datasources.set(uuid, updated);
       await fulfillDatasource(route, updated, corsHeaders);
