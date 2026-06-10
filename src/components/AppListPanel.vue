@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from '@/i18n';
 import { $message } from '@/utils/globalCalls';
-import { createApp, listApps, type MokelayApp, type MokelayAppsPagination } from '@/utils/appsApi';
+import { createApp, listApps, updateApp, type MokelayApp, type MokelayAppsPagination } from '@/utils/appsApi';
 
 const PAGE_SIZE = 10;
 
@@ -10,8 +10,10 @@ const { t } = useI18n();
 const apps = ref<MokelayApp[]>([]);
 const isLoadingApps = ref(false);
 const appListError = ref('');
-const isCreateDialogOpen = ref(false);
-const isCreatingApp = ref(false);
+const isDialogOpen = ref(false);
+const isSavingApp = ref(false);
+const editingApp = ref<MokelayApp | null>(null);
+const appUuid = ref('');
 const createAppAlias = ref('');
 const createAppDescription = ref('');
 const createAppError = ref('');
@@ -38,6 +40,7 @@ const appRangeLabel = computed(() => {
 const currentPageLabel = computed(() => t('appList.currentPage')
   .replace('{page}', String(pagination.value.page))
   .replace('{totalPages}', String(Math.max(pagination.value.totalPages, 1))));
+const dialogTitle = computed(() => editingApp.value ? t('appList.editDialogTitle') : t('appList.createDialogTitle'));
 
 onMounted(() => {
   void refreshApps();
@@ -86,44 +89,66 @@ function goToNextPage() {
 }
 
 function openCreateDialog() {
+  editingApp.value = null;
+  appUuid.value = '';
   createAppAlias.value = '';
   createAppDescription.value = '';
   createAppError.value = '';
-  isCreateDialogOpen.value = true;
+  isDialogOpen.value = true;
 }
 
-function closeCreateDialog() {
-  if (isCreatingApp.value) return;
-  isCreateDialogOpen.value = false;
+function openEditDialog(app: MokelayApp) {
+  editingApp.value = app;
+  appUuid.value = app.uuid;
+  createAppAlias.value = app.alias;
+  createAppDescription.value = app.description;
+  createAppError.value = '';
+  isDialogOpen.value = true;
 }
 
-async function submitCreateApp() {
+function closeDialog() {
+  if (isSavingApp.value) return;
+  isDialogOpen.value = false;
+}
+
+async function submitApp() {
+  const uuid = appUuid.value.trim();
   const alias = createAppAlias.value.trim();
   const description = createAppDescription.value.trim();
-  const validationMessage = validateAppAlias(alias);
+  const validationMessage = validateAppUuid(uuid) || validateAppAlias(alias);
 
   if (validationMessage) {
     createAppError.value = validationMessage;
     return;
   }
 
-  isCreatingApp.value = true;
+  isSavingApp.value = true;
   createAppError.value = '';
 
   try {
-    await createApp({
-      alias,
-      description
-    });
-
-    isCreateDialogOpen.value = false;
-    void $message('success', t('appList.createSuccess'));
-    await refreshApps(1);
+    if (editingApp.value) {
+      const updated = await updateApp(editingApp.value.uuid, { alias, description });
+      apps.value = apps.value.map((app) => app.uuid === updated.uuid ? updated : app);
+      void $message('success', t('appList.updateSuccess'));
+    } else {
+      await createApp({ uuid, alias, description });
+      void $message('success', t('appList.createSuccess'));
+      await refreshApps(1);
+    }
+    isDialogOpen.value = false;
   } catch (error) {
-    createAppError.value = error instanceof Error ? error.message : t('appList.createFailed');
+    createAppError.value = error instanceof Error
+      ? error.message
+      : editingApp.value ? t('appList.updateFailed') : t('appList.createFailed');
   } finally {
-    isCreatingApp.value = false;
+    isSavingApp.value = false;
   }
+}
+
+function validateAppUuid(uuid: string) {
+  if (!uuid) return t('appList.uuidRequired');
+  if (uuid.length > 8) return t('appList.uuidTooLong');
+  return '';
 }
 
 function validateAppAlias(alias: string) {
@@ -191,14 +216,15 @@ function normalizePaginationForDisplay(value: MokelayAppsPagination, requestedPa
               <th class="px-4 py-3">{{ t('appList.columns.uuid') }}</th>
               <th class="px-4 py-3">{{ t('appList.columns.alias') }}</th>
               <th class="px-4 py-3">{{ t('appList.columns.description') }}</th>
+              <th class="px-4 py-3 text-right">{{ t('appList.columns.actions') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
             <tr v-if="isLoadingApps">
-              <td colspan="4" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">{{ t('appList.loading') }}</td>
+              <td colspan="5" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">{{ t('appList.loading') }}</td>
             </tr>
             <tr v-else-if="!apps.length">
-              <td colspan="4" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">{{ t('appList.empty') }}</td>
+              <td colspan="5" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">{{ t('appList.empty') }}</td>
             </tr>
             <template v-else>
               <tr v-for="app in apps" :key="app.uuid" class="bg-white dark:bg-slate-900">
@@ -209,6 +235,15 @@ function normalizePaginationForDisplay(value: MokelayAppsPagination, requestedPa
                 <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ app.alias || t('appList.unnamedApp') }}</td>
                 <td class="max-w-xl px-4 py-3 text-slate-600 dark:text-slate-300">
                   <span class="line-clamp-2">{{ app.description || '-' }}</span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <button
+                    :data-testid="`edit-app-button-${app.uuid}`"
+                    class="rounded-md px-2 py-1 text-teal-700 hover:bg-teal-50 dark:text-teal-200 dark:hover:bg-teal-500/10"
+                    @click="openEditDialog(app)"
+                  >
+                    {{ t('appList.edit') }}
+                  </button>
                 </td>
               </tr>
             </template>
@@ -231,21 +266,35 @@ function normalizePaginationForDisplay(value: MokelayAppsPagination, requestedPa
       </div>
     </section>
 
-    <div v-if="isCreateDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+    <div v-if="isDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
       <section class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="create-app-dialog-title">
-        <form class="flex flex-col gap-4" @submit.prevent="submitCreateApp">
+        <form class="flex flex-col gap-4" @submit.prevent="submitApp">
           <div>
             <p class="text-sm font-medium text-teal-700 dark:text-teal-300">Mokelay App</p>
             <h2 id="create-app-dialog-title" class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
-              {{ t('appList.createDialogTitle') }}
+              {{ dialogTitle }}
             </h2>
           </div>
 
           <p v-if="createAppError" data-testid="create-app-error" class="rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ createAppError }}</p>
 
           <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+            <span>{{ t('appList.appUuid') }}</span>
+            <input
+              v-model="appUuid"
+              data-testid="app-uuid"
+              class="page-list-input disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:disabled:bg-slate-800"
+              maxlength="8"
+              required
+              :disabled="editingApp !== null"
+              :autofocus="editingApp === null"
+            >
+            <small class="font-normal text-slate-500 dark:text-slate-400">{{ t('appList.uuidHint') }}</small>
+          </label>
+
+          <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             <span>{{ t('appList.appAlias') }}</span>
-            <input v-model="createAppAlias" data-testid="create-app-alias" class="page-list-input" maxlength="120" autofocus>
+            <input v-model="createAppAlias" data-testid="create-app-alias" class="page-list-input" maxlength="120" required :autofocus="editingApp !== null">
           </label>
 
           <label class="flex flex-col gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -254,11 +303,11 @@ function normalizePaginationForDisplay(value: MokelayAppsPagination, requestedPa
           </label>
 
           <div class="flex justify-end gap-2">
-            <button type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" @click="closeCreateDialog">
+            <button type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" @click="closeDialog">
               {{ t('globalCalls.cancel') }}
             </button>
-            <button data-testid="create-app-submit" type="submit" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="isCreatingApp">
-              {{ isCreatingApp ? t('appList.creating') : t('appList.save') }}
+            <button data-testid="create-app-submit" type="submit" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApp">
+              {{ isSavingApp ? t('appList.saving') : t('appList.save') }}
             </button>
           </div>
         </form>

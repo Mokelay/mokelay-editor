@@ -12,6 +12,7 @@ const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
 const PageListPanel = defineAsyncComponent(() => import('@/components/PageListPanel.vue'));
 const AppListPanel = defineAsyncComponent(() => import('@/components/AppListPanel.vue'));
+const DatasourceListPanel = defineAsyncComponent(() => import('@/components/DatasourceListPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 
 const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
@@ -49,6 +50,7 @@ type ParsedRoute = {
   pageUuid: string | null;
   apiUuid: string | null;
   apiBuilder: boolean;
+  datasourceList: boolean;
   pageList: boolean;
   preview: boolean;
 };
@@ -68,11 +70,12 @@ let loadRequestId = 0;
 const parsedRoute = computed(() => parseRouteHash(routeHash.value));
 const routePageUuid = computed(() => parsedRoute.value.pageUuid);
 const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
+const isDatasourceListPage = computed(() => parsedRoute.value.datasourceList);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
 const isPageListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.pageList);
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && Boolean(routePageUuid.value));
-const isAppListPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && !isEditorPage.value && !isPageListPage.value);
+const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isPreviewPage.value && !isEditorPage.value && !isPageListPage.value);
 const isPagesSection = computed(() => isPageListPage.value || isEditorPage.value || isPreviewPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 
@@ -95,6 +98,18 @@ function parseRouteHash(hash: string): ParsedRoute {
       pageUuid: null,
       apiUuid: apiMatch[1] ? safeDecodeURIComponent(apiMatch[1]) : null,
       apiBuilder: true,
+      datasourceList: false,
+      pageList: false,
+      preview: false
+    };
+  }
+
+  if (path === '/datasources') {
+    return {
+      pageUuid: null,
+      apiUuid: null,
+      apiBuilder: false,
+      datasourceList: true,
       pageList: false,
       preview: false
     };
@@ -105,6 +120,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       pageUuid: null,
       apiUuid: null,
       apiBuilder: false,
+      datasourceList: false,
       pageList: true,
       preview: false
     };
@@ -115,6 +131,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       pageUuid: safeDecodeURIComponent(pageMatch[1]),
       apiUuid: null,
       apiBuilder: false,
+      datasourceList: false,
       pageList: false,
       preview: Boolean(pageMatch[2])
     };
@@ -124,6 +141,7 @@ function parseRouteHash(hash: string): ParsedRoute {
     pageUuid: null,
     apiUuid: null,
     apiBuilder: false,
+    datasourceList: false,
     pageList: false,
     preview: path === '/preview'
   };
@@ -372,6 +390,13 @@ function handlePageCreated(page: MokelayPage) {
               {{ t('app.apps') }}
             </a>
             <a
+              href="#/datasources"
+              class="rounded-md px-3 py-1.5 font-medium"
+              :class="isDatasourceListPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+            >
+              {{ t('app.datasources') }}
+            </a>
+            <a
               href="#/pages"
               class="rounded-md px-3 py-1.5 font-medium"
               :class="isPagesSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
@@ -452,6 +477,7 @@ function handlePageCreated(page: MokelayPage) {
         @open-page="openPageFromList"
         @page-created="handlePageCreated"
       />
+      <DatasourceListPanel v-else-if="isDatasourceListPage" />
       <AppListPanel v-else />
     </main>
   </TooltipProvider>

@@ -8,6 +8,12 @@ export type MokelayApp = {
 };
 
 export type CreateAppPayload = {
+  uuid: string;
+  alias: string;
+  description: string;
+};
+
+export type UpdateAppPayload = {
   alias: string;
   description: string;
 };
@@ -57,6 +63,13 @@ type MokelayApiResponse<T> = MokelaySuccessResponse<T> | MokelayErrorResponse;
 
 export async function createApp(payload: CreateAppPayload) {
   const response = await apiClient.post<MokelayApiResponse<AppResponse>>('/api/mokelay/create_app', payload);
+  return normalizeAppResponse(unwrapApiResponse(response.data));
+}
+
+export async function updateApp(uuid: string, payload: UpdateAppPayload) {
+  const response = await apiClient.post<MokelayApiResponse<AppResponse>>('/api/mokelay/update_app_by_uuid', payload, {
+    params: { uuid }
+  });
   return normalizeAppResponse(unwrapApiResponse(response.data));
 }
 

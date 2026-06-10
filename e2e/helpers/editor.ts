@@ -32,6 +32,19 @@ export type MockMokelayApp = {
   description: string;
 };
 
+export type MockDatasourceTableSchema = {
+  name: string;
+  columns: Array<{ name: string; type: string; dataType: string }>;
+};
+
+export type MockMokelayDatasource = {
+  id: number;
+  uuid: string;
+  alias: string;
+  description: string;
+  schema: MockDatasourceTableSchema[];
+};
+
 export type MockMokelayApi = {
   uuid: string;
   name: string;
@@ -60,10 +73,12 @@ export type MockApiSnapshot = {
 
 type MockPagesApiOptions = {
   createUuid?: string;
-  createAppUuid?: string;
   initialRoute?: string;
   pages?: MockMokelayPage[];
   apps?: MockMokelayApp[];
+  datasources?: MockMokelayDatasource[];
+  syncedDatasourceSchemas?: Record<string, MockDatasourceTableSchema[]>;
+  datasourceSyncErrors?: string[];
   apis?: MockMokelayApi[];
   apiDomains?: MockApiDomain[];
   seedDefaultPage?: boolean;
@@ -96,6 +111,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const now = '2026-05-06T00:00:00.000Z';
   const pages = new Map<string, MockMokelayPage>();
   const apps = new Map<string, MockMokelayApp>();
+  const datasources = new Map<string, MockMokelayDatasource>();
   const apis = new Map<string, MockMokelayApi>();
   const apiDomains = new Map<string, MockApiDomain>();
   const apiSnapshots: MockApiSnapshot[] = [];
@@ -135,6 +151,10 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 
   for (const appRecord of options.apps ?? []) {
     apps.set(appRecord.uuid, appRecord);
+  }
+
+  for (const datasourceRecord of options.datasources ?? []) {
+    datasources.set(datasourceRecord.uuid, datasourceRecord);
   }
 
   for (const domainRecord of options.apiDomains ?? [defaultApiDomain()]) {
@@ -183,12 +203,96 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       const nextId = nextAppId(apps);
       const appRecord: MockMokelayApp = {
         id: nextId,
-        uuid: options.createAppUuid ?? createMockAppUuid(nextId),
+        uuid: readString(payload.uuid).trim(),
         alias: readString(payload.alias).trim(),
         description: readString(payload.description).trim()
       };
       apps.set(appRecord.uuid, appRecord);
       await fulfillApp(route, appRecord, corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/update_app_by_uuid') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      const existing = apps.get(uuid);
+      if (!existing) {
+        await fulfillApp(route, null, corsHeaders);
+        return;
+      }
+      const payload = readJsonPayload(request.postDataJSON());
+      const updated: MockMokelayApp = {
+        ...existing,
+        alias: readString(payload.alias).trim(),
+        description: readString(payload.description).trim()
+      };
+      apps.set(uuid, updated);
+      await fulfillApp(route, updated, corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/create_datasource') {
+      const payload = readJsonPayload(request.postDataJSON());
+      const nextId = nextDatasourceId(datasources);
+      const datasourceRecord: MockMokelayDatasource = {
+        id: nextId,
+        uuid: readString(payload.uuid).trim(),
+        alias: readString(payload.alias).trim(),
+        description: readString(payload.description).trim(),
+        schema: []
+      };
+      datasources.set(datasourceRecord.uuid, datasourceRecord);
+      await fulfillDatasource(route, datasourceRecord, corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/update_datasource_by_uuid') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      const existing = datasources.get(uuid);
+      if (!existing) {
+        await fulfillDatasource(route, null, corsHeaders);
+        return;
+      }
+      const payload = readJsonPayload(request.postDataJSON());
+      const updated: MockMokelayDatasource = {
+        ...existing,
+        alias: readString(payload.alias).trim(),
+        description: readString(payload.description).trim()
+      };
+      datasources.set(uuid, updated);
+      await fulfillDatasource(route, updated, corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/sync_datasource_schema') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      const existing = datasources.get(uuid);
+      if (!existing) {
+        await fulfillDatasource(route, null, corsHeaders);
+        return;
+      }
+      if (options.datasourceSyncErrors?.includes(uuid)) {
+        await fulfillApiError(route, 'BLOCK_DATASOURCE_URL_MISSING', `${uuid}_DATABASE_URL is not configured.`, corsHeaders);
+        return;
+      }
+      const updated: MockMokelayDatasource = {
+        ...existing,
+        schema: options.syncedDatasourceSchemas?.[uuid] ?? []
+      };
+      datasources.set(uuid, updated);
+      await fulfillDatasource(route, updated, corsHeaders);
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_datasources') {
+      const pageNumber = Number(url.searchParams.get('page') ?? 1);
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
+      const records = Array.from(datasources.values()).sort((a, b) => b.id - a.id);
+      const start = Math.max(pageNumber - 1, 0) * pageSize;
+      await fulfillDatasources(route, records.slice(start, start + pageSize), {
+        page: pageNumber,
+        pageSize,
+        total: records.length
+      }, corsHeaders);
       return;
     }
 
@@ -347,7 +451,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, apps, apis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests };
+  return { pages, apps, datasources, apis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -563,8 +667,8 @@ function nextAppId(apps: Map<string, MockMokelayApp>) {
   return Math.max(0, ...Array.from(apps.values()).map((app) => app.id)) + 1;
 }
 
-function createMockAppUuid(id: number) {
-  return String(id).padStart(8, '0');
+function nextDatasourceId(datasources: Map<string, MockMokelayDatasource>) {
+  return Math.max(0, ...Array.from(datasources.values()).map((datasource) => datasource.id)) + 1;
 }
 
 async function delay(ms = 0) {
@@ -606,6 +710,50 @@ async function fulfillApps(
       ok: true,
       data: {
         apps: appRecords,
+        pagination: {
+          page: paginationInput.page,
+          pageSize: paginationInput.pageSize,
+          total: paginationInput.total,
+          totalPages,
+          hasPreviousPage: paginationInput.page > 1,
+          hasNextPage: paginationInput.page < totalPages
+        }
+      }
+    })
+  });
+}
+
+async function fulfillDatasource(
+  route: Route,
+  datasourceRecord: MockMokelayDatasource | null,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        datasource: datasourceRecord
+      }
+    })
+  });
+}
+
+async function fulfillDatasources(
+  route: Route,
+  datasourceRecords: MockMokelayDatasource[],
+  paginationInput: { page: number; pageSize: number; total: number },
+  headers: Record<string, string>
+) {
+  const totalPages = paginationInput.total > 0 ? Math.ceil(paginationInput.total / paginationInput.pageSize) : 0;
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        datasources: datasourceRecords,
         pagination: {
           page: paginationInput.page,
           pageSize: paginationInput.pageSize,
