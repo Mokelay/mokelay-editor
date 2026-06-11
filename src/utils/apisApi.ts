@@ -141,6 +141,20 @@ export async function getApi(uuid: string) {
   return normalizeApiResponse(unwrapApiResponse(response.data));
 }
 
+export async function getBuiltInApi(uuid: string) {
+  const response = await apiClient.get<MokelayApiResponse<ApiResponse>>(
+    '/api/mokelay/read_mokelay_api_json',
+    { params: { uuid } }
+  );
+  const data = unwrapApiResponse(response.data);
+
+  if (data.api === null || data.api === undefined) {
+    throw new Error('API not found.');
+  }
+
+  return normalizeBuiltInApiRecord(data.api);
+}
+
 export async function listApifoxProjects() {
   const response = await apiClient.get<MokelayApiResponse<ApifoxProjectsResponse>>('/api/mokelay/list-apifox-projects');
   return normalizeApifoxProjectsResponse(unwrapApiResponse(response.data));

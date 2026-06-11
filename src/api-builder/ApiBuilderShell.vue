@@ -7,6 +7,7 @@ import {
   MarkerType,
   Position,
   VueFlow,
+  useVueFlow,
   type Connection,
   type Edge,
   type Node
@@ -44,7 +45,7 @@ import {
 } from '@/api-builder/store';
 import { hasBlockingErrors, hasDangerWarnings, validateApiJson } from '@/api-builder/validation';
 import { buildVariableOptions, makeTemplate } from '@/api-builder/variables';
-import { deleteApi, getApi, listApis, saveApi, type MokelayApiRecord, type MokelayApiSource } from '@/utils/apisApi';
+import { deleteApi, getApi, getBuiltInApi, listApis, saveApi, type MokelayApiRecord, type MokelayApiSource } from '@/utils/apisApi';
 import type {
   ApiBlock,
   ApiBuilderDraft,
@@ -143,6 +144,7 @@ const groupedBlocks = computed(() => ({
 const groupedControllers = computed(() => controllerDefinitions);
 const graphNodes = computed<Node[]>(() => buildGraphNodes());
 const graphEdges = computed<Edge[]>(() => buildGraphEdges());
+const { fitView } = useVueFlow('api-builder-flow');
 const apiUuidPattern = /^[A-Za-z0-9_-]{1,128}$/;
 let apiListRequestId = 0;
 let apiDetailRequestId = 0;
@@ -193,7 +195,7 @@ function buildGraphNodes(): Node[] {
       label: 'Starter',
       nextBlock: starter?.nextBlock ?? null
     },
-    draggable: false,
+    draggable: true,
     selectable: true
   });
 
@@ -212,7 +214,7 @@ function buildGraphNodes(): Node[] {
         disabled: isBlockDisabled(block),
         selected: selection.value.type === 'block' && selection.value.uuid === block.uuid
       },
-      draggable: !isActiveApiReadonly.value,
+      draggable: true,
       connectable: !isActiveApiReadonly.value
     });
   });
@@ -344,7 +346,7 @@ async function loadApiDetail(uuid: string, source: MokelayApiSource = selectedAp
   apiBuilderError.value = '';
 
   try {
-    const api = source === 'system' ? await findSystemApi(uuid) : await getApi(uuid);
+    const api = source === 'system' ? await getBuiltInApi(uuid) : await getApi(uuid);
     if (requestId !== apiDetailRequestId) return;
     const currentDraft = drafts.value.find((draft) => draft.id === uuid);
     const draft = mergeDraftSessionState(draftFromApiRecord(api, currentDraft), currentDraft);
@@ -361,20 +363,6 @@ async function loadApiDetail(uuid: string, source: MokelayApiSource = selectedAp
     if (requestId === apiDetailRequestId) {
       isApiDetailLoading.value = false;
     }
-  }
-}
-
-async function findSystemApi(uuid: string) {
-  let page = 1;
-
-  while (true) {
-    const result = await listApis({ page, pageSize: 100, source: 'system' });
-    const api = result.apis.find((item) => item.uuid === uuid);
-    if (api) return api;
-    if (!result.pagination.hasNextPage) {
-      throw new Error('API not found.');
-    }
-    page += 1;
   }
 }
 
@@ -865,10 +853,120 @@ function onFlowNodeClick(event: { node?: Node }) {
 }
 
 function onFlowNodeDragStop(event: { node?: Node }) {
-  if (isActiveApiReadonly.value) return;
   const node = event.node;
   if (!node?.id || !node.position) return;
   setNodePosition(node.id, node.position);
+}
+
+async function autoArrangeGraph() {
+  if (!activeDraft.value) return;
+
+  const blocks = activeDraft.value.apiJson.blocks ?? [];
+  const blockOrder = new Map<string, number>([['starter', 0]]);
+  const blockByUuid = new Map<string, ApiBlock>();
+
+  blocks.forEach((block, index) => {
+    const uuid = isStarterBlock(block) ? 'starter' : block.uuid;
+    blockOrder.set(uuid, index + 1);
+    blockByUuid.set(uuid, block);
+  });
+
+  if (!blockByUuid.has('starter')) {
+    blockByUuid.set('starter', createStarterBlock());
+  }
+
+  const nodeUuids = [...blockByUuid.keys()];
+  const nodeUuidSet = new Set(nodeUuids);
+  const outgoing = new Map<string, string[]>();
+
+  for (const [uuid, block] of blockByUuid) {
+    const targets = isStarterBlock(block)
+      ? [block.nextBlock]
+      : isControllerBlock(block)
+        ? block.nodes.map((node) => node.nextBlock)
+        : [block.nextBlock];
+    outgoing.set(uuid, [...new Set(targets.filter((target): target is string => (
+      typeof target === 'string' && nodeUuidSet.has(target)
+    )))]);
+  }
+
+  const reachable = new Set<string>();
+  const pending = ['starter'];
+  while (pending.length) {
+    const uuid = pending.shift()!;
+    if (reachable.has(uuid)) continue;
+    reachable.add(uuid);
+    pending.push(...(outgoing.get(uuid) ?? []));
+  }
+
+  const indegree = new Map([...reachable].map((uuid) => [uuid, 0]));
+  for (const uuid of reachable) {
+    for (const target of outgoing.get(uuid) ?? []) {
+      if (reachable.has(target)) {
+        indegree.set(target, (indegree.get(target) ?? 0) + 1);
+      }
+    }
+  }
+
+  const depth = new Map<string, number>([['starter', 0]]);
+  const queue = [...reachable]
+    .filter((uuid) => (indegree.get(uuid) ?? 0) === 0)
+    .sort((left, right) => (blockOrder.get(left) ?? 0) - (blockOrder.get(right) ?? 0));
+
+  while (queue.length) {
+    const uuid = queue.shift()!;
+    const currentDepth = depth.get(uuid) ?? 0;
+
+    for (const target of outgoing.get(uuid) ?? []) {
+      if (!reachable.has(target)) continue;
+      depth.set(target, Math.max(depth.get(target) ?? 0, currentDepth + 1));
+      const nextIndegree = (indegree.get(target) ?? 0) - 1;
+      indegree.set(target, nextIndegree);
+      if (nextIndegree === 0) queue.push(target);
+    }
+
+    queue.sort((left, right) => (blockOrder.get(left) ?? 0) - (blockOrder.get(right) ?? 0));
+  }
+
+  const levels = new Map<number, string[]>();
+  for (const uuid of reachable) {
+    const level = depth.get(uuid) ?? 0;
+    levels.set(level, [...(levels.get(level) ?? []), uuid]);
+  }
+
+  const maxReachableDepth = Math.max(0, ...levels.keys());
+  const disconnected = nodeUuids.filter((uuid) => !reachable.has(uuid));
+  disconnected.forEach((uuid, index) => {
+    const level = maxReachableDepth + 1 + Math.floor(index / 4);
+    levels.set(level, [...(levels.get(level) ?? []), uuid]);
+  });
+
+  for (const uuids of levels.values()) {
+    uuids.sort((left, right) => (blockOrder.get(left) ?? 0) - (blockOrder.get(right) ?? 0));
+  }
+
+  const horizontalGap = 280;
+  const verticalGap = 240;
+  const maxRows = Math.max(1, ...[...levels.values()].map((uuids) => uuids.length));
+  const positions: Record<string, ApiBuilderNodePosition> = {};
+
+  for (const [level, uuids] of levels) {
+    const verticalOffset = ((maxRows - uuids.length) * verticalGap) / 2;
+    uuids.forEach((uuid, index) => {
+      positions[uuid] = {
+        x: 40 + level * horizontalGap,
+        y: 50 + verticalOffset + index * verticalGap
+      };
+    });
+  }
+
+  activeDraft.value.layout = {
+    version: 1,
+    nodes: positions
+  };
+
+  await nextTick();
+  await fitView({ padding: 0.15, minZoom: 0.4, maxZoom: 0.9, duration: 300 });
 }
 
 function ensureDraftLayout(draft: ApiBuilderDraft | null = activeDraft.value) {
@@ -1571,6 +1669,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">从 starter 开始，通过连线决定 block 和 controller 的执行流。</p>
             </div>
             <div class="flex items-center gap-2 text-xs">
+              <button data-testid="api-flow-auto-layout" class="builder-secondary-button px-3 py-1.5 text-xs" @click="autoArrangeGraph">
+                自动整理
+              </button>
               <span class="rounded-md bg-rose-100 px-2 py-1 font-semibold text-rose-700 dark:bg-rose-500/20 dark:text-rose-100">{{ issueCount('error') }} 错误</span>
               <span class="rounded-md bg-amber-100 px-2 py-1 font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-100">{{ issueCount('warning') }} 提醒</span>
             </div>
@@ -1578,13 +1679,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
           <div class="mt-4 h-[560px] overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950">
             <VueFlow
+              id="api-builder-flow"
               :nodes="graphNodes"
               :edges="graphEdges"
               :fit-view-on-init="false"
               :default-viewport="{ zoom: 0.72, x: 0, y: 0 }"
               :min-zoom="0.4"
               :max-zoom="1"
-              :nodes-draggable="!isActiveApiReadonly"
+              :nodes-draggable="true"
               :nodes-connectable="!isActiveApiReadonly"
               class="api-flow"
               @connect="onFlowConnect"

@@ -158,12 +158,37 @@ test('switches to system APIs and opens them as read-only before copying', async
   await systemRow.getByRole('button', { name: '打开' }).click();
 
   await expect(page).toHaveURL(/#\/apis\/zeta_system\?source=system$/);
+  await expect.poll(() => apiState.systemApiReadRequests.some((requestUrl) => new URL(requestUrl).searchParams.get('uuid') === 'zeta_system')).toBe(true);
   await expect(page.getByText('系统内置', { exact: true })).toBeVisible();
   await expect(page.getByText('系统内置接口为只读')).toBeVisible();
   await expect(page.getByRole('button', { name: '保存', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '发布', exact: true })).toHaveCount(0);
   await expect(page.locator('label').filter({ hasText: '接口名称' }).locator('input')).toBeDisabled();
   await expect(page.getByRole('heading', { name: '读取系统数据' })).toBeVisible();
+
+  const systemNode = page.locator('[data-block-uuid="read_system_data"]');
+  const beforeBox = await systemNode.boundingBox();
+  expect(beforeBox).not.toBeNull();
+
+  await page.mouse.move(beforeBox!.x + beforeBox!.width / 2, beforeBox!.y + beforeBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(beforeBox!.x + beforeBox!.width / 2 + 140, beforeBox!.y + beforeBox!.height / 2 + 70, { steps: 12 });
+  await page.mouse.up();
+
+  await expect.poll(async () => {
+    const box = await systemNode.boundingBox();
+    return box ? Math.round(box.x - beforeBox!.x) : 0;
+  }).toBeGreaterThan(20);
+
+  await page.getByTestId('api-flow-auto-layout').click();
+  await expect.poll(async () => {
+    return await systemNode.evaluate((element) => {
+      const node = element.closest('.vue-flow__node') as HTMLElement | null;
+      const match = node?.style.transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+      return match ? Math.round(Number(match[1])) : null;
+    });
+  }).toBe(320);
+  expect(apiState.apiSavePayloads).toHaveLength(0);
 
   await page.getByRole('button', { name: '复制 API' }).click();
   await page.getByTestId('api-info-name').fill('复制的系统接口');
@@ -176,7 +201,7 @@ test('switches to system APIs and opens them as read-only before copying', async
 });
 
 test('loads a system API from a direct source-aware URL', async ({ page }) => {
-  await resetEditor(page, {
+  const apiState = await resetEditor(page, {
     systemApis: [
       {
         uuid: 'direct_system_api',
@@ -203,6 +228,7 @@ test('loads a system API from a direct source-aware URL', async ({ page }) => {
 
   await page.goto('/#/apis/direct_system_api?source=system');
 
+  await expect.poll(() => apiState.systemApiReadRequests.some((requestUrl) => new URL(requestUrl).searchParams.get('uuid') === 'direct_system_api')).toBe(true);
   await expect(page.getByRole('heading', { name: '直达读取步骤' })).toBeVisible();
   await expect(page.getByText('系统内置', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '返回 API 列表' }).click();

@@ -121,6 +121,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const apiSavePayloads: Record<string, unknown>[] = [];
   const apiDomainRequests: string[] = [];
   const apiListRequests: string[] = [];
+  const systemApiReadRequests: string[] = [];
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
@@ -396,6 +397,23 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'GET' && url.pathname === '/api/mokelay/read_mokelay_api_json') {
+      systemApiReadRequests.push(request.url());
+      const uuid = url.searchParams.get('uuid') ?? '';
+      await delay(options.apiDelays?.readApi);
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            api: systemApis.get(uuid)?.apiJson ?? null
+          }
+        })
+      });
+      return;
+    }
+
     if (method === 'POST' && url.pathname === '/api/mokelay/update_page_blocks_by_uuid') {
       const uuid = url.searchParams.get('uuid') ?? '';
       const existingPage = pages.get(uuid);
@@ -481,7 +499,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, apps, datasources, apis, systemApis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests, apiListRequests };
+  return { pages, apps, datasources, apis, systemApis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
