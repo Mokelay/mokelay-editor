@@ -178,9 +178,9 @@ export const enMessages = {
       responseExample: 'Response example',
       responseExamplePlaceholder: 'Enter a valid JSON response example',
       generatedFields: 'Fields',
-      fieldSource: 'Field source',
       dataType: 'Data type',
       allDataTypes: 'All data types',
+      pathDepth: 'Path depth',
       fieldPath: 'Field path',
       searchFieldsByPath: 'Search by field path',
       selectedFields: 'Selected fields',
@@ -206,11 +206,6 @@ export const enMessages = {
       capturingResponseExample: 'Capturing response example...',
       updateSchema: 'Update Schema',
       fullSchema: 'Full Schema'
-    },
-    fieldSources: {
-      all: 'All fields',
-      list: 'List fields',
-      form: 'Form fields'
     },
     help: {
       responseConfig: 'Capture or edit a response example, then manually update the response Schema.',

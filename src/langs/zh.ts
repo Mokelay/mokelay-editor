@@ -178,9 +178,9 @@ export const zhMessages = {
       responseExample: '响应示例数据',
       responseExamplePlaceholder: '请输入有效的 JSON 响应示例数据',
       generatedFields: '字段数',
-      fieldSource: '字段来源',
       dataType: '数据类型',
       allDataTypes: '全部数据类型',
+      pathDepth: '路径深度',
       fieldPath: '字段路径',
       searchFieldsByPath: '按字段路径搜索',
       selectedFields: '已选择字段',
@@ -206,11 +206,6 @@ export const zhMessages = {
       capturingResponseExample: '正在抓取响应示例数据...',
       updateSchema: '更新 Schema',
       fullSchema: '完整 Schema'
-    },
-    fieldSources: {
-      all: '全部字段',
-      list: '列表字段',
-      form: '表单字段'
     },
     help: {
       responseConfig: '抓取或编写响应示例数据，并根据示例手动更新响应 Schema。',

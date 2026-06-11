@@ -51,6 +51,10 @@ async function closeFullSchema(dialog: ReturnType<Page['getByTestId']>) {
   await expect(dialog).not.toBeVisible();
 }
 
+async function setSchemaPathDepth(page: Page, depth: number) {
+  await page.getByTestId('datasource-schema-path-depth').fill(String(depth));
+}
+
 test('adds a datasource editor with default API value and renders in preview', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
@@ -211,6 +215,7 @@ test('edits the response example and manually updates the response Schema', asyn
 
   await page.getByTestId('datasource-response-schema-update-button').click();
   await expect(page.getByTestId('datasource-form-field-profile')).toBeVisible();
+  await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-form-field-profile.name')).toBeVisible();
 
   await responseExampleInput.fill('{ bad');
@@ -225,6 +230,7 @@ test('edits the response example and manually updates the response Schema', asyn
 
   await responseExampleInput.fill('{"count":2}');
   await page.getByTestId('datasource-response-schema-update-button').click();
+  await setSchemaPathDepth(page, 1);
   await expect(page.getByTestId('datasource-form-field-count')).toBeVisible();
   await expect(page.getByTestId('datasource-form-field-profile.name')).toHaveCount(0);
 
@@ -299,17 +305,19 @@ test('selects list and form fields from generated Schema with read-only field na
   await expect(page.getByTestId('datasource-list-record-path')).toHaveCount(0);
   await expect(page.getByTestId('datasource-list-field-enabled-users[]')).not.toBeChecked();
   await expect(page.getByTestId('datasource-list-field-users[]').locator('.ce-datasource-tool__schema-badge'))
-    .toHaveText(['列表字段', '列表']);
+    .toHaveText(['列表']);
+  await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-list-field-enabled-users[].id')).not.toBeChecked();
   await expect(page.getByTestId('datasource-list-field-enabled-users[].name')).not.toBeChecked();
   await expect(page.getByTestId('datasource-list-field-enabled-users[].active')).not.toBeChecked();
   await expect(page.getByTestId('datasource-list-field-users[].name').locator('.ce-datasource-tool__schema-badge'))
-    .toHaveText(['列表字段', '文本']);
+    .toHaveText(['文本']);
   await expect(page.getByTestId('datasource-list-field-label-users[].name')).toHaveText('name');
   expect(await page.getByTestId('datasource-list-field-label-users[].name').evaluate((element) => element.tagName)).toBe('SPAN');
   await page.getByTestId('datasource-list-field-enabled-users[].id').check();
   await page.getByTestId('datasource-list-field-enabled-users[].name').check();
 
+  await setSchemaPathDepth(page, 1);
   await expect(page.getByTestId('datasource-form-field-enabled-title')).not.toBeChecked();
   await expect(page.getByTestId('datasource-form-field-label-title')).toHaveText('title');
   expect(await page.getByTestId('datasource-form-field-label-title').evaluate((element) => element.tagName)).toBe('SPAN');
@@ -381,7 +389,10 @@ test('selects list and form fields from generated Schema with read-only field na
   });
 });
 
-test('filters merged list and form fields by source and fuzzy path', async ({ page }) => {
+test('filters merged fields up to path depth by localized data type and fuzzy path', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+
   const schema = {
     type: 'object',
     properties: {
@@ -447,38 +458,50 @@ test('filters merged list and form fields by source and fuzzy path', async ({ pa
   });
   await switchLocaleToChinese(page);
 
-  const fieldSourceFilter = page.getByTestId('datasource-schema-field-source-filter');
+  const pathDepthFilter = page.getByTestId('datasource-schema-path-depth');
   const dataTypeFilter = page.getByTestId('datasource-schema-data-type-filter');
   const schemaSearch = page.getByTestId('datasource-schema-search');
   await expect(page.getByTestId('datasource-schema-tabs')).toHaveCount(0);
+  await expect(page.getByTestId('datasource-schema-field-source-filter')).toHaveCount(0);
   await expect(page.getByTestId('datasource-full-schema-open')).toContainText('完整 Schema');
-  await expect(fieldSourceFilter).toHaveValue('all');
+  await expect(pathDepthFilter).toHaveValue('1');
+  await expect(pathDepthFilter).toHaveAttribute('min', '1');
+  await expect(pathDepthFilter).toHaveAttribute('max', '10');
+  await expect(pathDepthFilter).toHaveAttribute('step', '1');
   await expect(dataTypeFilter).toHaveValue('all');
+  await expect(dataTypeFilter.locator('option')).toHaveText(['全部数据类型', '文本', '数字', '开关', '对象', '列表']);
   await expect(schemaSearch).toHaveAttribute('placeholder', '按字段路径搜索');
-  const sourceBox = await fieldSourceFilter.boundingBox();
+  const depthBox = await pathDepthFilter.boundingBox();
   const dataTypeBox = await dataTypeFilter.boundingBox();
   const searchBox = await schemaSearch.boundingBox();
-  expect(sourceBox).not.toBeNull();
+  expect(depthBox).not.toBeNull();
   expect(dataTypeBox).not.toBeNull();
   expect(searchBox).not.toBeNull();
-  expect(Math.abs(sourceBox!.y - dataTypeBox!.y)).toBeLessThan(2);
-  expect(Math.abs(sourceBox!.y - searchBox!.y)).toBeLessThan(2);
+  expect(Math.abs(depthBox!.y - dataTypeBox!.y)).toBeLessThan(2);
+  expect(Math.abs(dataTypeBox!.y - searchBox!.y)).toBeLessThan(2);
+
+  await expect(page.getByTestId('datasource-form-field-data')).toBeVisible();
+  await expect(page.getByTestId('datasource-form-field-summary')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-data.users[]')).toHaveCount(0);
+
+  await pathDepthFilter.press('ArrowUp');
+  await expect(pathDepthFilter).toHaveValue('2');
+  await expect(page.getByTestId('datasource-form-field-data')).toBeVisible();
+  await expect(page.getByTestId('datasource-form-field-summary')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-data.users[]')).toBeVisible();
-  await expect(page.getByTestId('datasource-list-field-data.users[].profile.name')).toBeVisible();
   await expect(page.getByTestId('datasource-form-field-data.page')).toBeVisible();
   await expect(page.getByTestId('datasource-form-field-summary.title')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-data.users[]')).not.toContainText('列表字段');
+  await expect(page.getByTestId('datasource-form-field-data.page')).not.toContainText('表单字段');
+  const firstFieldBox = await page.getByTestId('datasource-list-field-data.users[]').boundingBox();
+  const secondFieldBox = await page.getByTestId('datasource-form-field-data.page').boundingBox();
+  expect(firstFieldBox).not.toBeNull();
+  expect(secondFieldBox).not.toBeNull();
+  expect(Math.abs(firstFieldBox!.y - secondFieldBox!.y)).toBeLessThan(2);
 
-  await fieldSourceFilter.selectOption('list');
-  await expect(page.getByTestId('datasource-list-field-data.users[].profile.name')).toBeVisible();
-  await expect(page.getByTestId('datasource-form-field-summary.title')).toHaveCount(0);
-
-  await fieldSourceFilter.selectOption('form');
-  await expect(page.getByTestId('datasource-list-field-data.users[].profile.name')).toHaveCount(0);
   await expect(page.getByTestId('datasource-form-field-data.page').locator('.ce-datasource-tool__schema-badge'))
-    .toHaveText(['表单字段', '对象']);
+    .toHaveText(['对象']);
   await expect(page.getByTestId('datasource-form-field-summary.title')).toBeVisible();
-
-  await fieldSourceFilter.selectOption('all');
 
   await dataTypeFilter.selectOption('array');
   await expect(page.getByTestId('datasource-list-field-data.users[]')).toBeVisible();
@@ -489,37 +512,53 @@ test('filters merged list and form fields by source and fuzzy path', async ({ pa
   await expect(page.getByTestId('datasource-list-field-data.users[]')).toHaveCount(0);
   await expect(page.getByTestId('datasource-form-field-data.page')).toBeVisible();
 
+  await setSchemaPathDepth(page, 4);
   await dataTypeFilter.selectOption('number');
   await expect(page.getByTestId('datasource-list-field-data.users[].profile.age')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-data.users[].profile.name')).toHaveCount(0);
 
+  await setSchemaPathDepth(page, 3);
   await dataTypeFilter.selectOption('boolean');
   await expect(page.getByTestId('datasource-list-field-data.users[].active')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-data.users[].profile.age')).toHaveCount(0);
 
+  await setSchemaPathDepth(page, 4);
   await dataTypeFilter.selectOption('string');
   await expect(page.getByTestId('datasource-list-field-data.users[].profile.name')).toBeVisible();
-  await expect(page.getByTestId('datasource-form-field-data.page.alias')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-data.users[].active')).toHaveCount(0);
+
+  await setSchemaPathDepth(page, 3);
+  await expect(page.getByTestId('datasource-form-field-data.page.alias')).toBeVisible();
 
   await dataTypeFilter.selectOption('all');
   await schemaSearch.fill(' DA ');
-  await expect(page.getByTestId('datasource-list-field-data.users[].profile.name')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-data.users[].profileCode')).toBeVisible();
 
+  await setSchemaPathDepth(page, 4);
   await schemaSearch.fill('profile');
   await expect(page.getByTestId('datasource-list-field-data.users[].profile.name')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-data.users[].profile.age')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-data.users[].profileCode')).toBeVisible();
   await expect(page.getByTestId('datasource-form-field-summary.title')).toHaveCount(0);
 
+  await setSchemaPathDepth(page, 2);
   await schemaSearch.fill('title');
   await expect(page.getByTestId('datasource-list-field-data.users[].profile.name')).toHaveCount(0);
   await expect(page.getByTestId('datasource-form-field-summary.title')).toBeVisible();
   await expect(page.getByTestId('datasource-form-field-summary.titleCode')).toBeVisible();
 
+  await setSchemaPathDepth(page, 4);
   await schemaSearch.fill('data.users[].profile.missing');
   await expect(page.getByTestId('datasource-fields-search-empty')).toHaveText('没有匹配该路径的字段。');
+
+  await schemaSearch.fill('');
+  await pathDepthFilter.fill('0');
+  await expect(pathDepthFilter).toHaveValue('1');
+  await pathDepthFilter.fill('11');
+  await expect(pathDepthFilter).toHaveValue('10');
+  await pathDepthFilter.press('ArrowDown');
+  await expect(pathDepthFilter).toHaveValue('9');
+  expect(pageErrors).toEqual([]);
 });
 
 test('preserves saved selection states and custom labels', async ({ page }) => {
@@ -598,9 +637,11 @@ test('preserves saved selection states and custom labels', async ({ page }) => {
     ]
   });
 
+  await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-list-field-enabled-users[].id')).toBeChecked();
   await expect(page.getByTestId('datasource-list-field-enabled-users[].name')).not.toBeChecked();
   await expect(page.getByTestId('datasource-list-field-label-users[].id')).toHaveText('用户 ID');
+  await setSchemaPathDepth(page, 1);
   await expect(page.getByTestId('datasource-form-field-enabled-title')).toBeChecked();
   await expect(page.getByTestId('datasource-form-field-label-title')).toHaveText('页面标题');
 
@@ -1559,9 +1600,11 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
   await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify(responseData, null, 2));
   await expect(page.getByTestId('datasource-list-field-users[].id')).toHaveCount(0);
   await page.getByTestId('datasource-response-schema-update-button').click();
+  await expect(page.getByTestId('datasource-list-field-users[]')).toBeVisible();
+  await expect(page.getByTestId('datasource-form-field-ok')).toBeVisible();
+  await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-list-field-users[].id')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-users[].name')).toBeVisible();
-  await expect(page.getByTestId('datasource-form-field-ok')).toBeVisible();
   const fullSchemaDialog = await openFullSchema(page);
   await expect(fullSchemaDialog.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(apiSchema, null, 2));
   await closeFullSchema(fullSchemaDialog);
@@ -1923,8 +1966,12 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
   expect(request.url()).toContain('page=2');
   await expect(page.getByTestId('datasource-json-schema-error')).toHaveCount(0);
   await page.getByTestId('datasource-response-schema-update-button').click();
+  await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-list-field-pages[].uuid')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-pages[].name')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-pages[].blocks[]')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-pages[].blocks[]').locator('.ce-datasource-tool__schema-badge'))
+    .toHaveText(['列表']);
   await expect(page.getByTestId('datasource-list-field-pages[].created_at')).toBeVisible();
 
   const fullSchemaDialog = await openFullSchema(page);
@@ -2019,6 +2066,7 @@ test('parses API datasource response with empty arrays into JSON Schema', async 
 
   await expect(page.getByTestId('datasource-json-schema-error')).toHaveCount(0);
   await page.getByTestId('datasource-response-schema-update-button').click();
+  await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-list-field-queryData[].key')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-queryData[].mock')).toBeVisible();
 

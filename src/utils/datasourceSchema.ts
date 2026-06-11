@@ -827,10 +827,51 @@ function getLeafNodes(schema: JSONSchema | undefined, pathPrefix = '', includeRo
     .filter((node) => (includeRoot || node.path !== pathPrefix) && node.selectable);
 }
 
+function getNestedArraySelectionFields(schema: JSONSchema | undefined, pathPrefix: string) {
+  const fields: SchemaSelectionField[] = [];
+
+  function walk(value: JSONSchema, path: string, required: boolean) {
+    const arraySchema = getArraySchema(value);
+    if (arraySchema) {
+      const itemPath = getArrayItemPath(path);
+      fields.push(createContainerSelectionField(itemPath, 'array', required));
+      walk(arraySchema.items, itemPath, required);
+      return;
+    }
+
+    const objectSchema = getObjectSchema(value);
+    if (!objectSchema) {
+      return;
+    }
+
+    const requiredFields = new Set(objectSchema.required ?? []);
+    Object.entries(objectSchema.properties).forEach(([key, property]) => {
+      walk(property, getPathWithSegment(path, key), requiredFields.has(key));
+    });
+  }
+
+  const objectSchema = getObjectSchema(schema);
+  if (objectSchema) {
+    const requiredFields = new Set(objectSchema.required ?? []);
+    Object.entries(objectSchema.properties).forEach(([key, property]) => {
+      walk(property, getPathWithSegment(pathPrefix, key), requiredFields.has(key));
+    });
+  }
+
+  return fields;
+}
+
 export function getSchemaSelectionFieldsForList(schema: JSONSchema | undefined, recordPath: string): SchemaSelectionField[] {
   const recordSchema = readSchemaAtRecordPath(schema, recordPath);
   const pathPrefix = recordPath ? `${recordPath}[]` : '[]';
-  const fields = getLeafNodes(recordSchema, pathPrefix, true).map((node) => createSelectionField(node, false));
+  const nestedArrayFields = getNestedArraySelectionFields(recordSchema, pathPrefix);
+  const nestedArrayPaths = new Set(nestedArrayFields.map((field) => field.path));
+  const fields = [
+    ...nestedArrayFields,
+    ...getLeafNodes(recordSchema, pathPrefix, true)
+      .map((node) => createSelectionField(node, false))
+      .filter((field) => !nestedArrayPaths.has(field.path))
+  ];
 
   if (!getObjectSchema(recordSchema)) {
     return fields;

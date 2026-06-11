@@ -120,10 +120,10 @@ type ApiState = Omit<MDatasourceApiObject, 'bodyData' | 'jsonSchema' | 'schemaSe
   bodyData: ApiStateBodyItem[];
 };
 type SchemaFieldSource = 'list' | 'form';
-type SchemaFieldSourceFilter = 'all' | SchemaFieldSource;
 type SchemaDataTypeFilter = 'all' | Extract<SchemaSelectionField['type'], 'string' | 'number' | 'boolean' | 'object' | 'array'>;
 type CombinedSchemaSelectionField = SchemaSelectionField & {
   source: SchemaFieldSource;
+  sources: SchemaFieldSource[];
 };
 type ApiImportSource = 'mokelay' | 'apifox';
 
@@ -143,8 +143,8 @@ const schemaSelectionsValue = shallowRef<DatasourceSchemaSelections | undefined>
 const responseExampleValue = shallowRef<JsonValue | undefined>(normalizedInitialValue.responseExample);
 const responseExampleText = ref(formatOptionalJsonValue(responseExampleValue.value));
 const responseExampleError = ref('');
-const schemaFieldSourceFilter = ref<SchemaFieldSourceFilter>('all');
 const schemaDataTypeFilter = ref<SchemaDataTypeFilter>('all');
+const schemaPathDepth = ref(1);
 const schemaSearch = ref('');
 const apiState = reactive<ApiState>(normalizedInitialValue);
 const bodyMockInputs = ref<string[]>(apiState.bodyData.map((item) => getBodyMockInputValue(item)));
@@ -174,15 +174,37 @@ const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
 const listSelectionFields = computed(() => schemaSelectionsValue.value?.list?.fields ?? []);
 const formSelectionFields = computed(() => schemaSelectionsValue.value?.form?.fields ?? []);
-const combinedSelectionFields = computed<CombinedSchemaSelectionField[]>(() => [
-  ...listSelectionFields.value.map((field) => ({ ...field, source: 'list' as const })),
-  ...formSelectionFields.value.map((field) => ({ ...field, source: 'form' as const }))
-]);
+const combinedSelectionFields = computed<CombinedSchemaSelectionField[]>(() => {
+  const fieldsByPath = new Map<string, CombinedSchemaSelectionField>();
+
+  function addFields(fields: SchemaSelectionField[], source: SchemaFieldSource) {
+    fields.forEach((field) => {
+      const existing = fieldsByPath.get(field.path);
+      if (existing) {
+        if (!existing.sources.includes(source)) {
+          existing.sources.push(source);
+        }
+        existing.enabled = existing.enabled || field.enabled;
+        return;
+      }
+
+      fieldsByPath.set(field.path, {
+        ...field,
+        source,
+        sources: [source]
+      });
+    });
+  }
+
+  addFields(listSelectionFields.value, 'list');
+  addFields(formSelectionFields.value, 'form');
+  return [...fieldsByPath.values()];
+});
 const visibleSelectionFields = computed(() => filterSelectionFields(
   combinedSelectionFields.value,
   schemaSearch.value,
-  schemaFieldSourceFilter.value,
-  schemaDataTypeFilter.value
+  schemaDataTypeFilter.value,
+  schemaPathDepth.value
 ));
 const enabledFieldCount = computed(() => combinedSelectionFields.value.filter((field) => field.enabled).length);
 const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value || apiDomainLoading.value);
@@ -227,22 +249,35 @@ function normalizeSearchValue(value: string) {
   return value.trim().toLowerCase();
 }
 
+function getSchemaPathDepth(path: string) {
+  return path.split('.').filter(Boolean).length || 1;
+}
+
+function updateSchemaPathDepth(event: Event) {
+  // Editor.js treats non-InputEvent input events as mutation arrays. Number
+  // steppers can emit a plain Event, so keep it away from that listener.
+  event.stopImmediatePropagation();
+  const numericValue = Number((event.target as HTMLInputElement).value);
+  if (!Number.isFinite(numericValue)) {
+    schemaPathDepth.value = 1;
+    return;
+  }
+
+  schemaPathDepth.value = Math.min(10, Math.max(1, Math.round(numericValue)));
+}
+
 function filterSelectionFields(
   fields: CombinedSchemaSelectionField[],
   searchValue: string,
-  sourceFilter: SchemaFieldSourceFilter,
-  dataTypeFilter: SchemaDataTypeFilter
+  dataTypeFilter: SchemaDataTypeFilter,
+  pathDepth: number
 ) {
   const normalizedSearchValue = normalizeSearchValue(searchValue);
   return fields.filter((field) =>
-    (sourceFilter === 'all' || field.source === sourceFilter) &&
     (dataTypeFilter === 'all' || field.type === dataTypeFilter) &&
+    getSchemaPathDepth(field.path) <= pathDepth &&
     (!normalizedSearchValue || field.path.toLowerCase().includes(normalizedSearchValue))
   );
-}
-
-function getSchemaFieldSourceLabel(source: SchemaFieldSource) {
-  return t(`datasource.fieldSources.${source}`);
 }
 
 function getDatasourcePayload(value: MDatasourceApiObject): MDatasourceEditorProps {
@@ -821,39 +856,30 @@ function inferDatasourceSchemaFromData(data: JsonValue) {
   throw new DatasourceError('mixedArraySchema', 'The array contains incompatible types, so JSON Schema cannot be inferred.');
 }
 
-function updateSelectionEnabled(selectionType: SchemaFieldSource, path: string, enabled: boolean) {
+function updateSelectionEnabled(selectionTypes: SchemaFieldSource[], path: string, enabled: boolean) {
   if (!props.edit) return;
 
   const currentSelections = normalizeSchemaSelections(schemaSelectionsValue.value, jsonSchemaValue.value);
-  const fields = selectionType === 'list'
-    ? currentSelections?.list?.fields
-    : currentSelections?.form?.fields;
-
-  if (!fields) return;
-
-  const nextFields = fields.map((field) =>
-    field.path === path
-      ? {
-          ...field,
-          enabled
-        }
-      : field
-  );
+  if (!currentSelections) return;
 
   schemaSelectionsValue.value = {
     ...currentSelections,
-    ...(selectionType === 'list' && currentSelections?.list
+    ...(selectionTypes.includes('list') && currentSelections.list
       ? {
           list: {
             ...currentSelections.list,
-            fields: nextFields
+            fields: currentSelections.list.fields.map((field) =>
+              field.path === path ? { ...field, enabled } : field
+            )
           }
         }
       : {}),
-    ...(selectionType === 'form'
+    ...(selectionTypes.includes('form') && currentSelections.form
       ? {
           form: {
-            fields: nextFields
+            fields: currentSelections.form.fields.map((field) =>
+              field.path === path ? { ...field, enabled } : field
+            )
           }
         }
       : {})
@@ -1573,17 +1599,18 @@ watch(
 
           <div v-if="combinedSelectionFields.length" class="ce-datasource-tool__schema-filters">
             <label class="ce-datasource-tool__field">
-              <span class="ce-datasource-tool__label">{{ t('datasource.fields.fieldSource') }}</span>
-              <select
+              <span class="ce-datasource-tool__label">{{ t('datasource.fields.pathDepth') }}</span>
+              <input
                 class="ce-datasource-tool__input"
-                data-testid="datasource-schema-field-source-filter"
-                :value="schemaFieldSourceFilter"
-                @change="schemaFieldSourceFilter = ($event.target as HTMLSelectElement).value as SchemaFieldSourceFilter"
-              >
-                <option value="all">{{ t('datasource.fieldSources.all') }}</option>
-                <option value="list">{{ t('datasource.fieldSources.list') }}</option>
-                <option value="form">{{ t('datasource.fieldSources.form') }}</option>
-              </select>
+                data-testid="datasource-schema-path-depth"
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+                :value="schemaPathDepth"
+                @input="updateSchemaPathDepth"
+                @keydown.stop
+              />
             </label>
 
             <label class="ce-datasource-tool__field">
@@ -1595,11 +1622,11 @@ watch(
                 @change="schemaDataTypeFilter = ($event.target as HTMLSelectElement).value as SchemaDataTypeFilter"
               >
                 <option value="all">{{ t('datasource.fields.allDataTypes') }}</option>
-                <option value="string">string</option>
-                <option value="number">number</option>
-                <option value="boolean">boolean</option>
-                <option value="object">object</option>
-                <option value="array">array</option>
+                <option value="string">{{ getSchemaTypeLabel('string') }}</option>
+                <option value="number">{{ getSchemaTypeLabel('number') }}</option>
+                <option value="boolean">{{ getSchemaTypeLabel('boolean') }}</option>
+                <option value="object">{{ getSchemaTypeLabel('object') }}</option>
+                <option value="array">{{ getSchemaTypeLabel('array') }}</option>
               </select>
             </label>
 
@@ -1633,7 +1660,7 @@ watch(
                 :disabled="isReadOnly"
                 :checked="field.enabled"
                 :data-testid="`datasource-${field.source}-field-enabled-${field.path}`"
-                @change="updateSelectionEnabled(field.source, field.path, ($event.target as HTMLInputElement).checked)"
+                @change="updateSelectionEnabled(field.sources, field.path, ($event.target as HTMLInputElement).checked)"
               />
               <span class="ce-datasource-tool__schema-field-main">
                 <span class="ce-datasource-tool__schema-field-label" :data-testid="`datasource-${field.source}-field-label-${field.path}`">
@@ -1642,13 +1669,7 @@ watch(
                 <span class="ce-datasource-tool__schema-path">{{ field.path }}</span>
               </span>
               <span class="ce-datasource-tool__schema-badges">
-                <span class="ce-datasource-tool__schema-badge ce-datasource-tool__schema-badge--source">
-                  {{ getSchemaFieldSourceLabel(field.source) }}
-                </span>
                 <span class="ce-datasource-tool__schema-badge">{{ getSchemaTypeLabel(field.type) }}</span>
-                <span v-if="field.required" class="ce-datasource-tool__schema-badge ce-datasource-tool__schema-badge--required">
-                  {{ t('datasource.fields.required') }}
-                </span>
               </span>
             </label>
           </div>
@@ -1821,7 +1842,7 @@ watch(
 
 .ce-datasource-tool__schema-filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(110px, 0.2fr) minmax(180px, 0.35fr) minmax(260px, 1fr);
   gap: 10px;
   align-items: end;
 }
@@ -2138,12 +2159,13 @@ watch(
 }
 
 .ce-datasource-tool__field-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 8px;
 }
 
 .ce-datasource-tool__field-list-summary {
+  grid-column: 1 / -1;
   color: rgb(51 65 85);
   font-size: 13px;
   font-weight: 650;
@@ -2152,11 +2174,11 @@ watch(
 .ce-datasource-tool__schema-field {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   border: 1px solid rgb(226 232 240);
   border-radius: 8px;
-  padding: 8px;
+  padding: 7px 8px;
   background: rgb(255 255 255);
 }
 
@@ -2171,7 +2193,7 @@ watch(
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .ce-datasource-tool__schema-field-label {
@@ -2205,22 +2227,12 @@ watch(
   align-items: center;
   min-height: 24px;
   border-radius: 999px;
-  padding: 3px 8px;
+  padding: 2px 7px;
   background: rgb(239 246 255);
   color: rgb(30 64 175);
   font-size: 12px;
   font-weight: 650;
   white-space: nowrap;
-}
-
-.ce-datasource-tool__schema-badge--required {
-  background: rgb(254 242 242);
-  color: rgb(185 28 28);
-}
-
-.ce-datasource-tool__schema-badge--source {
-  background: rgb(224 231 255);
-  color: rgb(55 48 163);
 }
 
 .ce-datasource-tool__schema-tree {
@@ -2294,8 +2306,11 @@ watch(
   .ce-datasource-tool__import-sources,
   .ce-datasource-tool__row,
   .ce-datasource-tool__body-row,
-  .ce-datasource-tool__schema-field,
   .ce-datasource-tool__schema-node {
+    grid-template-columns: 1fr;
+  }
+
+  .ce-datasource-tool__field-list {
     grid-template-columns: 1fr;
   }
 
@@ -2447,16 +2462,6 @@ watch(
 :global(.dark) .ce-datasource-tool__schema-badge {
   background: rgb(30 64 175 / 0.34);
   color: rgb(191 219 254);
-}
-
-:global(.dark) .ce-datasource-tool__schema-badge--required {
-  background: rgb(127 29 29 / 0.35);
-  color: rgb(254 202 202);
-}
-
-:global(.dark) .ce-datasource-tool__schema-badge--source {
-  background: rgb(49 46 129 / 0.5);
-  color: rgb(199 210 254);
 }
 
 :global(.dark) .ce-datasource-tool__error,
