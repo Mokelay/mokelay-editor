@@ -85,11 +85,13 @@ import { computed, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import {
   getApi,
+  getBuiltInApi,
   getApifoxApiDetail,
   listApis,
   listApifoxProjects,
   type ApifoxProjectRecord,
-  type MokelayApiRecord
+  type MokelayApiRecord,
+  type MokelayApiSource
 } from '@/utils/apisApi';
 import {
   DEFAULT_API_DOMAIN_UUID,
@@ -159,7 +161,11 @@ const apiImportDialogRef = ref<HTMLDialogElement | null>(null);
 const isApiImportDialogOpen = ref(false);
 const fullSchemaDialogRef = ref<HTMLDialogElement | null>(null);
 const isFullSchemaDialogOpen = ref(false);
-const mokelayApiOptions = ref<MokelayApiRecord[]>([]);
+const mokelayApiSource = ref<MokelayApiSource>('user');
+const mokelayApiOptionsBySource = ref<Record<MokelayApiSource, MokelayApiRecord[]>>({
+  user: [],
+  system: []
+});
 const selectedMokelayApiUuid = ref('');
 const apifoxProjectOptions = ref<ApifoxProjectRecord[]>([]);
 const selectedApifoxProjectId = ref('');
@@ -167,7 +173,10 @@ const apifoxApiId = ref('');
 const apiImportOptionsLoading = ref(false);
 const apiImportLoading = ref(false);
 const apiImportError = ref('');
-const hasLoadedMokelayApis = ref(false);
+const loadedMokelayApiSources = ref<Record<MokelayApiSource, boolean>>({
+  user: false,
+  system: false
+});
 const hasLoadedApifoxProjects = ref(false);
 const isReadOnly = computed(() => !props.edit);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
@@ -208,6 +217,7 @@ const visibleSelectionFields = computed(() => filterSelectionFields(
 ));
 const enabledFieldCount = computed(() => combinedSelectionFields.value.filter((field) => field.enabled).length);
 const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value || apiDomainLoading.value);
+const mokelayApiOptions = computed(() => mokelayApiOptionsBySource.value[mokelayApiSource.value]);
 const isApiDomainSelectDisabled = computed(() => isReadOnly.value || apiDomainLoading.value || !apiDomainOptions.value.length);
 const apiImportDialogTitle = computed(() => t(`datasource.import.sources.${apiImportSource.value}`));
 const apiDomainEmptyOptionText = computed(() => {
@@ -498,6 +508,15 @@ function selectDefaultMokelayApi() {
   selectedMokelayApiUuid.value = mokelayApiOptions.value[0]?.uuid ?? '';
 }
 
+function changeMokelayApiSource(event: Event) {
+  if (!props.edit || isApiImportBusy.value) return;
+
+  mokelayApiSource.value = (event.target as HTMLSelectElement).value === 'system' ? 'system' : 'user';
+  selectedMokelayApiUuid.value = '';
+  apiImportError.value = '';
+  void loadMokelayApiOptions();
+}
+
 function selectDefaultApifoxProject() {
   if (apifoxProjectOptions.value.some((project) => project.id === selectedApifoxProjectId.value)) {
     return;
@@ -519,7 +538,9 @@ function getApiImportErrorMessage(error: unknown) {
 }
 
 async function loadMokelayApiOptions(force = false) {
-  if (apiImportOptionsLoading.value || (!force && hasLoadedMokelayApis.value)) {
+  const source = mokelayApiSource.value;
+  if (apiImportOptionsLoading.value || (!force && loadedMokelayApiSources.value[source])) {
+    selectDefaultMokelayApi();
     return;
   }
 
@@ -527,10 +548,18 @@ async function loadMokelayApiOptions(force = false) {
   apiImportError.value = '';
 
   try {
-    const result = await listApis({ page: 1, pageSize: 100 });
-    mokelayApiOptions.value = result.apis;
-    hasLoadedMokelayApis.value = true;
-    selectDefaultMokelayApi();
+    const result = await listApis({ page: 1, pageSize: 100, source });
+    mokelayApiOptionsBySource.value = {
+      ...mokelayApiOptionsBySource.value,
+      [source]: result.apis
+    };
+    loadedMokelayApiSources.value = {
+      ...loadedMokelayApiSources.value,
+      [source]: true
+    };
+    if (mokelayApiSource.value === source) {
+      selectDefaultMokelayApi();
+    }
   } catch (error) {
     apiImportError.value = error instanceof Error ? error.message : t('datasource.import.errors.loadOptions');
   } finally {
@@ -585,7 +614,9 @@ async function importSelectedApi() {
     await ensureApiDomainOptions();
 
     if (apiImportSource.value === 'mokelay') {
-      const api = await getApi(selectedMokelayApiUuid.value);
+      const api = mokelayApiSource.value === 'system'
+        ? await getBuiltInApi(selectedMokelayApiUuid.value)
+        : await getApi(selectedMokelayApiUuid.value);
       const domainUuid = getImportApiDomainUuid(DEFAULT_API_DOMAIN_UUID) || getDefaultApiDomainUuid(apiDomainOptions.value);
       if (!domainUuid) {
         throw new Error(t('datasource.import.errors.apiDomainNotFound'));
@@ -1158,23 +1189,38 @@ watch(
           </div>
 
           <div class="ce-datasource-tool__import-dialog-body">
-            <label v-if="apiImportSource === 'mokelay'" class="ce-datasource-tool__field">
-              <span class="ce-datasource-tool__label">{{ t('datasource.fields.mokelayApi') }}</span>
-              <select
-                class="ce-datasource-tool__input"
-                data-testid="datasource-import-mokelay-api"
-                :disabled="isApiImportBusy || !mokelayApiOptions.length"
-                :value="selectedMokelayApiUuid"
-                @change="selectedMokelayApiUuid = ($event.target as HTMLSelectElement).value"
-              >
-                <option v-if="!mokelayApiOptions.length" value="">
-                  {{ t('datasource.import.emptyMokelayApis') }}
-                </option>
-                <option v-for="api in mokelayApiOptions" :key="api.uuid" :value="api.uuid">
-                  {{ api.name }} ({{ api.method }})
-                </option>
-              </select>
-            </label>
+            <template v-if="apiImportSource === 'mokelay'">
+              <label class="ce-datasource-tool__field">
+                <span class="ce-datasource-tool__label">{{ t('datasource.fields.apiSource') }}</span>
+                <select
+                  class="ce-datasource-tool__input"
+                  data-testid="datasource-import-mokelay-source"
+                  :disabled="isApiImportBusy"
+                  :value="mokelayApiSource"
+                  @change="changeMokelayApiSource"
+                >
+                  <option value="user">{{ t('datasource.import.apiSources.user') }}</option>
+                  <option value="system">{{ t('datasource.import.apiSources.system') }}</option>
+                </select>
+              </label>
+              <label class="ce-datasource-tool__field">
+                <span class="ce-datasource-tool__label">{{ t('datasource.fields.mokelayApi') }}</span>
+                <select
+                  class="ce-datasource-tool__input"
+                  data-testid="datasource-import-mokelay-api"
+                  :disabled="isApiImportBusy || !mokelayApiOptions.length"
+                  :value="selectedMokelayApiUuid"
+                  @change="selectedMokelayApiUuid = ($event.target as HTMLSelectElement).value"
+                >
+                  <option v-if="!mokelayApiOptions.length" value="">
+                    {{ t('datasource.import.emptyMokelayApis') }}
+                  </option>
+                  <option v-for="api in mokelayApiOptions" :key="api.uuid" :value="api.uuid">
+                    {{ api.name }} ({{ api.method }})
+                  </option>
+                </select>
+              </label>
+            </template>
             <template v-else>
               <label class="ce-datasource-tool__field">
                 <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxProject') }}</span>

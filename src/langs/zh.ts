@@ -169,6 +169,7 @@ export const zhMessages = {
       path: 'API Path',
       method: '调用方法',
       importSource: '导入来源',
+      apiSource: '接口来源',
       mokelayApi: 'Mokelay API',
       apifoxProject: 'APIFox 项目',
       apifoxApiId: 'API ID',
@@ -246,6 +247,10 @@ export const zhMessages = {
       mixedArraySchema: '数组中包含无法合并的类型，无法推断 JSON Schema。'
     },
     import: {
+      apiSources: {
+        user: '用户创建接口',
+        system: '系统接口'
+      },
       sources: {
         mokelay: 'Mokelay 编排接口',
         apifox: 'APIFox 接口'

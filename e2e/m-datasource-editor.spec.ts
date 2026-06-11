@@ -863,6 +863,9 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
   await expect(page.getByTestId('datasource-import-source')).toHaveCount(0);
 
   const importDialog = await openMokelayApiImport(page);
+  await expect(importDialog.getByTestId('datasource-import-mokelay-source')).toHaveValue('user');
+  await expect(importDialog.getByTestId('datasource-import-mokelay-source')).toContainText('用户创建接口');
+  await expect(importDialog.getByTestId('datasource-import-mokelay-source')).toContainText('系统接口');
   await expect(importDialog.getByTestId('datasource-import-mokelay-api')).toContainText('用户导入 API');
   await importDialog.getByTestId('datasource-import-mokelay-api').selectOption('import_users');
   await importDialog.getByTestId('datasource-import-apply').click();
@@ -903,6 +906,75 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
   expect(datasourceValue.jsonSchema.properties.ok.type).toBe('boolean');
   expect(datasourceValue.jsonSchema.properties.data.properties.users.type).toBe('array');
   expect(datasourceValue.schemaSelections.list.recordPath).toBe('data.users');
+});
+
+test('imports API datasource from a system Mokelay orchestration API', async ({ page }) => {
+  const responseData = {
+    items: [{ id: 1, name: '系统数据' }],
+    total: 1
+  };
+  const apiState = await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'user_only_api',
+        name: '用户接口',
+        method: 'GET',
+        status: 'draft',
+        apiJson: {
+          uuid: 'user_only_api',
+          alias: '用户接口',
+          method: 'GET',
+          blocks: []
+        }
+      }
+    ],
+    systemApis: [
+      {
+        uuid: 'system_search_api',
+        name: '系统查询接口',
+        method: 'POST',
+        status: 'published',
+        apiJson: {
+          uuid: 'system_search_api',
+          alias: '系统查询接口',
+          method: 'POST',
+          request: {
+            header: ['Authorization'],
+            query: ['page'],
+            body: ['keyword']
+          },
+          blocks: [],
+          response: responseData
+        }
+      }
+    ]
+  });
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+
+  const importDialog = await openMokelayApiImport(page);
+  await importDialog.getByTestId('datasource-import-mokelay-source').selectOption('system');
+  await expect.poll(() => apiState.apiListRequests.some((requestUrl) => (
+    new URL(requestUrl).pathname === '/api/mokelay/list_mokelay_api_jsons'
+  ))).toBe(true);
+  await expect(importDialog.getByTestId('datasource-import-mokelay-api')).toContainText('系统查询接口');
+  await expect(importDialog.getByTestId('datasource-import-mokelay-api')).not.toContainText('用户接口');
+  await importDialog.getByTestId('datasource-import-mokelay-api').selectOption('system_search_api');
+  await importDialog.getByTestId('datasource-import-apply').click();
+  await expect(importDialog).not.toBeVisible();
+
+  await expect.poll(() => apiState.systemApiReadRequests.some((requestUrl) => (
+    new URL(requestUrl).searchParams.get('uuid') === 'system_search_api'
+  ))).toBe(true);
+  await expect(page.getByTestId('datasource-path')).toHaveValue('/api/mokelay/system_search_api');
+  await expect(page.getByTestId('datasource-method')).toHaveValue('POST');
+  await expect(page.getByTestId('datasource-header-key-0')).toHaveValue('Authorization');
+  await expect(page.getByTestId('datasource-query-key-0')).toHaveValue('page');
+  await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('keyword');
+  await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify({
+    ok: true,
+    data: responseData
+  }, null, 2));
 });
 
 test('imports API datasource from APIFox project and API ID', async ({ page }) => {

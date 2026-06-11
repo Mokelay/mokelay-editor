@@ -169,6 +169,7 @@ export const enMessages = {
       path: 'API path',
       method: 'Method',
       importSource: 'Import source',
+      apiSource: 'API source',
       mokelayApi: 'Mokelay API',
       apifoxProject: 'APIFox project',
       apifoxApiId: 'API ID',
@@ -246,6 +247,10 @@ export const enMessages = {
       mixedArraySchema: 'The array contains incompatible types, so JSON Schema cannot be inferred.'
     },
     import: {
+      apiSources: {
+        user: 'User-created APIs',
+        system: 'System APIs'
+      },
       sources: {
         mokelay: 'Mokelay orchestration API',
         apifox: 'APIFox API'
