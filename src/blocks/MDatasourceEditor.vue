@@ -83,6 +83,7 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
 <script setup lang="ts">
 import { computed, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
+import JsonTreeView from '@/blocks/components/JsonTreeView.vue';
 import {
   getApi,
   getBuiltInApi,
@@ -1598,19 +1599,40 @@ watch(
       <p v-if="jsonSchemaError" class="ce-datasource-tool__error" data-testid="datasource-json-schema-error">
         {{ jsonSchemaError }}
       </p>
-      <label class="ce-datasource-tool__field">
-        <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExample') }}</span>
-        <textarea
-          class="ce-datasource-tool__textarea ce-datasource-tool__textarea--response-example"
-          data-testid="datasource-response-example"
-          spellcheck="false"
-          :readonly="isReadOnly"
-          :placeholder="t('datasource.fields.responseExamplePlaceholder')"
-          :value="responseExampleText"
-          @input="handleResponseExampleInput"
-          @keydown.stop
-        ></textarea>
-      </label>
+      <div class="ce-datasource-tool__response-example-grid">
+        <label class="ce-datasource-tool__field">
+          <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExampleInput') }}</span>
+          <textarea
+            class="ce-datasource-tool__textarea ce-datasource-tool__textarea--response-example"
+            data-testid="datasource-response-example"
+            spellcheck="false"
+            :readonly="isReadOnly"
+            :placeholder="t('datasource.fields.responseExamplePlaceholder')"
+            :value="responseExampleText"
+            @input="handleResponseExampleInput"
+            @keydown.stop
+          ></textarea>
+        </label>
+        <div class="ce-datasource-tool__field">
+          <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExamplePreview') }}</span>
+          <div
+            class="ce-datasource-tool__response-example-preview"
+            data-testid="datasource-response-example-preview"
+          >
+            <p
+              v-if="responseExampleError"
+              class="ce-datasource-tool__response-example-preview-state ce-datasource-tool__response-example-preview-state--error"
+              data-testid="datasource-response-example-preview-error"
+            >
+              {{ responseExampleError }}
+            </p>
+            <JsonTreeView v-else-if="responseExampleValue !== undefined" :value="responseExampleValue" />
+            <p v-else class="ce-datasource-tool__response-example-preview-state">
+              {{ t('datasource.fields.responseExamplePreviewEmpty') }}
+            </p>
+          </div>
+        </div>
+      </div>
       <p v-if="responseExampleError" class="ce-datasource-tool__error" data-testid="datasource-response-example-error">
         {{ responseExampleError }}
       </p>
@@ -1854,6 +1876,32 @@ watch(
   gap: 10px;
 }
 
+.ce-datasource-tool__response-example-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ce-datasource-tool__response-example-preview {
+  min-height: 260px;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid rgb(148 163 184 / 0.65);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: rgb(248 250 252);
+}
+
+.ce-datasource-tool__response-example-preview-state {
+  margin: 0;
+  color: rgb(100 116 139);
+  font-size: 13px;
+}
+
+.ce-datasource-tool__response-example-preview-state--error {
+  color: rgb(185 28 28);
+}
+
 .ce-datasource-tool__schema-header {
   display: flex;
   align-items: center;
@@ -2078,7 +2126,7 @@ watch(
 }
 
 .ce-datasource-tool__textarea--response-example {
-  min-height: 130px;
+  min-height: 260px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 13px;
   line-height: 19px;
@@ -2348,6 +2396,7 @@ watch(
   }
 
   .ce-datasource-tool__grid,
+  .ce-datasource-tool__response-example-grid,
   .ce-datasource-tool__schema-filters,
   .ce-datasource-tool__import-sources,
   .ce-datasource-tool__row,
@@ -2387,6 +2436,19 @@ watch(
 
 :global(.dark) .ce-datasource-tool__schema-panel {
   border-top-color: rgb(51 65 85);
+}
+
+:global(.dark) .ce-datasource-tool__response-example-preview {
+  border-color: rgb(71 85 105);
+  background: rgb(30 41 59);
+}
+
+:global(.dark) .ce-datasource-tool__response-example-preview-state {
+  color: rgb(148 163 184);
+}
+
+:global(.dark) .ce-datasource-tool__response-example-preview-state--error {
+  color: rgb(248 113 113);
 }
 
 :global(.dark) .ce-datasource-tool__config-section {

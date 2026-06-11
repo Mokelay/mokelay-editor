@@ -211,6 +211,8 @@ test('edits the response example and manually updates the response Schema', asyn
 
   await responseExampleInput.fill(JSON.stringify(responseExample));
   await expect(page.getByTestId('datasource-response-example-error')).toHaveCount(0);
+  await expect(page.getByTestId('datasource-response-example-preview')).toContainText('profile');
+  await expect(page.getByTestId('datasource-response-example-preview')).toContainText('"Ada"');
   await expect(page.getByTestId('datasource-form-field-profile.name')).toHaveCount(0);
 
   await page.getByTestId('datasource-response-schema-update-button').click();
@@ -220,6 +222,7 @@ test('edits the response example and manually updates the response Schema', asyn
 
   await responseExampleInput.fill('{ bad');
   await expect(page.getByTestId('datasource-response-example-error')).toHaveText('请输入有效的 JSON 响应示例数据。');
+  await expect(page.getByTestId('datasource-response-example-preview-error')).toHaveText('请输入有效的 JSON 响应示例数据。');
   await page.getByTestId('datasource-response-schema-update-button').click();
   await expect(page.getByTestId('datasource-form-field-profile.name')).toBeVisible();
 
