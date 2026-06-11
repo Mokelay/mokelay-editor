@@ -44,7 +44,7 @@ import {
 } from '@/api-builder/store';
 import { hasBlockingErrors, hasDangerWarnings, validateApiJson } from '@/api-builder/validation';
 import { buildVariableOptions, makeTemplate } from '@/api-builder/variables';
-import { deleteApi, getApi, listApis, saveApi, type MokelayApiRecord } from '@/utils/apisApi';
+import { deleteApi, getApi, listApis, saveApi, type MokelayApiRecord, type MokelayApiSource } from '@/utils/apisApi';
 import type {
   ApiBlock,
   ApiBuilderDraft,
@@ -69,14 +69,17 @@ import type {
 
 type ApiBuilderShellProps = {
   routeUuid?: string | null;
+  routeSource?: MokelayApiSource;
 };
 
 const props = withDefaults(defineProps<ApiBuilderShellProps>(), {
-  routeUuid: null
+  routeUuid: null,
+  routeSource: 'user'
 });
 
 const drafts = ref<ApiBuilderDraft[]>([]);
 const activeDraftId = ref(props.routeUuid || '');
+const selectedApiSource = ref<MokelayApiSource>(props.routeSource);
 const selection = ref<BuilderSelection>({ type: 'api' });
 const bottomTab = ref<'json' | 'validation' | 'test'>('json');
 const draggedBlockUuid = ref('');
@@ -127,8 +130,11 @@ const variableOptions = computed(() => {
   const beforeBlockUuid = selection.value.type === 'block' ? selection.value.uuid : undefined;
   return buildVariableOptions(activeDraft.value.apiJson, beforeBlockUuid);
 });
-const sortedDrafts = computed(() => [...drafts.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+const sortedDrafts = computed(() => selectedApiSource.value === 'system'
+  ? drafts.value
+  : [...drafts.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
 const hasApiRoute = computed(() => Boolean(props.routeUuid));
+const isActiveApiReadonly = computed(() => activeDraft.value?.source === 'system');
 const groupedBlocks = computed(() => ({
   query: blockDefinitions.filter((definition) => definition.group === 'query'),
   write: blockDefinitions.filter((definition) => definition.group === 'write'),
@@ -138,17 +144,23 @@ const groupedControllers = computed(() => controllerDefinitions);
 const graphNodes = computed<Node[]>(() => buildGraphNodes());
 const graphEdges = computed<Edge[]>(() => buildGraphEdges());
 const apiUuidPattern = /^[A-Za-z0-9_-]{1,128}$/;
+let apiListRequestId = 0;
+let apiDetailRequestId = 0;
 
 watch(
-  () => props.routeUuid,
-  (uuid) => {
+  () => [props.routeUuid, props.routeSource] as const,
+  ([uuid, source]) => {
+    selectedApiSource.value = source;
     if (!uuid) {
+      apiDetailRequestId += 1;
       activeDraftId.value = '';
+      void refreshApiList(source);
       return;
     }
     activeDraftId.value = uuid;
     selection.value = { type: 'api' };
-    void loadApiDetail(uuid);
+    void refreshApiList(source);
+    void loadApiDetail(uuid, source);
   },
   { immediate: true }
 );
@@ -164,8 +176,6 @@ watch(
   },
   { immediate: true }
 );
-
-void refreshApiList();
 
 function buildGraphNodes(): Node[] {
   if (!activeDraft.value) return [];
@@ -201,7 +211,9 @@ function buildGraphNodes(): Node[] {
         block,
         disabled: isBlockDisabled(block),
         selected: selection.value.type === 'block' && selection.value.uuid === block.uuid
-      }
+      },
+      draggable: !isActiveApiReadonly.value,
+      connectable: !isActiveApiReadonly.value
     });
   });
 
@@ -260,6 +272,7 @@ function draftFromApiRecord(record: MokelayApiRecord, currentDraft?: ApiBuilderD
   draft.apiJson.alias = draft.apiJson.alias || record.name;
   draft.apiJson.method = record.method;
   draft.status = record.status;
+  draft.source = record.source;
   draft.createdAt = record.createdAt || draft.createdAt;
   draft.updatedAt = record.updatedAt || draft.updatedAt;
 
@@ -292,59 +305,103 @@ function replaceDraft(draft: ApiBuilderDraft) {
   drafts.value = next;
 }
 
-async function refreshApiList() {
+async function refreshApiList(source: MokelayApiSource = selectedApiSource.value) {
+  const requestId = ++apiListRequestId;
   isApiListLoading.value = true;
   apiBuilderError.value = '';
 
   try {
-    const result = await listApis({ page: 1, pageSize: 100 });
+    const result = await listApis({ page: 1, pageSize: 100, source });
+    if (requestId !== apiListRequestId || selectedApiSource.value !== source) return;
     const currentDrafts = new Map(drafts.value.map((draft) => [draft.id, draft]));
     drafts.value = result.apis.map((api) => {
       const currentDraft = currentDrafts.get(api.uuid);
       return mergeDraftSessionState(draftFromApiRecord(api, currentDraft), currentDraft);
     });
-    serverDraftIds.value = new Set(result.apis.map((api) => api.uuid));
+    if (source === 'user') {
+      serverDraftIds.value = new Set(result.apis.map((api) => api.uuid));
+    }
 
     if (activeDraftId.value && !drafts.value.some((draft) => draft.id === activeDraftId.value)) {
-      await loadApiDetail(activeDraftId.value);
+      await loadApiDetail(activeDraftId.value, source);
     }
   } catch (error) {
-    apiBuilderError.value = error instanceof Error ? error.message : '加载 API 列表失败。';
+    if (requestId === apiListRequestId) {
+      apiBuilderError.value = error instanceof Error ? error.message : '加载 API 列表失败。';
+    }
   } finally {
-    isApiListLoading.value = false;
+    if (requestId === apiListRequestId) {
+      isApiListLoading.value = false;
+    }
   }
 }
 
-async function loadApiDetail(uuid: string) {
+async function loadApiDetail(uuid: string, source: MokelayApiSource = selectedApiSource.value) {
   if (!uuid) return;
 
+  const requestId = ++apiDetailRequestId;
   isApiDetailLoading.value = true;
   apiBuilderError.value = '';
 
   try {
-    const api = await getApi(uuid);
+    const api = source === 'system' ? await findSystemApi(uuid) : await getApi(uuid);
+    if (requestId !== apiDetailRequestId) return;
     const currentDraft = drafts.value.find((draft) => draft.id === uuid);
     const draft = mergeDraftSessionState(draftFromApiRecord(api, currentDraft), currentDraft);
     replaceDraft(draft);
-    serverDraftIds.value = new Set([...serverDraftIds.value, draft.id]);
+    if (source === 'user') {
+      serverDraftIds.value = new Set([...serverDraftIds.value, draft.id]);
+    }
     activeDraftId.value = draft.id;
   } catch (error) {
-    apiBuilderError.value = error instanceof Error ? error.message : '加载 API 详情失败。';
+    if (requestId === apiDetailRequestId) {
+      apiBuilderError.value = error instanceof Error ? error.message : '加载 API 详情失败。';
+    }
   } finally {
-    isApiDetailLoading.value = false;
+    if (requestId === apiDetailRequestId) {
+      isApiDetailLoading.value = false;
+    }
   }
 }
 
+async function findSystemApi(uuid: string) {
+  let page = 1;
+
+  while (true) {
+    const result = await listApis({ page, pageSize: 100, source: 'system' });
+    const api = result.apis.find((item) => item.uuid === uuid);
+    if (api) return api;
+    if (!result.pagination.hasNextPage) {
+      throw new Error('API not found.');
+    }
+    page += 1;
+  }
+}
+
+function apiListHash(source: MokelayApiSource) {
+  return source === 'system' ? '/apis?source=system' : '/apis';
+}
+
+function apiDetailHash(draft: ApiBuilderDraft) {
+  const path = `/apis/${encodeURIComponent(draft.id)}`;
+  return draft.source === 'system' ? `${path}?source=system` : path;
+}
+
 function navigateToList() {
-  window.location.hash = '/apis';
+  window.location.hash = apiListHash(activeDraft.value?.source ?? selectedApiSource.value);
 }
 
 function navigateToDraft(draft: ApiBuilderDraft) {
   activeDraftId.value = draft.id;
-  window.location.hash = `/apis/${encodeURIComponent(draft.id)}`;
-  if (serverDraftIds.value.has(draft.id)) {
-    void loadApiDetail(draft.id);
+  window.location.hash = apiDetailHash(draft);
+  if (draft.source === 'user' && serverDraftIds.value.has(draft.id)) {
+    void loadApiDetail(draft.id, 'user');
   }
+}
+
+function changeApiSource(event: Event) {
+  const source = (event.target as HTMLSelectElement).value === 'system' ? 'system' : 'user';
+  window.location.hash = apiListHash(source);
 }
 
 function createBlankDraft() {
@@ -502,6 +559,7 @@ function duplicateCurrentDraft() {
 }
 
 async function deleteDraft(draft: ApiBuilderDraft) {
+  if (draft.source === 'system') return;
   if (!window.confirm(`删除接口「${draft.apiJson.alias || draft.apiJson.uuid}」？`)) {
     return;
   }
@@ -526,7 +584,7 @@ async function deleteDraft(draft: ApiBuilderDraft) {
 }
 
 async function saveDraftToServer(status: ApiBuilderDraft['status'], sourceDraftId = activeDraft.value?.id ?? '') {
-  if (!activeDraft.value) return false;
+  if (!activeDraft.value || isActiveApiReadonly.value) return false;
 
   const validationMessage = validateApiInfoFromJson(activeDraft.value.apiJson);
   if (validationMessage) {
@@ -764,10 +822,12 @@ function executableTargetOptions(excludeUuid = '') {
 }
 
 function onBlockDragStart(block: ApiBlock) {
+  if (isActiveApiReadonly.value) return;
   draggedBlockUuid.value = block.uuid;
 }
 
 function onBlockDrop(targetBlock: ApiBlock) {
+  if (isActiveApiReadonly.value) return;
   if (!activeDraft.value || !draggedBlockUuid.value || draggedBlockUuid.value === targetBlock.uuid) return;
   const blocks = activeDraft.value.apiJson.blocks ?? [];
   const fromIndex = blocks.findIndex((block) => block.uuid === draggedBlockUuid.value);
@@ -787,11 +847,13 @@ function selectGraphNode(uuid: string) {
 }
 
 function onFlowConnect(connection: Connection) {
+  if (isActiveApiReadonly.value) return;
   if (!connection.source || !connection.target) return;
   setNextBlock(connection.source, connection.sourceHandle, connection.target);
 }
 
 function onFlowEdgeClick(event: { edge?: Edge }) {
+  if (isActiveApiReadonly.value) return;
   const edge = event.edge;
   if (!edge) return;
   setNextBlock(edge.source, edge.sourceHandle, null);
@@ -803,6 +865,7 @@ function onFlowNodeClick(event: { node?: Node }) {
 }
 
 function onFlowNodeDragStop(event: { node?: Node }) {
+  if (isActiveApiReadonly.value) return;
   const node = event.node;
   if (!node?.id || !node.position) return;
   setNodePosition(node.id, node.position);
@@ -1334,9 +1397,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               接口编排工作台。先把接口入口、请求参数、编排步骤和响应结构搭顺，再保存为 Mokelay Orchestration API JSON。
             </p>
           </div>
-          <button data-testid="api-builder-new" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="createBlankDraft">
-            新建 API
-          </button>
+          <div class="flex flex-wrap items-end gap-3">
+            <label class="builder-field min-w-40">
+              <span>接口来源</span>
+              <select data-testid="api-source-select" class="builder-input" :value="selectedApiSource" @change="changeApiSource">
+                <option value="user">用户创建</option>
+                <option value="system">系统内置</option>
+              </select>
+            </label>
+            <button data-testid="api-builder-new" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="createBlankDraft">
+              新建 API
+            </button>
+          </div>
         </div>
 
         <p v-if="apiBuilderError" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderError }}</p>
@@ -1348,17 +1420,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <th class="px-4 py-3">名称</th>
                 <th class="px-4 py-3">UUID</th>
                 <th class="px-4 py-3">方法</th>
-                <th class="px-4 py-3">状态</th>
-                <th class="px-4 py-3">最近编辑</th>
+                <th v-if="selectedApiSource === 'user'" class="px-4 py-3">状态</th>
+                <th v-if="selectedApiSource === 'user'" class="px-4 py-3">最近编辑</th>
                 <th class="px-4 py-3 text-right">操作</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
               <tr v-if="isApiListLoading">
-                <td colspan="6" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">正在加载 API 列表...</td>
+                <td :colspan="selectedApiSource === 'user' ? 6 : 4" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">正在加载 API 列表...</td>
               </tr>
               <tr v-else-if="!sortedDrafts.length">
-                <td colspan="6" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">暂无 API，可以从右侧模板或样例开始。</td>
+                <td :colspan="selectedApiSource === 'user' ? 6 : 4" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">暂无 API，可以从右侧模板或样例开始。</td>
               </tr>
               <tr v-for="draft in sortedDrafts" :key="draft.id" class="bg-white dark:bg-slate-900">
                 <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ draft.apiJson.alias || '未命名 API' }}</td>
@@ -1366,15 +1438,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <td class="px-4 py-3">
                   <span class="rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-100">{{ draft.apiJson.method }}</span>
                 </td>
-                <td class="px-4 py-3">
+                <td v-if="draft.source === 'user'" class="px-4 py-3">
                   <span class="rounded-md px-2 py-1 text-xs font-semibold" :class="draft.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100'">
                     {{ draft.status === 'published' ? '已发布' : '草稿' }}
                   </span>
                 </td>
-                <td class="px-4 py-3 text-slate-500 dark:text-slate-400">{{ formatDate(draft.updatedAt) }}</td>
+                <td v-if="draft.source === 'user'" class="px-4 py-3 text-slate-500 dark:text-slate-400">{{ formatDate(draft.updatedAt) }}</td>
                 <td class="px-4 py-3 text-right">
                   <button class="rounded-md px-2 py-1 text-teal-700 hover:bg-teal-50 dark:text-teal-200 dark:hover:bg-teal-500/10" @click="navigateToDraft(draft)">打开</button>
-                  <button class="rounded-md px-2 py-1 text-rose-700 hover:bg-rose-50 dark:text-rose-200 dark:hover:bg-rose-500/10" @click="deleteDraft(draft)">删除</button>
+                  <button v-if="draft.source === 'user'" class="rounded-md px-2 py-1 text-rose-700 hover:bg-rose-50 dark:text-rose-200 dark:hover:bg-rose-500/10" @click="deleteDraft(draft)">删除</button>
                 </td>
               </tr>
             </tbody>
@@ -1428,16 +1500,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             <div class="flex flex-wrap items-center gap-3">
               <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ activeDraft.apiJson.alias || '未命名 API' }}</h2>
               <span class="rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-100">{{ activeDraft.apiJson.method }}</span>
-              <span class="rounded-md px-2 py-1 text-xs font-semibold" :class="activeDraft.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100'">
+              <span v-if="!isActiveApiReadonly" class="rounded-md px-2 py-1 text-xs font-semibold" :class="activeDraft.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100'">
                 {{ activeDraft.status === 'published' ? '已发布' : '草稿' }}
               </span>
+              <span v-else class="rounded-md bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-800 dark:bg-violet-500/20 dark:text-violet-100">系统内置</span>
               <code class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">/api/mokelay/{{ activeDraft.apiJson.uuid }}</code>
             </div>
           </div>
           <div class="flex flex-wrap gap-2">
             <button class="builder-secondary-button" @click="duplicateCurrentDraft">复制 API</button>
-            <button class="builder-secondary-button disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="saveActiveDraft">{{ isSavingApi ? '保存中...' : '保存' }}</button>
-            <button class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="publishApi">发布</button>
+            <button v-if="!isActiveApiReadonly" class="builder-secondary-button disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="saveActiveDraft">{{ isSavingApi ? '保存中...' : '保存' }}</button>
+            <button v-if="!isActiveApiReadonly" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="publishApi">发布</button>
           </div>
         </div>
       </section>
@@ -1453,7 +1526,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">查询数据</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="block in groupedBlocks.query" :key="block.functionName" class="builder-palette-button" @click="addBlock(block.functionName)">
+              <button v-for="block in groupedBlocks.query" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
                 <span>{{ block.title }}</span>
                 <small>{{ block.description }}</small>
               </button>
@@ -1463,7 +1536,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">写入数据</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="block in groupedBlocks.write" :key="block.functionName" class="builder-palette-button" @click="addBlock(block.functionName)">
+              <button v-for="block in groupedBlocks.write" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
                 <span>{{ block.title }}</span>
                 <small>{{ block.description }}</small>
               </button>
@@ -1473,7 +1546,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">登录态</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="block in groupedBlocks.session" :key="block.functionName" class="builder-palette-button" @click="addBlock(block.functionName)">
+              <button v-for="block in groupedBlocks.session" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
                 <span>{{ block.title }}</span>
                 <small>{{ block.description }}</small>
               </button>
@@ -1483,7 +1556,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">控制器</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="controller in groupedControllers" :key="controller.functionName" class="builder-palette-button" @click="addController(controller.functionName)">
+              <button v-for="controller in groupedControllers" :key="controller.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addController(controller.functionName)">
                 <span>{{ controller.title }}</span>
                 <small>{{ controller.description }}</small>
               </button>
@@ -1511,6 +1584,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               :default-viewport="{ zoom: 0.72, x: 0, y: 0 }"
               :min-zoom="0.4"
               :max-zoom="1"
+              :nodes-draggable="!isActiveApiReadonly"
+              :nodes-connectable="!isActiveApiReadonly"
               class="api-flow"
               @connect="onFlowConnect"
               @edge-click="onFlowEdgeClick"
@@ -1574,6 +1649,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         </main>
 
         <aside class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <p v-if="isActiveApiReadonly" class="mb-4 rounded-lg bg-violet-50 p-3 text-sm text-violet-800 dark:bg-violet-500/10 dark:text-violet-100">系统内置接口为只读，可以查看、测试或复制为用户接口。</p>
+          <fieldset :disabled="isActiveApiReadonly" class="contents">
           <template v-if="selection.type === 'api'">
             <h3 class="text-base font-semibold text-slate-950 dark:text-white">接口入口</h3>
             <div class="mt-4 space-y-3">
@@ -1918,6 +1995,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               </div>
             </div>
           </template>
+          </fieldset>
         </aside>
       </div>
 

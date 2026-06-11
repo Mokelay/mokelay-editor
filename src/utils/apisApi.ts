@@ -2,11 +2,14 @@ import { normalizeApiBuilderLayout } from '@/api-builder/store';
 import type { ApiBuilderLayout, ApiBuilderStatus, ApiJson } from '@/api-builder/types';
 import { apiClient } from '@/composables/useApi';
 
+export type MokelayApiSource = 'user' | 'system';
+
 export type MokelayApiRecord = {
   uuid: string;
   name: string;
   method: string;
   status: ApiBuilderStatus;
+  source: MokelayApiSource;
   apiJson?: ApiJson;
   layout?: ApiBuilderLayout;
   createdAt: string;
@@ -16,6 +19,7 @@ export type MokelayApiRecord = {
 export type ListApisParams = {
   page: number;
   pageSize: number;
+  source?: MokelayApiSource;
 };
 
 export type MokelayApisPagination = {
@@ -76,6 +80,11 @@ type ApisResponse = {
   pagination?: unknown;
 };
 
+type BuiltInApisResponse = {
+  apis?: unknown;
+  count?: unknown;
+};
+
 type ApifoxProjectsResponse = {
   projects?: unknown;
   count?: unknown;
@@ -109,8 +118,16 @@ type MokelayErrorResponse = {
 type MokelayApiResponse<T> = MokelaySuccessResponse<T> | MokelayErrorResponse;
 
 export async function listApis(params: ListApisParams) {
+  if (params.source === 'system') {
+    const response = await apiClient.get<MokelayApiResponse<BuiltInApisResponse>>(
+      '/api/mokelay/list_mokelay_api_jsons'
+    );
+    return normalizeBuiltInApisResponse(unwrapApiResponse(response.data), params);
+  }
+
+  const { source: _source, ...userParams } = params;
   const response = await apiClient.get<MokelayApiResponse<ApisResponse>>('/api/mokelay/list_apis', {
-    params
+    params: userParams
   });
   return normalizeApisResponse(unwrapApiResponse(response.data));
 }
@@ -202,6 +219,27 @@ function normalizeApisResponse(value: ApisResponse): ListApisResult {
   };
 }
 
+function normalizeBuiltInApisResponse(value: BuiltInApisResponse, params: ListApisParams): ListApisResult {
+  const allApis = Array.isArray(value.apis) ? value.apis.map((api) => normalizeBuiltInApiRecord(api)) : [];
+  const page = Math.max(1, Math.trunc(params.page) || 1);
+  const pageSize = Math.max(1, Math.trunc(params.pageSize) || 20);
+  const total = readNumber(value.count, allApis.length);
+  const totalPages = Math.ceil(total / pageSize);
+  const start = (page - 1) * pageSize;
+
+  return {
+    apis: allApis.slice(start, start + pageSize),
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages,
+      hasPreviousPage: page > 1 && total > 0,
+      hasNextPage: page < totalPages
+    }
+  };
+}
+
 function normalizeApifoxProjectsResponse(value: ApifoxProjectsResponse): ListApifoxProjectsResult {
   const projects = Array.isArray(value.projects)
     ? value.projects
@@ -233,6 +271,7 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
   const name = readString(value.name) || '未命名 API';
   const method = readString(value.method).toUpperCase() || 'GET';
   const status = value.status === 'published' ? 'published' : 'draft';
+  const source = value.source === 'system' ? 'system' : 'user';
   const apiJsonValue = isRecord(value.apiJson)
     ? value.apiJson
     : isRecord(value.api_json)
@@ -251,11 +290,26 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
     name,
     method,
     status,
+    source,
     apiJson: apiJsonValue as ApiJson | undefined,
     ...(layout ? { layout } : {}),
     createdAt: readString(value.createdAt) || readString(value.created_at),
     updatedAt: readString(value.updatedAt) || readString(value.updated_at)
   };
+}
+
+function normalizeBuiltInApiRecord(value: unknown): MokelayApiRecord {
+  if (!isRecord(value)) {
+    throw new Error('Invalid API record.');
+  }
+
+  return normalizeApiRecord({
+    uuid: value.uuid,
+    name: value.alias,
+    method: value.method,
+    source: 'system',
+    apiJson: value
+  });
 }
 
 function normalizeApifoxProjectRecord(value: unknown): ApifoxProjectRecord | undefined {

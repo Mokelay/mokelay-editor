@@ -21,6 +21,7 @@ export function createDraft(apiJson: ApiJson = createEmptyApiJson(), layout: unk
     apiJson: normalized,
     layout: normalizeApiBuilderLayout(layout),
     status: 'draft',
+    source: 'user',
     disabledBlockIds: [],
     testCases: [],
     createdAt: now,

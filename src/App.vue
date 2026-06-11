@@ -50,6 +50,7 @@ type ParsedRoute = {
   pageUuid: string | null;
   apiUuid: string | null;
   apiBuilder: boolean;
+  apiSource: 'user' | 'system';
   datasourceList: boolean;
   pageList: boolean;
   preview: boolean;
@@ -72,6 +73,7 @@ const routePageUuid = computed(() => parsedRoute.value.pageUuid);
 const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
 const isDatasourceListPage = computed(() => parsedRoute.value.datasourceList);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
+const routeApiSource = computed(() => parsedRoute.value.apiSource);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
 const isPageListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.pageList);
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && Boolean(routePageUuid.value));
@@ -89,7 +91,9 @@ function syncRoute() {
 
 function parseRouteHash(hash: string): ParsedRoute {
   const rawPath = hash.replace(/^#/, '') || '/';
-  const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  const normalizedPath = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  const [path, rawQuery = ''] = normalizedPath.split('?', 2);
+  const apiSource = new URLSearchParams(rawQuery).get('source') === 'system' ? 'system' : 'user';
   const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
   const apiMatch = path.match(/^\/apis(?:\/([^/]+))?\/?$/);
 
@@ -98,6 +102,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       pageUuid: null,
       apiUuid: apiMatch[1] ? safeDecodeURIComponent(apiMatch[1]) : null,
       apiBuilder: true,
+      apiSource,
       datasourceList: false,
       pageList: false,
       preview: false
@@ -109,6 +114,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       pageUuid: null,
       apiUuid: null,
       apiBuilder: false,
+      apiSource: 'user',
       datasourceList: true,
       pageList: false,
       preview: false
@@ -120,6 +126,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       pageUuid: null,
       apiUuid: null,
       apiBuilder: false,
+      apiSource: 'user',
       datasourceList: false,
       pageList: true,
       preview: false
@@ -131,6 +138,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       pageUuid: safeDecodeURIComponent(pageMatch[1]),
       apiUuid: null,
       apiBuilder: false,
+      apiSource: 'user',
       datasourceList: false,
       pageList: false,
       preview: Boolean(pageMatch[2])
@@ -141,6 +149,7 @@ function parseRouteHash(hash: string): ParsedRoute {
     pageUuid: null,
     apiUuid: null,
     apiBuilder: false,
+    apiSource: 'user',
     datasourceList: false,
     pageList: false,
     preview: path === '/preview'
@@ -439,6 +448,7 @@ function handlePageCreated(page: MokelayPage) {
       <ApiBuilderShell
         v-if="isApiBuilderPage"
         :route-uuid="routeApiUuid"
+        :route-source="routeApiSource"
       />
       <PreviewPanel
         v-else-if="isPreviewPage"

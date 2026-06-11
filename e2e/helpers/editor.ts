@@ -54,6 +54,7 @@ export type MockMokelayApi = {
   layout?: Record<string, unknown>;
   createdAt?: string;
   updatedAt?: string;
+  source?: 'user' | 'system';
 };
 
 export type MockApiDomain = {
@@ -80,6 +81,7 @@ type MockPagesApiOptions = {
   syncedDatasourceSchemas?: Record<string, MockDatasourceTableSchema[]>;
   datasourceSyncErrors?: string[];
   apis?: MockMokelayApi[];
+  systemApis?: MockMokelayApi[];
   apiDomains?: MockApiDomain[];
   seedDefaultPage?: boolean;
   apiDelays?: {
@@ -113,10 +115,12 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const apps = new Map<string, MockMokelayApp>();
   const datasources = new Map<string, MockMokelayDatasource>();
   const apis = new Map<string, MockMokelayApi>();
+  const systemApis = new Map<string, MockMokelayApi>();
   const apiDomains = new Map<string, MockApiDomain>();
   const apiSnapshots: MockApiSnapshot[] = [];
   const apiSavePayloads: Record<string, unknown>[] = [];
   const apiDomainRequests: string[] = [];
+  const apiListRequests: string[] = [];
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
@@ -167,6 +171,13 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       updatedAt: now,
       layout: defaultApiLayout(),
       ...apiRecord
+    });
+  }
+
+  for (const apiRecord of options.systemApis ?? []) {
+    systemApis.set(apiRecord.uuid, {
+      ...apiRecord,
+      source: 'system'
     });
   }
 
@@ -344,6 +355,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     }
 
     if (method === 'GET' && url.pathname === '/api/mokelay/list_apis') {
+      apiListRequests.push(request.url());
       const pageNumber = Number(url.searchParams.get('page') ?? 1);
       const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
       const apiRecords = Array.from(apis.values())
@@ -356,6 +368,24 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
         pageSize,
         total: apiRecords.length
       }, corsHeaders);
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_mokelay_api_jsons') {
+      apiListRequests.push(request.url());
+      const apiRecords = Array.from(systemApis.values());
+      await delay(options.apiDelays?.listApis);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            apis: apiRecords.map((apiRecord) => apiRecord.apiJson),
+            count: apiRecords.length
+          }
+        })
+      });
       return;
     }
 
@@ -451,7 +481,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, apps, datasources, apis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests };
+  return { pages, apps, datasources, apis, systemApis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests, apiListRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -940,14 +970,16 @@ async function fulfillApiError(
 }
 
 function serializeApi(apiRecord: MockMokelayApi, includeApiJson: boolean) {
+  const source = apiRecord.source === 'system' ? 'system' : 'user';
+
   return {
     uuid: apiRecord.uuid,
     name: apiRecord.name,
     method: apiRecord.method,
-    status: apiRecord.status,
-    ...(includeApiJson ? { apiJson: apiRecord.apiJson } : {}),
-    ...(includeApiJson ? { layout: normalizeMockApiLayout(apiRecord.layout) } : {}),
-    createdAt: apiRecord.createdAt,
-    updatedAt: apiRecord.updatedAt
+    ...(source === 'system' ? { source } : {}),
+    ...(source === 'user' ? { status: apiRecord.status } : {}),
+    ...(includeApiJson || source === 'system' ? { apiJson: apiRecord.apiJson } : {}),
+    ...(includeApiJson && source === 'user' ? { layout: normalizeMockApiLayout(apiRecord.layout) } : {}),
+    ...(source === 'user' ? { createdAt: apiRecord.createdAt, updatedAt: apiRecord.updatedAt } : {})
   };
 }

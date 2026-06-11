@@ -91,6 +91,125 @@ test('loads API list from the server and opens API details', async ({ page }) =>
   await expect(page.locator('[data-testid="api-builder-json"]')).toContainText('"uuid": "login_users"');
 });
 
+test('switches to system APIs and opens them as read-only before copying', async ({ page }) => {
+  const apiState = await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'user_api',
+        name: '用户接口',
+        method: 'GET',
+        status: 'draft',
+        apiJson: {
+          uuid: 'user_api',
+          alias: '用户接口',
+          method: 'GET',
+          blocks: []
+        }
+      }
+    ],
+    systemApis: [
+      {
+        uuid: 'zeta_system',
+        name: 'Zeta 系统接口',
+        method: 'POST',
+        status: 'published',
+        apiJson: {
+          uuid: 'zeta_system',
+          alias: 'Zeta 系统接口',
+          method: 'POST',
+          blocks: linearBlocks([
+            {
+              uuid: 'read_system_data',
+              alias: '读取系统数据',
+              functionName: 'read',
+              inputs: { datasource: 'Mokelay', table: 'users', fields: ['id'] },
+              outputs: ['data']
+            }
+          ]),
+          response: { data: { template: "{{blocks['read_system_data'].outputs.data}}" } }
+        }
+      },
+      {
+        uuid: 'alpha_system',
+        name: 'Alpha 系统接口',
+        method: 'GET',
+        status: 'published',
+        apiJson: {
+          uuid: 'alpha_system',
+          alias: 'Alpha 系统接口',
+          method: 'GET',
+          blocks: []
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis');
+  await page.getByTestId('api-source-select').selectOption('system');
+
+  await expect(page).toHaveURL(/#\/apis\?source=system$/);
+  await expect.poll(() => apiState.apiListRequests.some((requestUrl) => new URL(requestUrl).pathname === '/api/mokelay/list_mokelay_api_jsons')).toBe(true);
+  await expect(page.getByRole('columnheader', { name: '状态' })).toHaveCount(0);
+  await expect(page.getByRole('columnheader', { name: '最近编辑' })).toHaveCount(0);
+  const systemRow = page.getByRole('row', { name: /zeta_system/ });
+  await expect(systemRow).toBeVisible();
+  await expect(systemRow.getByRole('button', { name: '删除' })).toHaveCount(0);
+
+  await systemRow.getByRole('button', { name: '打开' }).click();
+
+  await expect(page).toHaveURL(/#\/apis\/zeta_system\?source=system$/);
+  await expect(page.getByText('系统内置', { exact: true })).toBeVisible();
+  await expect(page.getByText('系统内置接口为只读')).toBeVisible();
+  await expect(page.getByRole('button', { name: '保存', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '发布', exact: true })).toHaveCount(0);
+  await expect(page.locator('label').filter({ hasText: '接口名称' }).locator('input')).toBeDisabled();
+  await expect(page.getByRole('heading', { name: '读取系统数据' })).toBeVisible();
+
+  await page.getByRole('button', { name: '复制 API' }).click();
+  await page.getByTestId('api-info-name').fill('复制的系统接口');
+  await page.getByTestId('api-info-uuid').fill('copied_system_api');
+  await page.getByTestId('api-info-submit').click();
+
+  await expect(page).toHaveURL(/#\/apis\/copied_system_api$/);
+  await expect(page.getByRole('button', { name: '保存', exact: true })).toBeVisible();
+  await expect.poll(() => apiState.apis.get('copied_system_api')?.name).toBe('复制的系统接口');
+});
+
+test('loads a system API from a direct source-aware URL', async ({ page }) => {
+  await resetEditor(page, {
+    systemApis: [
+      {
+        uuid: 'direct_system_api',
+        name: '系统直达接口',
+        method: 'GET',
+        status: 'published',
+        apiJson: {
+          uuid: 'direct_system_api',
+          alias: '系统直达接口',
+          method: 'GET',
+          blocks: linearBlocks([
+            {
+              uuid: 'direct_read',
+              alias: '直达读取步骤',
+              functionName: 'read',
+              inputs: { datasource: 'Mokelay', table: 'users', fields: ['id'] },
+              outputs: ['data']
+            }
+          ])
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis/direct_system_api?source=system');
+
+  await expect(page.getByRole('heading', { name: '直达读取步骤' })).toBeVisible();
+  await expect(page.getByText('系统内置', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '返回 API 列表' }).click();
+  await expect(page).toHaveURL(/#\/apis\?source=system$/);
+  await expect(page.getByTestId('api-source-select')).toHaveValue('system');
+});
+
 test('keeps API detail blocks when the list response finishes after detail refresh', async ({ page }) => {
   await resetEditor(page, {
     apiDelays: {

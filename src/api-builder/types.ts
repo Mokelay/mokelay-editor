@@ -114,6 +114,7 @@ export type ApiJson = {
 };
 
 export type ApiBuilderStatus = 'draft' | 'published';
+export type ApiBuilderSource = 'user' | 'system';
 
 export type ApiBuilderNodePosition = {
   x: number;
@@ -138,6 +139,7 @@ export type ApiBuilderDraft = {
   apiJson: ApiJson;
   layout: ApiBuilderLayout;
   status: ApiBuilderStatus;
+  source: ApiBuilderSource;
   disabledBlockIds: string[];
   testCases: ApiBuilderTestCase[];
   createdAt: string;
