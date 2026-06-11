@@ -5,7 +5,6 @@ import {
   cloneJsonSchema,
   cloneJsonValue,
   flattenSchemaTree,
-  getArrayRecordOptions,
   getSchemaTreeNodes,
   inferJSONSchema,
   isJsonObjectValue,
@@ -25,22 +24,17 @@ import {
   bodyDataTypes,
   getDefaultApiDatasource,
   getDefaultBodyMock,
-  getDefaultDatasource,
   normalizeBodyDataType,
   normalizeBodyFileMock,
   normalizeBodyMock,
   normalizeDatasource,
-  normalizeJsonValue,
   normalizeMethod,
   type DatasourceRequestOptions,
   type MDatasourceApiObject,
   type MDatasourceBodyDataType,
   type MDatasourceBodyFileMock,
   type MDatasourceBodyItem,
-  type MDatasourceJsonObject,
-  type MDatasourceKeyMockItem,
-  type MDatasourceObject,
-  type MDatasourceType
+  type MDatasourceKeyMockItem
 } from '@/utils/datasource';
 
 export type {
@@ -51,17 +45,19 @@ export type {
   MDatasourceApiObject,
   MDatasourceBodyDataType,
   MDatasourceBodyItem,
-  MDatasourceJsonObject,
-  MDatasourceKeyMockItem,
-  MDatasourceObject,
-  MDatasourceType
+  MDatasourceKeyMockItem
 } from '@/utils/datasource';
 export { normalizeDatasource } from '@/utils/datasource';
 export type { SchemaSelectionField } from '@/utils/datasourceSchema';
 
 export interface MDatasourceEditorProps {
   edit: boolean;
-  value?: MDatasourceObject;
+  value?: MDatasourceApiObject;
+}
+
+function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
+  const normalized = normalizeDatasource(value);
+  return normalized.type === 'API' ? normalized : getDefaultApiDatasource();
 }
 
 export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
@@ -72,14 +68,14 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
     icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><ellipse cx="12" cy="6" rx="7" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12c1.1.5 2.5.8 4 .8s2.9-.3 4-.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
   },
   createInitialProps: () => ({
-    value: getDefaultDatasource()
+    value: getDefaultApiDatasource()
   }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
-    value: normalizeDatasource(props.value)
+    value: normalizeApiDatasource(props.value)
   }),
   serialize: (props) => ({
-    value: normalizeDatasource(props.value)
+    value: normalizeApiDatasource(props.value)
   })
 });
 </script>
@@ -123,7 +119,12 @@ type ApiStateBodyItem = Omit<MDatasourceBodyItem, 'mock'> & {
 type ApiState = Omit<MDatasourceApiObject, 'bodyData' | 'jsonSchema' | 'schemaSelections'> & {
   bodyData: ApiStateBodyItem[];
 };
-type SchemaTab = 'list' | 'form' | 'advanced';
+type SchemaFieldSource = 'list' | 'form';
+type SchemaFieldSourceFilter = 'all' | SchemaFieldSource;
+type SchemaDataTypeFilter = 'all' | Extract<SchemaSelectionField['type'], 'string' | 'number' | 'boolean' | 'object' | 'array'>;
+type CombinedSchemaSelectionField = SchemaSelectionField & {
+  source: SchemaFieldSource;
+};
 type ApiImportSource = 'mokelay' | 'apifox';
 
 const props = defineProps<MDatasourceEditorProps & {
@@ -132,23 +133,20 @@ const props = defineProps<MDatasourceEditorProps & {
 }>();
 
 const { t } = useI18n();
-const normalizedInitialValue = normalizeDatasource(props.value);
+const normalizedInitialValue = normalizeApiDatasource(props.value);
 const bodyDataTypeOptions = bodyDataTypes;
-const currentType = ref<MDatasourceType>(normalizedInitialValue.type);
-const jsonValue = shallowRef<JsonValue>(normalizedInitialValue.type === 'JSON' ? normalizedInitialValue.rawData : {});
-const jsonText = ref(formatJsonValue(jsonValue.value));
-const jsonError = ref('');
 const jsonSchemaValue = shallowRef<JSONSchema | undefined>(normalizedInitialValue.jsonSchema);
 const jsonSchemaText = ref(formatJsonSchema(jsonSchemaValue.value));
 const jsonSchemaError = ref('');
-const jsonSchemaLoading = ref(false);
+const responseExampleLoading = ref(false);
 const schemaSelectionsValue = shallowRef<DatasourceSchemaSelections | undefined>(normalizedInitialValue.schemaSelections);
 const responseExampleValue = shallowRef<JsonValue | undefined>(normalizedInitialValue.responseExample);
-const schemaTab = ref<SchemaTab>('list');
+const responseExampleText = ref(formatOptionalJsonValue(responseExampleValue.value));
+const responseExampleError = ref('');
+const schemaFieldSourceFilter = ref<SchemaFieldSourceFilter>('all');
+const schemaDataTypeFilter = ref<SchemaDataTypeFilter>('all');
 const schemaSearch = ref('');
-const apiState = reactive<ApiState>(
-  normalizedInitialValue.type === 'API' ? normalizedInitialValue : getDefaultApiDatasource()
-);
+const apiState = reactive<ApiState>(normalizedInitialValue);
 const bodyMockInputs = ref<string[]>(apiState.bodyData.map((item) => getBodyMockInputValue(item)));
 const bodyMockErrors = ref<string[]>(apiState.bodyData.map(() => ''));
 const bodyFileInputs = ref<Array<File | undefined>>(apiState.bodyData.map(() => undefined));
@@ -159,6 +157,8 @@ const hasLoadedApiDomains = ref(false);
 const apiImportSource = ref<ApiImportSource>('mokelay');
 const apiImportDialogRef = ref<HTMLDialogElement | null>(null);
 const isApiImportDialogOpen = ref(false);
+const fullSchemaDialogRef = ref<HTMLDialogElement | null>(null);
+const isFullSchemaDialogOpen = ref(false);
 const mokelayApiOptions = ref<MokelayApiRecord[]>([]);
 const selectedMokelayApiUuid = ref('');
 const apifoxProjectOptions = ref<ApifoxProjectRecord[]>([]);
@@ -172,19 +172,21 @@ const hasLoadedApifoxProjects = ref(false);
 const isReadOnly = computed(() => !props.edit);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
-const listRecordOptions = computed(() => getArrayRecordOptions(jsonSchemaValue.value));
 const listSelectionFields = computed(() => schemaSelectionsValue.value?.list?.fields ?? []);
 const formSelectionFields = computed(() => schemaSelectionsValue.value?.form?.fields ?? []);
-const visibleSchemaNodes = computed(() => filterSchemaNodes(flattenedSchemaNodes.value, schemaSearch.value));
-const visibleListSelectionFields = computed(() => filterSelectionFields(listSelectionFields.value, schemaSearch.value));
-const visibleFormSelectionFields = computed(() => filterSelectionFields(formSelectionFields.value, schemaSearch.value));
-const selectedListRecordPath = computed(() => schemaSelectionsValue.value?.list?.recordPath ?? '');
-const enabledListFieldCount = computed(() => listSelectionFields.value.filter((field) => field.enabled).length);
-const enabledFormFieldCount = computed(() => formSelectionFields.value.filter((field) => field.enabled).length);
+const combinedSelectionFields = computed<CombinedSchemaSelectionField[]>(() => [
+  ...listSelectionFields.value.map((field) => ({ ...field, source: 'list' as const })),
+  ...formSelectionFields.value.map((field) => ({ ...field, source: 'form' as const }))
+]);
+const visibleSelectionFields = computed(() => filterSelectionFields(
+  combinedSelectionFields.value,
+  schemaSearch.value,
+  schemaFieldSourceFilter.value,
+  schemaDataTypeFilter.value
+));
+const enabledFieldCount = computed(() => combinedSelectionFields.value.filter((field) => field.enabled).length);
 const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value || apiDomainLoading.value);
 const isApiDomainSelectDisabled = computed(() => isReadOnly.value || apiDomainLoading.value || !apiDomainOptions.value.length);
-const hasResponseExample = computed(() => responseExampleValue.value !== undefined);
-const responseExampleText = computed(() => hasResponseExample.value ? formatJsonValue(responseExampleValue.value!) : '');
 const apiImportDialogTitle = computed(() => t(`datasource.import.sources.${apiImportSource.value}`));
 const apiDomainEmptyOptionText = computed(() => {
   if (apiDomainLoading.value) {
@@ -209,6 +211,10 @@ function formatJsonValue(value: JsonValue) {
   return JSON.stringify(value, null, 2);
 }
 
+function formatOptionalJsonValue(value?: JsonValue) {
+  return value === undefined ? '' : formatJsonValue(value);
+}
+
 function formatJsonSchema(value?: JSONSchema) {
   return value ? JSON.stringify(value, null, 2) : '';
 }
@@ -217,58 +223,36 @@ function getSchemaTypeLabel(type: SchemaTreeNode['type'] | SchemaSelectionField[
   return t(`datasource.schemaTypes.${type}`);
 }
 
-function getComponentHintLabel(hint: SchemaSelectionField['componentHint']) {
-  return t(`datasource.componentHints.${hint}`);
-}
-
 function normalizeSearchValue(value: string) {
   return value.trim().toLowerCase();
 }
 
-function filterSchemaNodes(nodes: SchemaTreeNode[], searchValue: string) {
+function filterSelectionFields(
+  fields: CombinedSchemaSelectionField[],
+  searchValue: string,
+  sourceFilter: SchemaFieldSourceFilter,
+  dataTypeFilter: SchemaDataTypeFilter
+) {
   const normalizedSearchValue = normalizeSearchValue(searchValue);
-  if (!normalizedSearchValue) {
-    return nodes;
-  }
-
-  return nodes.filter((node) =>
-    node.name.toLowerCase().includes(normalizedSearchValue) ||
-    node.displayPath.toLowerCase().includes(normalizedSearchValue)
-  );
-}
-
-function filterSelectionFields(fields: SchemaSelectionField[], searchValue: string) {
-  const normalizedSearchValue = normalizeSearchValue(searchValue);
-  if (!normalizedSearchValue) {
-    return fields;
-  }
-
   return fields.filter((field) =>
-    field.label.toLowerCase().includes(normalizedSearchValue) ||
-    field.path.toLowerCase().includes(normalizedSearchValue)
+    (sourceFilter === 'all' || field.source === sourceFilter) &&
+    (dataTypeFilter === 'all' || field.type === dataTypeFilter) &&
+    (!normalizedSearchValue || field.path.toLowerCase().includes(normalizedSearchValue))
   );
 }
 
-function getSchemaNodeTestIdPath(path: string) {
-  return path || 'root';
+function getSchemaFieldSourceLabel(source: SchemaFieldSource) {
+  return t(`datasource.fieldSources.${source}`);
 }
 
-function getRecordPathLabel(path: string) {
-  if (!path) {
-    return t('datasource.fields.rootRecordPath');
-  }
-
-  return `${path}[]`;
-}
-
-function getDatasourcePayload(value: MDatasourceObject): MDatasourceEditorProps {
+function getDatasourcePayload(value: MDatasourceApiObject): MDatasourceEditorProps {
   return {
     edit: props.edit,
-    value: normalizeDatasource(value)
+    value: normalizeApiDatasource(value)
   };
 }
 
-function emitDatasource(value: MDatasourceObject) {
+function emitDatasource(value: MDatasourceApiObject) {
   if (!props.edit) return;
 
   const payload = getDatasourcePayload(value);
@@ -276,18 +260,8 @@ function emitDatasource(value: MDatasourceObject) {
   props.onChange?.(payload);
 }
 
-function buildJsonDatasource(): MDatasourceJsonObject {
-  return normalizeDatasource({
-    type: 'JSON',
-    rawData: normalizeJsonValue(jsonValue.value, {}),
-    jsonSchema: jsonSchemaValue.value,
-    schemaSelections: schemaSelectionsValue.value,
-    responseExample: responseExampleValue.value
-  }) as MDatasourceJsonObject;
-}
-
 function buildApiDatasource(): MDatasourceApiObject {
-  return normalizeDatasource({
+  return normalizeApiDatasource({
     type: 'API',
     domain: apiState.domain,
     path: apiState.path,
@@ -298,11 +272,11 @@ function buildApiDatasource(): MDatasourceApiObject {
     jsonSchema: jsonSchemaValue.value,
     schemaSelections: schemaSelectionsValue.value,
     responseExample: responseExampleValue.value
-  }) as MDatasourceApiObject;
+  });
 }
 
 function emitCurrentDatasource() {
-  emitDatasource(currentType.value === 'JSON' ? buildJsonDatasource() : buildApiDatasource());
+  emitApiChange();
 }
 
 function emitApiChange() {
@@ -341,6 +315,8 @@ function syncJsonSchemaState(value?: JSONSchema, selections?: DatasourceSchemaSe
   jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
   schemaSelectionsValue.value = normalizeSchemaSelections(selections, jsonSchemaValue.value);
   responseExampleValue.value = responseExample !== undefined ? cloneJsonValue(responseExample) : undefined;
+  responseExampleText.value = formatOptionalJsonValue(responseExampleValue.value);
+  responseExampleError.value = '';
   jsonSchemaError.value = '';
 }
 
@@ -362,7 +338,7 @@ function syncApiState(value: MDatasourceApiObject) {
 }
 
 function normalizeApiDomainState(shouldEmit = props.edit) {
-  if (!apiDomainOptions.value.length || currentType.value !== 'API') {
+  if (!apiDomainOptions.value.length) {
     return;
   }
 
@@ -434,7 +410,6 @@ function isDefaultBlankApiState() {
 }
 
 function applyImportedApiDatasource(imported: ImportedApiDatasource) {
-  currentType.value = 'API';
   syncApiState(imported.datasource);
   syncJsonSchemaState(imported.jsonSchema, undefined, imported.responseExample);
   apiImportError.value = '';
@@ -449,7 +424,7 @@ function setApiImportSource(value: ApiImportSource) {
 }
 
 function openApiImportDialog(source: ApiImportSource) {
-  if (!props.edit || currentType.value !== 'API') return;
+  if (!props.edit) return;
 
   setApiImportSource(source);
   isApiImportDialogOpen.value = true;
@@ -463,6 +438,20 @@ function closeApiImportDialog() {
   isApiImportDialogOpen.value = false;
   if (apiImportDialogRef.value?.open) {
     apiImportDialogRef.value.close();
+  }
+}
+
+function openFullSchemaDialog() {
+  isFullSchemaDialogOpen.value = true;
+  if (!fullSchemaDialogRef.value?.open) {
+    fullSchemaDialogRef.value?.showModal();
+  }
+}
+
+function closeFullSchemaDialog() {
+  isFullSchemaDialogOpen.value = false;
+  if (fullSchemaDialogRef.value?.open) {
+    fullSchemaDialogRef.value.close();
   }
 }
 
@@ -535,7 +524,7 @@ async function loadApifoxProjectOptions(force = false) {
 }
 
 async function ensureApiImportOptions(force = false) {
-  if (!props.edit || currentType.value !== 'API') {
+  if (!props.edit) {
     return;
   }
 
@@ -599,53 +588,10 @@ async function importSelectedApi() {
 }
 
 function syncLocalState(value: unknown) {
-  const normalized = normalizeDatasource(value);
-  currentType.value = normalized.type;
+  const normalized = normalizeApiDatasource(value);
   syncJsonSchemaState(normalized.jsonSchema, normalized.schemaSelections, normalized.responseExample);
-
-  if (normalized.type === 'JSON') {
-    jsonValue.value = normalized.rawData;
-    jsonText.value = formatJsonValue(normalized.rawData);
-    jsonError.value = '';
-    return;
-  }
-
   syncApiState(normalized);
   normalizeApiDomainState();
-}
-
-function setDatasourceType(type: MDatasourceType) {
-  if (!props.edit || currentType.value === type) return;
-
-  currentType.value = type;
-  if (type === 'JSON') {
-    emitDatasource(buildJsonDatasource());
-    return;
-  }
-
-  normalizeApiDomainState(false);
-  void ensureApiDomainOptions();
-  emitApiChange();
-}
-
-function handleJsonInput(event: Event) {
-  if (!props.edit) return;
-
-  const nextText = (event.target as HTMLTextAreaElement).value;
-  jsonText.value = nextText;
-
-  try {
-    const parsed = JSON.parse(nextText) as unknown;
-    if (!isJsonValue(parsed)) {
-      throw new Error('Invalid JSON value.');
-    }
-
-    jsonValue.value = cloneJsonValue(parsed);
-    jsonError.value = '';
-    emitDatasource(buildJsonDatasource());
-  } catch {
-    jsonError.value = t('datasource.validation.invalidJson');
-  }
 }
 
 function handleJsonSchemaInput(event: Event) {
@@ -820,15 +766,46 @@ function getDatasourceErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function applyGeneratedJsonSchema(schema: JSONSchema, responseExample?: JsonValue) {
+function applyGeneratedJsonSchema(schema: JSONSchema) {
   jsonSchemaValue.value = cloneJsonSchema(schema);
   jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
   schemaSelectionsValue.value = reconcileSchemaSelections(jsonSchemaValue.value, schemaSelectionsValue.value);
-  if (responseExample !== undefined) {
-    responseExampleValue.value = cloneJsonValue(responseExample);
-  }
   jsonSchemaError.value = '';
   emitCurrentDatasource();
+}
+
+function applyResponseExample(value: JsonValue) {
+  responseExampleValue.value = cloneJsonValue(value);
+  responseExampleText.value = formatJsonValue(responseExampleValue.value);
+  responseExampleError.value = '';
+  emitCurrentDatasource();
+}
+
+function handleResponseExampleInput(event: Event) {
+  if (!props.edit) return;
+
+  const nextText = (event.target as HTMLTextAreaElement).value;
+  responseExampleText.value = nextText;
+
+  if (!nextText.trim()) {
+    responseExampleValue.value = undefined;
+    responseExampleError.value = '';
+    emitCurrentDatasource();
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(nextText) as unknown;
+    if (!isJsonValue(parsed)) {
+      throw new Error('Invalid JSON response example.');
+    }
+
+    responseExampleValue.value = cloneJsonValue(parsed);
+    responseExampleError.value = '';
+    emitCurrentDatasource();
+  } catch {
+    responseExampleError.value = t('datasource.validation.invalidResponseExample');
+  }
 }
 
 function inferDatasourceSchemaFromData(data: JsonValue) {
@@ -844,24 +821,7 @@ function inferDatasourceSchemaFromData(data: JsonValue) {
   throw new DatasourceError('mixedArraySchema', 'The array contains incompatible types, so JSON Schema cannot be inferred.');
 }
 
-function updateListRecordPath(recordPath: string) {
-  if (!props.edit || !jsonSchemaValue.value) return;
-
-  schemaSelectionsValue.value = reconcileSchemaSelections(jsonSchemaValue.value, {
-    ...schemaSelectionsValue.value,
-    list: {
-      recordPath,
-      fields: schemaSelectionsValue.value?.list?.fields ?? []
-    }
-  });
-  emitCurrentDatasource();
-}
-
-function updateSelectionField(
-  selectionType: 'list' | 'form',
-  path: string,
-  changes: Partial<Pick<SchemaSelectionField, 'enabled' | 'label'>>
-) {
+function updateSelectionEnabled(selectionType: SchemaFieldSource, path: string, enabled: boolean) {
   if (!props.edit) return;
 
   const currentSelections = normalizeSchemaSelections(schemaSelectionsValue.value, jsonSchemaValue.value);
@@ -875,8 +835,7 @@ function updateSelectionField(
     field.path === path
       ? {
           ...field,
-          ...changes,
-          label: changes.label !== undefined ? changes.label : field.label
+          enabled
         }
       : field
   );
@@ -900,18 +859,6 @@ function updateSelectionField(
       : {})
   };
   emitCurrentDatasource();
-}
-
-function updateSelectionLabel(selectionType: 'list' | 'form', path: string, value: string) {
-  updateSelectionField(selectionType, path, {
-    label: value.trim() || path
-  });
-}
-
-function updateSelectionEnabled(selectionType: 'list' | 'form', path: string, enabled: boolean) {
-  updateSelectionField(selectionType, path, {
-    enabled
-  });
 }
 
 function validateBodyFilesForRequest() {
@@ -947,42 +894,51 @@ function getDatasourceRequestOptions(): DatasourceRequestOptions {
   };
 }
 
-async function parseJsonSchema() {
-  if (!props.edit || jsonSchemaLoading.value) return;
+async function captureResponseExample() {
+  if (!props.edit || responseExampleLoading.value) return;
 
   jsonSchemaError.value = '';
 
-  if (currentType.value === 'JSON') {
-    if (jsonError.value) {
-      jsonSchemaError.value = t('datasource.validation.fixJsonBeforeSchema');
-      return;
-    }
-
-  } else {
-    if (!validateBodyFilesForRequest()) {
-      jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
-      return;
-    }
-
-    const invalidBodyIndex = bodyMockErrors.value.findIndex((error) => Boolean(error));
-    if (invalidBodyIndex >= 0) {
-      jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
-      return;
-    }
+  if (!validateBodyFilesForRequest()) {
+    jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
+    return;
   }
 
-  jsonSchemaLoading.value = true;
+  const invalidBodyIndex = bodyMockErrors.value.findIndex((error) => Boolean(error));
+  if (invalidBodyIndex >= 0) {
+    jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
+    return;
+  }
+
+  responseExampleLoading.value = true;
 
   try {
-    const responseData = currentType.value === 'JSON'
-      ? await resolveDatasourceRemote(buildJsonDatasource())
-      : await resolveDatasourceRemote(buildApiDatasource(), getDatasourceRequestOptions());
-    const schema = inferDatasourceSchemaFromData(responseData);
-    applyGeneratedJsonSchema(schema, responseData);
+    const responseData = await resolveDatasourceRemote(buildApiDatasource(), getDatasourceRequestOptions());
+    applyResponseExample(responseData);
   } catch (error) {
     jsonSchemaError.value = getDatasourceErrorMessage(error);
   } finally {
-    jsonSchemaLoading.value = false;
+    responseExampleLoading.value = false;
+  }
+}
+
+function updateResponseSchema() {
+  if (!props.edit) return;
+
+  jsonSchemaError.value = '';
+  if (responseExampleError.value) {
+    return;
+  }
+
+  if (responseExampleValue.value === undefined) {
+    responseExampleError.value = t('datasource.validation.missingResponseExample');
+    return;
+  }
+
+  try {
+    applyGeneratedJsonSchema(inferDatasourceSchemaFromData(responseExampleValue.value));
+  } catch (error) {
+    jsonSchemaError.value = getDatasourceErrorMessage(error);
   }
 }
 
@@ -1089,18 +1045,7 @@ function getBodyMockInputValue(item: ApiStateBodyItem) {
   return String(normalizedMock);
 }
 
-watch(
-  () => currentType.value,
-  () => {
-    if (currentType.value !== 'API') {
-      closeApiImportDialog();
-      return;
-    }
-
-    void ensureApiDomainOptions();
-  },
-  { immediate: true }
-);
+void ensureApiDomainOptions();
 
 watch(
   () => props.value,
@@ -1115,86 +1060,48 @@ watch(
   <div class="ce-datasource-tool" data-testid="editor-datasource-tool">
     <div class="ce-datasource-tool__header">
       <div class="ce-datasource-tool__title">{{ t('datasource.title') }}</div>
-      <div class="ce-datasource-tool__type-switch" :aria-label="t('datasource.fields.type')">
-        <button
-          type="button"
-          class="ce-datasource-tool__type-button"
-          :class="{ 'ce-datasource-tool__type-button--active': currentType === 'API' }"
-          :disabled="isReadOnly"
-          data-testid="datasource-type-api"
-          @click="setDatasourceType('API')"
-        >
-          API
-        </button>
-        <button
-          type="button"
-          class="ce-datasource-tool__type-button"
-          :class="{ 'ce-datasource-tool__type-button--active': currentType === 'JSON' }"
-          :disabled="isReadOnly"
-          data-testid="datasource-type-json"
-          @click="setDatasourceType('JSON')"
-        >
-          JSON
-        </button>
-      </div>
     </div>
 
-    <div v-if="currentType === 'JSON'" class="ce-datasource-tool__panel" data-testid="datasource-json-panel">
-      <label class="ce-datasource-tool__field">
-        <span class="ce-datasource-tool__label">{{ t('datasource.fields.rawData') }}</span>
-        <textarea
-          class="ce-datasource-tool__textarea ce-datasource-tool__textarea--json"
-          data-testid="datasource-raw-data"
-          spellcheck="false"
-          :readonly="isReadOnly"
-          :value="jsonText"
-          @input="handleJsonInput"
-          @keydown.stop
-        ></textarea>
-      </label>
-      <p v-if="jsonError" class="ce-datasource-tool__error" data-testid="datasource-json-error">
-        {{ jsonError }}
-      </p>
-    </div>
-
-    <div v-else class="ce-datasource-tool__panel" data-testid="datasource-api-panel">
-      <div v-if="edit" class="ce-datasource-tool__import-panel" data-testid="datasource-api-import-panel">
-        <div class="ce-datasource-tool__import-header">
-          <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.importApi') }}</div>
+    <div class="ce-datasource-tool__panel" data-testid="datasource-api-panel">
+      <section v-if="edit" class="ce-datasource-tool__config-section" data-testid="datasource-import-config">
+        <div class="ce-datasource-tool__config-section-header">
+          <div class="ce-datasource-tool__config-section-title">{{ t('datasource.sections.importApi') }}</div>
         </div>
-        <div class="ce-datasource-tool__import-sources">
-          <button
-            class="ce-datasource-tool__import-source-button"
-            type="button"
-            data-testid="datasource-import-open-mokelay"
-            :disabled="apiImportOptionsLoading || apiImportLoading"
-            @click="openApiImportDialog('mokelay')"
-          >
-            <span class="ce-datasource-tool__import-source-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <ellipse cx="12" cy="6" rx="7" ry="3" fill="none" stroke="currentColor" stroke-width="2" />
-                <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" fill="none" stroke="currentColor" stroke-width="2" />
-              </svg>
-            </span>
-            <span class="ce-datasource-tool__import-source-label">{{ t('datasource.import.sources.mokelay') }}</span>
-          </button>
-          <button
-            class="ce-datasource-tool__import-source-button"
-            type="button"
-            data-testid="datasource-import-open-apifox"
-            :disabled="apiImportOptionsLoading || apiImportLoading"
-            @click="openApiImportDialog('apifox')"
-          >
-            <span class="ce-datasource-tool__import-source-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false">
-                <path d="M12 3 20 7.5v9L12 21l-8-4.5v-9L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-                <path d="M12 8v8M8.5 10.2l7 3.6M15.5 10.2l-7 3.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-              </svg>
-            </span>
-            <span class="ce-datasource-tool__import-source-label">{{ t('datasource.import.sources.apifox') }}</span>
-          </button>
+        <div class="ce-datasource-tool__config-section-body" data-testid="datasource-api-import-panel">
+          <div class="ce-datasource-tool__import-sources">
+            <button
+              class="ce-datasource-tool__import-source-button"
+              type="button"
+              data-testid="datasource-import-open-mokelay"
+              :disabled="apiImportOptionsLoading || apiImportLoading"
+              @click="openApiImportDialog('mokelay')"
+            >
+              <span class="ce-datasource-tool__import-source-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <ellipse cx="12" cy="6" rx="7" ry="3" fill="none" stroke="currentColor" stroke-width="2" />
+                  <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" fill="none" stroke="currentColor" stroke-width="2" />
+                </svg>
+              </span>
+              <span class="ce-datasource-tool__import-source-label">{{ t('datasource.import.sources.mokelay') }}</span>
+            </button>
+            <button
+              class="ce-datasource-tool__import-source-button"
+              type="button"
+              data-testid="datasource-import-open-apifox"
+              :disabled="apiImportOptionsLoading || apiImportLoading"
+              @click="openApiImportDialog('apifox')"
+            >
+              <span class="ce-datasource-tool__import-source-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M12 3 20 7.5v9L12 21l-8-4.5v-9L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+                  <path d="M12 8v8M8.5 10.2l7 3.6M15.5 10.2l-7 3.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </span>
+              <span class="ce-datasource-tool__import-source-label">{{ t('datasource.import.sources.apifox') }}</span>
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
 
       <dialog
         v-if="edit"
@@ -1302,6 +1209,11 @@ watch(
         </div>
       </dialog>
 
+      <section class="ce-datasource-tool__config-section" data-testid="datasource-request-config">
+        <div class="ce-datasource-tool__config-section-header">
+          <div class="ce-datasource-tool__config-section-title">{{ t('datasource.sections.requestConfig') }}</div>
+        </div>
+        <div class="ce-datasource-tool__config-section-body">
       <div class="ce-datasource-tool__grid">
         <label class="ce-datasource-tool__field">
           <span class="ce-datasource-tool__label">{{ t('datasource.fields.domain') }}</span>
@@ -1575,24 +1487,37 @@ watch(
           </p>
         </div>
       </details>
+        </div>
+      </section>
 
-    </div>
-
+      <section class="ce-datasource-tool__config-section" data-testid="datasource-response-config">
+        <div class="ce-datasource-tool__config-section-header">
+          <div>
+            <div class="ce-datasource-tool__config-section-title">{{ t('datasource.sections.responseConfig') }}</div>
+            <p class="ce-datasource-tool__section-copy">{{ t('datasource.help.responseConfig') }}</p>
+          </div>
+        </div>
+        <div class="ce-datasource-tool__config-section-body ce-datasource-tool__config-section-body--response">
     <div class="ce-datasource-tool__generate-panel" data-testid="datasource-schema-generate-panel">
-      <div>
-        <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.generateFields') }}</div>
-        <p class="ce-datasource-tool__section-copy">{{ t('datasource.help.generateFields') }}</p>
-      </div>
       <div class="ce-datasource-tool__generate-actions">
         <button
           v-if="edit"
           class="ce-datasource-tool__schema-button"
           type="button"
           data-testid="datasource-json-schema-parse-button"
-          :disabled="jsonSchemaLoading"
-          @click="parseJsonSchema"
+          :disabled="responseExampleLoading"
+          @click="captureResponseExample"
         >
-          {{ jsonSchemaLoading ? t('datasource.actions.generatingFields') : t('datasource.actions.generateFields') }}
+          {{ responseExampleLoading ? t('datasource.actions.capturingResponseExample') : t('datasource.actions.captureResponseExample') }}
+        </button>
+        <button
+          v-if="edit"
+          class="ce-datasource-tool__schema-button"
+          type="button"
+          data-testid="datasource-response-schema-update-button"
+          @click="updateResponseSchema"
+        >
+          {{ t('datasource.actions.updateSchema') }}
         </button>
         <span v-if="jsonSchemaValue" class="ce-datasource-tool__schema-summary" data-testid="datasource-schema-summary">
           {{ t('datasource.fields.generatedFields') }}: {{ flattenedSchemaNodes.length }}
@@ -1601,17 +1526,22 @@ watch(
       <p v-if="jsonSchemaError" class="ce-datasource-tool__error" data-testid="datasource-json-schema-error">
         {{ jsonSchemaError }}
       </p>
-      <label v-if="hasResponseExample" class="ce-datasource-tool__field">
+      <label class="ce-datasource-tool__field">
         <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExample') }}</span>
         <textarea
           class="ce-datasource-tool__textarea ce-datasource-tool__textarea--response-example"
           data-testid="datasource-response-example"
           spellcheck="false"
-          readonly
+          :readonly="isReadOnly"
+          :placeholder="t('datasource.fields.responseExamplePlaceholder')"
           :value="responseExampleText"
+          @input="handleResponseExampleInput"
           @keydown.stop
         ></textarea>
       </label>
+      <p v-if="responseExampleError" class="ce-datasource-tool__error" data-testid="datasource-response-example-error">
+        {{ responseExampleError }}
+      </p>
     </div>
 
     <div class="ce-datasource-tool__schema-panel" data-testid="datasource-json-schema-panel">
@@ -1620,177 +1550,146 @@ watch(
           <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.fieldSelection') }}</div>
           <p class="ce-datasource-tool__section-copy">{{ t('datasource.help.fieldSelection') }}</p>
         </div>
-        <input
-          v-if="jsonSchemaValue"
-          class="ce-datasource-tool__input ce-datasource-tool__schema-search"
-          data-testid="datasource-schema-search"
-          type="search"
-          :placeholder="t('datasource.fields.searchFields')"
-          :value="schemaSearch"
-          @input="schemaSearch = ($event.target as HTMLInputElement).value"
-          @keydown.stop
-        />
-      </div>
-
-      <div class="ce-datasource-tool__tabs" data-testid="datasource-schema-tabs">
         <button
           type="button"
-          class="ce-datasource-tool__tab"
-          :class="{ 'ce-datasource-tool__tab--active': schemaTab === 'list' }"
-          data-testid="datasource-schema-tab-list"
-          @click="schemaTab = 'list'"
+          class="ce-datasource-tool__full-schema-button"
+          data-testid="datasource-full-schema-open"
+          @click="openFullSchemaDialog"
         >
-          {{ t('datasource.tabs.list') }}
-        </button>
-        <button
-          type="button"
-          class="ce-datasource-tool__tab"
-          :class="{ 'ce-datasource-tool__tab--active': schemaTab === 'form' }"
-          data-testid="datasource-schema-tab-form"
-          @click="schemaTab = 'form'"
-        >
-          {{ t('datasource.tabs.form') }}
-        </button>
-        <button
-          type="button"
-          class="ce-datasource-tool__tab"
-          :class="{ 'ce-datasource-tool__tab--active': schemaTab === 'advanced' }"
-          data-testid="datasource-schema-tab-advanced"
-          @click="schemaTab = 'advanced'"
-        >
-          {{ t('datasource.tabs.advanced') }}
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M8 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2M10 8l-2 4 2 4M14 8l2 4-2 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>{{ t('datasource.actions.fullSchema') }}</span>
         </button>
       </div>
 
-        <div v-if="schemaTab === 'list'" class="ce-datasource-tool__schema-tab-panel" data-testid="datasource-list-schema-panel">
+        <div class="ce-datasource-tool__schema-tab-panel" data-testid="datasource-fields-schema-panel">
           <p v-if="!jsonSchemaValue" class="ce-datasource-tool__empty" data-testid="datasource-schema-empty">
             {{ t('datasource.emptySchema') }}
           </p>
-          <label v-else-if="listRecordOptions.length" class="ce-datasource-tool__field">
-            <span class="ce-datasource-tool__label">{{ t('datasource.fields.recordPath') }}</span>
-            <select
-              class="ce-datasource-tool__input"
-              data-testid="datasource-list-record-path"
-              :disabled="isReadOnly"
-              :value="selectedListRecordPath"
-              @change="updateListRecordPath(($event.target as HTMLSelectElement).value)"
-            >
-              <option v-for="option in listRecordOptions" :key="option.path || 'root'" :value="option.path">
-                {{ getRecordPathLabel(option.path) }}
-              </option>
-            </select>
-          </label>
-          <p v-else class="ce-datasource-tool__empty" data-testid="datasource-list-schema-empty">
-            {{ t('datasource.noListRecord') }}
+          <p v-else-if="!combinedSelectionFields.length" class="ce-datasource-tool__empty" data-testid="datasource-fields-schema-empty">
+            {{ t('datasource.noSelectableFields') }}
           </p>
 
-          <div v-if="visibleListSelectionFields.length" class="ce-datasource-tool__field-list" data-testid="datasource-list-fields">
+          <div v-if="combinedSelectionFields.length" class="ce-datasource-tool__schema-filters">
+            <label class="ce-datasource-tool__field">
+              <span class="ce-datasource-tool__label">{{ t('datasource.fields.fieldSource') }}</span>
+              <select
+                class="ce-datasource-tool__input"
+                data-testid="datasource-schema-field-source-filter"
+                :value="schemaFieldSourceFilter"
+                @change="schemaFieldSourceFilter = ($event.target as HTMLSelectElement).value as SchemaFieldSourceFilter"
+              >
+                <option value="all">{{ t('datasource.fieldSources.all') }}</option>
+                <option value="list">{{ t('datasource.fieldSources.list') }}</option>
+                <option value="form">{{ t('datasource.fieldSources.form') }}</option>
+              </select>
+            </label>
+
+            <label class="ce-datasource-tool__field">
+              <span class="ce-datasource-tool__label">{{ t('datasource.fields.dataType') }}</span>
+              <select
+                class="ce-datasource-tool__input"
+                data-testid="datasource-schema-data-type-filter"
+                :value="schemaDataTypeFilter"
+                @change="schemaDataTypeFilter = ($event.target as HTMLSelectElement).value as SchemaDataTypeFilter"
+              >
+                <option value="all">{{ t('datasource.fields.allDataTypes') }}</option>
+                <option value="string">string</option>
+                <option value="number">number</option>
+                <option value="boolean">boolean</option>
+                <option value="object">object</option>
+                <option value="array">array</option>
+              </select>
+            </label>
+
+            <label class="ce-datasource-tool__field">
+              <span class="ce-datasource-tool__label">{{ t('datasource.fields.fieldPath') }}</span>
+              <input
+                class="ce-datasource-tool__input"
+                data-testid="datasource-schema-search"
+                type="search"
+                :placeholder="t('datasource.fields.searchFieldsByPath')"
+                :value="schemaSearch"
+                @input="schemaSearch = ($event.target as HTMLInputElement).value"
+                @keydown.stop
+              />
+            </label>
+          </div>
+
+          <div v-if="visibleSelectionFields.length" class="ce-datasource-tool__field-list" data-testid="datasource-fields">
             <div class="ce-datasource-tool__field-list-summary">
-              {{ t('datasource.fields.selectedFields') }}: {{ enabledListFieldCount }}
+              {{ t('datasource.fields.selectedFields') }}: {{ enabledFieldCount }}
             </div>
             <label
-              v-for="field in visibleListSelectionFields"
-              :key="field.path"
+              v-for="field in visibleSelectionFields"
+              :key="`${field.source}:${field.path}`"
               class="ce-datasource-tool__schema-field"
-              :data-testid="`datasource-list-field-${field.path}`"
+              :data-testid="`datasource-${field.source}-field-${field.path}`"
             >
               <input
                 class="ce-datasource-tool__checkbox"
                 type="checkbox"
                 :disabled="isReadOnly"
                 :checked="field.enabled"
-                :data-testid="`datasource-list-field-enabled-${field.path}`"
-                @change="updateSelectionEnabled('list', field.path, ($event.target as HTMLInputElement).checked)"
+                :data-testid="`datasource-${field.source}-field-enabled-${field.path}`"
+                @change="updateSelectionEnabled(field.source, field.path, ($event.target as HTMLInputElement).checked)"
               />
               <span class="ce-datasource-tool__schema-field-main">
-                <input
-                  class="ce-datasource-tool__input ce-datasource-tool__field-label-input"
-                  type="text"
-                  :readonly="isReadOnly"
-                  :value="field.label"
-                  :data-testid="`datasource-list-field-label-${field.path}`"
-                  @input="updateSelectionLabel('list', field.path, ($event.target as HTMLInputElement).value)"
-                  @keydown.stop
-                />
+                <span class="ce-datasource-tool__schema-field-label" :data-testid="`datasource-${field.source}-field-label-${field.path}`">
+                  {{ field.label }}
+                </span>
                 <span class="ce-datasource-tool__schema-path">{{ field.path }}</span>
               </span>
               <span class="ce-datasource-tool__schema-badges">
+                <span class="ce-datasource-tool__schema-badge ce-datasource-tool__schema-badge--source">
+                  {{ getSchemaFieldSourceLabel(field.source) }}
+                </span>
                 <span class="ce-datasource-tool__schema-badge">{{ getSchemaTypeLabel(field.type) }}</span>
-                <span class="ce-datasource-tool__schema-badge">{{ getComponentHintLabel(field.componentHint) }}</span>
                 <span v-if="field.required" class="ce-datasource-tool__schema-badge ce-datasource-tool__schema-badge--required">
                   {{ t('datasource.fields.required') }}
                 </span>
               </span>
             </label>
           </div>
-        </div>
-
-        <div v-else-if="schemaTab === 'form'" class="ce-datasource-tool__schema-tab-panel" data-testid="datasource-form-schema-panel">
-          <div v-if="visibleFormSelectionFields.length" class="ce-datasource-tool__field-list" data-testid="datasource-form-fields">
-            <div class="ce-datasource-tool__field-list-summary">
-              {{ t('datasource.fields.selectedFields') }}: {{ enabledFormFieldCount }}
-            </div>
-            <label
-              v-for="field in visibleFormSelectionFields"
-              :key="field.path"
-              class="ce-datasource-tool__schema-field"
-              :data-testid="`datasource-form-field-${field.path}`"
-            >
-              <input
-                class="ce-datasource-tool__checkbox"
-                type="checkbox"
-                :disabled="isReadOnly"
-                :checked="field.enabled"
-                :data-testid="`datasource-form-field-enabled-${field.path}`"
-                @change="updateSelectionEnabled('form', field.path, ($event.target as HTMLInputElement).checked)"
-              />
-              <span class="ce-datasource-tool__schema-field-main">
-                <input
-                  class="ce-datasource-tool__input ce-datasource-tool__field-label-input"
-                  type="text"
-                  :readonly="isReadOnly"
-                  :value="field.label"
-                  :data-testid="`datasource-form-field-label-${field.path}`"
-                  @input="updateSelectionLabel('form', field.path, ($event.target as HTMLInputElement).value)"
-                  @keydown.stop
-                />
-                <span class="ce-datasource-tool__schema-path">{{ field.path }}</span>
-              </span>
-              <span class="ce-datasource-tool__schema-badges">
-                <span class="ce-datasource-tool__schema-badge">{{ getSchemaTypeLabel(field.type) }}</span>
-                <span class="ce-datasource-tool__schema-badge">{{ getComponentHintLabel(field.componentHint) }}</span>
-                <span v-if="field.required" class="ce-datasource-tool__schema-badge ce-datasource-tool__schema-badge--required">
-                  {{ t('datasource.fields.required') }}
-                </span>
-              </span>
-            </label>
-          </div>
-          <p v-else class="ce-datasource-tool__empty" data-testid="datasource-form-schema-empty">
-            {{ t('datasource.noFormFields') }}
+          <p
+            v-else-if="combinedSelectionFields.length"
+            class="ce-datasource-tool__empty"
+            data-testid="datasource-fields-search-empty"
+          >
+            {{ t('datasource.noFieldsMatchingPath') }}
           </p>
         </div>
 
-        <div v-else class="ce-datasource-tool__schema-tab-panel" data-testid="datasource-advanced-schema-panel">
-          <div v-if="jsonSchemaValue" class="ce-datasource-tool__schema-tree" data-testid="datasource-schema-tree">
-            <div
-              v-for="node in visibleSchemaNodes"
-              :key="node.path || 'root'"
-              class="ce-datasource-tool__schema-node"
-              :style="{ paddingLeft: `${node.depth * 18}px` }"
-              :data-testid="`datasource-schema-node-${getSchemaNodeTestIdPath(node.path)}`"
+      <dialog
+        ref="fullSchemaDialogRef"
+        class="ce-datasource-tool__import-dialog ce-datasource-tool__schema-dialog"
+        data-testid="datasource-full-schema-dialog"
+        :aria-hidden="!isFullSchemaDialogOpen"
+        aria-labelledby="datasource-full-schema-dialog-title"
+        @close="isFullSchemaDialogOpen = false"
+      >
+        <div class="ce-datasource-tool__import-dialog-panel">
+          <div class="ce-datasource-tool__import-dialog-header">
+            <h3
+              id="datasource-full-schema-dialog-title"
+              class="ce-datasource-tool__import-dialog-title"
+              data-testid="datasource-full-schema-dialog-title"
             >
-              <span class="ce-datasource-tool__schema-node-name">{{ node.name }}</span>
-              <span class="ce-datasource-tool__schema-path">{{ node.displayPath }}</span>
-              <span class="ce-datasource-tool__schema-badge">{{ getSchemaTypeLabel(node.type) }}</span>
-              <span v-if="node.required" class="ce-datasource-tool__schema-badge ce-datasource-tool__schema-badge--required">
-                {{ t('datasource.fields.required') }}
-              </span>
-            </div>
+              {{ t('datasource.actions.fullSchema') }}
+            </h3>
+            <button
+              class="ce-datasource-tool__import-dialog-close"
+              type="button"
+              data-testid="datasource-full-schema-close"
+              @click="closeFullSchemaDialog"
+            >
+              {{ t('editor.close') }}
+            </button>
           </div>
-          <label class="ce-datasource-tool__field">
-            <span class="ce-datasource-tool__label">{{ t('datasource.fields.jsonSchema') }}</span>
+          <div class="ce-datasource-tool__import-dialog-body">
             <textarea
-              class="ce-datasource-tool__textarea ce-datasource-tool__textarea--schema"
+              class="ce-datasource-tool__textarea ce-datasource-tool__textarea--schema ce-datasource-tool__textarea--full-schema"
               data-testid="datasource-json-schema"
               spellcheck="false"
               :readonly="isReadOnly"
@@ -1798,8 +1697,15 @@ watch(
               @input="handleJsonSchemaInput"
               @keydown.stop
             ></textarea>
-          </label>
+            <p v-if="jsonSchemaError" class="ce-datasource-tool__error" data-testid="datasource-full-schema-error">
+              {{ jsonSchemaError }}
+            </p>
+          </div>
         </div>
+      </dialog>
+    </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -1830,41 +1736,37 @@ watch(
   color: rgb(15 23 42);
 }
 
-.ce-datasource-tool__type-switch {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(64px, 1fr));
+.ce-datasource-tool__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px;
+}
+
+.ce-datasource-tool__config-section {
   overflow: hidden;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 10px;
+  background: rgb(255 255 255);
+}
+
+.ce-datasource-tool__config-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgb(226 232 240);
+  padding: 12px 14px;
   background: rgb(248 250 252);
 }
 
-.ce-datasource-tool__type-button {
-  min-height: 32px;
-  border: 0;
-  border-right: 1px solid rgb(203 213 225);
-  padding: 6px 12px;
-  background: transparent;
-  color: rgb(71 85 105);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
+.ce-datasource-tool__config-section-title {
+  color: rgb(15 23 42);
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.ce-datasource-tool__type-button:last-child {
-  border-right: 0;
-}
-
-.ce-datasource-tool__type-button--active {
-  background: rgb(37 99 235);
-  color: rgb(255 255 255);
-}
-
-.ce-datasource-tool__type-button:disabled {
-  cursor: default;
-}
-
-.ce-datasource-tool__panel {
+.ce-datasource-tool__config-section-body {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1876,16 +1778,13 @@ watch(
   flex-direction: column;
   gap: 12px;
   border-top: 1px solid rgb(226 232 240);
-  padding: 12px;
+  padding: 14px 0 0;
 }
 
 .ce-datasource-tool__generate-panel {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border-top: 1px solid rgb(226 232 240);
-  padding: 12px;
-  background: rgb(248 250 252);
 }
 
 .ce-datasource-tool__schema-header {
@@ -1920,30 +1819,16 @@ watch(
   font-weight: 600;
 }
 
-.ce-datasource-tool__schema-search {
-  max-width: 260px;
+.ce-datasource-tool__schema-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
 }
 
 .ce-datasource-tool__grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(120px, 0.4fr);
-  gap: 10px;
-}
-
-.ce-datasource-tool__import-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border: 1px solid rgb(226 232 240);
-  border-radius: 8px;
-  padding: 10px;
-  background: rgb(248 250 252);
-}
-
-.ce-datasource-tool__import-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 10px;
 }
 
@@ -2008,6 +1893,10 @@ watch(
   background: transparent;
   box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
   color: rgb(15 23 42);
+}
+
+.ce-datasource-tool__schema-dialog {
+  width: min(100%, 760px);
 }
 
 .ce-datasource-tool__import-dialog::backdrop {
@@ -2110,18 +1999,15 @@ watch(
   padding: 9px 10px;
 }
 
-.ce-datasource-tool__textarea--json {
-  min-height: 150px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
-  line-height: 19px;
-}
-
 .ce-datasource-tool__textarea--schema {
   min-height: 130px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 13px;
   line-height: 19px;
+}
+
+.ce-datasource-tool__textarea--full-schema {
+  min-height: min(520px, 65vh);
 }
 
 .ce-datasource-tool__textarea--response-example {
@@ -2183,7 +2069,8 @@ watch(
 
 .ce-datasource-tool__action,
 .ce-datasource-tool__remove,
-.ce-datasource-tool__schema-button {
+.ce-datasource-tool__schema-button,
+.ce-datasource-tool__full-schema-button {
   min-height: 32px;
   border: 1px solid rgb(203 213 225);
   border-radius: 8px;
@@ -2192,6 +2079,19 @@ watch(
   font: inherit;
   font-weight: 650;
   cursor: pointer;
+}
+
+.ce-datasource-tool__full-schema-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 5px 10px;
+}
+
+.ce-datasource-tool__full-schema-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .ce-datasource-tool__action {
@@ -2210,7 +2110,8 @@ watch(
 
 .ce-datasource-tool__action:hover,
 .ce-datasource-tool__remove:hover,
-.ce-datasource-tool__schema-button:hover {
+.ce-datasource-tool__schema-button:hover,
+.ce-datasource-tool__full-schema-button:hover {
   background: rgb(248 250 252);
 }
 
@@ -2219,40 +2120,15 @@ watch(
   opacity: 0.7;
 }
 
+.ce-datasource-tool__full-schema-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .ce-datasource-tool__action:disabled,
 .ce-datasource-tool__remove:disabled {
   cursor: default;
   opacity: 0.65;
-}
-
-.ce-datasource-tool__tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  background: rgb(248 250 252);
-}
-
-.ce-datasource-tool__tab {
-  min-height: 34px;
-  border: 0;
-  border-right: 1px solid rgb(203 213 225);
-  padding: 6px 10px;
-  background: transparent;
-  color: rgb(71 85 105);
-  font: inherit;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.ce-datasource-tool__tab:last-child {
-  border-right: 0;
-}
-
-.ce-datasource-tool__tab--active {
-  background: rgb(37 99 235);
-  color: rgb(255 255 255);
 }
 
 .ce-datasource-tool__schema-tab-panel {
@@ -2298,8 +2174,13 @@ watch(
   gap: 4px;
 }
 
-.ce-datasource-tool__field-label-input {
-  height: 32px;
+.ce-datasource-tool__schema-field-label {
+  overflow: hidden;
+  color: rgb(15 23 42);
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ce-datasource-tool__schema-path {
@@ -2335,6 +2216,11 @@ watch(
 .ce-datasource-tool__schema-badge--required {
   background: rgb(254 242 242);
   color: rgb(185 28 28);
+}
+
+.ce-datasource-tool__schema-badge--source {
+  background: rgb(224 231 255);
+  color: rgb(55 48 163);
 }
 
 .ce-datasource-tool__schema-tree {
@@ -2403,22 +2289,14 @@ watch(
     flex-direction: column;
   }
 
-  .ce-datasource-tool__schema-search {
-    max-width: none;
-  }
-
   .ce-datasource-tool__grid,
+  .ce-datasource-tool__schema-filters,
   .ce-datasource-tool__import-sources,
   .ce-datasource-tool__row,
   .ce-datasource-tool__body-row,
   .ce-datasource-tool__schema-field,
   .ce-datasource-tool__schema-node {
     grid-template-columns: 1fr;
-  }
-
-  .ce-datasource-tool__import-header {
-    align-items: stretch;
-    flex-direction: column;
   }
 
   .ce-datasource-tool__import-dialog-header,
@@ -2450,9 +2328,18 @@ watch(
   border-top-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-datasource-tool__generate-panel {
-  border-top-color: rgb(51 65 85);
-  background: rgb(30 41 59 / 0.45);
+:global(.dark) .ce-datasource-tool__config-section {
+  border-color: rgb(51 65 85);
+  background: rgb(15 23 42);
+}
+
+:global(.dark) .ce-datasource-tool__config-section-header {
+  border-color: rgb(51 65 85);
+  background: rgb(30 41 59);
+}
+
+:global(.dark) .ce-datasource-tool__config-section-title {
+  color: rgb(241 245 249);
 }
 
 :global(.dark) .ce-datasource-tool__title {
@@ -2474,31 +2361,6 @@ watch(
 :global(.dark) .ce-datasource-tool__list-title,
 :global(.dark) .ce-datasource-tool__field-list-summary {
   color: rgb(203 213 225);
-}
-
-:global(.dark) .ce-datasource-tool__type-switch {
-  border-color: rgb(71 85 105);
-  background: rgb(30 41 59);
-}
-
-:global(.dark) .ce-datasource-tool__type-button {
-  border-right-color: rgb(71 85 105);
-  color: rgb(203 213 225);
-}
-
-:global(.dark) .ce-datasource-tool__type-button--active {
-  background: rgb(59 130 246);
-  color: rgb(255 255 255);
-}
-
-:global(.dark) .ce-datasource-tool__tabs {
-  border-color: rgb(71 85 105);
-  background: rgb(30 41 59);
-}
-
-:global(.dark) .ce-datasource-tool__import-panel {
-  border-color: rgb(51 65 85);
-  background: rgb(30 41 59);
 }
 
 :global(.dark) .ce-datasource-tool__import-source-button {
@@ -2539,16 +2401,6 @@ watch(
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-datasource-tool__tab {
-  border-right-color: rgb(71 85 105);
-  color: rgb(203 213 225);
-}
-
-:global(.dark) .ce-datasource-tool__tab--active {
-  background: rgb(59 130 246);
-  color: rgb(255 255 255);
-}
-
 :global(.dark) .ce-datasource-tool__input,
 :global(.dark) .ce-datasource-tool__textarea {
   border-color: rgb(71 85 105 / 0.9);
@@ -2564,14 +2416,16 @@ watch(
 
 :global(.dark) .ce-datasource-tool__action,
 :global(.dark) .ce-datasource-tool__remove,
-:global(.dark) .ce-datasource-tool__schema-button {
+:global(.dark) .ce-datasource-tool__schema-button,
+:global(.dark) .ce-datasource-tool__full-schema-button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
 }
 
 :global(.dark) .ce-datasource-tool__action:hover,
 :global(.dark) .ce-datasource-tool__remove:hover,
-:global(.dark) .ce-datasource-tool__schema-button:hover {
+:global(.dark) .ce-datasource-tool__schema-button:hover,
+:global(.dark) .ce-datasource-tool__full-schema-button:hover {
   background: rgb(30 41 59);
 }
 
@@ -2586,6 +2440,10 @@ watch(
   background: rgb(15 23 42);
 }
 
+:global(.dark) .ce-datasource-tool__schema-field-label {
+  color: rgb(226 232 240);
+}
+
 :global(.dark) .ce-datasource-tool__schema-badge {
   background: rgb(30 64 175 / 0.34);
   color: rgb(191 219 254);
@@ -2594,6 +2452,11 @@ watch(
 :global(.dark) .ce-datasource-tool__schema-badge--required {
   background: rgb(127 29 29 / 0.35);
   color: rgb(254 202 202);
+}
+
+:global(.dark) .ce-datasource-tool__schema-badge--source {
+  background: rgb(49 46 129 / 0.5);
+  color: rgb(199 210 254);
 }
 
 :global(.dark) .ce-datasource-tool__error,

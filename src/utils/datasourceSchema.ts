@@ -686,6 +686,21 @@ function createSelectionField(node: SchemaTreeNode, enabled: boolean, label = ge
   };
 }
 
+function createContainerSelectionField(
+  path: string,
+  type: Extract<JSONSchemaType, 'object' | 'array'>,
+  required = false
+): SchemaSelectionField {
+  return {
+    path,
+    label: getSchemaFieldLabel(path),
+    type,
+    required,
+    enabled: false,
+    componentHint: getComponentHint(type)
+  };
+}
+
 function markSchemaTreeNodeUnselectable(node: SchemaTreeNode): SchemaTreeNode {
   return {
     ...node,
@@ -815,8 +830,18 @@ function getLeafNodes(schema: JSONSchema | undefined, pathPrefix = '', includeRo
 export function getSchemaSelectionFieldsForList(schema: JSONSchema | undefined, recordPath: string): SchemaSelectionField[] {
   const recordSchema = readSchemaAtRecordPath(schema, recordPath);
   const pathPrefix = recordPath ? `${recordPath}[]` : '[]';
+  const fields = getLeafNodes(recordSchema, pathPrefix, true).map((node) => createSelectionField(node, false));
 
-  return getLeafNodes(recordSchema, pathPrefix, true).map((node) => createSelectionField(node, true));
+  if (!getObjectSchema(recordSchema)) {
+    return fields;
+  }
+
+  const recordNode = flattenSchemaTree(getSchemaTreeNodes(schema))
+    .find((node) => node.path === recordPath);
+  return [
+    createContainerSelectionField(pathPrefix, 'array', recordNode?.required),
+    ...fields
+  ];
 }
 
 export function getSchemaSelectionFieldsForForm(schema: JSONSchema | undefined): SchemaSelectionField[] {
@@ -842,7 +867,7 @@ export function getSchemaSelectionFieldsForForm(schema: JSONSchema | undefined):
         componentHint: getComponentHint(selectionType),
         depth: 0,
         children: []
-      }, true));
+      }, false));
       return;
     }
 
@@ -850,6 +875,8 @@ export function getSchemaSelectionFieldsForForm(schema: JSONSchema | undefined):
     if (!objectSchema) {
       return;
     }
+
+    fields.push(createContainerSelectionField(path, 'object', required));
 
     const requiredFields = new Set(objectSchema.required ?? []);
     Object.entries(objectSchema.properties).forEach(([key, property]) => {
@@ -889,7 +916,7 @@ function normalizeSelectionField(value: unknown, fallback?: SchemaSelectionField
     ? value.label.trim()
     : fallback?.label ?? getSchemaFieldLabel(path);
   const required = typeof value.required === 'boolean' ? value.required : fallback?.required ?? false;
-  const enabled = typeof value.enabled === 'boolean' ? value.enabled : fallback?.enabled ?? true;
+  const enabled = typeof value.enabled === 'boolean' ? value.enabled : fallback?.enabled ?? false;
   const componentHint = (
     value.componentHint === 'text' ||
     value.componentHint === 'number' ||
@@ -939,7 +966,7 @@ function reconcileSelectionFields(generatedFields: SchemaSelectionField[], previ
 function getDefaultRecordPath(schema?: JSONSchema) {
   const options = getArrayRecordOptions(schema);
   const firstOptionWithFields = options.find((option) =>
-    getSchemaSelectionFieldsForList(schema, option.path).length > 0
+    getSchemaSelectionFieldsForList(schema, option.path).some((field) => field.type !== 'array')
   );
 
   return firstOptionWithFields?.path ?? options[0]?.path ?? '';

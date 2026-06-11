@@ -162,11 +162,9 @@ export const enMessages = {
     title: 'Datasource',
     empty: 'No items',
     emptySchema: 'No field config yet. Click "Generate field config" first.',
-    noListRecord: 'This schema does not contain an array field for list data.',
-    noFormFields: 'This schema does not contain simple fields for a form.',
+    noSelectableFields: 'This schema does not contain selectable fields.',
+    noFieldsMatchingPath: 'No fields match this path.',
     fields: {
-      type: 'Datasource type',
-      rawData: 'JSON data',
       domain: 'API domain',
       path: 'API path',
       method: 'Method',
@@ -178,10 +176,13 @@ export const enMessages = {
       mock: 'Mock data',
       jsonSchema: 'JSON Schema',
       responseExample: 'Response example',
+      responseExamplePlaceholder: 'Enter a valid JSON response example',
       generatedFields: 'Fields',
-      searchFields: 'Search fields or paths',
-      recordPath: 'List data path',
-      rootRecordPath: 'Root data',
+      fieldSource: 'Field source',
+      dataType: 'Data type',
+      allDataTypes: 'All data types',
+      fieldPath: 'Field path',
+      searchFieldsByPath: 'Search by field path',
       selectedFields: 'Selected fields',
       required: 'Required'
     },
@@ -190,7 +191,8 @@ export const enMessages = {
       queries: 'Query',
       body: 'Body',
       importApi: 'Import API info',
-      generateFields: 'Generate field config',
+      requestConfig: 'Request configuration',
+      responseConfig: 'Response configuration',
       fieldSelection: 'Field selection'
     },
     actions: {
@@ -200,19 +202,19 @@ export const enMessages = {
       refreshing: 'Refreshing...',
       importApi: 'Import',
       importingApi: 'Importing...',
-      parseJsonSchema: 'Parse JSON Schema',
-      parsingJsonSchema: 'Parsing...',
-      generateFields: 'Generate field config',
-      generatingFields: 'Generating...'
+      captureResponseExample: 'Mock response example',
+      capturingResponseExample: 'Capturing response example...',
+      updateSchema: 'Update Schema',
+      fullSchema: 'Full Schema'
     },
-    tabs: {
+    fieldSources: {
+      all: 'All fields',
       list: 'List fields',
-      form: 'Form fields',
-      advanced: 'Advanced Schema'
+      form: 'Form fields'
     },
     help: {
-      generateFields: 'Detect fields from JSON data or an API response, then prepare them for list and form components.',
-      fieldSelection: 'Choose the fields components should use, and rename them with business-friendly labels.'
+      responseConfig: 'Capture or edit a response example, then manually update the response Schema.',
+      fieldSelection: 'Choose the fields components should use.'
     },
     schemaTypes: {
       object: 'Object',
@@ -231,13 +233,13 @@ export const enMessages = {
       array: 'List'
     },
     validation: {
-      invalidJson: 'Enter valid JSON.',
       invalidJsonSchema: 'Enter a JSON Schema that matches the supported format.',
       invalidNumber: 'Enter a valid number.',
       invalidObject: 'Enter a valid JSON object.',
       invalidArray: 'Enter a valid JSON array.',
+      invalidResponseExample: 'Enter a valid JSON response example.',
+      missingResponseExample: 'Enter a response example first.',
       missingFile: 'Choose a file in Body.',
-      fixJsonBeforeSchema: 'Fix JSON data before parsing JSON Schema.',
       fixBodyBeforeSchema: 'Fix Body mock data before parsing JSON Schema.',
       nonJsonResponse: 'The API response is not JSON.',
       invalidJsonResponse: 'The API response is not valid JSON.',

@@ -162,11 +162,9 @@ export const zhMessages = {
     title: '数据源',
     empty: '暂无配置项',
     emptySchema: '还没有字段配置，请先点击“生成字段配置”。',
-    noListRecord: '当前 Schema 中没有可作为列表数据的数组字段。',
-    noFormFields: '当前 Schema 中没有可用于表单的普通字段。',
+    noSelectableFields: '当前 Schema 中没有可选择的字段。',
+    noFieldsMatchingPath: '没有匹配该路径的字段。',
     fields: {
-      type: '数据源类型',
-      rawData: 'JSON 数据',
       domain: 'API 域名',
       path: 'API Path',
       method: '调用方法',
@@ -178,10 +176,13 @@ export const zhMessages = {
       mock: 'Mock 数据',
       jsonSchema: 'JSON Schema',
       responseExample: '响应示例数据',
+      responseExamplePlaceholder: '请输入有效的 JSON 响应示例数据',
       generatedFields: '字段数',
-      searchFields: '搜索字段名称或路径',
-      recordPath: '列表数据位置',
-      rootRecordPath: '根数据',
+      fieldSource: '字段来源',
+      dataType: '数据类型',
+      allDataTypes: '全部数据类型',
+      fieldPath: '字段路径',
+      searchFieldsByPath: '按字段路径搜索',
       selectedFields: '已选择字段',
       required: '必填'
     },
@@ -190,7 +191,8 @@ export const zhMessages = {
       queries: 'Query',
       body: 'Body',
       importApi: '导入 API 信息',
-      generateFields: '生成字段配置',
+      requestConfig: '请求配置',
+      responseConfig: '响应配置',
       fieldSelection: '字段选择'
     },
     actions: {
@@ -200,19 +202,19 @@ export const zhMessages = {
       refreshing: '刷新中...',
       importApi: '导入',
       importingApi: '导入中...',
-      parseJsonSchema: '解析JSON Schema',
-      parsingJsonSchema: '解析中...',
-      generateFields: '生成字段配置',
-      generatingFields: '生成中...'
+      captureResponseExample: 'Mock抓取响应示例数据',
+      capturingResponseExample: '正在抓取响应示例数据...',
+      updateSchema: '更新 Schema',
+      fullSchema: '完整 Schema'
     },
-    tabs: {
+    fieldSources: {
+      all: '全部字段',
       list: '列表字段',
-      form: '表单字段',
-      advanced: '高级 Schema'
+      form: '表单字段'
     },
     help: {
-      generateFields: '从 JSON 数据或 API 响应中识别字段，生成给列表和表单使用的配置。',
-      fieldSelection: '勾选需要给组件使用的字段，可以直接改成业务同学看得懂的名称。'
+      responseConfig: '抓取或编写响应示例数据，并根据示例手动更新响应 Schema。',
+      fieldSelection: '勾选需要给组件使用的字段。'
     },
     schemaTypes: {
       object: '对象',
@@ -231,13 +233,13 @@ export const zhMessages = {
       array: '列表'
     },
     validation: {
-      invalidJson: '请输入标准 JSON 结构。',
       invalidJsonSchema: '请输入符合数据格式的 JSON Schema。',
       invalidNumber: '请输入有效数字。',
       invalidObject: '请输入标准 JSON 对象。',
       invalidArray: '请输入标准 JSON 数组。',
+      invalidResponseExample: '请输入有效的 JSON 响应示例数据。',
+      missingResponseExample: '请先填写响应示例数据。',
       missingFile: '请选择 Body 中的文件。',
-      fixJsonBeforeSchema: '请先修正 JSON 数据。',
       fixBodyBeforeSchema: '请先修正 Body 中的 Mock 数据。',
       nonJsonResponse: 'API 响应不是 JSON 数据。',
       invalidJsonResponse: 'API 响应不是有效 JSON 数据。',
