@@ -109,6 +109,14 @@ import {
   type ImportedApiDatasource
 } from '@/utils/datasourceApiImport';
 import { translateTextsToChinese } from '@/utils/translationsApi';
+import ProcessorConfigDialog from '@/processors/components/ProcessorConfigDialog.vue';
+import ProcessorPreviewDialog from '@/processors/components/ProcessorPreviewDialog.vue';
+import {
+  getProcessorDefinition,
+  normalizeProcessors,
+  processorName,
+  type ProcessorConfig
+} from '@/processors';
 
 type KeyValueListName = 'headerData' | 'queryData';
 type BodyValueParseResult = {
@@ -156,11 +164,12 @@ const { t } = useI18n();
 const normalizedInitialValue = normalizeApiDatasource(props.value);
 const bodyDataTypeOptions = bodyDataTypes;
 const jsonSchemaValue = shallowRef<JSONSchema | undefined>();
-const jsonSchemaText = ref(formatJsonSchema(jsonSchemaValue.value));
 const jsonSchemaError = ref('');
 const schemaSelectionsValue = shallowRef<DatasourceSchemaSelections>(normalizeSchemaSelections(normalizedInitialValue.schemaSelections));
 const schemaTranslationLoading = ref(false);
 const schemaTranslationError = ref('');
+const processorFieldPath = ref<string | null>(null);
+const processorPreviewFieldPath = ref<string | null>(null);
 let responseExampleId = 0;
 const responseExamples = shallowRef<ResponseExampleState[]>(createResponseExampleStates());
 const schemaDataTypeFilter = ref<SchemaDataTypeFilter>('all');
@@ -179,6 +188,8 @@ const apiImportDialogRef = ref<HTMLDialogElement | null>(null);
 const isApiImportDialogOpen = ref(false);
 const fullSchemaDialogRef = ref<HTMLDialogElement | null>(null);
 const isFullSchemaDialogOpen = ref(false);
+const fullSchemaText = ref('');
+const fullSchemaError = ref('');
 const responseMockDialogRef = ref<HTMLDialogElement | null>(null);
 const isResponseMockDialogOpen = ref(false);
 const responseMockTargetIndex = ref<number | null>(null);
@@ -225,6 +236,13 @@ const visibleSelectionFields = computed(() => filterSelectionFields(
   schemaPathDepth.value
 ));
 const enabledFieldCount = computed(() => schemaSelectionsValue.value.length);
+const processorField = computed(() => schemaSelectionsValue.value.find((field) => field.path === processorFieldPath.value));
+const processorPreviewField = computed(() => schemaSelectionsValue.value.find((field) => field.path === processorPreviewFieldPath.value));
+const processorPreviewExamples = computed(() => responseExamples.value.map((example) => ({
+  id: example.id,
+  value: example.value,
+  error: example.error
+})));
 const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value || apiDomainLoading.value);
 const isResponseCaptureBusy = computed(() => responseExamples.value.some((item) => item.loading));
 const mokelayApiOptions = computed(() => mokelayApiOptionsBySource.value[mokelayApiSource.value]);
@@ -271,7 +289,7 @@ function createResponseExampleState(value?: JsonValue): ResponseExampleState {
 function createResponseExampleStates(values?: JsonValue[]) {
   return values?.length
     ? values.map((value) => createResponseExampleState(value))
-    : [createResponseExampleState()];
+    : [];
 }
 
 function formatJsonSchema(value?: JSONSchema) {
@@ -280,6 +298,12 @@ function formatJsonSchema(value?: JSONSchema) {
 
 function getSchemaTypeLabel(type: SchemaTreeNode['type'] | SchemaSelectionField['type']) {
   return t(`datasource.schemaTypes.${type}`);
+}
+
+function getProcessorLabel(processor: ProcessorConfig) {
+  const name = processorName(processor);
+  const definition = getProcessorDefinition(name);
+  return definition ? t(definition.titleKey) : name;
 }
 
 function normalizeSearchValue(value: string) {
@@ -382,11 +406,12 @@ function syncBodyValueInputs() {
 
 function syncTransientSchemaState(selections?: DatasourceSchemaSelections, examples?: JsonValue[]) {
   jsonSchemaValue.value = undefined;
-  jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
   schemaSelectionsValue.value = normalizeSchemaSelections(selections);
   responseExamples.value = createResponseExampleStates(examples);
   jsonSchemaError.value = '';
   schemaTranslationError.value = '';
+  processorFieldPath.value = null;
+  processorPreviewFieldPath.value = null;
 }
 
 function syncApiState(value: MDatasourceApiObject) {
@@ -510,7 +535,23 @@ function closeApiImportDialog() {
   }
 }
 
-function openFullSchemaDialog() {
+function openFullSchemaDialog(index: number) {
+  const item = responseExamples.value[index];
+  fullSchemaText.value = '';
+  fullSchemaError.value = '';
+
+  if (!item || item.value === undefined) {
+    fullSchemaError.value = item?.error || t('datasource.validation.missingResponseExample');
+  } else if (item.error) {
+    fullSchemaError.value = item.error;
+  } else {
+    try {
+      fullSchemaText.value = formatJsonSchema(inferDatasourceSchemaFromData(item.value));
+    } catch (error) {
+      fullSchemaError.value = getDatasourceErrorMessage(error);
+    }
+  }
+
   isFullSchemaDialogOpen.value = true;
   if (!fullSchemaDialogRef.value?.open) {
     fullSchemaDialogRef.value?.showModal();
@@ -519,6 +560,8 @@ function openFullSchemaDialog() {
 
 function closeFullSchemaDialog() {
   isFullSchemaDialogOpen.value = false;
+  fullSchemaText.value = '';
+  fullSchemaError.value = '';
   if (fullSchemaDialogRef.value?.open) {
     fullSchemaDialogRef.value.close();
   }
@@ -828,7 +871,6 @@ function getDatasourceErrorMessage(error: unknown) {
 
 function applySelectedResponseSchema(schema: JSONSchema) {
   jsonSchemaValue.value = cloneJsonSchema(schema);
-  jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
   schemaSelectionsValue.value = reconcileSchemaSelections(jsonSchemaValue.value, schemaSelectionsValue.value);
   jsonSchemaError.value = '';
   emitCurrentDatasource();
@@ -843,9 +885,6 @@ function addResponseExample() {
 function removeResponseExample(index: number) {
   if (!props.edit) return;
   responseExamples.value.splice(index, 1);
-  if (!responseExamples.value.length) {
-    responseExamples.value.push(createResponseExampleState());
-  }
   triggerRef(responseExamples);
 }
 
@@ -930,7 +969,46 @@ function removeSchemaSelection(path: string) {
   if (nextSelections.length === schemaSelectionsValue.value.length) return;
 
   schemaSelectionsValue.value = nextSelections;
+  if (processorFieldPath.value === path) {
+    processorFieldPath.value = null;
+  }
+  if (processorPreviewFieldPath.value === path) {
+    processorPreviewFieldPath.value = null;
+  }
   schemaTranslationError.value = '';
+  emitCurrentDatasource();
+}
+
+function openProcessorDialog(path: string) {
+  processorFieldPath.value = path;
+}
+
+function closeProcessorDialog() {
+  processorFieldPath.value = null;
+}
+
+function openProcessorPreviewDialog(path: string) {
+  processorPreviewFieldPath.value = path;
+}
+
+function closeProcessorPreviewDialog() {
+  processorPreviewFieldPath.value = null;
+}
+
+function applyFieldProcessors(processors: ProcessorConfig[]) {
+  const path = processorFieldPath.value;
+  if (!path || !props.edit) return;
+
+  const normalizedProcessors = normalizeProcessors(processors);
+  schemaSelectionsValue.value = schemaSelectionsValue.value.map((field) => (
+    field.path === path
+      ? {
+          ...field,
+          ...(normalizedProcessors.length ? { processors: normalizedProcessors } : { processors: undefined })
+        }
+      : field
+  ));
+  processorFieldPath.value = null;
   emitCurrentDatasource();
 }
 
@@ -1887,8 +1965,20 @@ watch(
                 <div class="ce-datasource-tool__section-title">
                   {{ t('datasource.fields.responseExample') }} {{ index + 1 }}
                 </div>
-                <div v-if="edit" class="ce-datasource-tool__response-example-header-actions">
+                <div class="ce-datasource-tool__response-example-header-actions">
                   <button
+                    type="button"
+                    class="ce-datasource-tool__full-schema-button"
+                    :data-testid="index === 0 ? 'datasource-full-schema-open' : `datasource-full-schema-open-${index}`"
+                    @click="openFullSchemaDialog(index)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M8 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2M10 8l-2 4 2 4M14 8l2 4-2 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <span>{{ t('datasource.actions.fullSchema') }}</span>
+                  </button>
+                  <button
+                    v-if="edit"
                     class="ce-datasource-tool__schema-button"
                     type="button"
                     :data-testid="index === 0 ? 'datasource-response-schema-select-button' : `datasource-response-schema-select-button-${index}`"
@@ -1897,6 +1987,7 @@ watch(
                     {{ t('datasource.actions.selectSchema') }}
                   </button>
                   <button
+                    v-if="edit"
                     class="ce-datasource-tool__remove"
                     type="button"
                     :data-testid="`datasource-response-example-remove-${index}`"
@@ -1974,70 +2065,7 @@ watch(
           <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.fieldSelection') }}</div>
           <p class="ce-datasource-tool__section-copy">{{ t('datasource.help.fieldSelection') }}</p>
         </div>
-        <button
-          type="button"
-          class="ce-datasource-tool__full-schema-button"
-          data-testid="datasource-full-schema-open"
-          @click="openFullSchemaDialog"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M8 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-2M10 8l-2 4 2 4M14 8l2 4-2 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <span>{{ t('datasource.actions.fullSchema') }}</span>
-        </button>
       </div>
-
-        <div class="ce-datasource-tool__selected-fields" data-testid="datasource-selected-fields">
-          <div class="ce-datasource-tool__selected-fields-header">
-            <div class="ce-datasource-tool__field-list-summary">
-              {{ t('datasource.fields.selectedFields') }}: {{ enabledFieldCount }}
-            </div>
-            <button
-              type="button"
-              class="ce-datasource-tool__schema-button"
-              :disabled="isReadOnly || schemaTranslationLoading || !schemaSelectionsValue.length"
-              data-testid="datasource-selected-fields-translate"
-              @click="translateSchemaSelectionLabels"
-            >
-              {{ schemaTranslationLoading
-                ? t('datasource.actions.translatingFields')
-                : t('datasource.actions.translateFields') }}
-            </button>
-          </div>
-          <div v-if="schemaSelectionsValue.length" class="ce-datasource-tool__field-list">
-            <div
-              v-for="field in schemaSelectionsValue"
-              :key="field.path"
-              class="ce-datasource-tool__schema-field"
-              :data-testid="`datasource-selected-field-${field.path}`"
-            >
-              <span class="ce-datasource-tool__schema-field-main">
-                <span class="ce-datasource-tool__schema-field-label" :data-testid="`datasource-selected-field-label-${field.path}`">
-                  {{ field.label }}
-                </span>
-                <span class="ce-datasource-tool__schema-path">{{ field.path }}</span>
-              </span>
-              <span class="ce-datasource-tool__schema-badges">
-                <span class="ce-datasource-tool__schema-badge">{{ getSchemaTypeLabel(field.type) }}</span>
-                <button
-                  type="button"
-                  class="ce-datasource-tool__field-action ce-datasource-tool__field-action--remove"
-                  :disabled="isReadOnly"
-                  :data-testid="`datasource-selected-field-remove-${field.path}`"
-                  @click="removeSchemaSelection(field.path)"
-                >
-                  {{ t('datasource.actions.remove') }}
-                </button>
-              </span>
-            </div>
-          </div>
-          <p v-else class="ce-datasource-tool__empty" data-testid="datasource-selected-fields-empty">
-            {{ t('datasource.emptySelectedFields') }}
-          </p>
-          <p v-if="schemaTranslationError" class="ce-datasource-tool__error" data-testid="datasource-selected-fields-translate-error">
-            {{ schemaTranslationError }}
-          </p>
-        </div>
 
         <div class="ce-datasource-tool__schema-tab-panel" data-testid="datasource-fields-schema-panel">
           <div class="ce-datasource-tool__field-list-summary">
@@ -2133,6 +2161,97 @@ watch(
           </p>
         </div>
 
+        <div class="ce-datasource-tool__selected-fields" data-testid="datasource-selected-fields">
+          <div class="ce-datasource-tool__selected-fields-header">
+            <div class="ce-datasource-tool__field-list-summary">
+              {{ t('datasource.fields.selectedFields') }}: {{ enabledFieldCount }}
+            </div>
+            <button
+              type="button"
+              class="ce-datasource-tool__schema-button"
+              :disabled="isReadOnly || schemaTranslationLoading || !schemaSelectionsValue.length"
+              data-testid="datasource-selected-fields-translate"
+              @click="translateSchemaSelectionLabels"
+            >
+              {{ schemaTranslationLoading
+                ? t('datasource.actions.translatingFields')
+                : t('datasource.actions.translateFields') }}
+            </button>
+          </div>
+          <div v-if="schemaSelectionsValue.length" class="ce-datasource-tool__field-list">
+            <div
+              v-for="field in schemaSelectionsValue"
+              :key="field.path"
+              class="ce-datasource-tool__schema-field"
+              :data-testid="`datasource-selected-field-${field.path}`"
+            >
+              <span class="ce-datasource-tool__schema-field-main">
+                <span class="ce-datasource-tool__schema-field-label" :data-testid="`datasource-selected-field-label-${field.path}`">
+                  {{ field.label }}
+                </span>
+                <span class="ce-datasource-tool__schema-path">{{ field.path }}</span>
+                <span
+                  v-if="field.processors?.length"
+                  class="ce-datasource-tool__processor-tags"
+                  :data-testid="`datasource-selected-field-processors-${field.path}`"
+                >
+                  <span
+                    v-for="(processor, processorIndex) in field.processors"
+                    :key="`${processorName(processor)}-${processorIndex}`"
+                    class="ce-datasource-tool__processor-tag"
+                  >
+                    {{ getProcessorLabel(processor) }}
+                  </span>
+                </span>
+              </span>
+              <span class="ce-datasource-tool__schema-badges">
+                <span class="ce-datasource-tool__selected-field-meta">
+                  <span class="ce-datasource-tool__schema-badge">{{ getSchemaTypeLabel(field.type) }}</span>
+                  <span
+                    v-if="field.processors?.length"
+                    class="ce-datasource-tool__schema-badge ce-datasource-tool__schema-badge--processor"
+                  >
+                    {{ t('datasource.processors.count').replace('{count}', String(field.processors.length)) }}
+                  </span>
+                </span>
+                <span class="ce-datasource-tool__selected-field-actions">
+                  <button
+                    type="button"
+                    class="ce-datasource-tool__field-action"
+                    :data-testid="`datasource-selected-field-preview-${field.path}`"
+                    @click="openProcessorPreviewDialog(field.path)"
+                  >
+                    {{ t('datasource.actions.previewField') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="ce-datasource-tool__field-action"
+                    :data-testid="`datasource-selected-field-processors-config-${field.path}`"
+                    @click="openProcessorDialog(field.path)"
+                  >
+                    {{ isReadOnly ? t('datasource.processors.view') : t('datasource.processors.configure') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="ce-datasource-tool__field-action ce-datasource-tool__field-action--remove"
+                    :disabled="isReadOnly"
+                    :data-testid="`datasource-selected-field-remove-${field.path}`"
+                    @click="removeSchemaSelection(field.path)"
+                  >
+                    {{ t('datasource.actions.remove') }}
+                  </button>
+                </span>
+              </span>
+            </div>
+          </div>
+          <p v-else class="ce-datasource-tool__empty" data-testid="datasource-selected-fields-empty">
+            {{ t('datasource.emptySelectedFields') }}
+          </p>
+          <p v-if="schemaTranslationError" class="ce-datasource-tool__error" data-testid="datasource-selected-fields-translate-error">
+            {{ schemaTranslationError }}
+          </p>
+        </div>
+
       <dialog
         ref="fullSchemaDialogRef"
         class="ce-datasource-tool__import-dialog ce-datasource-tool__schema-dialog"
@@ -2165,11 +2284,11 @@ watch(
               data-testid="datasource-json-schema"
               spellcheck="false"
               readonly
-              :value="jsonSchemaText"
+              :value="fullSchemaText"
               @keydown.stop
             ></textarea>
-            <p v-if="jsonSchemaError" class="ce-datasource-tool__error" data-testid="datasource-full-schema-error">
-              {{ jsonSchemaError }}
+            <p v-if="fullSchemaError" class="ce-datasource-tool__error" data-testid="datasource-full-schema-error">
+              {{ fullSchemaError }}
             </p>
           </div>
         </div>
@@ -2178,6 +2297,19 @@ watch(
         </div>
       </section>
     </div>
+    <ProcessorConfigDialog
+      :open="Boolean(processorFieldPath)"
+      :field="processorField"
+      :readonly="isReadOnly"
+      @close="closeProcessorDialog"
+      @apply="applyFieldProcessors"
+    />
+    <ProcessorPreviewDialog
+      :open="Boolean(processorPreviewFieldPath)"
+      :field="processorPreviewField"
+      :examples="processorPreviewExamples"
+      @close="closeProcessorPreviewDialog"
+    />
   </div>
 </template>
 
@@ -2274,6 +2406,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -2696,8 +2829,8 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgb(226 232 240);
+  padding-top: 14px;
+  border-top: 1px solid rgb(226 232 240);
 }
 
 .ce-datasource-tool__selected-fields-header {
@@ -2711,6 +2844,11 @@ watch(
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 8px;
+  align-items: start;
+}
+
+.ce-datasource-tool__selected-fields .ce-datasource-tool__field-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
 }
 
 .ce-datasource-tool__field-list-summary {
@@ -2758,11 +2896,75 @@ watch(
   white-space: nowrap;
 }
 
+.ce-datasource-tool__processor-tags {
+  display: flex;
+  min-width: 0;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-top: 3px;
+  overflow: hidden;
+}
+
+.ce-datasource-tool__processor-tag {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  padding: 1px 6px;
+  background: rgb(240 253 250);
+  color: rgb(15 118 110);
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ce-datasource-tool__schema-badges {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.ce-datasource-tool__selected-fields .ce-datasource-tool__schema-field {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.ce-datasource-tool__selected-fields .ce-datasource-tool__schema-badges {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgb(241 245 249);
+}
+
+.ce-datasource-tool__selected-field-meta,
+.ce-datasource-tool__selected-field-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.ce-datasource-tool__selected-field-meta {
+  overflow: hidden;
+}
+
+.ce-datasource-tool__selected-field-actions {
+  display: grid;
+  grid-template-columns: minmax(52px, 0.75fr) minmax(88px, 1.25fr) minmax(52px, 0.75fr);
+}
+
+.ce-datasource-tool__selected-field-actions .ce-datasource-tool__field-action {
+  min-width: 0;
+  padding-inline: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ce-datasource-tool__schema-badge {
@@ -2776,6 +2978,11 @@ watch(
   font-size: 12px;
   font-weight: 650;
   white-space: nowrap;
+}
+
+.ce-datasource-tool__schema-badge--processor {
+  background: rgb(240 253 250);
+  color: rgb(15 118 110);
 }
 
 .ce-datasource-tool__field-action {
@@ -2896,6 +3103,12 @@ watch(
 
   .ce-datasource-tool__body-error {
     grid-column: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .ce-datasource-tool__selected-fields .ce-datasource-tool__schema-badges {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -3046,6 +3259,10 @@ watch(
   border-color: rgb(51 65 85);
 }
 
+:global(.dark) .ce-datasource-tool__selected-fields .ce-datasource-tool__schema-badges {
+  border-top-color: rgb(30 41 59);
+}
+
 :global(.dark) .ce-datasource-tool__field-action {
   border-color: rgb(30 64 175);
   background: rgb(30 64 175 / 0.25);
@@ -3065,6 +3282,12 @@ watch(
 :global(.dark) .ce-datasource-tool__schema-badge {
   background: rgb(30 64 175 / 0.34);
   color: rgb(191 219 254);
+}
+
+:global(.dark) .ce-datasource-tool__processor-tag,
+:global(.dark) .ce-datasource-tool__schema-badge--processor {
+  background: rgb(13 148 136 / 0.25);
+  color: rgb(153 246 228);
 }
 
 :global(.dark) .ce-datasource-tool__error,

@@ -218,6 +218,7 @@ export const enMessages = {
       selectSchema: 'Select this Schema',
       translateFields: 'Translate to Chinese',
       translatingFields: 'Translating...',
+      previewField: 'Preview',
       fullSchema: 'Full Schema'
     },
     responseMock: {
@@ -243,6 +244,73 @@ export const enMessages = {
       switch: 'Switch',
       object: 'Object',
       array: 'List'
+    },
+    processors: {
+      dialogTitle: 'Field processors',
+      add: 'Add processor',
+      apply: 'Apply',
+      configure: 'Configure processors',
+      view: 'View processors',
+      count: '{count} processors',
+      empty: 'No processors configured.',
+      up: 'Move up',
+      down: 'Move down',
+      unsupported: 'This processor is not recognized. Its config is preserved and can be removed.',
+      incompatible: 'This processor is incompatible with the current field type. Its config is preserved and can be removed.',
+      preview: {
+        title: 'Field data preview',
+        example: 'Response example',
+        unavailable: 'Unavailable',
+        noExamples: 'No valid response examples. Add or fix response data first.',
+        finalValue: 'Final rendered data',
+        finalValueHelp: 'The data the component receives after path extraction and Processor execution.',
+        extractedValue: 'Data before Processors',
+        extractedValueHelp: 'The data extracted from the response example using the field path.',
+        pathNotFound: 'This field path does not exist in the selected response example.',
+        invalidPath: 'The field path is invalid and cannot be previewed.',
+        invalidResult: 'A Processor returned non-JSON data that cannot be displayed.',
+        unsupportedProcessor: 'The field contains an unsupported Processor and cannot be previewed.',
+        invalidProcessor: 'The Processor configuration is invalid and cannot be previewed.',
+        failed: 'Could not preview the field data.'
+      },
+      trim: {
+        title: 'Trim whitespace',
+        description: 'Trims leading and trailing whitespace from strings and leaves other values unchanged.'
+      },
+      mergeData: {
+        title: 'Merge data',
+        description: 'Shallow-merges fields into an object or each list item.',
+        fields: { data: 'Fields to merge (JSON object)' }
+      },
+      filter: {
+        title: 'Filter list',
+        description: 'Filters list data by conditions.',
+        addCondition: 'Add condition',
+        empty: 'With no conditions, all list items are retained.',
+        fields: {
+          type: 'Condition relation',
+          variable: 'Field path',
+          condition: 'Condition',
+          value: 'Comparison value (JSON)'
+        },
+        conditions: {
+          eq: 'Equals',
+          gt: 'Greater than',
+          lt: 'Less than',
+          is_empty: 'Is empty',
+          is_not_empty: 'Is not empty'
+        }
+      },
+      dateTimeFormat: {
+        title: 'Format date and time',
+        description: 'Formats date and time values in the browser local time zone.',
+        custom: 'Custom',
+        fields: { preset: 'Preset', format: 'Format' }
+      },
+      validation: {
+        required: 'This field is required.',
+        jsonObject: 'Enter a valid JSON object.'
+      }
     },
     validation: {
       invalidJsonSchema: 'Enter a JSON Schema that matches the supported format.',

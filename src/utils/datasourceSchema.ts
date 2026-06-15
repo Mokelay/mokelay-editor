@@ -1,3 +1,6 @@
+import { normalizeProcessors } from '@/processors/runner';
+import type { ProcessorConfig } from '@/processors/types';
+
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export type JSONSchemaType = 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
@@ -44,6 +47,7 @@ export interface DatasourceSchemaSelection {
   path: string;
   label: string;
   type: JSONSchemaType;
+  processors?: ProcessorConfig[];
 }
 
 export type DatasourceSchemaSelections = DatasourceSchemaSelection[];
@@ -951,10 +955,12 @@ function normalizeSchemaSelection(value: unknown): DatasourceSchemaSelection | u
     ? value.label.trim()
     : getSchemaFieldLabel(path);
 
+  const processors = normalizeProcessors(value.processors);
   return {
     path,
     label,
-    type
+    type,
+    ...(processors.length ? { processors } : {})
   };
 }
 

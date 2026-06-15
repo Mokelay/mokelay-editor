@@ -1,4 +1,5 @@
 import { cloneValue, createEmptyApiJson, createStarterBlock } from '@/api-builder/registry';
+import { normalizeProcessors } from '@/processors';
 import type {
   ApiBlock,
   ApiBuilderDraft,
@@ -123,22 +124,6 @@ function normalizeProcessableKeys(value: unknown) {
     .filter((item): item is string | { key: string; processors: ReturnType<typeof normalizeProcessors> } => Boolean(item));
 }
 
-function normalizeProcessors(value: unknown) {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      if (typeof item === 'string' && item.trim()) return item.trim();
-      if (!isRecord(item)) return undefined;
-      const processor = readString(item.processor);
-      if (!processor) return undefined;
-      return {
-        processor,
-        ...(Object.prototype.hasOwnProperty.call(item, 'param') ? { param: cloneOptionalValue(item.param) } : {})
-      };
-    })
-    .filter((item): item is string | { processor: string; param?: unknown } => Boolean(item));
-}
-
 function normalizeBlocks(value: unknown) {
   const blocks = Array.isArray(value) ? value.map((block) => normalizeBlock(block)) : [];
   const hasStarter = blocks.some((block) => block.uuid === 'starter');
@@ -261,10 +246,6 @@ function readString(value: unknown) {
 
 function readFiniteNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
-}
-
-function cloneOptionalValue<T>(value: T): T {
-  return value === undefined ? value : cloneValue(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

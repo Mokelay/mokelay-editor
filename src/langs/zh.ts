@@ -218,6 +218,7 @@ export const zhMessages = {
       selectSchema: '选择该 Schema',
       translateFields: '翻译为中文',
       translatingFields: '翻译中...',
+      previewField: '预览',
       fullSchema: '完整 Schema'
     },
     responseMock: {
@@ -243,6 +244,73 @@ export const zhMessages = {
       switch: '开关',
       object: '对象',
       array: '列表'
+    },
+    processors: {
+      dialogTitle: '字段处理器',
+      add: '添加处理器',
+      apply: '应用',
+      configure: '配置处理器',
+      view: '查看处理器',
+      count: '{count} 个处理器',
+      empty: '暂未配置处理器。',
+      up: '上移',
+      down: '下移',
+      unsupported: '该处理器当前无法识别，配置会被保留，也可以删除。',
+      incompatible: '该处理器与当前字段类型不兼容，配置会被保留，也可以删除。',
+      preview: {
+        title: '字段数据预览',
+        example: '响应示例数据',
+        unavailable: '不可用',
+        noExamples: '暂无有效的响应示例数据，请先添加或修正响应数据。',
+        finalValue: '最终呈现数据',
+        finalValueHelp: '按字段路径提取并执行 Processor 后，组件将获得的数据。',
+        extractedValue: 'Processor 处理前数据',
+        extractedValueHelp: '仅按字段路径从响应示例中提取的数据。',
+        pathNotFound: '当前响应示例中不存在该字段路径。',
+        invalidPath: '字段路径格式无效，无法预览。',
+        invalidResult: 'Processor 返回了无法展示的非 JSON 数据。',
+        unsupportedProcessor: '字段包含无法识别的 Processor，暂时无法生成预览。',
+        invalidProcessor: 'Processor 配置无效，暂时无法生成预览。',
+        failed: '字段数据预览失败。'
+      },
+      trim: {
+        title: '去除首尾空格',
+        description: '字符串会去除首尾空格，其他数据类型保持原值。'
+      },
+      mergeData: {
+        title: '合并数据',
+        description: '为对象或列表项浅合并字段。',
+        fields: { data: '合并字段（JSON 对象）' }
+      },
+      filter: {
+        title: '列表过滤',
+        description: '按条件过滤列表数据。',
+        addCondition: '添加条件',
+        empty: '没有过滤条件时将保留所有列表项。',
+        fields: {
+          type: '条件关系',
+          variable: '字段路径',
+          condition: '判断条件',
+          value: '比较值（JSON）'
+        },
+        conditions: {
+          eq: '等于',
+          gt: '大于',
+          lt: '小于',
+          is_empty: '为空',
+          is_not_empty: '不为空'
+        }
+      },
+      dateTimeFormat: {
+        title: '日期时间格式化',
+        description: '按浏览器本地时区格式化日期时间。',
+        custom: '自定义',
+        fields: { preset: '预设格式', format: '格式' }
+      },
+      validation: {
+        required: '此项不能为空。',
+        jsonObject: '请输入有效的 JSON 对象。'
+      }
     },
     validation: {
       invalidJsonSchema: '请输入符合数据格式的 JSON Schema。',
