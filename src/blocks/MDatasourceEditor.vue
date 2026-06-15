@@ -108,6 +108,7 @@ import {
   DatasourceApiImportError,
   type ImportedApiDatasource
 } from '@/utils/datasourceApiImport';
+import { translateTextsToChinese } from '@/utils/translationsApi';
 
 type KeyValueListName = 'headerData' | 'queryData';
 type BodyValueParseResult = {
@@ -158,6 +159,8 @@ const jsonSchemaValue = shallowRef<JSONSchema | undefined>();
 const jsonSchemaText = ref(formatJsonSchema(jsonSchemaValue.value));
 const jsonSchemaError = ref('');
 const schemaSelectionsValue = shallowRef<DatasourceSchemaSelections>(normalizeSchemaSelections(normalizedInitialValue.schemaSelections));
+const schemaTranslationLoading = ref(false);
+const schemaTranslationError = ref('');
 let responseExampleId = 0;
 const responseExamples = shallowRef<ResponseExampleState[]>(createResponseExampleStates());
 const schemaDataTypeFilter = ref<SchemaDataTypeFilter>('all');
@@ -383,6 +386,7 @@ function syncTransientSchemaState(selections?: DatasourceSchemaSelections, examp
   schemaSelectionsValue.value = normalizeSchemaSelections(selections);
   responseExamples.value = createResponseExampleStates(examples);
   jsonSchemaError.value = '';
+  schemaTranslationError.value = '';
 }
 
 function syncApiState(value: MDatasourceApiObject) {
@@ -914,6 +918,7 @@ function addSchemaSelection(path: string) {
       type: field.type
     }
   ];
+  schemaTranslationError.value = '';
   emitCurrentDatasource();
 }
 
@@ -925,7 +930,29 @@ function removeSchemaSelection(path: string) {
   if (nextSelections.length === schemaSelectionsValue.value.length) return;
 
   schemaSelectionsValue.value = nextSelections;
+  schemaTranslationError.value = '';
   emitCurrentDatasource();
+}
+
+async function translateSchemaSelectionLabels() {
+  if (!props.edit || schemaTranslationLoading.value || !schemaSelectionsValue.value.length) return;
+
+  schemaTranslationLoading.value = true;
+  schemaTranslationError.value = '';
+  try {
+    const translations = await translateTextsToChinese(
+      schemaSelectionsValue.value.map((field) => field.label)
+    );
+    schemaSelectionsValue.value = schemaSelectionsValue.value.map((field) => ({
+      ...field,
+      label: translations[field.label] ?? field.label
+    }));
+    emitCurrentDatasource();
+  } catch {
+    schemaTranslationError.value = t('datasource.validation.translateFieldsFailed');
+  } finally {
+    schemaTranslationLoading.value = false;
+  }
 }
 
 function getResponseMockRequestOptions(): DatasourceRequestOptions {
@@ -1961,8 +1988,21 @@ watch(
       </div>
 
         <div class="ce-datasource-tool__selected-fields" data-testid="datasource-selected-fields">
-          <div class="ce-datasource-tool__field-list-summary">
-            {{ t('datasource.fields.selectedFields') }}: {{ enabledFieldCount }}
+          <div class="ce-datasource-tool__selected-fields-header">
+            <div class="ce-datasource-tool__field-list-summary">
+              {{ t('datasource.fields.selectedFields') }}: {{ enabledFieldCount }}
+            </div>
+            <button
+              type="button"
+              class="ce-datasource-tool__schema-button"
+              :disabled="isReadOnly || schemaTranslationLoading || !schemaSelectionsValue.length"
+              data-testid="datasource-selected-fields-translate"
+              @click="translateSchemaSelectionLabels"
+            >
+              {{ schemaTranslationLoading
+                ? t('datasource.actions.translatingFields')
+                : t('datasource.actions.translateFields') }}
+            </button>
           </div>
           <div v-if="schemaSelectionsValue.length" class="ce-datasource-tool__field-list">
             <div
@@ -1993,6 +2033,9 @@ watch(
           </div>
           <p v-else class="ce-datasource-tool__empty" data-testid="datasource-selected-fields-empty">
             {{ t('datasource.emptySelectedFields') }}
+          </p>
+          <p v-if="schemaTranslationError" class="ce-datasource-tool__error" data-testid="datasource-selected-fields-translate-error">
+            {{ schemaTranslationError }}
           </p>
         </div>
 
@@ -2657,6 +2700,13 @@ watch(
   border-bottom: 1px solid rgb(226 232 240);
 }
 
+.ce-datasource-tool__selected-fields-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .ce-datasource-tool__field-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2665,6 +2715,7 @@ watch(
 
 .ce-datasource-tool__field-list-summary {
   grid-column: 1 / -1;
+  min-width: 0;
   color: rgb(51 65 85);
   font-size: 13px;
   font-weight: 650;

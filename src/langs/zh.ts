@@ -216,6 +216,8 @@ export const zhMessages = {
       captureResponseExample: 'Mock抓取响应示例数据',
       capturingResponseExample: '正在抓取响应示例数据...',
       selectSchema: '选择该 Schema',
+      translateFields: '翻译为中文',
+      translatingFields: '翻译中...',
       fullSchema: '完整 Schema'
     },
     responseMock: {
@@ -259,7 +261,8 @@ export const zhMessages = {
       apiDomainNotFound: '没有找到对应的 API 域名。',
       invalidApiDomainList: 'API 域名列表无效。',
       emptyArraySchema: '空数组无法推断 JSON Schema。',
-      mixedArraySchema: '数组中包含无法合并的类型，无法推断 JSON Schema。'
+      mixedArraySchema: '数组中包含无法合并的类型，无法推断 JSON Schema。',
+      translateFieldsFailed: '字段翻译失败，请稍后重试。'
     },
     import: {
       apiSources: {

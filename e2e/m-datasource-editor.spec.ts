@@ -432,6 +432,73 @@ test('shows saved selections without a response Schema and supports removing the
   ]);
 });
 
+test('translates selected field labels to Chinese by original label', async ({ page }) => {
+  let translationRequest: Record<string, unknown> | undefined;
+  await page.route('**/api/mokelay/ai-translate', async (route) => {
+    translationRequest = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          translations: {
+            hello: '你好',
+            functionName: '函数名称'
+          }
+        }
+      })
+    });
+  });
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'datasource-api-translation',
+        type: 'MDatasourceEditor',
+        data: {
+          value: {
+            type: 'API',
+            domain: 'mokelay',
+            path: '/users',
+            method: 'GET',
+            headerData: [],
+            bodyData: [],
+            queryData: [],
+            schemaSelections: [
+              { path: 'hello', label: 'hello', type: 'string' },
+              { path: 'nested.hello', label: 'hello', type: 'string' },
+              { path: 'functionName', label: 'functionName', type: 'string' }
+            ]
+          }
+        }
+      }
+    ]
+  });
+  await switchLocaleToChinese(page);
+
+  await expect(page.getByTestId('datasource-selected-fields-translate')).toHaveText('翻译为中文');
+  await page.getByTestId('datasource-selected-fields-translate').click();
+
+  await expect.poll(() => translationRequest).toEqual({
+    texts: ['hello', 'functionName'],
+    sourceLanguage: 'English',
+    targetLanguage: '中文'
+  });
+  await expect(page.getByTestId('datasource-selected-field-label-hello')).toHaveText('你好');
+  await expect(page.getByTestId('datasource-selected-field-label-nested.hello')).toHaveText('你好');
+  await expect(page.getByTestId('datasource-selected-field-label-functionName')).toHaveText('函数名称');
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
+  expect(datasourceValue.schemaSelections).toEqual([
+    { path: 'hello', label: '你好', type: 'string' },
+    { path: 'nested.hello', label: '你好', type: 'string' },
+    { path: 'functionName', label: '函数名称', type: 'string' }
+  ]);
+});
+
 test('edits API datasource lists and saves typed body values', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');

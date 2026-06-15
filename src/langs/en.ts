@@ -216,6 +216,8 @@ export const enMessages = {
       captureResponseExample: 'Mock response example',
       capturingResponseExample: 'Capturing response example...',
       selectSchema: 'Select this Schema',
+      translateFields: 'Translate to Chinese',
+      translatingFields: 'Translating...',
       fullSchema: 'Full Schema'
     },
     responseMock: {
@@ -259,7 +261,8 @@ export const enMessages = {
       apiDomainNotFound: 'Could not find the API domain.',
       invalidApiDomainList: 'The API domain list is invalid.',
       emptyArraySchema: 'Cannot infer JSON Schema from an empty array.',
-      mixedArraySchema: 'The array contains incompatible types, so JSON Schema cannot be inferred.'
+      mixedArraySchema: 'The array contains incompatible types, so JSON Schema cannot be inferred.',
+      translateFieldsFailed: 'Could not translate the fields. Try again later.'
     },
     import: {
       apiSources: {
