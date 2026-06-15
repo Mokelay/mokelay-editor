@@ -90,4 +90,5 @@ npm run e2e:headed
 
 - `src/components/EditorPanel.vue`：Editor.js 编辑器示例
 - `src/composables/useApi.ts`：Axios + Fetch API 封装
+- `docs/datasource-processors.md`：数据源字段 Processor 配置、执行 API 与数据预览文档
 - `docs/global-calls.md`：`$alert`、`$confirm`、`$message` 全局调用函数使用文档
