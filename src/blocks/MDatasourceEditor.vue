@@ -5,11 +5,11 @@ import {
   cloneJsonSchema,
   cloneJsonValue,
   flattenSchemaTree,
+  getSchemaSelectionFields,
   getSchemaTreeNodes,
   inferJSONSchema,
   isJsonObjectValue,
   isJsonValue,
-  normalizeJSONSchema,
   normalizeSchemaSelections,
   reconcileSchemaSelections,
   type DatasourceSchemaSelections,
@@ -23,18 +23,18 @@ import {
   DatasourceError,
   bodyDataTypes,
   getDefaultApiDatasource,
-  getDefaultBodyMock,
+  getDefaultBodyValue,
   normalizeBodyDataType,
-  normalizeBodyFileMock,
-  normalizeBodyMock,
+  normalizeBodyFileValue,
+  normalizeBodyValue,
   normalizeDatasource,
   normalizeMethod,
   type DatasourceRequestOptions,
   type MDatasourceApiObject,
   type MDatasourceBodyDataType,
-  type MDatasourceBodyFileMock,
+  type MDatasourceBodyFileValue,
   type MDatasourceBodyItem,
-  type MDatasourceKeyMockItem
+  type MDatasourceKeyValueItem
 } from '@/utils/datasource';
 
 export type {
@@ -44,8 +44,9 @@ export type {
   MDatasourceApiMethod,
   MDatasourceApiObject,
   MDatasourceBodyDataType,
+  MDatasourceBodyFileValue,
   MDatasourceBodyItem,
-  MDatasourceKeyMockItem
+  MDatasourceKeyValueItem
 } from '@/utils/datasource';
 export { normalizeDatasource } from '@/utils/datasource';
 export type { SchemaSelectionField } from '@/utils/datasourceSchema';
@@ -81,7 +82,7 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
 </script>
 
 <script setup lang="ts">
-import { computed, reactive, ref, shallowRef, watch } from 'vue';
+import { computed, reactive, ref, shallowRef, triggerRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import JsonTreeView from '@/blocks/components/JsonTreeView.vue';
 import {
@@ -108,25 +109,40 @@ import {
   type ImportedApiDatasource
 } from '@/utils/datasourceApiImport';
 
-type KeyMockListName = 'headerData' | 'queryData';
-type BodyMockParseResult = {
+type KeyValueListName = 'headerData' | 'queryData';
+type BodyValueParseResult = {
   ok: true;
   value: JsonValue;
 } | {
   ok: false;
   error: string;
 };
-type ApiStateBodyItem = Omit<MDatasourceBodyItem, 'mock'> & {
-  mock: unknown;
+type ApiStateBodyItem = Omit<MDatasourceBodyItem, 'value'> & {
+  value: unknown;
 };
-type ApiState = Omit<MDatasourceApiObject, 'bodyData' | 'jsonSchema' | 'schemaSelections'> & {
+type ApiState = Omit<MDatasourceApiObject, 'bodyData' | 'schemaSelections'> & {
   bodyData: ApiStateBodyItem[];
+};
+type ResponseExampleState = {
+  id: number;
+  value?: JsonValue;
+  text: string;
+  error: string;
+  loading: boolean;
+};
+type ResponseMockBodyItem = {
+  key: string;
+  dataType: MDatasourceBodyDataType;
+  value: JsonValue;
+  input: string;
+  error: string;
+  file?: File;
 };
 type SchemaFieldSource = 'list' | 'form';
 type SchemaDataTypeFilter = 'all' | Extract<SchemaSelectionField['type'], 'string' | 'number' | 'boolean' | 'object' | 'array'>;
 type CombinedSchemaSelectionField = SchemaSelectionField & {
   source: SchemaFieldSource;
-  sources: SchemaFieldSource[];
+  selected: boolean;
 };
 type ApiImportSource = 'mokelay' | 'apifox';
 
@@ -138,20 +154,18 @@ const props = defineProps<MDatasourceEditorProps & {
 const { t } = useI18n();
 const normalizedInitialValue = normalizeApiDatasource(props.value);
 const bodyDataTypeOptions = bodyDataTypes;
-const jsonSchemaValue = shallowRef<JSONSchema | undefined>(normalizedInitialValue.jsonSchema);
+const jsonSchemaValue = shallowRef<JSONSchema | undefined>();
 const jsonSchemaText = ref(formatJsonSchema(jsonSchemaValue.value));
 const jsonSchemaError = ref('');
-const responseExampleLoading = ref(false);
-const schemaSelectionsValue = shallowRef<DatasourceSchemaSelections | undefined>(normalizedInitialValue.schemaSelections);
-const responseExampleValue = shallowRef<JsonValue | undefined>(normalizedInitialValue.responseExample);
-const responseExampleText = ref(formatOptionalJsonValue(responseExampleValue.value));
-const responseExampleError = ref('');
+const schemaSelectionsValue = shallowRef<DatasourceSchemaSelections>(normalizeSchemaSelections(normalizedInitialValue.schemaSelections));
+let responseExampleId = 0;
+const responseExamples = shallowRef<ResponseExampleState[]>(createResponseExampleStates());
 const schemaDataTypeFilter = ref<SchemaDataTypeFilter>('all');
 const schemaPathDepth = ref(1);
 const schemaSearch = ref('');
 const apiState = reactive<ApiState>(normalizedInitialValue);
-const bodyMockInputs = ref<string[]>(apiState.bodyData.map((item) => getBodyMockInputValue(item)));
-const bodyMockErrors = ref<string[]>(apiState.bodyData.map(() => ''));
+const bodyValueInputs = ref<string[]>(apiState.bodyData.map((item) => getBodyValueInput(item)));
+const bodyValueErrors = ref<string[]>(apiState.bodyData.map(() => ''));
 const bodyFileInputs = ref<Array<File | undefined>>(apiState.bodyData.map(() => undefined));
 const apiDomainOptions = ref<ApiDomainRecord[]>([]);
 const apiDomainLoading = ref(false);
@@ -162,6 +176,13 @@ const apiImportDialogRef = ref<HTMLDialogElement | null>(null);
 const isApiImportDialogOpen = ref(false);
 const fullSchemaDialogRef = ref<HTMLDialogElement | null>(null);
 const isFullSchemaDialogOpen = ref(false);
+const responseMockDialogRef = ref<HTMLDialogElement | null>(null);
+const isResponseMockDialogOpen = ref(false);
+const responseMockTargetIndex = ref<number | null>(null);
+const responseMockHeaderData = ref<MDatasourceKeyValueItem[]>([]);
+const responseMockQueryData = ref<MDatasourceKeyValueItem[]>([]);
+const responseMockBodyData = shallowRef<ResponseMockBodyItem[]>([]);
+const responseMockError = ref('');
 const mokelayApiSource = ref<MokelayApiSource>('user');
 const mokelayApiOptionsBySource = ref<Record<MokelayApiSource, MokelayApiRecord[]>>({
   user: [],
@@ -182,33 +203,17 @@ const hasLoadedApifoxProjects = ref(false);
 const isReadOnly = computed(() => !props.edit);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
-const listSelectionFields = computed(() => schemaSelectionsValue.value?.list?.fields ?? []);
-const formSelectionFields = computed(() => schemaSelectionsValue.value?.form?.fields ?? []);
+const generatedSelectionFields = computed(() => getSchemaSelectionFields(jsonSchemaValue.value));
 const combinedSelectionFields = computed<CombinedSchemaSelectionField[]>(() => {
-  const fieldsByPath = new Map<string, CombinedSchemaSelectionField>();
-
-  function addFields(fields: SchemaSelectionField[], source: SchemaFieldSource) {
-    fields.forEach((field) => {
-      const existing = fieldsByPath.get(field.path);
-      if (existing) {
-        if (!existing.sources.includes(source)) {
-          existing.sources.push(source);
-        }
-        existing.enabled = existing.enabled || field.enabled;
-        return;
-      }
-
-      fieldsByPath.set(field.path, {
-        ...field,
-        source,
-        sources: [source]
-      });
-    });
-  }
-
-  addFields(listSelectionFields.value, 'list');
-  addFields(formSelectionFields.value, 'form');
-  return [...fieldsByPath.values()];
+  const selectedPaths = new Set(schemaSelectionsValue.value.map((field) => field.path));
+  return generatedSelectionFields.value.map((field) => {
+    const source: SchemaFieldSource = field.path.includes('[]') ? 'list' : 'form';
+    return {
+      ...field,
+      selected: selectedPaths.has(field.path),
+      source
+    };
+  });
 });
 const visibleSelectionFields = computed(() => filterSelectionFields(
   combinedSelectionFields.value,
@@ -216,8 +221,9 @@ const visibleSelectionFields = computed(() => filterSelectionFields(
   schemaDataTypeFilter.value,
   schemaPathDepth.value
 ));
-const enabledFieldCount = computed(() => combinedSelectionFields.value.filter((field) => field.enabled).length);
+const enabledFieldCount = computed(() => schemaSelectionsValue.value.length);
 const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value || apiDomainLoading.value);
+const isResponseCaptureBusy = computed(() => responseExamples.value.some((item) => item.loading));
 const mokelayApiOptions = computed(() => mokelayApiOptionsBySource.value[mokelayApiSource.value]);
 const isApiDomainSelectDisabled = computed(() => isReadOnly.value || apiDomainLoading.value || !apiDomainOptions.value.length);
 const apiImportDialogTitle = computed(() => t(`datasource.import.sources.${apiImportSource.value}`));
@@ -246,6 +252,23 @@ function formatJsonValue(value: JsonValue) {
 
 function formatOptionalJsonValue(value?: JsonValue) {
   return value === undefined ? '' : formatJsonValue(value);
+}
+
+function createResponseExampleState(value?: JsonValue): ResponseExampleState {
+  const clonedValue = value === undefined ? undefined : cloneJsonValue(value);
+  return {
+    id: responseExampleId++,
+    value: clonedValue,
+    text: formatOptionalJsonValue(clonedValue),
+    error: '',
+    loading: false
+  };
+}
+
+function createResponseExampleStates(values?: JsonValue[]) {
+  return values?.length
+    ? values.map((value) => createResponseExampleState(value))
+    : [createResponseExampleState()];
 }
 
 function formatJsonSchema(value?: JSONSchema) {
@@ -315,9 +338,7 @@ function buildApiDatasource(): MDatasourceApiObject {
     headerData: apiState.headerData,
     bodyData: apiState.bodyData,
     queryData: apiState.queryData,
-    jsonSchema: jsonSchemaValue.value,
-    schemaSelections: schemaSelectionsValue.value,
-    responseExample: responseExampleValue.value
+    schemaSelections: schemaSelectionsValue.value
   });
 }
 
@@ -329,7 +350,7 @@ function emitApiChange() {
   emitDatasource(buildApiDatasource());
 }
 
-function getBodyFileMock(file: File): MDatasourceBodyFileMock {
+function getBodyFileValue(file: File): MDatasourceBodyFileValue {
   return {
     name: file.name,
     size: file.size,
@@ -337,32 +358,30 @@ function getBodyFileMock(file: File): MDatasourceBodyFileMock {
   };
 }
 
-function isSameBodyFileMock(file: File, mock: unknown) {
-  const normalizedMock = normalizeBodyFileMock(mock);
-  return normalizedMock.name === file.name &&
-    normalizedMock.size === file.size &&
-    normalizedMock.type === file.type;
+function isSameBodyFileValue(file: File, value: unknown) {
+  const normalizedValue = normalizeBodyFileValue(value);
+  return normalizedValue.name === file.name &&
+    normalizedValue.size === file.size &&
+    normalizedValue.type === file.type;
 }
 
-function syncBodyMockInputs() {
+function syncBodyValueInputs() {
   const previousBodyFileInputs = bodyFileInputs.value;
-  bodyMockInputs.value = apiState.bodyData.map((item) => getBodyMockInputValue(item));
-  bodyMockErrors.value = apiState.bodyData.map(() => '');
+  bodyValueInputs.value = apiState.bodyData.map((item) => getBodyValueInput(item));
+  bodyValueErrors.value = apiState.bodyData.map(() => '');
   bodyFileInputs.value = apiState.bodyData.map((item, index) => {
     const previousFile = previousBodyFileInputs[index];
-    return item.dataType === 'file' && previousFile && isSameBodyFileMock(previousFile, item.mock)
+    return item.dataType === 'file' && previousFile && isSameBodyFileValue(previousFile, item.value)
       ? previousFile
       : undefined;
   });
 }
 
-function syncJsonSchemaState(value?: JSONSchema, selections?: DatasourceSchemaSelections, responseExample?: JsonValue) {
-  jsonSchemaValue.value = value ? cloneJsonSchema(value) : undefined;
+function syncTransientSchemaState(selections?: DatasourceSchemaSelections, examples?: JsonValue[]) {
+  jsonSchemaValue.value = undefined;
   jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
-  schemaSelectionsValue.value = normalizeSchemaSelections(selections, jsonSchemaValue.value);
-  responseExampleValue.value = responseExample !== undefined ? cloneJsonValue(responseExample) : undefined;
-  responseExampleText.value = formatOptionalJsonValue(responseExampleValue.value);
-  responseExampleError.value = '';
+  schemaSelectionsValue.value = normalizeSchemaSelections(selections);
+  responseExamples.value = createResponseExampleStates(examples);
   jsonSchemaError.value = '';
 }
 
@@ -376,11 +395,11 @@ function syncApiState(value: MDatasourceApiObject) {
     bodyData: value.bodyData.map((item) => ({
       key: item.key,
       dataType: item.dataType,
-      mock: normalizeBodyMock(item.dataType, item.mock)
+      value: normalizeBodyValue(item.dataType, item.value)
     })),
     queryData: value.queryData.map((item) => ({ ...item }))
   });
-  syncBodyMockInputs();
+  syncBodyValueInputs();
 }
 
 function normalizeApiDomainState(shouldEmit = props.edit) {
@@ -457,7 +476,7 @@ function isDefaultBlankApiState() {
 
 function applyImportedApiDatasource(imported: ImportedApiDatasource) {
   syncApiState(imported.datasource);
-  syncJsonSchemaState(imported.jsonSchema, undefined, imported.responseExample);
+  syncTransientSchemaState(imported.datasource.schemaSelections, imported.responseExamples);
   apiImportError.value = '';
   emitApiChange();
 }
@@ -656,39 +675,9 @@ async function importSelectedApi() {
 
 function syncLocalState(value: unknown) {
   const normalized = normalizeApiDatasource(value);
-  syncJsonSchemaState(normalized.jsonSchema, normalized.schemaSelections, normalized.responseExample);
+  syncTransientSchemaState(normalized.schemaSelections);
   syncApiState(normalized);
   normalizeApiDomainState();
-}
-
-function handleJsonSchemaInput(event: Event) {
-  if (!props.edit) return;
-
-  const nextText = (event.target as HTMLTextAreaElement).value;
-  jsonSchemaText.value = nextText;
-
-  if (!nextText.trim()) {
-    jsonSchemaValue.value = undefined;
-    schemaSelectionsValue.value = undefined;
-    jsonSchemaError.value = '';
-    emitCurrentDatasource();
-    return;
-  }
-
-  try {
-    const parsed = JSON.parse(nextText) as unknown;
-    const normalizedSchema = normalizeJSONSchema(parsed);
-    if (!normalizedSchema) {
-      throw new Error('Invalid JSON Schema.');
-    }
-
-    jsonSchemaValue.value = normalizedSchema;
-    schemaSelectionsValue.value = reconcileSchemaSelections(normalizedSchema, schemaSelectionsValue.value);
-    jsonSchemaError.value = '';
-    emitCurrentDatasource();
-  } catch {
-    jsonSchemaError.value = t('datasource.validation.invalidJsonSchema');
-  }
 }
 
 function updateApiField(field: 'domain' | 'path', value: string) {
@@ -705,24 +694,24 @@ function updateApiMethod(value: string) {
   emitApiChange();
 }
 
-function getKeyMockList(listName: KeyMockListName) {
+function getKeyValueList(listName: KeyValueListName) {
   return apiState[listName];
 }
 
-function addKeyMockItem(listName: KeyMockListName) {
+function addKeyValueItem(listName: KeyValueListName) {
   if (!props.edit) return;
 
   apiState[listName].push({
     key: '',
-    mock: ''
+    value: ''
   });
   emitApiChange();
 }
 
-function updateKeyMockItem(
-  listName: KeyMockListName,
+function updateKeyValueItem(
+  listName: KeyValueListName,
   index: number,
-  field: keyof MDatasourceKeyMockItem,
+  field: keyof MDatasourceKeyValueItem,
   value: string
 ) {
   if (!props.edit) return;
@@ -734,7 +723,7 @@ function updateKeyMockItem(
   emitApiChange();
 }
 
-function removeKeyMockItem(listName: KeyMockListName, index: number) {
+function removeKeyValueItem(listName: KeyValueListName, index: number) {
   if (!props.edit) return;
 
   apiState[listName].splice(index, 1);
@@ -747,11 +736,11 @@ function addBodyItem() {
   const item: ApiStateBodyItem = {
     key: '',
     dataType: 'string',
-    mock: ''
+    value: ''
   };
   apiState.bodyData.push(item);
-  bodyMockInputs.value.push(getBodyMockInputValue(item));
-  bodyMockErrors.value.push('');
+  bodyValueInputs.value.push(getBodyValueInput(item));
+  bodyValueErrors.value.push('');
   bodyFileInputs.value.push(undefined);
   emitApiChange();
 }
@@ -773,28 +762,28 @@ function updateBodyDataType(index: number, value: string) {
   if (!item) return;
 
   item.dataType = normalizeBodyDataType(value);
-  item.mock = getDefaultBodyMock(item.dataType);
-  bodyMockInputs.value[index] = getBodyMockInputValue(item);
-  bodyMockErrors.value[index] = '';
+  item.value = getDefaultBodyValue(item.dataType);
+  bodyValueInputs.value[index] = getBodyValueInput(item);
+  bodyValueErrors.value[index] = '';
   bodyFileInputs.value[index] = undefined;
   emitApiChange();
 }
 
-function updateBodyMock(index: number, inputValue: string) {
+function updateBodyValue(index: number, inputValue: string) {
   if (!props.edit) return;
 
   const item = apiState.bodyData[index];
   if (!item) return;
 
-  bodyMockInputs.value[index] = inputValue;
-  const parsed = parseBodyMock(item.dataType, inputValue);
+  bodyValueInputs.value[index] = inputValue;
+  const parsed = parseBodyValue(item.dataType, inputValue);
   if (!parsed.ok) {
-    bodyMockErrors.value[index] = parsed.error;
+    bodyValueErrors.value[index] = parsed.error;
     return;
   }
 
-  item.mock = parsed.value;
-  bodyMockErrors.value[index] = '';
+  item.value = parsed.value;
+  bodyValueErrors.value[index] = '';
   emitApiChange();
 }
 
@@ -805,9 +794,9 @@ function updateBodyFile(index: number, file?: File) {
   if (!item || item.dataType !== 'file') return;
 
   bodyFileInputs.value[index] = file;
-  item.mock = file ? getBodyFileMock(file) : getDefaultBodyMock('file');
-  bodyMockInputs.value[index] = getBodyMockInputValue(item);
-  bodyMockErrors.value[index] = '';
+  item.value = file ? getBodyFileValue(file) : getDefaultBodyValue('file');
+  bodyValueInputs.value[index] = getBodyValueInput(item);
+  bodyValueErrors.value[index] = '';
   emitApiChange();
 }
 
@@ -815,8 +804,8 @@ function removeBodyItem(index: number) {
   if (!props.edit) return;
 
   apiState.bodyData.splice(index, 1);
-  bodyMockInputs.value.splice(index, 1);
-  bodyMockErrors.value.splice(index, 1);
+  bodyValueInputs.value.splice(index, 1);
+  bodyValueErrors.value.splice(index, 1);
   bodyFileInputs.value.splice(index, 1);
   emitApiChange();
 }
@@ -833,7 +822,7 @@ function getDatasourceErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function applyGeneratedJsonSchema(schema: JSONSchema) {
+function applySelectedResponseSchema(schema: JSONSchema) {
   jsonSchemaValue.value = cloneJsonSchema(schema);
   jsonSchemaText.value = formatJsonSchema(jsonSchemaValue.value);
   schemaSelectionsValue.value = reconcileSchemaSelections(jsonSchemaValue.value, schemaSelectionsValue.value);
@@ -841,23 +830,44 @@ function applyGeneratedJsonSchema(schema: JSONSchema) {
   emitCurrentDatasource();
 }
 
-function applyResponseExample(value: JsonValue) {
-  responseExampleValue.value = cloneJsonValue(value);
-  responseExampleText.value = formatJsonValue(responseExampleValue.value);
-  responseExampleError.value = '';
-  emitCurrentDatasource();
+function addResponseExample() {
+  if (!props.edit) return;
+  responseExamples.value.push(createResponseExampleState());
+  triggerRef(responseExamples);
 }
 
-function handleResponseExampleInput(event: Event) {
+function removeResponseExample(index: number) {
+  if (!props.edit) return;
+  responseExamples.value.splice(index, 1);
+  if (!responseExamples.value.length) {
+    responseExamples.value.push(createResponseExampleState());
+  }
+  triggerRef(responseExamples);
+}
+
+function applyResponseExample(index: number, value: JsonValue) {
+  const item = responseExamples.value[index];
+  if (!item) return;
+
+  item.value = cloneJsonValue(value);
+  item.text = formatJsonValue(item.value);
+  item.error = '';
+  triggerRef(responseExamples);
+}
+
+function handleResponseExampleInput(index: number, event: Event) {
   if (!props.edit) return;
 
+  const item = responseExamples.value[index];
+  if (!item) return;
+
   const nextText = (event.target as HTMLTextAreaElement).value;
-  responseExampleText.value = nextText;
+  item.text = nextText;
 
   if (!nextText.trim()) {
-    responseExampleValue.value = undefined;
-    responseExampleError.value = '';
-    emitCurrentDatasource();
+    item.value = undefined;
+    item.error = '';
+    triggerRef(responseExamples);
     return;
   }
 
@@ -867,11 +877,12 @@ function handleResponseExampleInput(event: Event) {
       throw new Error('Invalid JSON response example.');
     }
 
-    responseExampleValue.value = cloneJsonValue(parsed);
-    responseExampleError.value = '';
-    emitCurrentDatasource();
+    item.value = cloneJsonValue(parsed);
+    item.error = '';
+    triggerRef(responseExamples);
   } catch {
-    responseExampleError.value = t('datasource.validation.invalidResponseExample');
+    item.error = t('datasource.validation.invalidResponseExample');
+    triggerRef(responseExamples);
   }
 }
 
@@ -888,61 +899,39 @@ function inferDatasourceSchemaFromData(data: JsonValue) {
   throw new DatasourceError('mixedArraySchema', 'The array contains incompatible types, so JSON Schema cannot be inferred.');
 }
 
-function updateSelectionEnabled(selectionTypes: SchemaFieldSource[], path: string, enabled: boolean) {
+function addSchemaSelection(path: string) {
   if (!props.edit) return;
 
-  const currentSelections = normalizeSchemaSelections(schemaSelectionsValue.value, jsonSchemaValue.value);
-  if (!currentSelections) return;
+  const currentSelections = normalizeSchemaSelections(schemaSelectionsValue.value);
+  const field = generatedSelectionFields.value.find((item) => item.path === path);
+  if (!field || currentSelections.some((item) => item.path === path)) return;
 
-  schemaSelectionsValue.value = {
+  schemaSelectionsValue.value = [
     ...currentSelections,
-    ...(selectionTypes.includes('list') && currentSelections.list
-      ? {
-          list: {
-            ...currentSelections.list,
-            fields: currentSelections.list.fields.map((field) =>
-              field.path === path ? { ...field, enabled } : field
-            )
-          }
-        }
-      : {}),
-    ...(selectionTypes.includes('form') && currentSelections.form
-      ? {
-          form: {
-            fields: currentSelections.form.fields.map((field) =>
-              field.path === path ? { ...field, enabled } : field
-            )
-          }
-        }
-      : {})
-  };
+    {
+      label: field.label,
+      path: field.path,
+      type: field.type
+    }
+  ];
   emitCurrentDatasource();
 }
 
-function validateBodyFilesForRequest() {
-  if (apiState.method !== 'POST') {
-    return true;
-  }
+function removeSchemaSelection(path: string) {
+  if (!props.edit) return;
 
-  let isValid = true;
-  apiState.bodyData.forEach((item, index) => {
-    if (item.dataType !== 'file') return;
+  const nextSelections = normalizeSchemaSelections(schemaSelectionsValue.value)
+    .filter((field) => field.path !== path);
+  if (nextSelections.length === schemaSelectionsValue.value.length) return;
 
-    if (!item.key.trim() || bodyFileInputs.value[index]) {
-      bodyMockErrors.value[index] = '';
-      return;
-    }
-
-    bodyMockErrors.value[index] = t('datasource.validation.missingFile');
-    isValid = false;
-  });
-
-  return isValid;
+  schemaSelectionsValue.value = nextSelections;
+  emitCurrentDatasource();
 }
 
-function getDatasourceRequestOptions(): DatasourceRequestOptions {
+function getResponseMockRequestOptions(): DatasourceRequestOptions {
   const bodyFiles: Record<number, File> = {};
-  bodyFileInputs.value.forEach((file, index) => {
+  responseMockBodyData.value.forEach((item, index) => {
+    const file = item.file;
     if (!file) return;
     bodyFiles[index] = file;
   });
@@ -952,55 +941,180 @@ function getDatasourceRequestOptions(): DatasourceRequestOptions {
   };
 }
 
-async function captureResponseExample() {
-  if (!props.edit || responseExampleLoading.value) return;
+function hasConfiguredRequestKeys() {
+  return apiState.headerData.some((item) => item.key.trim()) ||
+    apiState.queryData.some((item) => item.key.trim()) ||
+    apiState.bodyData.some((item) => item.key.trim());
+}
 
-  jsonSchemaError.value = '';
+function openResponseMockDialog(index: number) {
+  responseMockTargetIndex.value = index;
+  responseMockHeaderData.value = apiState.headerData
+    .filter((item) => item.key.trim())
+    .map((item) => ({ ...item }));
+  responseMockQueryData.value = apiState.queryData
+    .filter((item) => item.key.trim())
+    .map((item) => ({ ...item }));
+  const mockBodyData: ResponseMockBodyItem[] = [];
+  apiState.bodyData.forEach((item, sourceIndex) => {
+    if (!item.key.trim()) return;
 
-  if (!validateBodyFilesForRequest()) {
-    jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
-    return;
-  }
-
-  const invalidBodyIndex = bodyMockErrors.value.findIndex((error) => Boolean(error));
-  if (invalidBodyIndex >= 0) {
-    jsonSchemaError.value = t('datasource.validation.fixBodyBeforeSchema');
-    return;
-  }
-
-  responseExampleLoading.value = true;
-
-  try {
-    const responseData = await resolveDatasourceRemote(buildApiDatasource(), getDatasourceRequestOptions());
-    applyResponseExample(responseData);
-  } catch (error) {
-    jsonSchemaError.value = getDatasourceErrorMessage(error);
-  } finally {
-    responseExampleLoading.value = false;
+    const normalizedValue = normalizeBodyValue(item.dataType, item.value);
+    mockBodyData.push({
+      key: item.key,
+      dataType: item.dataType,
+      value: normalizedValue,
+      input: getBodyValueInput({ ...item, value: normalizedValue }),
+      error: '',
+      file: bodyFileInputs.value[sourceIndex]
+    });
+  });
+  responseMockBodyData.value = mockBodyData;
+  responseMockError.value = '';
+  isResponseMockDialogOpen.value = true;
+  if (!responseMockDialogRef.value?.open) {
+    responseMockDialogRef.value?.showModal();
   }
 }
 
-function updateResponseSchema() {
+function closeResponseMockDialog() {
+  isResponseMockDialogOpen.value = false;
+  responseMockTargetIndex.value = null;
+  if (responseMockDialogRef.value?.open) {
+    responseMockDialogRef.value.close();
+  }
+}
+
+function updateResponseMockBodyValue(index: number, inputValue: string) {
+  const item = responseMockBodyData.value[index];
+  if (!item) return;
+
+  item.input = inputValue;
+  const parsed = parseBodyValue(item.dataType, inputValue);
+  if (!parsed.ok) {
+    item.error = parsed.error;
+    triggerRef(responseMockBodyData);
+    return;
+  }
+
+  item.value = parsed.value;
+  item.error = '';
+  triggerRef(responseMockBodyData);
+}
+
+function updateResponseMockBodyFile(index: number, file?: File) {
+  const item = responseMockBodyData.value[index];
+  if (!item || item.dataType !== 'file') return;
+
+  item.file = file;
+  item.value = file ? getBodyFileValue(file) : getDefaultBodyValue('file');
+  item.input = getBodyValueInput(item);
+  item.error = '';
+  triggerRef(responseMockBodyData);
+}
+
+async function runResponseCapture(
+  index: number,
+  datasource: MDatasourceApiObject,
+  options?: DatasourceRequestOptions,
+  fromDialog = false
+) {
+  const item = responseExamples.value[index];
+  if (!item || item.loading) return;
+
+  jsonSchemaError.value = '';
+  responseMockError.value = '';
+  item.loading = true;
+  triggerRef(responseExamples);
+
+  try {
+    const responseData = await resolveDatasourceRemote(datasource, options);
+    applyResponseExample(index, responseData);
+    if (fromDialog) {
+      closeResponseMockDialog();
+    }
+  } catch (error) {
+    const message = getDatasourceErrorMessage(error);
+    if (fromDialog) {
+      responseMockError.value = message;
+    } else {
+      jsonSchemaError.value = message;
+    }
+  } finally {
+    item.loading = false;
+    triggerRef(responseExamples);
+  }
+}
+
+function captureResponseExample(index: number) {
+  if (!props.edit || isResponseCaptureBusy.value) return;
+
+  if (hasConfiguredRequestKeys()) {
+    openResponseMockDialog(index);
+    return;
+  }
+
+  void runResponseCapture(index, buildApiDatasource());
+}
+
+function captureResponseExampleWithMock() {
+  const targetIndex = responseMockTargetIndex.value;
+  if (targetIndex === null || isResponseCaptureBusy.value) return;
+
+  const invalidBodyItem = responseMockBodyData.value.find((item) => Boolean(item.error));
+  if (invalidBodyItem) {
+    responseMockError.value = t('datasource.validation.fixMockBeforeCapture');
+    return;
+  }
+
+  if (apiState.method === 'POST') {
+    const missingFileItem = responseMockBodyData.value.find((item) => item.dataType === 'file' && !item.file);
+    if (missingFileItem) {
+      missingFileItem.error = t('datasource.validation.missingFile');
+      triggerRef(responseMockBodyData);
+      responseMockError.value = t('datasource.validation.fixMockBeforeCapture');
+      return;
+    }
+  }
+
+  const datasource = normalizeApiDatasource({
+    ...buildApiDatasource(),
+    headerData: responseMockHeaderData.value,
+    queryData: responseMockQueryData.value,
+    bodyData: responseMockBodyData.value.map((item) => ({
+      key: item.key,
+      dataType: item.dataType,
+      value: item.value
+    }))
+  });
+  void runResponseCapture(targetIndex, datasource, getResponseMockRequestOptions(), true);
+}
+
+function selectResponseSchema(index: number) {
   if (!props.edit) return;
 
+  const item = responseExamples.value[index];
+  if (!item) return;
+
   jsonSchemaError.value = '';
-  if (responseExampleError.value) {
+  if (item.error) {
     return;
   }
 
-  if (responseExampleValue.value === undefined) {
-    responseExampleError.value = t('datasource.validation.missingResponseExample');
+  if (item.value === undefined) {
+    item.error = t('datasource.validation.missingResponseExample');
+    triggerRef(responseExamples);
     return;
   }
 
   try {
-    applyGeneratedJsonSchema(inferDatasourceSchemaFromData(responseExampleValue.value));
+    applySelectedResponseSchema(inferDatasourceSchemaFromData(item.value));
   } catch (error) {
     jsonSchemaError.value = getDatasourceErrorMessage(error);
   }
 }
 
-function parseBodyMock(dataType: MDatasourceBodyDataType, inputValue: string): BodyMockParseResult {
+function parseBodyValue(dataType: MDatasourceBodyDataType, inputValue: string): BodyValueParseResult {
   if (dataType === 'string') {
     return {
       ok: true,
@@ -1041,7 +1155,7 @@ function parseBodyMock(dataType: MDatasourceBodyDataType, inputValue: string): B
   if (dataType === 'file') {
     return {
       ok: true,
-      value: normalizeBodyFileMock({
+      value: normalizeBodyFileValue({
         name: inputValue,
         size: 0,
         type: ''
@@ -1086,21 +1200,21 @@ function parseBodyMock(dataType: MDatasourceBodyDataType, inputValue: string): B
   }
 }
 
-function getBodyMockInputValue(item: ApiStateBodyItem) {
-  const normalizedMock = normalizeBodyMock(item.dataType, item.mock);
+function getBodyValueInput(item: Pick<ApiStateBodyItem, 'dataType' | 'value'>) {
+  const normalizedValue = normalizeBodyValue(item.dataType, item.value);
   if (item.dataType === 'file') {
-    return normalizeBodyFileMock(normalizedMock).name;
+    return normalizeBodyFileValue(normalizedValue).name;
   }
 
   if (item.dataType === 'object' || item.dataType === 'array') {
-    return formatJsonValue(normalizedMock);
+    return formatJsonValue(normalizedValue);
   }
 
   if (item.dataType === 'null') {
     return 'null';
   }
 
-  return String(normalizedMock);
+  return String(normalizedValue);
 }
 
 void ensureApiDomainOptions();
@@ -1346,16 +1460,16 @@ watch(
             class="ce-datasource-tool__action"
             type="button"
             data-testid="datasource-header-add"
-            @click.stop.prevent="addKeyMockItem('headerData')"
+            @click.stop.prevent="addKeyValueItem('headerData')"
           >
             {{ t('datasource.actions.add') }}
           </button>
         </summary>
-        <p v-if="!getKeyMockList('headerData').length" class="ce-datasource-tool__empty">
+        <p v-if="!getKeyValueList('headerData').length" class="ce-datasource-tool__empty">
           {{ t('datasource.empty') }}
         </p>
         <div
-          v-for="(item, index) in getKeyMockList('headerData')"
+          v-for="(item, index) in getKeyValueList('headerData')"
           :key="`header-${index}`"
           class="ce-datasource-tool__row"
         >
@@ -1366,17 +1480,17 @@ watch(
             :readonly="isReadOnly"
             :placeholder="t('datasource.fields.key')"
             :value="item.key"
-            @input="updateKeyMockItem('headerData', index, 'key', ($event.target as HTMLInputElement).value)"
+            @input="updateKeyValueItem('headerData', index, 'key', ($event.target as HTMLInputElement).value)"
             @keydown.stop
           />
           <input
             class="ce-datasource-tool__input"
-            :data-testid="`datasource-header-mock-${index}`"
+            :data-testid="`datasource-header-value-${index}`"
             type="text"
             :readonly="isReadOnly"
-            :placeholder="t('datasource.fields.mock')"
-            :value="item.mock"
-            @input="updateKeyMockItem('headerData', index, 'mock', ($event.target as HTMLInputElement).value)"
+            :placeholder="t('datasource.fields.value')"
+            :value="item.value"
+            @input="updateKeyValueItem('headerData', index, 'value', ($event.target as HTMLInputElement).value)"
             @keydown.stop
           />
           <button
@@ -1385,7 +1499,7 @@ watch(
             type="button"
             :data-testid="`datasource-header-remove-${index}`"
             :aria-label="t('datasource.actions.remove')"
-            @click="removeKeyMockItem('headerData', index)"
+            @click="removeKeyValueItem('headerData', index)"
           >
             {{ t('datasource.actions.remove') }}
           </button>
@@ -1400,16 +1514,16 @@ watch(
             class="ce-datasource-tool__action"
             type="button"
             data-testid="datasource-query-add"
-            @click.stop.prevent="addKeyMockItem('queryData')"
+            @click.stop.prevent="addKeyValueItem('queryData')"
           >
             {{ t('datasource.actions.add') }}
           </button>
         </summary>
-        <p v-if="!getKeyMockList('queryData').length" class="ce-datasource-tool__empty">
+        <p v-if="!getKeyValueList('queryData').length" class="ce-datasource-tool__empty">
           {{ t('datasource.empty') }}
         </p>
         <div
-          v-for="(item, index) in getKeyMockList('queryData')"
+          v-for="(item, index) in getKeyValueList('queryData')"
           :key="`query-${index}`"
           class="ce-datasource-tool__row"
         >
@@ -1420,17 +1534,17 @@ watch(
             :readonly="isReadOnly"
             :placeholder="t('datasource.fields.key')"
             :value="item.key"
-            @input="updateKeyMockItem('queryData', index, 'key', ($event.target as HTMLInputElement).value)"
+            @input="updateKeyValueItem('queryData', index, 'key', ($event.target as HTMLInputElement).value)"
             @keydown.stop
           />
           <input
             class="ce-datasource-tool__input"
-            :data-testid="`datasource-query-mock-${index}`"
+            :data-testid="`datasource-query-value-${index}`"
             type="text"
             :readonly="isReadOnly"
-            :placeholder="t('datasource.fields.mock')"
-            :value="item.mock"
-            @input="updateKeyMockItem('queryData', index, 'mock', ($event.target as HTMLInputElement).value)"
+            :placeholder="t('datasource.fields.value')"
+            :value="item.value"
+            @input="updateKeyValueItem('queryData', index, 'value', ($event.target as HTMLInputElement).value)"
             @keydown.stop
           />
           <button
@@ -1439,7 +1553,7 @@ watch(
             type="button"
             :data-testid="`datasource-query-remove-${index}`"
             :aria-label="t('datasource.actions.remove')"
-            @click="removeKeyMockItem('queryData', index)"
+            @click="removeKeyValueItem('queryData', index)"
           >
             {{ t('datasource.actions.remove') }}
           </button>
@@ -1491,10 +1605,10 @@ watch(
           <select
             v-if="body.dataType === 'boolean'"
             class="ce-datasource-tool__input"
-            :data-testid="`datasource-body-mock-${index}`"
+            :data-testid="`datasource-body-value-${index}`"
             :disabled="isReadOnly"
-            :value="String(body.mock === true)"
-            @change="updateBodyMock(index, ($event.target as HTMLSelectElement).value)"
+            :value="String(body.value === true)"
+            @change="updateBodyValue(index, ($event.target as HTMLSelectElement).value)"
           >
             <option value="false">false</option>
             <option value="true">true</option>
@@ -1502,7 +1616,7 @@ watch(
           <input
             v-else-if="body.dataType === 'null'"
             class="ce-datasource-tool__input"
-            :data-testid="`datasource-body-mock-${index}`"
+            :data-testid="`datasource-body-value-${index}`"
             type="text"
             readonly
             value="null"
@@ -1510,7 +1624,7 @@ watch(
           <input
             v-else-if="body.dataType === 'file' && edit"
             class="ce-datasource-tool__input"
-            :data-testid="`datasource-body-mock-${index}`"
+            :data-testid="`datasource-body-value-${index}`"
             type="file"
             :disabled="isReadOnly"
             @change="updateBodyFile(index, ($event.target as HTMLInputElement).files?.[0])"
@@ -1519,30 +1633,30 @@ watch(
           <input
             v-else-if="body.dataType === 'file'"
             class="ce-datasource-tool__input"
-            :data-testid="`datasource-body-mock-${index}`"
+            :data-testid="`datasource-body-value-${index}`"
             type="text"
             readonly
-            :value="getBodyMockInputValue(body)"
+            :value="getBodyValueInput(body)"
           />
           <textarea
             v-else-if="body.dataType === 'object' || body.dataType === 'array'"
-            class="ce-datasource-tool__textarea ce-datasource-tool__textarea--mock"
-            :data-testid="`datasource-body-mock-${index}`"
+            class="ce-datasource-tool__textarea ce-datasource-tool__textarea--value"
+            :data-testid="`datasource-body-value-${index}`"
             spellcheck="false"
             :readonly="isReadOnly"
-            :value="bodyMockInputs[index] ?? getBodyMockInputValue(body)"
-            @input="updateBodyMock(index, ($event.target as HTMLTextAreaElement).value)"
+            :value="bodyValueInputs[index] ?? getBodyValueInput(body)"
+            @input="updateBodyValue(index, ($event.target as HTMLTextAreaElement).value)"
             @keydown.stop
           ></textarea>
           <input
             v-else
             class="ce-datasource-tool__input"
-            :data-testid="`datasource-body-mock-${index}`"
+            :data-testid="`datasource-body-value-${index}`"
             :type="body.dataType === 'number' ? 'number' : 'text'"
             :readonly="isReadOnly"
-            :placeholder="t('datasource.fields.mock')"
-            :value="bodyMockInputs[index] ?? getBodyMockInputValue(body)"
-            @input="updateBodyMock(index, ($event.target as HTMLInputElement).value)"
+            :placeholder="t('datasource.fields.value')"
+            :value="bodyValueInputs[index] ?? getBodyValueInput(body)"
+            @input="updateBodyValue(index, ($event.target as HTMLInputElement).value)"
             @keydown.stop
           />
           <button
@@ -1555,13 +1669,168 @@ watch(
           >
             {{ t('datasource.actions.remove') }}
           </button>
-          <p v-if="bodyMockErrors[index]" class="ce-datasource-tool__body-error" :data-testid="`datasource-body-error-${index}`">
-            {{ bodyMockErrors[index] }}
+          <p v-if="bodyValueErrors[index]" class="ce-datasource-tool__body-error" :data-testid="`datasource-body-error-${index}`">
+            {{ bodyValueErrors[index] }}
           </p>
         </div>
       </details>
         </div>
       </section>
+
+      <dialog
+        v-if="edit"
+        ref="responseMockDialogRef"
+        class="ce-datasource-tool__import-dialog ce-datasource-tool__response-mock-dialog"
+        data-testid="datasource-response-mock-dialog"
+        :aria-hidden="!isResponseMockDialogOpen"
+        aria-labelledby="datasource-response-mock-dialog-title"
+        @close="isResponseMockDialogOpen = false; responseMockTargetIndex = null"
+      >
+        <div class="ce-datasource-tool__import-dialog-panel">
+          <div class="ce-datasource-tool__import-dialog-header">
+            <h3 id="datasource-response-mock-dialog-title" class="ce-datasource-tool__import-dialog-title">
+              {{ t('datasource.responseMock.title') }}
+            </h3>
+            <button
+              class="ce-datasource-tool__import-dialog-close"
+              type="button"
+              data-testid="datasource-response-mock-close"
+              :disabled="isResponseCaptureBusy"
+              @click="closeResponseMockDialog"
+            >
+              {{ t('editor.close') }}
+            </button>
+          </div>
+
+          <div class="ce-datasource-tool__import-dialog-body ce-datasource-tool__response-mock-body">
+            <p class="ce-datasource-tool__section-copy">{{ t('datasource.responseMock.help') }}</p>
+
+            <section v-if="responseMockHeaderData.length" class="ce-datasource-tool__response-mock-section">
+              <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.headers') }}</div>
+              <div
+                v-for="(item, index) in responseMockHeaderData"
+                :key="`response-mock-header-${index}`"
+                class="ce-datasource-tool__response-mock-row"
+              >
+                <input class="ce-datasource-tool__input" type="text" readonly :value="item.key" />
+                <input
+                  class="ce-datasource-tool__input"
+                  :data-testid="`datasource-response-mock-header-${index}`"
+                  type="text"
+                  :placeholder="t('datasource.fields.mock')"
+                  :value="item.value"
+                  @input="item.value = ($event.target as HTMLInputElement).value"
+                  @keydown.stop
+                />
+              </div>
+            </section>
+
+            <section v-if="responseMockQueryData.length" class="ce-datasource-tool__response-mock-section">
+              <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.queries') }}</div>
+              <div
+                v-for="(item, index) in responseMockQueryData"
+                :key="`response-mock-query-${index}`"
+                class="ce-datasource-tool__response-mock-row"
+              >
+                <input class="ce-datasource-tool__input" type="text" readonly :value="item.key" />
+                <input
+                  class="ce-datasource-tool__input"
+                  :data-testid="`datasource-response-mock-query-${index}`"
+                  type="text"
+                  :placeholder="t('datasource.fields.mock')"
+                  :value="item.value"
+                  @input="item.value = ($event.target as HTMLInputElement).value"
+                  @keydown.stop
+                />
+              </div>
+            </section>
+
+            <section v-if="responseMockBodyData.length" class="ce-datasource-tool__response-mock-section">
+              <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.body') }}</div>
+              <div
+                v-for="(item, index) in responseMockBodyData"
+                :key="`response-mock-body-${index}`"
+                class="ce-datasource-tool__response-mock-body-row"
+              >
+                <input class="ce-datasource-tool__input" type="text" readonly :value="item.key" />
+                <input class="ce-datasource-tool__input" type="text" readonly :value="item.dataType" />
+                <select
+                  v-if="item.dataType === 'boolean'"
+                  class="ce-datasource-tool__input"
+                  :data-testid="`datasource-response-mock-body-${index}`"
+                  :value="String(item.value === true)"
+                  @change="updateResponseMockBodyValue(index, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="false">false</option>
+                  <option value="true">true</option>
+                </select>
+                <input
+                  v-else-if="item.dataType === 'null'"
+                  class="ce-datasource-tool__input"
+                  :data-testid="`datasource-response-mock-body-${index}`"
+                  type="text"
+                  readonly
+                  value="null"
+                />
+                <input
+                  v-else-if="item.dataType === 'file'"
+                  class="ce-datasource-tool__input"
+                  :data-testid="`datasource-response-mock-body-${index}`"
+                  type="file"
+                  @change="updateResponseMockBodyFile(index, ($event.target as HTMLInputElement).files?.[0])"
+                  @keydown.stop
+                />
+                <textarea
+                  v-else-if="item.dataType === 'object' || item.dataType === 'array'"
+                  class="ce-datasource-tool__textarea ce-datasource-tool__textarea--value"
+                  :data-testid="`datasource-response-mock-body-${index}`"
+                  spellcheck="false"
+                  :value="item.input"
+                  @input="updateResponseMockBodyValue(index, ($event.target as HTMLTextAreaElement).value)"
+                  @keydown.stop
+                ></textarea>
+                <input
+                  v-else
+                  class="ce-datasource-tool__input"
+                  :data-testid="`datasource-response-mock-body-${index}`"
+                  :type="item.dataType === 'number' ? 'number' : 'text'"
+                  :placeholder="t('datasource.fields.mock')"
+                  :value="item.input"
+                  @input="updateResponseMockBodyValue(index, ($event.target as HTMLInputElement).value)"
+                  @keydown.stop
+                />
+                <p v-if="item.error" class="ce-datasource-tool__body-error ce-datasource-tool__response-mock-body-error">
+                  {{ item.error }}
+                </p>
+              </div>
+            </section>
+
+            <p v-if="responseMockError" class="ce-datasource-tool__error" data-testid="datasource-response-mock-error">
+              {{ responseMockError }}
+            </p>
+          </div>
+
+          <div class="ce-datasource-tool__import-dialog-actions">
+            <button
+              class="ce-datasource-tool__action"
+              type="button"
+              :disabled="isResponseCaptureBusy"
+              @click="closeResponseMockDialog"
+            >
+              {{ t('datasource.actions.cancel') }}
+            </button>
+            <button
+              class="ce-datasource-tool__schema-button"
+              type="button"
+              data-testid="datasource-response-mock-submit"
+              :disabled="isResponseCaptureBusy"
+              @click="captureResponseExampleWithMock"
+            >
+              {{ isResponseCaptureBusy ? t('datasource.actions.capturingResponseExample') : t('datasource.actions.capture') }}
+            </button>
+          </div>
+        </div>
+      </dialog>
 
       <section class="ce-datasource-tool__config-section" data-testid="datasource-response-config">
         <div class="ce-datasource-tool__config-section-header">
@@ -1569,74 +1838,108 @@ watch(
             <div class="ce-datasource-tool__config-section-title">{{ t('datasource.sections.responseConfig') }}</div>
             <p class="ce-datasource-tool__section-copy">{{ t('datasource.help.responseConfig') }}</p>
           </div>
+          <button
+            v-if="edit"
+            class="ce-datasource-tool__action"
+            type="button"
+            data-testid="datasource-response-example-add"
+            @click="addResponseExample"
+          >
+            {{ t('datasource.actions.addResponseExample') }}
+          </button>
         </div>
         <div class="ce-datasource-tool__config-section-body ce-datasource-tool__config-section-body--response">
-    <div class="ce-datasource-tool__generate-panel" data-testid="datasource-schema-generate-panel">
-      <div class="ce-datasource-tool__generate-actions">
-        <button
-          v-if="edit"
-          class="ce-datasource-tool__schema-button"
-          type="button"
-          data-testid="datasource-json-schema-parse-button"
-          :disabled="responseExampleLoading"
-          @click="captureResponseExample"
-        >
-          {{ responseExampleLoading ? t('datasource.actions.capturingResponseExample') : t('datasource.actions.captureResponseExample') }}
-        </button>
-        <button
-          v-if="edit"
-          class="ce-datasource-tool__schema-button"
-          type="button"
-          data-testid="datasource-response-schema-update-button"
-          @click="updateResponseSchema"
-        >
-          {{ t('datasource.actions.updateSchema') }}
-        </button>
-        <span v-if="jsonSchemaValue" class="ce-datasource-tool__schema-summary" data-testid="datasource-schema-summary">
-          {{ t('datasource.fields.generatedFields') }}: {{ flattenedSchemaNodes.length }}
-        </span>
-      </div>
-      <p v-if="jsonSchemaError" class="ce-datasource-tool__error" data-testid="datasource-json-schema-error">
-        {{ jsonSchemaError }}
-      </p>
-      <div class="ce-datasource-tool__response-example-grid">
-        <label class="ce-datasource-tool__field">
-          <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExampleInput') }}</span>
-          <textarea
-            class="ce-datasource-tool__textarea ce-datasource-tool__textarea--response-example"
-            data-testid="datasource-response-example"
-            spellcheck="false"
-            :readonly="isReadOnly"
-            :placeholder="t('datasource.fields.responseExamplePlaceholder')"
-            :value="responseExampleText"
-            @input="handleResponseExampleInput"
-            @keydown.stop
-          ></textarea>
-        </label>
-        <div class="ce-datasource-tool__field">
-          <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExamplePreview') }}</span>
-          <div
-            class="ce-datasource-tool__response-example-preview"
-            data-testid="datasource-response-example-preview"
-          >
-            <p
-              v-if="responseExampleError"
-              class="ce-datasource-tool__response-example-preview-state ce-datasource-tool__response-example-preview-state--error"
-              data-testid="datasource-response-example-preview-error"
+          <div class="ce-datasource-tool__response-example-list" data-testid="datasource-schema-generate-panel">
+            <article
+              v-for="(responseExample, index) in responseExamples"
+              :key="responseExample.id"
+              class="ce-datasource-tool__generate-panel ce-datasource-tool__response-example-card"
+              :data-testid="`datasource-response-example-item-${index}`"
             >
-              {{ responseExampleError }}
-            </p>
-            <JsonTreeView v-else-if="responseExampleValue !== undefined" :value="responseExampleValue" />
-            <p v-else class="ce-datasource-tool__response-example-preview-state">
-              {{ t('datasource.fields.responseExamplePreviewEmpty') }}
-            </p>
+              <div class="ce-datasource-tool__response-example-header">
+                <div class="ce-datasource-tool__section-title">
+                  {{ t('datasource.fields.responseExample') }} {{ index + 1 }}
+                </div>
+                <div v-if="edit" class="ce-datasource-tool__response-example-header-actions">
+                  <button
+                    class="ce-datasource-tool__schema-button"
+                    type="button"
+                    :data-testid="index === 0 ? 'datasource-response-schema-select-button' : `datasource-response-schema-select-button-${index}`"
+                    @click="selectResponseSchema(index)"
+                  >
+                    {{ t('datasource.actions.selectSchema') }}
+                  </button>
+                  <button
+                    class="ce-datasource-tool__remove"
+                    type="button"
+                    :data-testid="`datasource-response-example-remove-${index}`"
+                    @click="removeResponseExample(index)"
+                  >
+                    {{ t('datasource.actions.remove') }}
+                  </button>
+                </div>
+              </div>
+              <div class="ce-datasource-tool__generate-actions">
+                <button
+                  v-if="edit"
+                  class="ce-datasource-tool__schema-button"
+                  type="button"
+                  :data-testid="index === 0 ? 'datasource-json-schema-parse-button' : `datasource-json-schema-parse-button-${index}`"
+                  :disabled="isResponseCaptureBusy"
+                  @click="captureResponseExample(index)"
+                >
+                  {{ responseExample.loading ? t('datasource.actions.capturingResponseExample') : t('datasource.actions.captureResponseExample') }}
+                </button>
+                <span v-if="jsonSchemaValue" class="ce-datasource-tool__schema-summary" data-testid="datasource-schema-summary">
+                  {{ t('datasource.fields.generatedFields') }}: {{ flattenedSchemaNodes.length }}
+                </span>
+              </div>
+              <div class="ce-datasource-tool__response-example-grid">
+                <label class="ce-datasource-tool__field">
+                  <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExampleInput') }}</span>
+                  <textarea
+                    class="ce-datasource-tool__textarea ce-datasource-tool__textarea--response-example"
+                    :data-testid="index === 0 ? 'datasource-response-example' : `datasource-response-example-${index}`"
+                    spellcheck="false"
+                    :readonly="isReadOnly"
+                    :placeholder="t('datasource.fields.responseExamplePlaceholder')"
+                    :value="responseExample.text"
+                    @input="handleResponseExampleInput(index, $event)"
+                    @keydown.stop
+                  ></textarea>
+                </label>
+                <div class="ce-datasource-tool__field">
+                  <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExamplePreview') }}</span>
+                  <div
+                    class="ce-datasource-tool__response-example-preview"
+                    :data-testid="index === 0 ? 'datasource-response-example-preview' : `datasource-response-example-preview-${index}`"
+                  >
+                    <p
+                      v-if="responseExample.error"
+                      class="ce-datasource-tool__response-example-preview-state ce-datasource-tool__response-example-preview-state--error"
+                      :data-testid="index === 0 ? 'datasource-response-example-preview-error' : `datasource-response-example-preview-error-${index}`"
+                    >
+                      {{ responseExample.error }}
+                    </p>
+                    <JsonTreeView v-else-if="responseExample.value !== undefined" :value="responseExample.value" />
+                    <p v-else class="ce-datasource-tool__response-example-preview-state">
+                      {{ t('datasource.fields.responseExamplePreviewEmpty') }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p
+                v-if="responseExample.error"
+                class="ce-datasource-tool__error"
+                :data-testid="index === 0 ? 'datasource-response-example-error' : `datasource-response-example-error-${index}`"
+              >
+                {{ responseExample.error }}
+              </p>
+            </article>
           </div>
-        </div>
-      </div>
-      <p v-if="responseExampleError" class="ce-datasource-tool__error" data-testid="datasource-response-example-error">
-        {{ responseExampleError }}
-      </p>
-    </div>
+          <p v-if="jsonSchemaError" class="ce-datasource-tool__error" data-testid="datasource-json-schema-error">
+            {{ jsonSchemaError }}
+          </p>
 
     <div class="ce-datasource-tool__schema-panel" data-testid="datasource-json-schema-panel">
       <div class="ce-datasource-tool__schema-header">
@@ -1657,7 +1960,46 @@ watch(
         </button>
       </div>
 
+        <div class="ce-datasource-tool__selected-fields" data-testid="datasource-selected-fields">
+          <div class="ce-datasource-tool__field-list-summary">
+            {{ t('datasource.fields.selectedFields') }}: {{ enabledFieldCount }}
+          </div>
+          <div v-if="schemaSelectionsValue.length" class="ce-datasource-tool__field-list">
+            <div
+              v-for="field in schemaSelectionsValue"
+              :key="field.path"
+              class="ce-datasource-tool__schema-field"
+              :data-testid="`datasource-selected-field-${field.path}`"
+            >
+              <span class="ce-datasource-tool__schema-field-main">
+                <span class="ce-datasource-tool__schema-field-label" :data-testid="`datasource-selected-field-label-${field.path}`">
+                  {{ field.label }}
+                </span>
+                <span class="ce-datasource-tool__schema-path">{{ field.path }}</span>
+              </span>
+              <span class="ce-datasource-tool__schema-badges">
+                <span class="ce-datasource-tool__schema-badge">{{ getSchemaTypeLabel(field.type) }}</span>
+                <button
+                  type="button"
+                  class="ce-datasource-tool__field-action ce-datasource-tool__field-action--remove"
+                  :disabled="isReadOnly"
+                  :data-testid="`datasource-selected-field-remove-${field.path}`"
+                  @click="removeSchemaSelection(field.path)"
+                >
+                  {{ t('datasource.actions.remove') }}
+                </button>
+              </span>
+            </div>
+          </div>
+          <p v-else class="ce-datasource-tool__empty" data-testid="datasource-selected-fields-empty">
+            {{ t('datasource.emptySelectedFields') }}
+          </p>
+        </div>
+
         <div class="ce-datasource-tool__schema-tab-panel" data-testid="datasource-fields-schema-panel">
+          <div class="ce-datasource-tool__field-list-summary">
+            {{ t('datasource.fields.availableFields') }}
+          </div>
           <p v-if="!jsonSchemaValue" class="ce-datasource-tool__empty" data-testid="datasource-schema-empty">
             {{ t('datasource.emptySchema') }}
           </p>
@@ -1713,23 +2055,12 @@ watch(
           </div>
 
           <div v-if="visibleSelectionFields.length" class="ce-datasource-tool__field-list" data-testid="datasource-fields">
-            <div class="ce-datasource-tool__field-list-summary">
-              {{ t('datasource.fields.selectedFields') }}: {{ enabledFieldCount }}
-            </div>
-            <label
+            <div
               v-for="field in visibleSelectionFields"
               :key="`${field.source}:${field.path}`"
               class="ce-datasource-tool__schema-field"
               :data-testid="`datasource-${field.source}-field-${field.path}`"
             >
-              <input
-                class="ce-datasource-tool__checkbox"
-                type="checkbox"
-                :disabled="isReadOnly"
-                :checked="field.enabled"
-                :data-testid="`datasource-${field.source}-field-enabled-${field.path}`"
-                @change="updateSelectionEnabled(field.sources, field.path, ($event.target as HTMLInputElement).checked)"
-              />
               <span class="ce-datasource-tool__schema-field-main">
                 <span class="ce-datasource-tool__schema-field-label" :data-testid="`datasource-${field.source}-field-label-${field.path}`">
                   {{ field.label }}
@@ -1738,8 +2069,17 @@ watch(
               </span>
               <span class="ce-datasource-tool__schema-badges">
                 <span class="ce-datasource-tool__schema-badge">{{ getSchemaTypeLabel(field.type) }}</span>
+                <button
+                  type="button"
+                  class="ce-datasource-tool__field-action"
+                  :disabled="isReadOnly || field.selected"
+                  :data-testid="`datasource-${field.source}-field-add-${field.path}`"
+                  @click="addSchemaSelection(field.path)"
+                >
+                  {{ field.selected ? t('datasource.actions.added') : t('datasource.actions.add') }}
+                </button>
               </span>
-            </label>
+            </div>
           </div>
           <p
             v-else-if="combinedSelectionFields.length"
@@ -1781,9 +2121,8 @@ watch(
               class="ce-datasource-tool__textarea ce-datasource-tool__textarea--schema ce-datasource-tool__textarea--full-schema"
               data-testid="datasource-json-schema"
               spellcheck="false"
-              :readonly="isReadOnly"
+              readonly
               :value="jsonSchemaText"
-              @input="handleJsonSchemaInput"
               @keydown.stop
             ></textarea>
             <p v-if="jsonSchemaError" class="ce-datasource-tool__error" data-testid="datasource-full-schema-error">
@@ -1874,6 +2213,33 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.ce-datasource-tool__response-example-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ce-datasource-tool__response-example-card {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.ce-datasource-tool__response-example-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ce-datasource-tool__response-example-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .ce-datasource-tool__response-example-grid {
@@ -2014,6 +2380,37 @@ watch(
   width: min(100%, 760px);
 }
 
+.ce-datasource-tool__response-mock-dialog {
+  width: min(100%, 760px);
+}
+
+.ce-datasource-tool__response-mock-body {
+  max-height: min(620px, 70vh);
+  overflow-y: auto;
+}
+
+.ce-datasource-tool__response-mock-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ce-datasource-tool__response-mock-row,
+.ce-datasource-tool__response-mock-body-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.45fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.ce-datasource-tool__response-mock-body-row {
+  grid-template-columns: minmax(140px, 0.35fr) minmax(90px, 0.2fr) minmax(0, 1fr);
+}
+
+.ce-datasource-tool__response-mock-body-error {
+  grid-column: 3;
+}
+
 .ce-datasource-tool__import-dialog::backdrop {
   background: rgb(15 23 42 / 0.45);
 }
@@ -2132,7 +2529,7 @@ watch(
   line-height: 19px;
 }
 
-.ce-datasource-tool__textarea--mock {
+.ce-datasource-tool__textarea--value {
   min-height: 70px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 13px;
@@ -2252,6 +2649,14 @@ watch(
   gap: 10px;
 }
 
+.ce-datasource-tool__selected-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgb(226 232 240);
+}
+
 .ce-datasource-tool__field-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2267,20 +2672,13 @@ watch(
 
 .ce-datasource-tool__schema-field {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   border: 1px solid rgb(226 232 240);
   border-radius: 8px;
   padding: 7px 8px;
   background: rgb(255 255 255);
-}
-
-.ce-datasource-tool__checkbox {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: rgb(37 99 235);
 }
 
 .ce-datasource-tool__schema-field-main {
@@ -2327,6 +2725,30 @@ watch(
   font-size: 12px;
   font-weight: 650;
   white-space: nowrap;
+}
+
+.ce-datasource-tool__field-action {
+  min-width: 52px;
+  border: 1px solid rgb(191 219 254);
+  border-radius: 6px;
+  padding: 4px 9px;
+  background: rgb(239 246 255);
+  color: rgb(29 78 216);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 18px;
+}
+
+.ce-datasource-tool__field-action--remove {
+  border-color: rgb(254 202 202);
+  background: rgb(254 242 242);
+  color: rgb(220 38 38);
+}
+
+.ce-datasource-tool__field-action:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .ce-datasource-tool__schema-tree {
@@ -2401,6 +2823,8 @@ watch(
   .ce-datasource-tool__import-sources,
   .ce-datasource-tool__row,
   .ce-datasource-tool__body-row,
+  .ce-datasource-tool__response-mock-row,
+  .ce-datasource-tool__response-mock-body-row,
   .ce-datasource-tool__schema-node {
     grid-template-columns: 1fr;
   }
@@ -2436,6 +2860,10 @@ watch(
 
 :global(.dark) .ce-datasource-tool__schema-panel {
   border-top-color: rgb(51 65 85);
+}
+
+:global(.dark) .ce-datasource-tool__response-example-card {
+  border-color: rgb(51 65 85);
 }
 
 :global(.dark) .ce-datasource-tool__response-example-preview {
@@ -2561,6 +2989,22 @@ watch(
 :global(.dark) .ce-datasource-tool__schema-tree {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
+}
+
+:global(.dark) .ce-datasource-tool__selected-fields {
+  border-color: rgb(51 65 85);
+}
+
+:global(.dark) .ce-datasource-tool__field-action {
+  border-color: rgb(30 64 175);
+  background: rgb(30 64 175 / 0.25);
+  color: rgb(191 219 254);
+}
+
+:global(.dark) .ce-datasource-tool__field-action--remove {
+  border-color: rgb(153 27 27);
+  background: rgb(127 29 29 / 0.25);
+  color: rgb(254 202 202);
 }
 
 :global(.dark) .ce-datasource-tool__schema-field-label {

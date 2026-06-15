@@ -161,7 +161,8 @@ export const zhMessages = {
     toolboxTitle: '数据源编辑器',
     title: '数据源',
     empty: '暂无配置项',
-    emptySchema: '还没有字段配置，请先点击“生成字段配置”。',
+    emptySchema: '还没有字段配置，请先选择一条响应数据的 Schema。',
+    emptySelectedFields: '暂无已选择字段。',
     noSelectableFields: '当前 Schema 中没有可选择的字段。',
     noFieldsMatchingPath: '没有匹配该路径的字段。',
     fields: {
@@ -174,6 +175,7 @@ export const zhMessages = {
       apifoxProject: 'APIFox 项目',
       apifoxApiId: 'API ID',
       key: 'Key',
+      value: '值',
       mock: 'Mock 数据',
       jsonSchema: 'JSON Schema',
       responseExample: '响应示例数据',
@@ -188,6 +190,7 @@ export const zhMessages = {
       fieldPath: '字段路径',
       searchFieldsByPath: '按字段路径搜索',
       selectedFields: '已选择字段',
+      availableFields: '可选择字段',
       required: '必填'
     },
     sections: {
@@ -201,19 +204,27 @@ export const zhMessages = {
     },
     actions: {
       add: '添加',
+      added: '已添加',
       remove: '删除',
       refresh: '刷新',
       refreshing: '刷新中...',
       importApi: '导入',
       importingApi: '导入中...',
+      addResponseExample: '添加响应数据',
+      cancel: '取消',
+      capture: '抓取',
       captureResponseExample: 'Mock抓取响应示例数据',
       capturingResponseExample: '正在抓取响应示例数据...',
-      updateSchema: '更新 Schema',
+      selectSchema: '选择该 Schema',
       fullSchema: '完整 Schema'
     },
+    responseMock: {
+      title: '配置请求 Mock 数据',
+      help: '填写本次抓取使用的临时 Mock 数据。这些数据只用于请求，不会覆盖请求配置中的值。'
+    },
     help: {
-      responseConfig: '抓取或编写响应示例数据，并根据示例手动更新响应 Schema。',
-      fieldSelection: '勾选需要给组件使用的字段。'
+      responseConfig: '抓取或编写响应示例数据，并选择其中一条生成字段配置。',
+      fieldSelection: '从可选择字段中添加需要给组件使用的字段。'
     },
     schemaTypes: {
       object: '对象',
@@ -240,6 +251,7 @@ export const zhMessages = {
       missingResponseExample: '请先填写响应示例数据。',
       missingFile: '请选择 Body 中的文件。',
       fixBodyBeforeSchema: '请先修正 Body 中的 Mock 数据。',
+      fixMockBeforeCapture: '请先修正请求 Mock 数据。',
       nonJsonResponse: 'API 响应不是 JSON 数据。',
       invalidJsonResponse: 'API 响应不是有效 JSON 数据。',
       apiRequestFailed: 'API 请求失败：',

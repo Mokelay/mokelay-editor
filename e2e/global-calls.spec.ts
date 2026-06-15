@@ -140,20 +140,20 @@ test('resolves datasource remote data and schema from window globals', async ({ 
       headerData: [
         {
           key: 'X-Remote',
-          mock: 'demo'
+          value: 'demo'
         }
       ],
       bodyData: [
         {
           key: 'name',
           dataType: 'string',
-          mock: 'Ada'
+          value: 'Ada'
         }
       ],
       queryData: [
         {
           key: 'token',
-          mock: 'abc'
+          value: 'abc'
         }
       ]
     })

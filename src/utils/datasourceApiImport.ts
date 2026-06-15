@@ -1,14 +1,14 @@
 import type { ApiJson } from '@/api-builder/types';
 import type { ApifoxApisResult, MokelayApiRecord } from '@/utils/apisApi';
 import {
-  getDefaultBodyMock,
-  normalizeBodyMock,
+  getDefaultBodyValue,
+  normalizeBodyValue,
   normalizeDatasource,
   type MDatasourceApiMethod,
   type MDatasourceApiObject,
   type MDatasourceBodyDataType,
   type MDatasourceBodyItem,
-  type MDatasourceKeyMockItem
+  type MDatasourceKeyValueItem
 } from '@/utils/datasource';
 import {
   inferJSONSchema,
@@ -20,8 +20,7 @@ import {
 
 export type ImportedApiDatasource = {
   datasource: MDatasourceApiObject;
-  jsonSchema?: JSONSchema;
-  responseExample?: JsonValue;
+  responseExamples?: JsonValue[];
 };
 
 export type DatasourceApiImportErrorCode =
@@ -73,7 +72,6 @@ export function buildDatasourceFromMokelayApi(
 
   const method = normalizeImportedMethod(apiJson.method || api.method);
   const responseExample = getMokelayResponseExample(apiJson.response);
-  const jsonSchema = responseExample !== undefined ? getJsonSchemaFromExample(responseExample) : undefined;
 
   return {
     datasource: normalizeDatasource({
@@ -81,12 +79,11 @@ export function buildDatasourceFromMokelayApi(
       domain,
       path: `/api/mokelay/${encodeURIComponent(api.uuid)}`,
       method,
-      headerData: requestDeclarationsToKeyMockItems(apiJson, 'header'),
-      queryData: requestDeclarationsToKeyMockItems(apiJson, 'query'),
+      headerData: requestDeclarationsToKeyValueItems(apiJson, 'header'),
+      queryData: requestDeclarationsToKeyValueItems(apiJson, 'query'),
       bodyData: requestDeclarationsToBodyItems(apiJson)
     }) as MDatasourceApiObject,
-    ...(jsonSchema ? { jsonSchema } : {}),
-    ...(responseExample !== undefined ? { responseExample } : {})
+    ...(responseExample !== undefined ? { responseExamples: [responseExample] } : {})
   };
 }
 
@@ -111,21 +108,17 @@ export function buildDatasourceFromApifoxApi(
     getResponseExampleFromDetails(candidate.responseDetails) ??
     responseBodyParametersExample ??
     (importedJsonSchema ? createExampleFromJsonSchema(importedJsonSchema) : undefined);
-  const inferredJsonSchema = responseExample !== undefined ? getJsonSchemaFromExample(responseExample) : undefined;
-  const jsonSchema = importedJsonSchema ?? inferredJsonSchema;
-
   return {
     datasource: normalizeDatasource({
       type: 'API',
       domain: endpoint.domain,
       path: endpoint.path,
       method,
-      headerData: parametersToKeyMockItems(candidate.parameters, 'header', candidate.openapiRoot),
-      queryData: parametersToKeyMockItems(candidate.parameters, 'query', candidate.openapiRoot),
+      headerData: parametersToKeyValueItems(candidate.parameters, 'header', candidate.openapiRoot),
+      queryData: parametersToKeyValueItems(candidate.parameters, 'query', candidate.openapiRoot),
       bodyData: requestBodyToBodyItems(candidate.requestBody, candidate.openapiRoot)
     }) as MDatasourceApiObject,
-    ...(jsonSchema ? { jsonSchema } : {}),
-    ...(responseExample !== undefined ? { responseExample } : {})
+    ...(responseExample !== undefined ? { responseExamples: [responseExample] } : {})
   };
 }
 
@@ -154,7 +147,7 @@ function normalizeImportedMethod(value: unknown): MDatasourceApiMethod {
   );
 }
 
-function requestDeclarationsToKeyMockItems(apiJson: ApiJson, location: 'header' | 'query'): MDatasourceKeyMockItem[] {
+function requestDeclarationsToKeyValueItems(apiJson: ApiJson, location: 'header' | 'query'): MDatasourceKeyValueItem[] {
   const declarations = Array.isArray(apiJson.request?.[location]) ? apiJson.request[location] : [];
 
   return declarations
@@ -162,7 +155,7 @@ function requestDeclarationsToKeyMockItems(apiJson: ApiJson, location: 'header' 
     .filter((key) => Boolean(key))
     .map((key) => ({
       key,
-      mock: ''
+      value: ''
     }));
 }
 
@@ -175,7 +168,7 @@ function requestDeclarationsToBodyItems(apiJson: ApiJson): MDatasourceBodyItem[]
     .map((key) => ({
       key,
       dataType: 'string' as const,
-      mock: ''
+      value: ''
     }));
 }
 
@@ -356,18 +349,18 @@ function normalizeParameterLocation(location: string) {
   return normalizedLocation;
 }
 
-function parametersToKeyMockItems(
+function parametersToKeyValueItems(
   parameters: unknown[],
   location: 'header' | 'query',
   openapiRoot: unknown
-): MDatasourceKeyMockItem[] {
+): MDatasourceKeyValueItem[] {
   return parameters
     .map((parameter) => resolveOpenapiSchema(parameter, openapiRoot))
     .filter((parameter): parameter is Record<string, unknown> => isRecord(parameter))
     .filter((parameter) => readString(parameter.in).toLowerCase() === location)
     .map((parameter) => ({
       key: readString(parameter.name),
-      mock: stringifyMockValue(readExampleValue(parameter, openapiRoot) ?? readExampleValue(parameter.schema, openapiRoot))
+      value: stringifyMockValue(readExampleValue(parameter, openapiRoot) ?? readExampleValue(parameter.schema, openapiRoot))
     }))
     .filter((item) => Boolean(item.key));
 }
@@ -428,7 +421,7 @@ function bodyParameterListToBodyItems(
       return {
         key,
         dataType,
-        mock: createBodyMock(schema, dataType, openapiRoot)
+        value: createBodyMock(schema, dataType, openapiRoot)
       };
     })
     .filter((item): item is MDatasourceBodyItem => Boolean(item));
@@ -445,7 +438,7 @@ function schemaPropertiesToBodyItems(schema: unknown, openapiRoot: unknown): MDa
     return {
       key,
       dataType,
-      mock: createBodyMock(property, dataType, openapiRoot)
+      value: createBodyMock(property, dataType, openapiRoot)
     };
   });
 }
@@ -511,7 +504,7 @@ function createBodyMock(
   openapiRoot: unknown
 ): JsonValue {
   const example = readExampleValue(schema, openapiRoot);
-  return normalizeBodyMock(dataType, example === undefined ? getDefaultBodyMock(dataType) : example);
+  return normalizeBodyValue(dataType, example === undefined ? getDefaultBodyValue(dataType) : example);
 }
 
 function getResponseJsonSchema(responses: unknown, openapiRoot: unknown): JSONSchema | undefined {

@@ -40,27 +40,18 @@ export type JSONSchema =
 
 export type SchemaComponentHint = 'text' | 'number' | 'switch' | 'object' | 'array';
 
-export interface SchemaSelectionField {
+export interface DatasourceSchemaSelection {
   path: string;
   label: string;
   type: JSONSchemaType;
+}
+
+export type DatasourceSchemaSelections = DatasourceSchemaSelection[];
+
+export interface SchemaSelectionField extends DatasourceSchemaSelection {
   required: boolean;
   enabled: boolean;
   componentHint: SchemaComponentHint;
-}
-
-export interface DatasourceListSchemaSelection {
-  recordPath: string;
-  fields: SchemaSelectionField[];
-}
-
-export interface DatasourceFormSchemaSelection {
-  fields: SchemaSelectionField[];
-}
-
-export interface DatasourceSchemaSelections {
-  list?: DatasourceListSchemaSelection;
-  form?: DatasourceFormSchemaSelection;
 }
 
 export interface SchemaTreeNode {
@@ -932,12 +923,12 @@ export function getSchemaSelectionFieldsForForm(schema: JSONSchema | undefined):
   return fields;
 }
 
-function normalizeSelectionField(value: unknown, fallback?: SchemaSelectionField): SchemaSelectionField | undefined {
+function normalizeSchemaSelection(value: unknown): DatasourceSchemaSelection | undefined {
   if (!isRecord(value)) {
-    return fallback ? clonePlainValue(fallback) : undefined;
+    return undefined;
   }
 
-  const path = typeof value.path === 'string' && value.path ? value.path : fallback?.path;
+  const path = typeof value.path === 'string' ? value.path.trim() : '';
   if (!path) {
     return undefined;
   }
@@ -951,57 +942,20 @@ function normalizeSelectionField(value: unknown, fallback?: SchemaSelectionField
     value.type === 'null'
   )
     ? value.type
-    : fallback?.type ?? 'string';
+    : undefined;
+  if (!type) {
+    return undefined;
+  }
 
   const label = typeof value.label === 'string' && value.label.trim()
     ? value.label.trim()
-    : fallback?.label ?? getSchemaFieldLabel(path);
-  const required = typeof value.required === 'boolean' ? value.required : fallback?.required ?? false;
-  const enabled = typeof value.enabled === 'boolean' ? value.enabled : fallback?.enabled ?? false;
-  const componentHint = (
-    value.componentHint === 'text' ||
-    value.componentHint === 'number' ||
-    value.componentHint === 'switch' ||
-    value.componentHint === 'object' ||
-    value.componentHint === 'array'
-  )
-    ? value.componentHint
-    : fallback?.componentHint ?? getComponentHint(type);
+    : getSchemaFieldLabel(path);
 
   return {
     path,
     label,
-    type,
-    required,
-    enabled,
-    componentHint
+    type
   };
-}
-
-function reconcileSelectionFields(generatedFields: SchemaSelectionField[], previousFields: unknown): SchemaSelectionField[] {
-  const previousMap = new Map<string, SchemaSelectionField>();
-
-  if (Array.isArray(previousFields)) {
-    previousFields.forEach((item) => {
-      const field = normalizeSelectionField(item);
-      if (field) {
-        previousMap.set(field.path, field);
-      }
-    });
-  }
-
-  return generatedFields.map((field) => {
-    const previous = previousMap.get(field.path);
-    if (!previous) {
-      return clonePlainValue(field);
-    }
-
-    return {
-      ...field,
-      label: previous.label || field.label,
-      enabled: previous.enabled
-    };
-  });
 }
 
 function getDefaultRecordPath(schema?: JSONSchema) {
@@ -1013,75 +967,54 @@ function getDefaultRecordPath(schema?: JSONSchema) {
   return firstOptionWithFields?.path ?? options[0]?.path ?? '';
 }
 
-export function reconcileSchemaSelections(
-  schema: JSONSchema | undefined,
-  previous?: DatasourceSchemaSelections
-): DatasourceSchemaSelections | undefined {
+export function getSchemaSelectionFields(schema?: JSONSchema): SchemaSelectionField[] {
   if (!schema) {
-    return undefined;
+    return [];
   }
 
+  const fieldsByPath = new Map<string, SchemaSelectionField>();
   const recordOptions = getArrayRecordOptions(schema);
-  const previousRecordPath = previous?.list?.recordPath ?? '';
-  const recordPath = recordOptions.some((option) => option.path === previousRecordPath)
-    ? previousRecordPath
-    : getDefaultRecordPath(schema);
-  const listFields = recordOptions.length
-    ? reconcileSelectionFields(getSchemaSelectionFieldsForList(schema, recordPath), previous?.list?.fields)
-    : [];
-  const formFields = reconcileSelectionFields(getSchemaSelectionFieldsForForm(schema), previous?.form?.fields);
-  const selections: DatasourceSchemaSelections = {};
-
   if (recordOptions.length) {
-    selections.list = {
-      recordPath,
-      fields: listFields
-    };
+    getSchemaSelectionFieldsForList(schema, getDefaultRecordPath(schema)).forEach((field) => {
+      fieldsByPath.set(field.path, field);
+    });
   }
-
-  if (formFields.length) {
-    selections.form = {
-      fields: formFields
-    };
-  }
-
-  return selections.list || selections.form ? selections : undefined;
+  getSchemaSelectionFieldsForForm(schema).forEach((field) => {
+    if (!fieldsByPath.has(field.path)) {
+      fieldsByPath.set(field.path, field);
+    }
+  });
+  return [...fieldsByPath.values()];
 }
 
-export function normalizeSchemaSelections(
-  value: unknown,
-  schema?: JSONSchema
-): DatasourceSchemaSelections | undefined {
-  if (!isRecord(value)) {
-    return schema ? reconcileSchemaSelections(schema) : undefined;
+export function reconcileSchemaSelections(
+  schema: JSONSchema | undefined,
+  previous: unknown
+): DatasourceSchemaSelections {
+  if (!schema) {
+    return [];
   }
 
-  const previous: DatasourceSchemaSelections = {};
+  const availableFields = new Map(getSchemaSelectionFields(schema).map((field) => [field.path, field]));
+  return normalizeSchemaSelections(previous).flatMap((selection) => {
+    const availableField = availableFields.get(selection.path);
+    return availableField
+      ? [{ ...selection, type: availableField.type }]
+      : [];
+  });
+}
 
-  if (isRecord(value.list)) {
-    previous.list = {
-      recordPath: typeof value.list.recordPath === 'string' ? value.list.recordPath : '',
-      fields: Array.isArray(value.list.fields)
-        ? value.list.fields
-            .map((item) => normalizeSelectionField(item))
-            .filter((item): item is SchemaSelectionField => item !== undefined)
-        : []
-    };
+export function normalizeSchemaSelections(value: unknown): DatasourceSchemaSelections {
+  if (!Array.isArray(value)) {
+    return [];
   }
 
-  if (isRecord(value.form)) {
-    previous.form = {
-      fields: Array.isArray(value.form.fields)
-        ? value.form.fields
-            .map((item) => normalizeSelectionField(item))
-            .filter((item): item is SchemaSelectionField => item !== undefined)
-        : []
-    };
-  }
-
-  if (schema) {
-    return reconcileSchemaSelections(schema, previous);
-  }
-
-  return previous.list || previous.form ? previous : undefined;
+  const selectionsByPath = new Map<string, DatasourceSchemaSelection>();
+  value.forEach((item) => {
+    const selection = normalizeSchemaSelection(item);
+    if (selection) {
+      selectionsByPath.set(selection.path, selection);
+    }
+  });
+  return [...selectionsByPath.values()];
 }

@@ -70,7 +70,9 @@ test('adds a datasource editor with default API value and renders in preview', a
   await expect(page.getByTestId('datasource-request-config')).toContainText('请求配置');
   await expect(page.getByTestId('datasource-response-config')).toContainText('响应配置');
   await expect(page.getByTestId('datasource-json-schema-parse-button')).toHaveText('Mock抓取响应示例数据');
-  await expect(page.getByTestId('datasource-response-schema-update-button')).toHaveText('更新 Schema');
+  await expect(page.getByTestId('datasource-response-schema-select-button')).toHaveText('选择该 Schema');
+  await expect(page.getByTestId('datasource-response-example-item-0')).not.toContainText('更新 Schema');
+  await expect(page.getByTestId('datasource-selected-fields-empty')).toHaveText('暂无已选择字段。');
   await expect(page.getByTestId('datasource-response-example')).not.toHaveAttribute('readonly', '');
   const importConfigBox = await page.getByTestId('datasource-import-config').boundingBox();
   const requestConfigBox = await page.getByTestId('datasource-request-config').boundingBox();
@@ -101,93 +103,22 @@ test('adds a datasource editor with default API value and renders in preview', a
   await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-api-panel')).toBeVisible();
 });
 
-test('edits JSON Schema manually and keeps the last valid saved value', async ({ page }) => {
+test('derives a read-only Schema without saving response examples or Schema', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
-  const manualSchema = {
-    type: 'object',
-    properties: {
-      name: {
-        type: 'string',
-        description: 'User name'
-      }
-    },
-    required: ['name']
-  };
+  await page.getByTestId('datasource-response-example').fill('{"name":"Ada"}');
+  await page.getByTestId('datasource-response-schema-select-button').click();
 
-  let fullSchemaDialog = await openFullSchema(page);
-  await fullSchemaDialog.getByTestId('datasource-json-schema').fill(JSON.stringify(manualSchema));
-  await expect(fullSchemaDialog.getByTestId('datasource-full-schema-error')).toHaveCount(0);
+  const fullSchemaDialog = await openFullSchema(page);
+  const schemaInput = fullSchemaDialog.getByTestId('datasource-json-schema');
+  await expect(schemaInput).toHaveAttribute('readonly', '');
+  const schema = JSON.parse(await schemaInput.inputValue()) as any;
+  expect(schema.properties.name.type).toBe('string');
   await closeFullSchema(fullSchemaDialog);
 
   await page.getByTestId('save-button').click();
-  let datasourceValue = getDatasourceValue(await getSavedBlocks(page));
-  expect(datasourceValue).toEqual({
-    type: 'API',
-    domain: 'mokelay',
-    path: '',
-    method: 'GET',
-    headerData: [],
-    bodyData: [],
-    queryData: [],
-    jsonSchema: manualSchema,
-    schemaSelections: {
-      form: {
-        fields: [
-          {
-            path: 'name',
-            label: 'name',
-            type: 'string',
-            required: true,
-            enabled: false,
-            componentHint: 'text'
-          }
-        ]
-      }
-    }
-  });
-
-  fullSchemaDialog = await openFullSchema(page);
-  await fullSchemaDialog.getByTestId('datasource-json-schema').fill('{ bad');
-  await expect(fullSchemaDialog.getByTestId('datasource-full-schema-error')).toBeVisible();
-  await closeFullSchema(fullSchemaDialog);
-
-  await page.getByTestId('save-button').click();
-  datasourceValue = getDatasourceValue(await getSavedBlocks(page));
-  expect(datasourceValue).toEqual({
-    type: 'API',
-    domain: 'mokelay',
-    path: '',
-    method: 'GET',
-    headerData: [],
-    bodyData: [],
-    queryData: [],
-    jsonSchema: manualSchema,
-    schemaSelections: {
-      form: {
-        fields: [
-          {
-            path: 'name',
-            label: 'name',
-            type: 'string',
-            required: true,
-            enabled: false,
-            componentHint: 'text'
-          }
-        ]
-      }
-    }
-  });
-
-  fullSchemaDialog = await openFullSchema(page);
-  await fullSchemaDialog.getByTestId('datasource-json-schema').fill('');
-  await expect(fullSchemaDialog.getByTestId('datasource-full-schema-error')).toHaveCount(0);
-  await closeFullSchema(fullSchemaDialog);
-
-  await page.getByTestId('save-button').click();
-  datasourceValue = getDatasourceValue(await getSavedBlocks(page));
-  expect(datasourceValue).toEqual({
+  expect(getDatasourceValue(await getSavedBlocks(page))).toEqual({
     type: 'API',
     domain: 'mokelay',
     path: '',
@@ -198,49 +129,67 @@ test('edits JSON Schema manually and keeps the last valid saved value', async ({
   });
 });
 
-test('edits the response example and manually updates the response Schema', async ({ page }) => {
+test('keeps only selected paths that exist when switching response Schema', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
-  const responseExample = {
+  const firstResponseExample = {
     profile: {
       name: 'Ada'
-    }
+    },
+    shared: 'first'
   };
   const responseExampleInput = page.getByTestId('datasource-response-example');
 
-  await responseExampleInput.fill(JSON.stringify(responseExample));
+  await responseExampleInput.fill(JSON.stringify(firstResponseExample));
   await expect(page.getByTestId('datasource-response-example-error')).toHaveCount(0);
   await expect(page.getByTestId('datasource-response-example-preview')).toContainText('profile');
   await expect(page.getByTestId('datasource-response-example-preview')).toContainText('"Ada"');
   await expect(page.getByTestId('datasource-form-field-profile.name')).toHaveCount(0);
 
-  await page.getByTestId('datasource-response-schema-update-button').click();
+  await page.getByTestId('datasource-response-schema-select-button').click();
   await expect(page.getByTestId('datasource-form-field-profile')).toBeVisible();
   await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-form-field-profile.name')).toBeVisible();
-
-  await responseExampleInput.fill('{ bad');
-  await expect(page.getByTestId('datasource-response-example-error')).toHaveText('请输入有效的 JSON 响应示例数据。');
-  await expect(page.getByTestId('datasource-response-example-preview-error')).toHaveText('请输入有效的 JSON 响应示例数据。');
-  await page.getByTestId('datasource-response-schema-update-button').click();
-  await expect(page.getByTestId('datasource-form-field-profile.name')).toBeVisible();
+  await page.getByTestId('datasource-form-field-add-profile.name').click();
+  await expect(page.getByTestId('datasource-form-field-add-profile.name')).toBeDisabled();
+  await page.getByTestId('datasource-form-field-add-shared').click();
+  await expect(page.getByTestId('datasource-selected-field-profile.name')).toBeVisible();
+  await expect(page.getByTestId('datasource-selected-field-shared')).toBeVisible();
 
   await page.getByTestId('save-button').click();
   let datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
-  expect(datasourceValue.responseExample).toEqual(responseExample);
-  expect(datasourceValue.jsonSchema.properties.profile.type).toBe('object');
+  expect(datasourceValue.responseExamples).toBeUndefined();
+  expect(datasourceValue.jsonSchema).toBeUndefined();
+  expect(datasourceValue.schemaSelections).toEqual([
+    { label: 'name', path: 'profile.name', type: 'string' },
+    { label: 'shared', path: 'shared', type: 'string' }
+  ]);
 
-  await responseExampleInput.fill('{"count":2}');
-  await page.getByTestId('datasource-response-schema-update-button').click();
+  await page.getByTestId('datasource-response-example-add').click();
+  await page.getByTestId('datasource-response-example-1').fill('{"profile":{"name":"Grace"},"count":2}');
+  await page.getByTestId('datasource-response-schema-select-button-1').click();
+  await setSchemaPathDepth(page, 2);
+  await expect(page.getByTestId('datasource-form-field-add-profile.name')).toBeDisabled();
+  await expect(page.getByTestId('datasource-form-field-shared')).toHaveCount(0);
   await setSchemaPathDepth(page, 1);
-  await expect(page.getByTestId('datasource-form-field-count')).toBeVisible();
-  await expect(page.getByTestId('datasource-form-field-profile.name')).toHaveCount(0);
+  await expect(page.getByTestId('datasource-form-field-add-count')).toBeEnabled();
+  await expect(page.getByTestId('datasource-selected-field-shared')).toHaveCount(0);
 
   await page.getByTestId('save-button').click();
   datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
-  expect(datasourceValue.responseExample).toEqual({ count: 2 });
-  expect(datasourceValue.jsonSchema.properties.count.type).toBe('number');
+  expect(datasourceValue.schemaSelections).toEqual([
+    { label: 'name', path: 'profile.name', type: 'string' }
+  ]);
+  expect(datasourceValue.responseExamples).toBeUndefined();
+  expect(datasourceValue.jsonSchema).toBeUndefined();
+
+  await page.getByTestId('datasource-response-example-remove-0').click();
+  await page.getByTestId('save-button').click();
+  datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
+  expect(datasourceValue.schemaSelections).toEqual([
+    { label: 'name', path: 'profile.name', type: 'string' }
+  ]);
 });
 
 test('selects list and form fields from generated Schema with read-only field names', async ({ page }) => {
@@ -254,77 +203,32 @@ test('selects list and form fields from generated Schema with read-only field na
       }
     ]
   };
-  const schema = {
-    type: 'object',
-    properties: {
-      title: {
-        type: 'string'
-      },
-      users: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            id: {
-              type: 'number'
-            },
-            name: {
-              type: 'string'
-            },
-            active: {
-              type: 'boolean'
-            }
-          }
-        }
-      }
-    }
-  };
-
-  await seedSavedConfig(page, {
-    time: 1777614863777,
-    version: '2.31.6',
-    blocks: [
-      {
-        id: 'datasource-api-fields',
-        type: 'MDatasourceEditor',
-        data: {
-          value: {
-            type: 'API',
-            domain: 'mokelay',
-            path: '/users',
-            method: 'GET',
-            headerData: [],
-            bodyData: [],
-            queryData: [],
-            jsonSchema: schema,
-            responseExample: rawData
-          }
-        }
-      }
-    ]
-  });
   await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+  await page.getByTestId('datasource-path').fill('/users');
+  await page.getByTestId('datasource-response-example').fill(JSON.stringify(rawData));
+  await page.getByTestId('datasource-response-schema-select-button').click();
 
   await expect(page.getByTestId('datasource-list-record-path')).toHaveCount(0);
-  await expect(page.getByTestId('datasource-list-field-enabled-users[]')).not.toBeChecked();
+  await expect(page.getByTestId('datasource-list-field-add-users[]')).toBeEnabled();
   await expect(page.getByTestId('datasource-list-field-users[]').locator('.ce-datasource-tool__schema-badge'))
     .toHaveText(['列表']);
   await setSchemaPathDepth(page, 2);
-  await expect(page.getByTestId('datasource-list-field-enabled-users[].id')).not.toBeChecked();
-  await expect(page.getByTestId('datasource-list-field-enabled-users[].name')).not.toBeChecked();
-  await expect(page.getByTestId('datasource-list-field-enabled-users[].active')).not.toBeChecked();
+  await expect(page.getByTestId('datasource-list-field-add-users[].id')).toBeEnabled();
+  await expect(page.getByTestId('datasource-list-field-add-users[].name')).toBeEnabled();
+  await expect(page.getByTestId('datasource-list-field-add-users[].active')).toBeEnabled();
   await expect(page.getByTestId('datasource-list-field-users[].name').locator('.ce-datasource-tool__schema-badge'))
     .toHaveText(['文本']);
   await expect(page.getByTestId('datasource-list-field-label-users[].name')).toHaveText('name');
   expect(await page.getByTestId('datasource-list-field-label-users[].name').evaluate((element) => element.tagName)).toBe('SPAN');
-  await page.getByTestId('datasource-list-field-enabled-users[].id').check();
-  await page.getByTestId('datasource-list-field-enabled-users[].name').check();
+  await page.getByTestId('datasource-list-field-add-users[].id').click();
+  await page.getByTestId('datasource-list-field-add-users[].name').click();
 
   await setSchemaPathDepth(page, 1);
-  await expect(page.getByTestId('datasource-form-field-enabled-title')).not.toBeChecked();
+  await expect(page.getByTestId('datasource-form-field-add-title')).toBeEnabled();
   await expect(page.getByTestId('datasource-form-field-label-title')).toHaveText('title');
   expect(await page.getByTestId('datasource-form-field-label-title').evaluate((element) => element.tagName)).toBe('SPAN');
-  await page.getByTestId('datasource-form-field-enabled-title').check();
+  await page.getByTestId('datasource-form-field-add-title').click();
 
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
@@ -336,59 +240,11 @@ test('selects list and form fields from generated Schema with read-only field na
     headerData: [],
     bodyData: [],
     queryData: [],
-    jsonSchema: schema,
-    schemaSelections: {
-      list: {
-        recordPath: 'users',
-        fields: [
-          {
-            path: 'users[]',
-            label: 'users',
-            type: 'array',
-            required: false,
-            enabled: false,
-            componentHint: 'array'
-          },
-          {
-            path: 'users[].id',
-            label: 'id',
-            type: 'number',
-            required: false,
-            enabled: true,
-            componentHint: 'number'
-          },
-          {
-            path: 'users[].name',
-            label: 'name',
-            type: 'string',
-            required: false,
-            enabled: true,
-            componentHint: 'text'
-          },
-          {
-            path: 'users[].active',
-            label: 'active',
-            type: 'boolean',
-            required: false,
-            enabled: false,
-            componentHint: 'switch'
-          }
-        ]
-      },
-      form: {
-        fields: [
-          {
-            path: 'title',
-            label: 'title',
-            type: 'string',
-            required: false,
-            enabled: true,
-            componentHint: 'text'
-          }
-        ]
-      }
-    },
-    responseExample: rawData
+    schemaSelections: [
+      { label: 'id', path: 'users[].id', type: 'number' },
+      { label: 'name', path: 'users[].name', type: 'string' },
+      { label: 'title', path: 'title', type: 'string' }
+    ]
   });
 });
 
@@ -396,70 +252,25 @@ test('filters merged fields up to path depth by localized data type and fuzzy pa
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
-  const schema = {
-    type: 'object',
-    properties: {
-      data: {
-        type: 'object',
-        properties: {
-          page: {
-            type: 'object',
-            properties: {
-              alias: { type: 'string' }
-            }
-          },
-          users: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                profile: {
-                  type: 'object',
-                  properties: {
-                    name: { type: 'string' },
-                    age: { type: 'number' }
-                  }
-                },
-                profileCode: { type: 'string' },
-                active: { type: 'boolean' }
-              }
-            }
-          }
-        }
-      },
-      summary: {
-        type: 'object',
-        properties: {
-          title: { type: 'string' },
-          titleCode: { type: 'string' }
-        }
-      }
+  const rawData = {
+    data: {
+      page: { alias: 'first' },
+      users: [{
+        profile: { name: 'Ada', age: 20 },
+        profileCode: 'admin',
+        active: true
+      }]
+    },
+    summary: {
+      title: 'Users',
+      titleCode: 'users'
     }
   };
 
-  await seedSavedConfig(page, {
-    time: 1777614863777,
-    version: '2.31.6',
-    blocks: [
-      {
-        id: 'datasource-api-filter-fields',
-        type: 'MDatasourceEditor',
-        data: {
-          value: {
-            type: 'API',
-            domain: 'mokelay',
-            path: '/users',
-            method: 'GET',
-            headerData: [],
-            bodyData: [],
-            queryData: [],
-            jsonSchema: schema
-          }
-        }
-      }
-    ]
-  });
   await switchLocaleToChinese(page);
+  await addEditorTool(page, '数据源编辑器');
+  await page.getByTestId('datasource-response-example').fill(JSON.stringify(rawData));
+  await page.getByTestId('datasource-response-schema-select-button').click();
 
   const pathDepthFilter = page.getByTestId('datasource-schema-path-depth');
   const dataTypeFilter = page.getByTestId('datasource-schema-data-type-filter');
@@ -564,24 +375,7 @@ test('filters merged fields up to path depth by localized data type and fuzzy pa
   expect(pageErrors).toEqual([]);
 });
 
-test('preserves saved selection states and custom labels', async ({ page }) => {
-  const schema = {
-    type: 'object',
-    properties: {
-      title: { type: 'string' },
-      users: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            id: { type: 'number' },
-            name: { type: 'string' }
-          }
-        }
-      }
-    }
-  };
-
+test('shows saved selections without a response Schema and supports removing them', async ({ page }) => {
   await seedSavedConfig(page, {
     time: 1777614863777,
     version: '2.31.6',
@@ -598,69 +392,47 @@ test('preserves saved selection states and custom labels', async ({ page }) => {
             headerData: [],
             bodyData: [],
             queryData: [],
-            jsonSchema: schema,
-            schemaSelections: {
-              list: {
-                recordPath: 'users',
-                fields: [
-                  {
-                    path: 'users[].id',
-                    label: '用户 ID',
-                    type: 'number',
-                    required: false,
-                    enabled: true,
-                    componentHint: 'number'
-                  },
-                  {
-                    path: 'users[].name',
-                    label: '用户名',
-                    type: 'string',
-                    required: false,
-                    enabled: false,
-                    componentHint: 'text'
-                  }
-                ]
-              },
-              form: {
-                fields: [
-                  {
-                    path: 'title',
-                    label: '页面标题',
-                    type: 'string',
-                    required: false,
-                    enabled: true,
-                    componentHint: 'text'
-                  }
-                ]
-              }
-            }
+            schemaSelections: [
+              { path: 'users[].id', label: '用户 ID', type: 'number' },
+              { path: 'title', label: '页面标题', type: 'string' }
+            ]
           }
         }
       }
     ]
   });
 
+  await expect(page.getByTestId('datasource-schema-empty')).toBeVisible();
+  await expect(page.getByTestId('datasource-selected-field-users[].id')).toBeVisible();
+  await expect(page.getByTestId('datasource-selected-field-label-users[].id')).toHaveText('用户 ID');
+  await expect(page.getByTestId('datasource-selected-field-title')).toBeVisible();
+  await expect(page.getByTestId('datasource-selected-field-label-title')).toHaveText('页面标题');
+
+  await page.getByTestId('datasource-response-example').fill(JSON.stringify({
+    title: '用户列表',
+    users: [{ id: 1, name: 'Ada' }]
+  }));
+  await page.getByTestId('datasource-response-schema-select-button').click();
   await setSchemaPathDepth(page, 2);
-  await expect(page.getByTestId('datasource-list-field-enabled-users[].id')).toBeChecked();
-  await expect(page.getByTestId('datasource-list-field-enabled-users[].name')).not.toBeChecked();
-  await expect(page.getByTestId('datasource-list-field-label-users[].id')).toHaveText('用户 ID');
+  await expect(page.getByTestId('datasource-list-field-add-users[].id')).toBeDisabled();
+  await expect(page.getByTestId('datasource-list-field-add-users[].name')).toBeEnabled();
+  await expect(page.getByTestId('datasource-list-field-label-users[].id')).toHaveText('id');
   await setSchemaPathDepth(page, 1);
-  await expect(page.getByTestId('datasource-form-field-enabled-title')).toBeChecked();
-  await expect(page.getByTestId('datasource-form-field-label-title')).toHaveText('页面标题');
+  await expect(page.getByTestId('datasource-form-field-add-title')).toBeDisabled();
+  await expect(page.getByTestId('datasource-form-field-label-title')).toHaveText('title');
+
+  await page.getByTestId('datasource-selected-field-remove-title').click();
+  await expect(page.getByTestId('datasource-selected-field-title')).toHaveCount(0);
+  await expect(page.getByTestId('datasource-form-field-add-title')).toBeEnabled();
 
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
-  expect(datasourceValue.schemaSelections.list.fields).toMatchObject([
-    { path: 'users[]', label: 'users', enabled: false, type: 'array' },
-    { path: 'users[].id', label: '用户 ID', enabled: true },
-    { path: 'users[].name', label: '用户名', enabled: false }
-  ]);
-  expect(datasourceValue.schemaSelections.form.fields).toMatchObject([
-    { path: 'title', label: '页面标题', enabled: true }
+  expect(datasourceValue.schemaSelections).toEqual([
+    { path: 'users[].id', label: '用户 ID', type: 'number' }
   ]);
 });
 
-test('edits API datasource lists and saves typed body mock values', async ({ page }) => {
+test('edits API datasource lists and saves typed body values', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
 
@@ -673,27 +445,27 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
 
   await page.getByTestId('datasource-header-add').click();
   await page.getByTestId('datasource-header-key-0').fill('Authorization');
-  await page.getByTestId('datasource-header-mock-0').fill('Bearer token');
+  await page.getByTestId('datasource-header-value-0').fill('Bearer token');
 
   await page.getByTestId('datasource-query-add').click();
   await page.getByTestId('datasource-query-key-0').fill('search');
-  await page.getByTestId('datasource-query-mock-0').fill('mokelay');
+  await page.getByTestId('datasource-query-value-0').fill('mokelay');
   await page.getByTestId('datasource-query-add').click();
   await page.getByTestId('datasource-query-key-1').fill('page');
-  await page.getByTestId('datasource-query-mock-1').fill('1');
+  await page.getByTestId('datasource-query-value-1').fill('1');
   await page.getByTestId('datasource-query-remove-0').click();
 
   await page.getByTestId('datasource-body-add').click();
   await page.getByTestId('datasource-body-key-0').fill('count');
   await page.getByTestId('datasource-body-type-0').selectOption('number');
-  await page.getByTestId('datasource-body-mock-0').fill('42');
+  await page.getByTestId('datasource-body-value-0').fill('42');
 
   await page.getByTestId('datasource-body-add').click();
   await page.getByTestId('datasource-body-key-1').fill('filter');
   await page.getByTestId('datasource-body-type-1').selectOption('object');
-  await page.getByTestId('datasource-body-mock-1').fill('{ bad');
+  await page.getByTestId('datasource-body-value-1').fill('{ bad');
   await expect(page.getByTestId('datasource-body-error-1')).toBeVisible();
-  await page.getByTestId('datasource-body-mock-1').fill('{"active":true,"roles":["admin"]}');
+  await page.getByTestId('datasource-body-value-1').fill('{"active":true,"roles":["admin"]}');
   await expect(page.getByTestId('datasource-body-error-1')).toHaveCount(0);
 
   await page.getByTestId('save-button').click();
@@ -706,19 +478,19 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
     headerData: [
       {
         key: 'Authorization',
-        mock: 'Bearer token'
+        value: 'Bearer token'
       }
     ],
     bodyData: [
       {
         key: 'count',
         dataType: 'number',
-        mock: 42
+        value: 42
       },
       {
         key: 'filter',
         dataType: 'object',
-        mock: {
+        value: {
           active: true,
           roles: ['admin']
         }
@@ -727,7 +499,7 @@ test('edits API datasource lists and saves typed body mock values', async ({ pag
     queryData: [
       {
         key: 'page',
-        mock: '1'
+        value: '1'
       }
     ]
   });
@@ -884,6 +656,9 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
   await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('keyword');
   await expect(page.getByTestId('datasource-body-key-1')).toHaveValue('limit');
   await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify(responseExample, null, 2));
+  await expect(page.getByTestId('datasource-schema-empty')).toBeVisible();
+  await page.getByTestId('datasource-response-schema-select-button').click();
+  await expect(page.getByTestId('datasource-form-field-ok')).toBeVisible();
 
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
@@ -893,22 +668,21 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
     path: '/api/mokelay/import_users',
     method: 'POST',
     headerData: [
-      { key: 'Authorization', mock: '' },
-      { key: 'X-Tenant', mock: '' }
+      { key: 'Authorization', value: '' },
+      { key: 'X-Tenant', value: '' }
     ],
     bodyData: [
-      { key: 'keyword', dataType: 'string', mock: '' },
-      { key: 'limit', dataType: 'string', mock: '' }
+      { key: 'keyword', dataType: 'string', value: '' },
+      { key: 'limit', dataType: 'string', value: '' }
     ],
     queryData: [
-      { key: 'page', mock: '' },
-      { key: 'pageSize', mock: '' }
-    ],
-    responseExample
+      { key: 'page', value: '' },
+      { key: 'pageSize', value: '' }
+    ]
   });
-  expect(datasourceValue.jsonSchema.properties.ok.type).toBe('boolean');
-  expect(datasourceValue.jsonSchema.properties.data.properties.users.type).toBe('array');
-  expect(datasourceValue.schemaSelections.list.recordPath).toBe('data.users');
+  expect(datasourceValue.responseExamples).toBeUndefined();
+  expect(datasourceValue.jsonSchema).toBeUndefined();
+  expect(datasourceValue.schemaSelections).toBeUndefined();
 });
 
 test('imports API datasource from a system Mokelay orchestration API', async ({ page }) => {
@@ -1108,14 +882,14 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
   await expect(page.getByTestId('datasource-path')).toHaveValue('/v1/users/search');
   await expect(page.getByTestId('datasource-method')).toHaveValue('POST');
   await expect(page.getByTestId('datasource-header-key-0')).toHaveValue('X-Trace');
-  await expect(page.getByTestId('datasource-header-mock-0')).toHaveValue('trace-1');
+  await expect(page.getByTestId('datasource-header-value-0')).toHaveValue('trace-1');
   await expect(page.getByTestId('datasource-query-key-0')).toHaveValue('token');
-  await expect(page.getByTestId('datasource-query-mock-0')).toHaveValue('abc');
+  await expect(page.getByTestId('datasource-query-value-0')).toHaveValue('abc');
   await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('keyword');
-  await expect(page.getByTestId('datasource-body-mock-0')).toHaveValue('Ada');
+  await expect(page.getByTestId('datasource-body-value-0')).toHaveValue('Ada');
   await expect(page.getByTestId('datasource-body-key-1')).toHaveValue('limit');
   await expect(page.getByTestId('datasource-body-type-1')).toHaveValue('number');
-  await expect(page.getByTestId('datasource-body-mock-1')).toHaveValue('20');
+  await expect(page.getByTestId('datasource-body-value-1')).toHaveValue('20');
   await expect(page.getByTestId('datasource-body-key-2')).toHaveValue('filters');
   await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify({
     data: [
@@ -1126,6 +900,8 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
     ]
   }, null, 2));
 
+  await expect(page.getByTestId('datasource-schema-empty')).toBeVisible();
+  await page.getByTestId('datasource-response-schema-select-button').click();
   const fullSchemaDialog = await openFullSchema(page);
   const importedSchema = JSON.parse(await fullSchemaDialog.getByTestId('datasource-json-schema').inputValue()) as any;
   expect(importedSchema.properties.data.items.properties.age.type).toBe('number');
@@ -1139,26 +915,19 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
     path: '/v1/users/search',
     method: 'POST',
     headerData: [
-      { key: 'X-Trace', mock: 'trace-1' }
+      { key: 'X-Trace', value: 'trace-1' }
     ],
     bodyData: [
-      { key: 'keyword', dataType: 'string', mock: 'Ada' },
-      { key: 'limit', dataType: 'number', mock: 20 },
-      { key: 'filters', dataType: 'object', mock: { active: true } }
+      { key: 'keyword', dataType: 'string', value: 'Ada' },
+      { key: 'limit', dataType: 'number', value: 20 },
+      { key: 'filters', dataType: 'object', value: { active: true } }
     ],
     queryData: [
-      { key: 'token', mock: 'abc' }
-    ],
-    responseExample: {
-      data: [
-        {
-          id: 'u_1',
-          age: 18
-        }
-      ]
-    }
+      { key: 'token', value: 'abc' }
+    ]
   });
-  expect(datasourceValue.jsonSchema.properties.data.type).toBe('array');
+  expect(datasourceValue.responseExamples).toBeUndefined();
+  expect(datasourceValue.jsonSchema).toBeUndefined();
 });
 
 test('imports APIFox relative API path with the selected API domain', async ({ page }) => {
@@ -1236,10 +1005,10 @@ test('imports APIFox relative API path with the selected API domain', async ({ p
     path: '/api/mokelay/login_users',
     method: 'POST',
     bodyData: [
-      { key: 'email', dataType: 'string', mock: '' }
+      { key: 'email', dataType: 'string', value: '' }
     ],
     queryData: [
-      { key: 'debug', mock: '' }
+      { key: 'debug', value: '' }
     ]
   });
 });
@@ -1458,17 +1227,17 @@ test('imports APIFox grouped query parameters and request body parameters', asyn
     method: 'POST',
     headerData: [],
     bodyData: [
-      { key: 'ggggg', dataType: 'string', mock: '' },
-      { key: 'bbbbbb', dataType: 'string', mock: '' }
+      { key: 'ggggg', dataType: 'string', value: '' },
+      { key: 'bbbbbb', dataType: 'string', value: '' }
     ],
     queryData: [
-      { key: 'alias', mock: '' },
-      { key: 'aaaa', mock: '' },
-      { key: 'nnnnn', mock: '' }
-    ],
-    responseExample
+      { key: 'alias', value: '' },
+      { key: 'aaaa', value: '' },
+      { key: 'nnnnn', value: '' }
+    ]
   });
-  expect(datasourceValue.jsonSchema.properties.data.type).toBe('array');
+  expect(datasourceValue.responseExamples).toBeUndefined();
+  expect(datasourceValue.jsonSchema).toBeUndefined();
 });
 
 test('does not overwrite API datasource when APIFox method is unsupported', async ({ page }) => {
@@ -1554,7 +1323,7 @@ test('saves API datasource file body metadata without file content', async ({ pa
   await page.getByTestId('datasource-body-add').click();
   await page.getByTestId('datasource-body-key-0').fill('avatar');
   await page.getByTestId('datasource-body-type-0').selectOption('file');
-  await page.getByTestId('datasource-body-mock-0').setInputFiles({
+  await page.getByTestId('datasource-body-value-0').setInputFiles({
     name: 'avatar.txt',
     mimeType: 'text/plain',
     buffer: fileBuffer
@@ -1572,7 +1341,7 @@ test('saves API datasource file body metadata without file content', async ({ pa
       {
         key: 'avatar',
         dataType: 'file',
-        mock: {
+        value: {
           name: 'avatar.txt',
           size: fileBuffer.length,
           type: 'text/plain'
@@ -1584,11 +1353,11 @@ test('saves API datasource file body metadata without file content', async ({ pa
 
   await page.getByTestId('preview-button').click();
   await expect(
-    page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-body-mock-0')
+    page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-body-value-0')
   ).toHaveValue('avatar.txt');
 });
 
-test('parses API datasource response into JSON Schema and saves it', async ({ page }) => {
+test('parses an API response and saves only selected Schema fields', async ({ page }) => {
   await resetEditor(page, {
     apiDomains: [localApiDomain]
   });
@@ -1645,41 +1414,53 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
 
   await page.getByTestId('datasource-header-add').click();
   await page.getByTestId('datasource-header-key-0').fill('X-Schema');
-  await page.getByTestId('datasource-header-mock-0').fill('demo-schema');
+  await page.getByTestId('datasource-header-value-0').fill('demo-schema');
 
   await page.getByTestId('datasource-query-add').click();
   await page.getByTestId('datasource-query-key-0').fill('token');
-  await page.getByTestId('datasource-query-mock-0').fill('abc');
+  await page.getByTestId('datasource-query-value-0').fill('abc');
 
   await page.getByTestId('datasource-body-add').click();
   await page.getByTestId('datasource-body-key-0').fill('name');
-  await page.getByTestId('datasource-body-mock-0').fill('Ada');
+  await page.getByTestId('datasource-body-value-0').fill('Ada');
   await page.getByTestId('datasource-body-add').click();
   await page.getByTestId('datasource-body-key-1').fill('count');
   await page.getByTestId('datasource-body-type-1').selectOption('number');
-  await page.getByTestId('datasource-body-mock-1').fill('2');
+  await page.getByTestId('datasource-body-value-1').fill('2');
 
   const requestPromise = page.waitForRequest((request) =>
     request.url().includes('/datasource-schema') && request.method() === 'POST'
   );
   await page.getByTestId('datasource-json-schema-parse-button').click();
+  const responseMockDialog = page.getByTestId('datasource-response-mock-dialog');
+  await expect(responseMockDialog).toBeVisible();
+  await expect(responseMockDialog).toContainText('Header');
+  await expect(responseMockDialog).toContainText('Query');
+  await expect(responseMockDialog).toContainText('Body');
+  await responseMockDialog.getByTestId('datasource-response-mock-header-0').fill('mock-schema');
+  await responseMockDialog.getByTestId('datasource-response-mock-query-0').fill('mock-token');
+  await responseMockDialog.getByTestId('datasource-response-mock-body-0').fill('Mock Ada');
+  await responseMockDialog.getByTestId('datasource-response-mock-body-1').fill('3');
+  await responseMockDialog.getByTestId('datasource-response-mock-submit').click();
   const request = await requestPromise;
 
-  expect(request.url()).toContain('token=abc');
-  expect(request.headers()['x-schema']).toBe('demo-schema');
+  expect(request.url()).toContain('token=mock-token');
+  expect(request.headers()['x-schema']).toBe('mock-schema');
   expect(request.headers()['content-type']).toContain('application/json');
   expect(request.postDataJSON()).toEqual({
-    name: 'Ada',
-    count: 2
+    name: 'Mock Ada',
+    count: 3
   });
   await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify(responseData, null, 2));
   await expect(page.getByTestId('datasource-list-field-users[].id')).toHaveCount(0);
-  await page.getByTestId('datasource-response-schema-update-button').click();
+  await page.getByTestId('datasource-response-schema-select-button').click();
   await expect(page.getByTestId('datasource-list-field-users[]')).toBeVisible();
   await expect(page.getByTestId('datasource-form-field-ok')).toBeVisible();
+  await page.getByTestId('datasource-form-field-add-ok').click();
   await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-list-field-users[].id')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-users[].name')).toBeVisible();
+  await page.getByTestId('datasource-list-field-add-users[].id').click();
   const fullSchemaDialog = await openFullSchema(page);
   await expect(fullSchemaDialog.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(apiSchema, null, 2));
   await closeFullSchema(fullSchemaDialog);
@@ -1694,80 +1475,31 @@ test('parses API datasource response into JSON Schema and saves it', async ({ pa
     headerData: [
       {
         key: 'X-Schema',
-        mock: 'demo-schema'
+        value: 'demo-schema'
       }
     ],
     bodyData: [
       {
         key: 'name',
         dataType: 'string',
-        mock: 'Ada'
+        value: 'Ada'
       },
       {
         key: 'count',
         dataType: 'number',
-        mock: 2
+        value: 2
       }
     ],
     queryData: [
       {
         key: 'token',
-        mock: 'abc'
+        value: 'abc'
       }
     ],
-    jsonSchema: apiSchema,
-    schemaSelections: {
-      list: {
-        recordPath: 'users',
-        fields: [
-          {
-            path: 'users[]',
-            label: 'users',
-            type: 'array',
-            required: false,
-            enabled: false,
-            componentHint: 'array'
-          },
-          {
-            path: 'users[].id',
-            label: 'id',
-            type: 'number',
-            required: false,
-            enabled: false,
-            componentHint: 'number'
-          },
-          {
-            path: 'users[].name',
-            label: 'name',
-            type: 'string',
-            required: false,
-            enabled: false,
-            componentHint: 'text'
-          },
-          {
-            path: 'users[].active',
-            label: 'active',
-            type: 'boolean',
-            required: false,
-            enabled: false,
-            componentHint: 'switch'
-          }
-        ]
-      },
-      form: {
-        fields: [
-          {
-            path: 'ok',
-            label: 'ok',
-            type: 'boolean',
-            required: false,
-            enabled: false,
-            componentHint: 'switch'
-          }
-        ]
-      }
-    },
-    responseExample: responseData
+    schemaSelections: [
+      { label: 'ok', path: 'ok', type: 'boolean' },
+      { label: 'id', path: 'users[].id', type: 'number' }
+    ]
   });
 });
 
@@ -1804,15 +1536,15 @@ test('uploads API datasource file body params as multipart form data', async ({ 
 
   await page.getByTestId('datasource-header-add').click();
   await page.getByTestId('datasource-header-key-0').fill('Content-Type');
-  await page.getByTestId('datasource-header-mock-0').fill('application/json');
+  await page.getByTestId('datasource-header-value-0').fill('application/json');
   await page.getByTestId('datasource-header-add').click();
   await page.getByTestId('datasource-header-key-1').fill('X-Demo');
-  await page.getByTestId('datasource-header-mock-1').fill('multipart-demo');
+  await page.getByTestId('datasource-header-value-1').fill('multipart-demo');
 
   await page.getByTestId('datasource-body-add').click();
   await page.getByTestId('datasource-body-key-0').fill('avatar');
   await page.getByTestId('datasource-body-type-0').selectOption('file');
-  await page.getByTestId('datasource-body-mock-0').setInputFiles({
+  await page.getByTestId('datasource-body-value-0').setInputFiles({
     name: 'avatar.txt',
     mimeType: 'text/plain',
     buffer: fileBuffer
@@ -1820,25 +1552,35 @@ test('uploads API datasource file body params as multipart form data', async ({ 
   await page.getByTestId('datasource-body-add').click();
   await page.getByTestId('datasource-body-key-1').fill('count');
   await page.getByTestId('datasource-body-type-1').selectOption('number');
-  await page.getByTestId('datasource-body-mock-1').fill('2');
+  await page.getByTestId('datasource-body-value-1').fill('2');
 
   const requestPromise = page.waitForRequest((request) =>
     request.url().includes('/datasource-upload') && request.method() === 'POST'
   );
   await page.getByTestId('datasource-json-schema-parse-button').click();
+  const responseMockDialog = page.getByTestId('datasource-response-mock-dialog');
+  await expect(responseMockDialog).toBeVisible();
+  await responseMockDialog.getByTestId('datasource-response-mock-header-1').fill('mock-multipart');
+  await responseMockDialog.getByTestId('datasource-response-mock-body-0').setInputFiles({
+    name: 'mock-avatar.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('hello mock multipart')
+  });
+  await responseMockDialog.getByTestId('datasource-response-mock-body-1').fill('3');
+  await responseMockDialog.getByTestId('datasource-response-mock-submit').click();
   const request = await requestPromise;
 
   const contentType = request.headers()['content-type'] ?? '';
   const postData = request.postData() ?? '';
   expect(contentType).toContain('multipart/form-data');
   expect(contentType).not.toContain('application/json');
-  expect(request.headers()['x-demo']).toBe('multipart-demo');
+  expect(request.headers()['x-demo']).toBe('mock-multipart');
   expect(postData).toContain('name="avatar"');
-  expect(postData).toContain('filename="avatar.txt"');
-  expect(postData).toContain('hello multipart');
+  expect(postData).toContain('filename="mock-avatar.txt"');
+  expect(postData).toContain('hello mock multipart');
   expect(postData).toContain('name="count"');
-  expect(postData).toContain('2');
-  await page.getByTestId('datasource-response-schema-update-button').click();
+  expect(postData).toContain('3');
+  await page.getByTestId('datasource-response-schema-select-button').click();
   const fullSchemaDialog = await openFullSchema(page);
   await expect(fullSchemaDialog.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(apiSchema, null, 2));
   await closeFullSchema(fullSchemaDialog);
@@ -1871,9 +1613,12 @@ test('requires selecting a file before generating API datasource schema', async 
   await page.getByTestId('datasource-body-type-0').selectOption('file');
 
   await page.getByTestId('datasource-json-schema-parse-button').click();
+  const responseMockDialog = page.getByTestId('datasource-response-mock-dialog');
+  await expect(responseMockDialog).toBeVisible();
+  await responseMockDialog.getByTestId('datasource-response-mock-submit').click();
 
-  await expect(page.getByTestId('datasource-body-error-0')).toContainText('请选择 Body 中的文件。');
-  await expect(page.getByTestId('datasource-json-schema-error')).toContainText('请先修正 Body 中的 Mock 数据。');
+  await expect(responseMockDialog).toContainText('请选择 Body 中的文件。');
+  await expect(responseMockDialog.getByTestId('datasource-response-mock-error')).toContainText('请先修正请求 Mock 数据。');
   expect(requestCount).toBe(0);
 });
 
@@ -2026,21 +1771,24 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
 
   await page.getByTestId('datasource-query-add').click();
   await page.getByTestId('datasource-query-key-0').fill('pageSize');
-  await page.getByTestId('datasource-query-mock-0').fill('2');
+  await page.getByTestId('datasource-query-value-0').fill('2');
   await page.getByTestId('datasource-query-add').click();
   await page.getByTestId('datasource-query-key-1').fill('page');
-  await page.getByTestId('datasource-query-mock-1').fill('2');
+  await page.getByTestId('datasource-query-value-1').fill('2');
 
   const requestPromise = page.waitForRequest((request) =>
     request.url().includes('/api/mokelay/list_pages') && request.method() === 'GET'
   );
   await page.getByTestId('datasource-json-schema-parse-button').click();
+  const responseMockDialog = page.getByTestId('datasource-response-mock-dialog');
+  await expect(responseMockDialog).toBeVisible();
+  await responseMockDialog.getByTestId('datasource-response-mock-submit').click();
   const request = await requestPromise;
 
   expect(request.url()).toContain('pageSize=2');
   expect(request.url()).toContain('page=2');
   await expect(page.getByTestId('datasource-json-schema-error')).toHaveCount(0);
-  await page.getByTestId('datasource-response-schema-update-button').click();
+  await page.getByTestId('datasource-response-schema-select-button').click();
   await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-list-field-pages[].uuid')).toBeVisible();
   await expect(page.getByTestId('datasource-list-field-pages[].name')).toBeVisible();
@@ -2076,7 +1824,7 @@ test('parses API datasource response with empty arrays into JSON Schema', async 
     queryData: [
       {
         key: 'debug',
-        mock: 'true'
+        value: 'true'
       }
     ]
   };
@@ -2117,7 +1865,7 @@ test('parses API datasource response with empty arrays into JSON Schema', async 
             key: {
               type: 'string'
             },
-            mock: {
+            value: {
               type: 'string'
             }
           }
@@ -2140,10 +1888,10 @@ test('parses API datasource response with empty arrays into JSON Schema', async 
   await page.getByTestId('datasource-json-schema-parse-button').click();
 
   await expect(page.getByTestId('datasource-json-schema-error')).toHaveCount(0);
-  await page.getByTestId('datasource-response-schema-update-button').click();
+  await page.getByTestId('datasource-response-schema-select-button').click();
   await setSchemaPathDepth(page, 2);
   await expect(page.getByTestId('datasource-list-field-queryData[].key')).toBeVisible();
-  await expect(page.getByTestId('datasource-list-field-queryData[].mock')).toBeVisible();
+  await expect(page.getByTestId('datasource-list-field-queryData[].value')).toBeVisible();
 
   const fullSchemaDialog = await openFullSchema(page);
   await expect(fullSchemaDialog.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(expectedSchema, null, 2));
@@ -2288,25 +2036,25 @@ test('loads saved API datasource in editor and preview', async ({ page }) => {
             headerData: [
               {
                 key: 'Authorization',
-                mock: 'Bearer token'
+                value: 'Bearer token'
               }
             ],
             bodyData: [
               {
                 key: 'limit',
                 dataType: 'number',
-                mock: 20
+                value: 20
               },
               {
                 key: 'ids',
                 dataType: 'array',
-                mock: [1, 2, 3]
+                value: [1, 2, 3]
               }
             ],
             queryData: [
               {
                 key: 'page',
-                mock: '1'
+                value: '1'
               }
             ]
           }
@@ -2319,8 +2067,17 @@ test('loads saved API datasource in editor and preview', async ({ page }) => {
   await expect(page.getByTestId('datasource-api-panel')).toBeVisible();
   await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
   await expect(page.getByTestId('datasource-header-key-0')).toHaveValue('Authorization');
-  await expect(page.getByTestId('datasource-body-mock-0')).toHaveValue('20');
-  await expect(page.getByTestId('datasource-body-mock-1')).toHaveValue(JSON.stringify([1, 2, 3], null, 2));
+  await expect(page.getByTestId('datasource-body-value-0')).toHaveValue('20');
+  await expect(page.getByTestId('datasource-body-value-1')).toHaveValue(JSON.stringify([1, 2, 3], null, 2));
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
+  expect(datasourceValue.headerData).toEqual([{ key: 'Authorization', value: 'Bearer token' }]);
+  expect(datasourceValue.bodyData).toEqual([
+    { key: 'limit', dataType: 'number', value: 20 },
+    { key: 'ids', dataType: 'array', value: [1, 2, 3] }
+  ]);
+  expect(datasourceValue.queryData).toEqual([{ key: 'page', value: '1' }]);
 
   await page.getByTestId('preview-button').click();
   await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();

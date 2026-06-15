@@ -4,7 +4,6 @@ import {
   isJsonObjectValue,
   isJsonValue,
   isRecord,
-  normalizeJSONSchema,
   normalizeSchemaSelections,
   type DatasourceSchemaSelections,
   type JSONSchema,
@@ -20,7 +19,7 @@ import {
 export type MDatasourceType = 'JSON' | 'API';
 export type MDatasourceApiMethod = 'GET' | 'POST';
 export type MDatasourceBodyDataType = 'string' | 'number' | 'boolean' | 'null' | 'object' | 'array' | 'file';
-export type MDatasourceBodyFileMock = {
+export type MDatasourceBodyFileValue = {
   [key: string]: JsonValue;
   name: string;
   size: number;
@@ -33,23 +32,21 @@ export type {
   JsonValue
 };
 
-export interface MDatasourceKeyMockItem {
+export interface MDatasourceKeyValueItem {
   key: string;
-  mock: string;
+  value: string;
 }
 
 export interface MDatasourceBodyItem {
   key: string;
   dataType: MDatasourceBodyDataType;
-  mock: JsonValue;
+  value: JsonValue;
 }
 
 export interface MDatasourceJsonObject {
   type: 'JSON';
   rawData: JsonValue;
-  jsonSchema?: JSONSchema;
   schemaSelections?: DatasourceSchemaSelections;
-  responseExample?: JsonValue;
 }
 
 export interface MDatasourceApiObject {
@@ -57,12 +54,10 @@ export interface MDatasourceApiObject {
   domain: string;
   path: string;
   method: MDatasourceApiMethod;
-  headerData: MDatasourceKeyMockItem[];
+  headerData: MDatasourceKeyValueItem[];
   bodyData: MDatasourceBodyItem[];
-  queryData: MDatasourceKeyMockItem[];
-  jsonSchema?: JSONSchema;
+  queryData: MDatasourceKeyValueItem[];
   schemaSelections?: DatasourceSchemaSelections;
-  responseExample?: JsonValue;
 }
 
 export type MDatasourceObject = MDatasourceJsonObject | MDatasourceApiObject;
@@ -119,11 +114,7 @@ export function normalizeJsonValue(value: unknown, fallback: JsonValue = {}) {
   return isJsonValue(value) ? cloneJsonValue(value) : fallback;
 }
 
-function normalizeOptionalJsonValue(value: unknown) {
-  return isJsonValue(value) ? cloneJsonValue(value) : undefined;
-}
-
-export function getDefaultBodyFileMock(): MDatasourceBodyFileMock {
+export function getDefaultBodyFileValue(): MDatasourceBodyFileValue {
   return {
     name: '',
     size: 0,
@@ -131,39 +122,39 @@ export function getDefaultBodyFileMock(): MDatasourceBodyFileMock {
   };
 }
 
-export function normalizeBodyFileMock(mock: unknown): MDatasourceBodyFileMock {
-  if (!isRecord(mock)) {
-    return getDefaultBodyFileMock();
+export function normalizeBodyFileValue(value: unknown): MDatasourceBodyFileValue {
+  if (!isRecord(value)) {
+    return getDefaultBodyFileValue();
   }
 
   return {
-    name: normalizeString(mock.name),
-    size: typeof mock.size === 'number' && Number.isFinite(mock.size) ? mock.size : 0,
-    type: normalizeString(mock.type)
+    name: normalizeString(value.name),
+    size: typeof value.size === 'number' && Number.isFinite(value.size) ? value.size : 0,
+    type: normalizeString(value.type)
   };
 }
 
-export function getDefaultBodyMock(dataType: MDatasourceBodyDataType): JsonValue {
+export function getDefaultBodyValue(dataType: MDatasourceBodyDataType): JsonValue {
   if (dataType === 'number') return 0;
   if (dataType === 'boolean') return false;
   if (dataType === 'null') return null;
   if (dataType === 'object') return {};
   if (dataType === 'array') return [];
-  if (dataType === 'file') return getDefaultBodyFileMock();
+  if (dataType === 'file') return getDefaultBodyFileValue();
   return '';
 }
 
-export function normalizeBodyMock(dataType: MDatasourceBodyDataType, mock: unknown): JsonValue {
+export function normalizeBodyValue(dataType: MDatasourceBodyDataType, value: unknown): JsonValue {
   if (dataType === 'string') {
-    return typeof mock === 'string' ? mock : normalizeString(mock);
+    return typeof value === 'string' ? value : normalizeString(value);
   }
 
   if (dataType === 'number') {
-    return typeof mock === 'number' && Number.isFinite(mock) ? mock : 0;
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
   }
 
   if (dataType === 'boolean') {
-    return typeof mock === 'boolean' ? mock : false;
+    return typeof value === 'boolean' ? value : false;
   }
 
   if (dataType === 'null') {
@@ -171,28 +162,28 @@ export function normalizeBodyMock(dataType: MDatasourceBodyDataType, mock: unkno
   }
 
   if (dataType === 'object') {
-    return isJsonObjectValue(mock) ? cloneJsonValue(mock) : {};
+    return isJsonObjectValue(value) ? cloneJsonValue(value) : {};
   }
 
   if (dataType === 'file') {
-    return normalizeBodyFileMock(mock);
+    return normalizeBodyFileValue(value);
   }
 
-  if (Array.isArray(mock) && isJsonValue(mock)) {
-    return cloneJsonValue(mock);
+  if (Array.isArray(value) && isJsonValue(value)) {
+    return cloneJsonValue(value);
   }
 
   return [];
 }
 
-function normalizeKeyMockList(value: unknown): MDatasourceKeyMockItem[] {
+function normalizeKeyValueList(value: unknown): MDatasourceKeyValueItem[] {
   if (!Array.isArray(value)) return [];
 
   return value
     .filter((item): item is Record<string, unknown> => isRecord(item))
     .map((item) => ({
       key: normalizeString(item.key),
-      mock: normalizeString(item.mock)
+      value: normalizeString(item.value)
     }));
 }
 
@@ -206,7 +197,7 @@ function normalizeBodyList(value: unknown): MDatasourceBodyItem[] {
       return {
         key: normalizeString(item.key),
         dataType,
-        mock: normalizeBodyMock(dataType, item.mock)
+        value: normalizeBodyValue(dataType, item.value)
       };
     });
 }
@@ -232,9 +223,7 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
     return getDefaultDatasource();
   }
 
-  const jsonSchema = normalizeJSONSchema(value.jsonSchema);
-  const schemaSelections = normalizeSchemaSelections(value.schemaSelections, jsonSchema);
-  const responseExample = normalizeOptionalJsonValue(value.responseExample);
+  const schemaSelections = normalizeSchemaSelections(value.schemaSelections);
 
   if (value.type === 'API') {
     const datasource: MDatasourceApiObject = {
@@ -242,21 +231,13 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
       domain: normalizeString(value.domain),
       path: normalizeString(value.path),
       method: normalizeMethod(value.method),
-      headerData: normalizeKeyMockList(value.headerData),
+      headerData: normalizeKeyValueList(value.headerData),
       bodyData: normalizeBodyList(value.bodyData),
-      queryData: normalizeKeyMockList(value.queryData)
+      queryData: normalizeKeyValueList(value.queryData)
     };
 
-    if (jsonSchema) {
-      datasource.jsonSchema = jsonSchema;
-    }
-
-    if (schemaSelections) {
+    if (schemaSelections.length) {
       datasource.schemaSelections = schemaSelections;
-    }
-
-    if (responseExample !== undefined) {
-      datasource.responseExample = responseExample;
     }
 
     return datasource;
@@ -267,16 +248,8 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
     rawData: normalizeJsonValue(value.rawData, {})
   };
 
-  if (jsonSchema) {
-    datasource.jsonSchema = jsonSchema;
-  }
-
-  if (schemaSelections) {
+  if (schemaSelections.length) {
     datasource.schemaSelections = schemaSelections;
-  }
-
-  if (responseExample !== undefined) {
-    datasource.responseExample = responseExample;
   }
 
   return datasource;
@@ -299,7 +272,7 @@ export function getDatasourceRequestUrl(datasource: MDatasourceApiObject, domain
   datasource.queryData.forEach((item) => {
     const key = item.key.trim();
     if (!key) return;
-    url.searchParams.append(key, item.mock);
+    url.searchParams.append(key, item.value);
   });
 
   return url.toString();
@@ -325,7 +298,7 @@ export function getDatasourceRequestHeaders(datasource: MDatasourceApiObject) {
     const key = item.key.trim();
     if (!key) return;
     if (hasFileBody && key.toLowerCase() === 'content-type') return;
-    headers.set(key, item.mock);
+    headers.set(key, item.value);
   });
 
   if (datasource.method === 'POST' && !hasFileBody && !headers.has('Content-Type')) {
@@ -339,17 +312,17 @@ function hasDatasourceFileBody(datasource: MDatasourceApiObject) {
   return datasource.method === 'POST' && datasource.bodyData.some((item) => item.dataType === 'file');
 }
 
-function getFormDataMockValue(item: MDatasourceBodyItem) {
-  const normalizedMock = normalizeBodyMock(item.dataType, item.mock);
+function getFormDataValue(item: MDatasourceBodyItem) {
+  const normalizedValue = normalizeBodyValue(item.dataType, item.value);
   if (item.dataType === 'object' || item.dataType === 'array') {
-    return JSON.stringify(normalizedMock);
+    return JSON.stringify(normalizedValue);
   }
 
   if (item.dataType === 'null') {
     return '';
   }
 
-  return String(normalizedMock);
+  return String(normalizedValue);
 }
 
 export function getDatasourceRequestBody(datasource: MDatasourceApiObject, options?: DatasourceRequestOptions) {
@@ -374,7 +347,7 @@ export function getDatasourceRequestBody(datasource: MDatasourceApiObject, optio
         return;
       }
 
-      formData.append(key, getFormDataMockValue(item));
+      formData.append(key, getFormDataValue(item));
     });
 
     return formData;
@@ -383,7 +356,7 @@ export function getDatasourceRequestBody(datasource: MDatasourceApiObject, optio
   const body = datasource.bodyData.reduce<Record<string, JsonValue>>((result, item) => {
     const key = item.key.trim();
     if (!key) return result;
-    result[key] = normalizeBodyMock(item.dataType, item.mock);
+    result[key] = normalizeBodyValue(item.dataType, item.value);
     return result;
   }, {});
 

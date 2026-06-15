@@ -161,7 +161,8 @@ export const enMessages = {
     toolboxTitle: 'Datasource Editor',
     title: 'Datasource',
     empty: 'No items',
-    emptySchema: 'No field config yet. Click "Generate field config" first.',
+    emptySchema: 'No field config yet. Select the Schema from a response example first.',
+    emptySelectedFields: 'No fields selected.',
     noSelectableFields: 'This schema does not contain selectable fields.',
     noFieldsMatchingPath: 'No fields match this path.',
     fields: {
@@ -174,6 +175,7 @@ export const enMessages = {
       apifoxProject: 'APIFox project',
       apifoxApiId: 'API ID',
       key: 'Key',
+      value: 'Value',
       mock: 'Mock data',
       jsonSchema: 'JSON Schema',
       responseExample: 'Response example',
@@ -188,6 +190,7 @@ export const enMessages = {
       fieldPath: 'Field path',
       searchFieldsByPath: 'Search by field path',
       selectedFields: 'Selected fields',
+      availableFields: 'Available fields',
       required: 'Required'
     },
     sections: {
@@ -201,19 +204,27 @@ export const enMessages = {
     },
     actions: {
       add: 'Add',
+      added: 'Added',
       remove: 'Remove',
       refresh: 'Refresh',
       refreshing: 'Refreshing...',
       importApi: 'Import',
       importingApi: 'Importing...',
+      addResponseExample: 'Add response data',
+      cancel: 'Cancel',
+      capture: 'Capture',
       captureResponseExample: 'Mock response example',
       capturingResponseExample: 'Capturing response example...',
-      updateSchema: 'Update Schema',
+      selectSchema: 'Select this Schema',
       fullSchema: 'Full Schema'
     },
+    responseMock: {
+      title: 'Configure request mock data',
+      help: 'Enter temporary mock data for this capture. It will not overwrite the values in the request configuration.'
+    },
     help: {
-      responseConfig: 'Capture or edit a response example, then manually update the response Schema.',
-      fieldSelection: 'Choose the fields components should use.'
+      responseConfig: 'Capture or edit response examples, then select one to generate the field configuration.',
+      fieldSelection: 'Add the fields that components should use from the available fields.'
     },
     schemaTypes: {
       object: 'Object',
@@ -240,6 +251,7 @@ export const enMessages = {
       missingResponseExample: 'Enter a response example first.',
       missingFile: 'Choose a file in Body.',
       fixBodyBeforeSchema: 'Fix Body mock data before parsing JSON Schema.',
+      fixMockBeforeCapture: 'Fix the request mock data first.',
       nonJsonResponse: 'The API response is not JSON.',
       invalidJsonResponse: 'The API response is not valid JSON.',
       apiRequestFailed: 'API request failed:',
