@@ -125,11 +125,20 @@ export const zhMessages = {
     propertyPanelTitle: '高级表格属性',
     defaultColumnName: '列',
     empty: '暂无数据',
+    noDatasource: '没有数据源',
+    loading: '正在加载数据...',
+    loadFailed: '数据源加载失败',
+    missingMatchedField: '请先匹配列表数据字段',
+    invalidMatchedData: '列表数据字段必须是对象数组',
     selectAll: '全选',
     selectRow: '选择行',
     properties: {
       index: '显示序号列',
-      selection: '显示多选列'
+      selection: '显示多选列',
+      data: '数据源'
+    },
+    datasourceFields: {
+      data: '列表数据'
     },
     defaultColumns: {
       name: '名称',
@@ -209,7 +218,8 @@ export const zhMessages = {
       importApi: '导入 API 信息',
       requestConfig: '请求配置',
       responseConfig: '响应配置',
-      fieldSelection: '字段选择'
+      fieldSelection: '字段选择',
+      externalFieldMatching: '外部字段匹配'
     },
     actions: {
       add: '添加',
@@ -237,7 +247,13 @@ export const zhMessages = {
     },
     help: {
       responseConfig: '抓取或编写响应示例数据，并选择其中一条生成字段配置。',
-      fieldSelection: '从可选择字段中添加需要给组件使用的字段。'
+      fieldSelection: '从可选择字段中添加需要给组件使用的字段。',
+      externalFieldMatching: '把组件需要的外部字段匹配到已选择字段。'
+    },
+    matching: {
+      empty: '暂无外部字段。',
+      unmatched: '未匹配',
+      unmatchedCount: '{count} 个字段未匹配'
     },
     schemaTypes: {
       object: '对象',

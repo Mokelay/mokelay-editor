@@ -9,13 +9,19 @@ export type EditorToolPropertyField = {
   key: string;
   label: string;
   placeholder?: string;
-  type?: 'text' | 'select' | 'checkbox' | 'textarea';
+  type?: 'text' | 'select' | 'checkbox' | 'textarea' | 'component';
   valueType?: 'string' | 'json';
   validationMessage?: string;
   options?: Array<{
     label: string;
     value: string;
   }>;
+  component?: Component;
+  getComponentProps?: (context: {
+    value: unknown;
+    state: Record<string, unknown>;
+    edit: boolean;
+  }) => Record<string, unknown>;
 };
 
 export type EditorToolPropertyPanel = {

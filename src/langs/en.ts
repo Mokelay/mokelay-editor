@@ -125,11 +125,20 @@ export const enMessages = {
     propertyPanelTitle: 'Advanced Table Properties',
     defaultColumnName: 'Column',
     empty: 'No data',
+    noDatasource: 'No datasource',
+    loading: 'Loading data...',
+    loadFailed: 'Failed to load datasource',
+    missingMatchedField: 'Match the list data field first',
+    invalidMatchedData: 'The list data field must be an array of objects',
     selectAll: 'Select all',
     selectRow: 'Select row',
     properties: {
       index: 'Show index column',
-      selection: 'Show selection column'
+      selection: 'Show selection column',
+      data: 'Datasource'
+    },
+    datasourceFields: {
+      data: 'List data'
     },
     defaultColumns: {
       name: 'Name',
@@ -209,7 +218,8 @@ export const enMessages = {
       importApi: 'Import API info',
       requestConfig: 'Request configuration',
       responseConfig: 'Response configuration',
-      fieldSelection: 'Field selection'
+      fieldSelection: 'Field selection',
+      externalFieldMatching: 'External field matching'
     },
     actions: {
       add: 'Add',
@@ -237,7 +247,13 @@ export const enMessages = {
     },
     help: {
       responseConfig: 'Capture or edit response examples, then select one to generate the field configuration.',
-      fieldSelection: 'Add the fields that components should use from the available fields.'
+      fieldSelection: 'Add the fields that components should use from the available fields.',
+      externalFieldMatching: 'Match the external fields required by the component to selected fields.'
+    },
+    matching: {
+      empty: 'No external fields.',
+      unmatched: 'Unmatched',
+      unmatchedCount: '{count} fields unmatched'
     },
     schemaTypes: {
       object: 'Object',

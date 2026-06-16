@@ -81,6 +81,10 @@ defineExpose({
   box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
 }
 
+:deep(.mokelay-editor-tool__property-dialog--wide) {
+  width: min(calc(100vw - 32px), 720px);
+}
+
 :deep(.mokelay-editor-tool__property-dialog::backdrop) {
   background: rgb(15 23 42 / 0.45);
 }

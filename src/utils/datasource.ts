@@ -43,6 +43,15 @@ export interface MDatasourceBodyItem {
   value: JsonValue;
 }
 
+export interface MDatasourceExternalField {
+  label: string;
+  variable: string;
+}
+
+export interface MDatasourceMatchingExternalField extends MDatasourceExternalField {
+  matchFieldPath: string;
+}
+
 export interface MDatasourceJsonObject {
   type: 'JSON';
   rawData: JsonValue;
@@ -58,6 +67,7 @@ export interface MDatasourceApiObject {
   bodyData: MDatasourceBodyItem[];
   queryData: MDatasourceKeyValueItem[];
   schemaSelections?: DatasourceSchemaSelections;
+  matchingExternalFields?: MDatasourceMatchingExternalField[];
 }
 
 export type MDatasourceObject = MDatasourceJsonObject | MDatasourceApiObject;
@@ -202,6 +212,63 @@ function normalizeBodyList(value: unknown): MDatasourceBodyItem[] {
     });
 }
 
+function normalizeExternalField(value: unknown): MDatasourceExternalField | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const label = normalizeString(value.label).trim();
+  const variable = normalizeString(value.variable).trim();
+  if (!label || !variable) {
+    return undefined;
+  }
+
+  return {
+    label,
+    variable
+  };
+}
+
+export function normalizeDatasourceExternalFields(value: unknown): MDatasourceExternalField[] {
+  if (!Array.isArray(value)) return [];
+
+  const fieldsByVariable = new Map<string, MDatasourceExternalField>();
+  value.forEach((item) => {
+    const field = normalizeExternalField(item);
+    if (field && !fieldsByVariable.has(field.variable)) {
+      fieldsByVariable.set(field.variable, field);
+    }
+  });
+
+  return [...fieldsByVariable.values()];
+}
+
+function normalizeMatchingExternalField(value: unknown): MDatasourceMatchingExternalField | undefined {
+  const field = normalizeExternalField(value);
+  if (!field || !isRecord(value)) {
+    return undefined;
+  }
+
+  return {
+    ...field,
+    matchFieldPath: normalizeString(value.matchFieldPath).trim()
+  };
+}
+
+export function normalizeDatasourceMatchingExternalFields(value: unknown): MDatasourceMatchingExternalField[] {
+  if (!Array.isArray(value)) return [];
+
+  const fieldsByVariable = new Map<string, MDatasourceMatchingExternalField>();
+  value.forEach((item) => {
+    const field = normalizeMatchingExternalField(item);
+    if (field && !fieldsByVariable.has(field.variable)) {
+      fieldsByVariable.set(field.variable, field);
+    }
+  });
+
+  return [...fieldsByVariable.values()];
+}
+
 export function getDefaultApiDatasource(): MDatasourceApiObject {
   return {
     type: 'API',
@@ -224,6 +291,7 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
   }
 
   const schemaSelections = normalizeSchemaSelections(value.schemaSelections);
+  const matchingExternalFields = normalizeDatasourceMatchingExternalFields(value.matchingExternalFields);
 
   if (value.type === 'API') {
     const datasource: MDatasourceApiObject = {
@@ -238,6 +306,10 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
 
     if (schemaSelections.length) {
       datasource.schemaSelections = schemaSelections;
+    }
+
+    if (matchingExternalFields.length) {
+      datasource.matchingExternalFields = matchingExternalFields;
     }
 
     return datasource;

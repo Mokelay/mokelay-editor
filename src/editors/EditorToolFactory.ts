@@ -66,6 +66,7 @@ export default class EditorToolFactory {
       private wrapper: HTMLElement | null = null;
       private contentRoot: HTMLElement | null = null;
       private vueApp: App<Element> | null = null;
+      private propertyComponentApps: App<Element>[] = [];
       private propertyDialog: HTMLDialogElement | null = null;
       private eventsDialog: BlockEventsDialogController | null = null;
       private events: BlockEvent[] = [];
@@ -111,6 +112,7 @@ export default class EditorToolFactory {
 
       destroy() {
         this.unmountVueApp();
+        this.unmountPropertyComponents();
         this.propertyDialog?.remove();
         this.eventsDialog?.destroy();
         this.eventsDialog = null;
@@ -176,6 +178,9 @@ export default class EditorToolFactory {
 
         const dialog = document.createElement('dialog');
         dialog.className = 'mokelay-editor-tool__property-dialog';
+        if (definition.propertyPanel.fields.some((field) => field.type === 'component')) {
+          dialog.classList.add('mokelay-editor-tool__property-dialog--wide');
+        }
         dialog.dataset.testid = 'tool-property-dialog';
         dialog.dataset.toolName = toolName;
 
@@ -239,12 +244,14 @@ export default class EditorToolFactory {
           }
           input.value = this.stringifyPropertyInputValue(value, input.dataset.propertyValueType);
         });
+        this.mountPropertyComponents();
       }
 
       private updateProperty(key: string, value: unknown) {
         (this.state as Record<string, unknown>)[key] = value;
         // 属性变化后重新挂载组件，确保视图与状态同步。
         this.mountVueApp();
+        this.blockApi?.dispatchChange();
       }
 
       private getPropertyFieldValue(key: string) {
@@ -260,6 +267,19 @@ export default class EditorToolFactory {
       }
 
       private renderPropertyField(field: EditorToolPropertyField) {
+        if (field.type === 'component') {
+          return `
+            <div class="mokelay-editor-tool__property-field mokelay-editor-tool__property-field--component">
+              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+              <div
+                class="mokelay-editor-tool__property-component"
+                data-testid="tool-property-component-${field.key}"
+                data-property-component-key="${field.key}"
+              ></div>
+            </div>
+          `;
+        }
+
         if (field.type === 'checkbox') {
           return `
             <label class="mokelay-editor-tool__property-field mokelay-editor-tool__property-field--checkbox">
@@ -367,6 +387,58 @@ export default class EditorToolFactory {
             this.updateProperty(propertyKey, result.value);
           });
         });
+      }
+
+      private mountPropertyComponents() {
+        if (!this.propertyDialog) return;
+
+        this.unmountPropertyComponents();
+        definition.propertyPanel?.fields
+          .filter((field) => field.type === 'component')
+          .forEach((field) => {
+            if (!field.component || !this.propertyDialog) return;
+            const host = this.propertyDialog.querySelector<HTMLElement>(`[data-property-component-key="${field.key}"]`);
+            if (!host) return;
+
+            const app = createApp(field.component, {
+              ...this.getPropertyComponentProps(field),
+              onToolChange: (payload: unknown) => {
+                this.handlePropertyComponentChange(field, payload);
+              },
+              onChange: (payload: unknown) => {
+                this.handlePropertyComponentChange(field, payload);
+              }
+            });
+            app.mount(host);
+            this.propertyComponentApps.push(app);
+          });
+      }
+
+      private unmountPropertyComponents() {
+        this.propertyComponentApps.forEach((app) => {
+          app.unmount();
+        });
+        this.propertyComponentApps = [];
+      }
+
+      private getPropertyComponentProps(field: EditorToolPropertyField) {
+        const state = this.state as Record<string, unknown>;
+        const edit = state.edit === true;
+        const value = this.getPropertyFieldValue(field.key);
+        return {
+          edit,
+          value,
+          ...(field.getComponentProps?.({ value, state, edit }) ?? {})
+        };
+      }
+
+      private handlePropertyComponentChange(field: EditorToolPropertyField, payload: unknown) {
+        if (typeof payload === 'object' && payload !== null && 'value' in payload) {
+          this.updateProperty(field.key, (payload as { value?: unknown }).value);
+          return;
+        }
+
+        this.updateProperty(field.key, payload);
       }
 
       private readPropertyInputValue(input: PropertyInput): PropertyInputReadResult {

@@ -1,12 +1,18 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
+import MDatasourceEditor from '@/blocks/MDatasourceEditor.vue';
 import {
   createParagraphBlock,
   getParagraphText,
   normalizeStoredBlocks,
   type StoredBlock
 } from '@/utils/storedBlocks';
+import {
+  normalizeDatasource,
+  type MDatasourceApiObject
+} from '@/utils/datasource';
+import { isRecord } from '@/utils/datasourceSchema';
 
 export type MAdvanceTableFixed = 'left' | 'right' | '' | null;
 
@@ -22,7 +28,7 @@ export interface MAdvanceTableProps {
   index?: boolean;
   selection?: boolean;
   columns?: MAdvanceTableColumnConfig[];
-  data?: Array<Record<string, unknown>>;
+  data?: MDatasourceApiObject;
 }
 
 function getTextValue(text: string, id?: string) {
@@ -94,25 +100,11 @@ function getDefaultColumns(): MAdvanceTableColumnConfig[] {
   ];
 }
 
-function getDefaultData(): Array<Record<string, unknown>> {
+function getDatasourceExternalFields() {
   return [
     {
-      name: i18n.t('advanceTable.defaultRows.first.name'),
-      status: i18n.t('advanceTable.defaultRows.first.status'),
-      tag: i18n.t('advanceTable.defaultRows.first.tag'),
-      tagType: 'warning',
-      owner: i18n.t('advanceTable.defaultRows.first.owner'),
-      linkText: i18n.t('advanceTable.defaultRows.first.linkText'),
-      linkUrl: i18n.t('advanceTable.defaultRows.first.linkUrl')
-    },
-    {
-      name: i18n.t('advanceTable.defaultRows.second.name'),
-      status: i18n.t('advanceTable.defaultRows.second.status'),
-      tag: i18n.t('advanceTable.defaultRows.second.tag'),
-      tagType: 'success',
-      owner: i18n.t('advanceTable.defaultRows.second.owner'),
-      linkText: i18n.t('advanceTable.defaultRows.second.linkText'),
-      linkUrl: i18n.t('advanceTable.defaultRows.second.linkUrl')
+      label: i18n.t('advanceTable.datasourceFields.data'),
+      variable: 'data'
     }
   ];
 }
@@ -139,6 +131,16 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
           key: 'selection',
           label: i18n.t('advanceTable.properties.selection'),
           type: 'checkbox' as const
+        },
+        {
+          key: 'data',
+          label: i18n.t('advanceTable.properties.data'),
+          type: 'component' as const,
+          component: MDatasourceEditor,
+          getComponentProps: ({ value }) => ({
+            value,
+            matchingExternalFields: getDatasourceExternalFields()
+          })
         }
       ];
     }
@@ -146,22 +148,24 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
   createInitialProps: () => ({
     index: false,
     selection: false,
-    columns: getDefaultColumns(),
-    data: getDefaultData()
+    columns: getDefaultColumns()
   }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
     index: props.index === true,
     selection: props.selection === true,
     columns: normalizeColumns(props.columns),
-    data: normalizeData(props.data)
+    data: normalizeDatasourceConfig(props.data)
   }),
-  serialize: (props) => ({
-    index: props.index === true,
-    selection: props.selection === true,
-    columns: normalizeColumns(props.columns),
-    data: normalizeData(props.data)
-  })
+  serialize: (props) => {
+    const data = normalizeDatasourceConfig(props.data);
+    return {
+      index: props.index === true,
+      selection: props.selection === true,
+      columns: normalizeColumns(props.columns),
+      ...(data ? { data } : {})
+    };
+  }
 });
 
 function normalizeColumns(columns?: MAdvanceTableColumnConfig[]) {
@@ -181,12 +185,13 @@ function normalizeColumns(columns?: MAdvanceTableColumnConfig[]) {
   return normalized.length ? normalized : getDefaultColumns();
 }
 
-function normalizeData(data?: Array<Record<string, unknown>>) {
-  if (!Array.isArray(data)) {
-    return getDefaultData();
+function normalizeDatasourceConfig(value: unknown): MDatasourceApiObject | undefined {
+  if (!isRecord(value)) {
+    return undefined;
   }
 
-  return data.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null && !Array.isArray(row));
+  const datasource = normalizeDatasource(value);
+  return datasource.type === 'API' ? datasource : undefined;
 }
 
 function normalizeWidth(width?: number | null) {
@@ -203,9 +208,11 @@ function normalizeFixed(fixed?: MAdvanceTableFixed) {
 </script>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
+import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
 import { getInlineCustomComponentDefinition } from '@/editors/inlineCustomComponents';
 import { useI18n } from '@/i18n';
+import { resolveDatasourceRuntimeData } from '@/utils/datasourceRuntime';
 
 const props = defineProps<MAdvanceTableProps & {
   onChange?: (payload: MAdvanceTableProps) => void;
@@ -213,15 +220,86 @@ const props = defineProps<MAdvanceTableProps & {
 }>();
 
 const { t } = useI18n();
+const rootRef = ref<HTMLElement | null>(null);
 const selectedRows = ref(new Set<number>());
+const datasourceRows = shallowRef<Record<string, unknown>[]>([]);
+const datasourceLoading = ref(false);
+const datasourceError = ref('');
+let datasourceLoadId = 0;
 
 const normalizedColumns = computed(() => normalizeColumns(props.columns));
-const normalizedData = computed(() => normalizeData(props.data));
+const normalizedDatasource = computed(() => normalizeDatasourceConfig(props.data));
+const normalizedData = computed(() => datasourceRows.value);
 const hasSelectionColumn = computed(() => props.selection === true);
 const hasIndexColumn = computed(() => props.index === true);
+const shouldShowEmptyRow = computed(() =>
+  !normalizedDatasource.value ||
+  datasourceLoading.value ||
+  Boolean(datasourceError.value) ||
+  !normalizedData.value.length
+);
+const emptyMessage = computed(() => {
+  if (!normalizedDatasource.value) return t('advanceTable.noDatasource');
+  if (datasourceLoading.value) return t('advanceTable.loading');
+  if (datasourceError.value) return datasourceError.value;
+  return t('advanceTable.empty');
+});
 const selectionColumnWidth = 44;
 const indexColumnWidth = 56;
 const fallbackFixedColumnWidth = 160;
+
+useEditorBlockToolbarAlignment(rootRef);
+
+function normalizeRuntimeRows(value: unknown): Record<string, unknown>[] | undefined {
+  if (!Array.isArray(value) || !value.every((item) => isRecord(item))) {
+    return undefined;
+  }
+
+  return value.map((row) => ({ ...row }));
+}
+
+async function loadDatasourceRows() {
+  const datasource = normalizedDatasource.value;
+  const loadId = ++datasourceLoadId;
+  selectedRows.value = new Set();
+
+  if (!datasource) {
+    datasourceRows.value = [];
+    datasourceLoading.value = false;
+    datasourceError.value = '';
+    return;
+  }
+
+  datasourceRows.value = [];
+  datasourceLoading.value = true;
+  datasourceError.value = '';
+
+  try {
+    const runtimeData = await resolveDatasourceRuntimeData(datasource);
+    if (loadId !== datasourceLoadId) return;
+
+    const matchedDataField = runtimeData.matchingExternalFieldData.find((field) => field.variable === 'data');
+    if (!matchedDataField?.matchFieldPath) {
+      datasourceError.value = t('advanceTable.missingMatchedField');
+      return;
+    }
+
+    const rows = normalizeRuntimeRows(matchedDataField.value);
+    if (!rows) {
+      datasourceError.value = t('advanceTable.invalidMatchedData');
+      return;
+    }
+
+    datasourceRows.value = rows;
+  } catch {
+    if (loadId !== datasourceLoadId) return;
+    datasourceError.value = t('advanceTable.loadFailed');
+  } finally {
+    if (loadId === datasourceLoadId) {
+      datasourceLoading.value = false;
+    }
+  }
+}
 
 function stringifyCellValue(value: unknown) {
   if (value === null || value === undefined) return '';
@@ -410,10 +488,18 @@ function toggleAllRows() {
 
   selectedRows.value = new Set(normalizedData.value.map((_, index) => index));
 }
+
+watch(
+  () => props.data,
+  () => {
+    void loadDatasourceRows();
+  },
+  { deep: true, immediate: true }
+);
 </script>
 
 <template>
-  <div class="ce-advance-table-tool" data-testid="editor-advance-table-tool">
+  <div ref="rootRef" class="ce-advance-table-tool" data-testid="editor-advance-table-tool">
     <div class="ce-advance-table-tool__scroller">
       <table class="ce-advance-table-tool__table" data-testid="advance-table">
         <thead>
@@ -501,12 +587,12 @@ function toggleAllRows() {
               </template>
             </td>
           </tr>
-          <tr v-if="!normalizedData.length">
+          <tr v-if="shouldShowEmptyRow">
             <td
               class="ce-advance-table-tool__cell ce-advance-table-tool__empty"
               :colspan="normalizedColumns.length + (selection ? 1 : 0) + (index ? 1 : 0)"
             >
-              {{ t('advanceTable.empty') }}
+              {{ emptyMessage }}
             </td>
           </tr>
         </tbody>

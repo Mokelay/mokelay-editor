@@ -28,12 +28,16 @@ import {
   normalizeBodyFileValue,
   normalizeBodyValue,
   normalizeDatasource,
+  normalizeDatasourceExternalFields,
+  normalizeDatasourceMatchingExternalFields,
   normalizeMethod,
   type DatasourceRequestOptions,
   type MDatasourceApiObject,
   type MDatasourceBodyDataType,
   type MDatasourceBodyFileValue,
   type MDatasourceBodyItem,
+  type MDatasourceExternalField,
+  type MDatasourceMatchingExternalField,
   type MDatasourceKeyValueItem
 } from '@/utils/datasource';
 
@@ -46,14 +50,21 @@ export type {
   MDatasourceBodyDataType,
   MDatasourceBodyFileValue,
   MDatasourceBodyItem,
+  MDatasourceExternalField,
+  MDatasourceMatchingExternalField,
   MDatasourceKeyValueItem
 } from '@/utils/datasource';
-export { normalizeDatasource } from '@/utils/datasource';
+export {
+  normalizeDatasource,
+  normalizeDatasourceExternalFields,
+  normalizeDatasourceMatchingExternalFields
+} from '@/utils/datasource';
 export type { SchemaSelectionField } from '@/utils/datasourceSchema';
 
 export interface MDatasourceEditorProps {
   edit: boolean;
   value?: MDatasourceApiObject;
+  matchingExternalFields?: MDatasourceExternalField[];
 }
 
 function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
@@ -73,7 +84,8 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
   }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
-    value: normalizeApiDatasource(props.value)
+    value: normalizeApiDatasource(props.value),
+    matchingExternalFields: normalizeDatasourceExternalFields(props.matchingExternalFields)
   }),
   serialize: (props) => ({
     value: normalizeApiDatasource(props.value)
@@ -121,7 +133,7 @@ type BodyValueParseResult = {
 type ApiStateBodyItem = Omit<MDatasourceBodyItem, 'value'> & {
   value: unknown;
 };
-type ApiState = Omit<MDatasourceApiObject, 'bodyData' | 'schemaSelections'> & {
+type ApiState = Omit<MDatasourceApiObject, 'bodyData' | 'schemaSelections' | 'matchingExternalFields'> & {
   bodyData: ApiStateBodyItem[];
 };
 type ResponseExampleState = {
@@ -150,6 +162,9 @@ const bodyDataTypeOptions = bodyDataTypes;
 const jsonSchemaValue = shallowRef<JSONSchema | undefined>();
 const jsonSchemaError = ref('');
 const schemaSelectionsValue = shallowRef<DatasourceSchemaSelections>(normalizeSchemaSelections(normalizedInitialValue.schemaSelections));
+const matchingExternalFieldsValue = shallowRef<MDatasourceMatchingExternalField[]>(
+  createMatchingExternalFieldsState(normalizedInitialValue.matchingExternalFields)
+);
 const schemaTranslationLoading = ref(false);
 const schemaTranslationError = ref('');
 const processorFieldPath = ref<string | null>(null);
@@ -181,6 +196,8 @@ const isResponseMockDialogOpen = ref(false);
 const responseMockTargetIndex = ref<number | null>(null);
 const responseMockError = ref('');
 const isReadOnly = computed(() => !props.edit);
+const configuredMatchingExternalFields = computed(() => normalizeDatasourceExternalFields(props.matchingExternalFields));
+const hasMatchingExternalFields = computed(() => configuredMatchingExternalFields.value.length > 0);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
 const generatedSelectionFields = computed(() => getSchemaSelectionFields(jsonSchemaValue.value));
@@ -202,6 +219,9 @@ const visibleSelectionFields = computed(() => filterSelectionFields(
   schemaPathDepth.value
 ));
 const enabledFieldCount = computed(() => schemaSelectionsValue.value.length);
+const unmatchedExternalFieldCount = computed(() =>
+  matchingExternalFieldsValue.value.filter((field) => !field.matchFieldPath).length
+);
 const processorField = computed(() => schemaSelectionsValue.value.find((field) => field.path === processorFieldPath.value));
 const processorPreviewField = computed(() => schemaSelectionsValue.value.find((field) => field.path === processorPreviewFieldPath.value));
 const processorPreviewExamples = computed(() => responseExamples.value.map((example) => ({
@@ -321,10 +341,67 @@ function filterSelectionFields(
   );
 }
 
+function reconcileMatchingExternalFieldMatches(fields: MDatasourceMatchingExternalField[]) {
+  const selectedFieldPaths = new Set(schemaSelectionsValue.value.map((field) => field.path));
+  return fields.map((field) => ({
+    ...field,
+    matchFieldPath: field.matchFieldPath && selectedFieldPaths.has(field.matchFieldPath)
+      ? field.matchFieldPath
+      : ''
+  }));
+}
+
+function createMatchingExternalFieldsState(
+  value: unknown,
+  externalFields = normalizeDatasourceExternalFields(props.matchingExternalFields)
+): MDatasourceMatchingExternalField[] {
+  const savedFields = normalizeDatasourceMatchingExternalFields(value);
+  if (!externalFields.length) {
+    return reconcileMatchingExternalFieldMatches(savedFields);
+  }
+
+  const savedFieldsByVariable = new Map(savedFields.map((field) => [field.variable, field]));
+  return reconcileMatchingExternalFieldMatches(externalFields.map((field) => ({
+    label: field.label,
+    variable: field.variable,
+    matchFieldPath: savedFieldsByVariable.get(field.variable)?.matchFieldPath ?? ''
+  })));
+}
+
+function syncMatchingExternalFields(value: unknown) {
+  matchingExternalFieldsValue.value = createMatchingExternalFieldsState(value);
+}
+
+function getSerializableMatchingExternalFields() {
+  const configuredFields = configuredMatchingExternalFields.value;
+  if (!configuredFields.length) {
+    return normalizeDatasourceMatchingExternalFields(matchingExternalFieldsValue.value);
+  }
+
+  return createMatchingExternalFieldsState(matchingExternalFieldsValue.value, configuredFields);
+}
+
+function updateMatchingExternalFieldMatch(variable: string, matchFieldPath: string) {
+  if (!props.edit) return;
+
+  const selectedFieldPaths = new Set(schemaSelectionsValue.value.map((field) => field.path));
+  const normalizedMatchFieldPath = selectedFieldPaths.has(matchFieldPath) ? matchFieldPath : '';
+  matchingExternalFieldsValue.value = matchingExternalFieldsValue.value.map((field) => (
+    field.variable === variable
+      ? {
+          ...field,
+          matchFieldPath: normalizedMatchFieldPath
+        }
+      : field
+  ));
+  emitCurrentDatasource();
+}
+
 function getDatasourcePayload(value: MDatasourceApiObject): MDatasourceEditorProps {
   return {
     edit: props.edit,
-    value: normalizeApiDatasource(value)
+    value: normalizeApiDatasource(value),
+    matchingExternalFields: configuredMatchingExternalFields.value
   };
 }
 
@@ -337,6 +414,7 @@ function emitDatasource(value: MDatasourceApiObject) {
 }
 
 function buildApiDatasource(): MDatasourceApiObject {
+  const matchingExternalFields = getSerializableMatchingExternalFields();
   return normalizeApiDatasource({
     type: 'API',
     domain: apiState.domain,
@@ -345,7 +423,8 @@ function buildApiDatasource(): MDatasourceApiObject {
     headerData: apiState.headerData,
     bodyData: apiState.bodyData,
     queryData: apiState.queryData,
-    schemaSelections: schemaSelectionsValue.value
+    schemaSelections: schemaSelectionsValue.value,
+    ...(matchingExternalFields.length ? { matchingExternalFields } : {})
   });
 }
 
@@ -462,6 +541,7 @@ function isDefaultBlankApiState() {
 function applyImportedApiDatasource(imported: ImportedApiDatasource) {
   syncApiState(imported.datasource);
   syncTransientSchemaState(imported.datasource.schemaSelections, imported.responseExamples);
+  syncMatchingExternalFields(imported.datasource.matchingExternalFields);
   emitApiChange();
 }
 
@@ -546,6 +626,7 @@ function syncLocalState(value: unknown) {
   const normalized = normalizeApiDatasource(value);
   syncTransientSchemaState(normalized.schemaSelections);
   syncApiState(normalized);
+  syncMatchingExternalFields(normalized.matchingExternalFields);
   normalizeApiDomainState();
 }
 
@@ -694,6 +775,7 @@ function getDatasourceErrorMessage(error: unknown) {
 function applySelectedResponseSchema(schema: JSONSchema) {
   jsonSchemaValue.value = cloneJsonSchema(schema);
   schemaSelectionsValue.value = reconcileSchemaSelections(jsonSchemaValue.value, schemaSelectionsValue.value);
+  syncMatchingExternalFields(matchingExternalFieldsValue.value);
   jsonSchemaError.value = '';
   emitCurrentDatasource();
 }
@@ -791,6 +873,7 @@ function removeSchemaSelection(path: string) {
   if (nextSelections.length === schemaSelectionsValue.value.length) return;
 
   schemaSelectionsValue.value = nextSelections;
+  syncMatchingExternalFields(matchingExternalFieldsValue.value);
   if (processorFieldPath.value === path) {
     processorFieldPath.value = null;
   }
@@ -1073,6 +1156,17 @@ watch(
   () => props.value,
   (value) => {
     syncLocalState(value);
+  },
+  { deep: true }
+);
+
+watch(
+  () => props.matchingExternalFields,
+  (value) => {
+    matchingExternalFieldsValue.value = createMatchingExternalFieldsState(
+      matchingExternalFieldsValue.value,
+      normalizeDatasourceExternalFields(value)
+    );
   },
   { deep: true }
 );
@@ -1795,6 +1889,67 @@ watch(
           </p>
           <p v-if="schemaTranslationError" class="ce-datasource-tool__error" data-testid="datasource-selected-fields-translate-error">
             {{ schemaTranslationError }}
+          </p>
+        </div>
+
+        <div
+          v-if="hasMatchingExternalFields"
+          class="ce-datasource-tool__selected-fields"
+          data-testid="datasource-external-field-matching"
+        >
+          <div class="ce-datasource-tool__selected-fields-header">
+            <div>
+              <div class="ce-datasource-tool__field-list-summary">
+                {{ t('datasource.sections.externalFieldMatching') }}
+              </div>
+              <p class="ce-datasource-tool__section-copy">
+                {{ t('datasource.help.externalFieldMatching') }}
+              </p>
+            </div>
+            <span
+              v-if="unmatchedExternalFieldCount"
+              class="ce-datasource-tool__schema-badge ce-datasource-tool__schema-badge--warning"
+              data-testid="datasource-external-field-unmatched-count"
+            >
+              {{ t('datasource.matching.unmatchedCount').replace('{count}', String(unmatchedExternalFieldCount)) }}
+            </span>
+          </div>
+
+          <div v-if="matchingExternalFieldsValue.length" class="ce-datasource-tool__field-list">
+            <div
+              v-for="field in matchingExternalFieldsValue"
+              :key="field.variable"
+              class="ce-datasource-tool__schema-field"
+              :data-testid="`datasource-external-field-${field.variable}`"
+            >
+              <span class="ce-datasource-tool__schema-field-main">
+                <span class="ce-datasource-tool__schema-field-label">
+                  {{ field.label }}
+                </span>
+                <span class="ce-datasource-tool__schema-path">{{ field.variable }}</span>
+              </span>
+              <span class="ce-datasource-tool__schema-badges ce-datasource-tool__schema-badges--matching">
+                <select
+                  class="ce-datasource-tool__input ce-datasource-tool__matching-select"
+                  :data-testid="`datasource-external-field-match-${field.variable}`"
+                  :disabled="isReadOnly || !schemaSelectionsValue.length"
+                  :value="field.matchFieldPath"
+                  @change="updateMatchingExternalFieldMatch(field.variable, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="">{{ t('datasource.matching.unmatched') }}</option>
+                  <option
+                    v-for="selectedField in schemaSelectionsValue"
+                    :key="selectedField.path"
+                    :value="selectedField.path"
+                  >
+                    {{ selectedField.label }} ({{ selectedField.path }})
+                  </option>
+                </select>
+              </span>
+            </div>
+          </div>
+          <p v-else class="ce-datasource-tool__empty" data-testid="datasource-external-field-matching-empty">
+            {{ t('datasource.matching.empty') }}
           </p>
         </div>
 
@@ -2569,6 +2724,10 @@ watch(
   border-top: 1px solid rgb(241 245 249);
 }
 
+.ce-datasource-tool__selected-fields .ce-datasource-tool__schema-badges--matching {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .ce-datasource-tool__selected-field-meta,
 .ce-datasource-tool__selected-field-actions {
   display: flex;
@@ -2610,6 +2769,15 @@ watch(
 .ce-datasource-tool__schema-badge--processor {
   background: rgb(240 253 250);
   color: rgb(15 118 110);
+}
+
+.ce-datasource-tool__schema-badge--warning {
+  background: rgb(254 243 199);
+  color: rgb(146 64 14);
+}
+
+.ce-datasource-tool__matching-select {
+  min-width: min(100%, 260px);
 }
 
 .ce-datasource-tool__field-action {
@@ -2947,6 +3115,11 @@ watch(
 :global(.dark) .ce-datasource-tool__schema-badge--processor {
   background: rgb(13 148 136 / 0.25);
   color: rgb(153 246 228);
+}
+
+:global(.dark) .ce-datasource-tool__schema-badge--warning {
+  background: rgb(120 53 15 / 0.35);
+  color: rgb(253 230 138);
 }
 
 :global(.dark) .ce-datasource-tool__error,
