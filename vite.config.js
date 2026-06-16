@@ -26,20 +26,21 @@ export default defineConfig(function () { return ({
                         if (moduleId.includes('/src/blocks/MChart.vue')) {
                             return 'block-chart';
                         }
+                        // Datasource and advanced table modules statically reference each other
+                        // through the datasource editor, fields editor, and column editor.
+                        // Keeping them in one chunk avoids production-only ESM TDZ failures.
                         if (moduleId.includes('/src/blocks/MDatasourceEditor.vue') ||
                             moduleId.includes('/src/blocks/MFieldsEditor.vue') ||
                             moduleId.includes('/src/blocks/components/DatasourceApiImportDialog.vue') ||
                             moduleId.includes('/src/blocks/components/DatasourceResponseMockDialog.vue') ||
-                            moduleId.includes('/src/utils/datasource') ||
-                            moduleId.includes('/src/utils/datasourceSchema')) {
-                            return 'block-datasource';
-                        }
-                        if (moduleId.includes('/src/blocks/MAdvanceInput.vue') ||
+                            moduleId.includes('/src/blocks/MAdvanceInput.vue') ||
                             moduleId.includes('/src/blocks/MAdvanceTable.vue') ||
                             moduleId.includes('/src/blocks/MAdvanceTableColumnsEditor.vue') ||
+                            moduleId.includes('/src/utils/datasource') ||
+                            moduleId.includes('/src/utils/datasourceSchema') ||
                             moduleId.includes('/src/utils/advanceTableColumns') ||
                             moduleId.includes('/src/editors/inlineCustomComponents.ts')) {
-                            return 'block-advanced';
+                            return 'block-datasource';
                         }
                         return;
                     }
