@@ -11,6 +11,7 @@ import MCheckboxGroupField, { mCheckboxGroupFieldEditorTool } from '@/blocks/MCh
 import MEmailField, { mEmailFieldEditorTool } from '@/blocks/MEmailField.vue';
 import MEmbed, { mEmbedEditorTool } from '@/blocks/MEmbed.vue';
 import MFileUploadField, { mFileUploadFieldEditorTool } from '@/blocks/MFileUploadField.vue';
+import MFieldsEditor, { mFieldsEditorTool } from '@/blocks/MFieldsEditor.vue';
 import MHeading, { mHeadingEditorTool } from '@/blocks/MHeading.vue';
 import MImage, { mImageEditorTool } from '@/blocks/MImage.vue';
 import MImageChoiceField, { mImageChoiceFieldEditorTool } from '@/blocks/MImageChoiceField.vue';
@@ -88,6 +89,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MDatasourceEditor)]: {
     component: markRaw(MDatasourceEditor),
     ...mDatasourceEditorTool
+  },
+  [getEditorComponentName(MFieldsEditor)]: {
+    component: markRaw(MFieldsEditor),
+    ...mFieldsEditorTool
   },
   [getEditorComponentName(MDividerLine)]: {
     component: markRaw(MDividerLine),

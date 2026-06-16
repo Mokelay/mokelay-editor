@@ -368,6 +368,47 @@ export const zhMessages = {
       }
     }
   },
+  fieldsEditor: {
+    toolboxTitle: '字段编辑器',
+    settingsDialogTitle: '字段设置',
+    empty: '暂无字段，可以手动添加或从接口导入。',
+    summary: {
+      savedCount: '已设置 {count} 个字段',
+      selectedCount: '已选择 {count} 个字段'
+    },
+    sections: {
+      importApi: '导入字段',
+      fields: '字段列表'
+    },
+    columns: {
+      selected: '选择',
+      label: '字段名称',
+      variable: '变量',
+      dataType: '数据类型',
+      actions: '操作'
+    },
+    placeholders: {
+      label: '请输入字段名称',
+      variable: '请输入变量名'
+    },
+    actions: {
+      settings: '设置字段',
+      add: '添加字段',
+      remove: '删除',
+      save: '保存',
+      cancel: '取消',
+      captureResponseFields: 'Mock抓取响应字段',
+      capturingResponseFields: '正在抓取响应字段...'
+    },
+    help: {
+      importApi: '从接口参数导入字段，或在导入接口后抓取响应字段。'
+    },
+    validation: {
+      required: '已选择字段的字段名称和变量不能为空。',
+      duplicateVariable: '已选择字段的变量不能重复。',
+      missingImportedApi: '请先导入接口信息。'
+    }
+  },
   formItem: {
     toolboxTitle: '表单项',
     defaultLabelName: '字段',

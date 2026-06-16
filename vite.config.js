@@ -27,6 +27,9 @@ export default defineConfig(function () { return ({
                             return 'block-chart';
                         }
                         if (moduleId.includes('/src/blocks/MDatasourceEditor.vue') ||
+                            moduleId.includes('/src/blocks/MFieldsEditor.vue') ||
+                            moduleId.includes('/src/blocks/components/DatasourceApiImportDialog.vue') ||
+                            moduleId.includes('/src/blocks/components/DatasourceResponseMockDialog.vue') ||
                             moduleId.includes('/src/utils/datasource') ||
                             moduleId.includes('/src/utils/datasourceSchema')) {
                             return 'block-datasource';

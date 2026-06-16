@@ -368,6 +368,47 @@ export const enMessages = {
       }
     }
   },
+  fieldsEditor: {
+    toolboxTitle: 'Fields Editor',
+    settingsDialogTitle: 'Field settings',
+    empty: 'No fields yet. Add fields manually or import them from an API.',
+    summary: {
+      savedCount: '{count} fields configured',
+      selectedCount: '{count} fields selected'
+    },
+    sections: {
+      importApi: 'Import fields',
+      fields: 'Field list'
+    },
+    columns: {
+      selected: 'Select',
+      label: 'Field name',
+      variable: 'Variable',
+      dataType: 'Data type',
+      actions: 'Actions'
+    },
+    placeholders: {
+      label: 'Enter field name',
+      variable: 'Enter variable name'
+    },
+    actions: {
+      settings: 'Set fields',
+      add: 'Add field',
+      remove: 'Remove',
+      save: 'Save',
+      cancel: 'Cancel',
+      captureResponseFields: 'Mock response fields',
+      capturingResponseFields: 'Capturing response fields...'
+    },
+    help: {
+      importApi: 'Import fields from request parameters, or capture response fields after importing an API.'
+    },
+    validation: {
+      required: 'Selected fields must include both field name and variable.',
+      duplicateVariable: 'Selected field variables must be unique.',
+      missingImportedApi: 'Import API information first.'
+    }
+  },
   formItem: {
     toolboxTitle: 'Form Item',
     defaultLabelName: 'Field',

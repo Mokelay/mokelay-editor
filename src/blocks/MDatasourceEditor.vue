@@ -85,17 +85,13 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
 import { computed, reactive, ref, shallowRef, triggerRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import JsonTreeView from '@/blocks/components/JsonTreeView.vue';
+import DatasourceApiImportDialog, {
+  type DatasourceApiImportSource
+} from '@/blocks/components/DatasourceApiImportDialog.vue';
+import DatasourceResponseMockDialog, {
+  type DatasourceResponseMockCapturePayload
+} from '@/blocks/components/DatasourceResponseMockDialog.vue';
 import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
-import {
-  getApi,
-  getBuiltInApi,
-  getApifoxApiDetail,
-  listApis,
-  listApifoxProjects,
-  type ApifoxProjectRecord,
-  type MokelayApiRecord,
-  type MokelayApiSource
-} from '@/utils/apisApi';
 import {
   DEFAULT_API_DOMAIN_UUID,
   type ApiDomainRecord,
@@ -103,12 +99,7 @@ import {
   listApiDomains,
   normalizeApiDomainUuid
 } from '@/utils/apiDomains';
-import {
-  buildDatasourceFromApifoxApi,
-  buildDatasourceFromMokelayApi,
-  DatasourceApiImportError,
-  type ImportedApiDatasource
-} from '@/utils/datasourceApiImport';
+import type { ImportedApiDatasource } from '@/utils/datasourceApiImport';
 import { translateTextsToChinese } from '@/utils/translationsApi';
 import ProcessorConfigDialog from '@/processors/components/ProcessorConfigDialog.vue';
 import ProcessorPreviewDialog from '@/processors/components/ProcessorPreviewDialog.vue';
@@ -140,21 +131,12 @@ type ResponseExampleState = {
   error: string;
   loading: boolean;
 };
-type ResponseMockBodyItem = {
-  key: string;
-  dataType: MDatasourceBodyDataType;
-  value: JsonValue;
-  input: string;
-  error: string;
-  file?: File;
-};
 type SchemaFieldSource = 'list' | 'form';
 type SchemaDataTypeFilter = 'all' | Extract<SchemaSelectionField['type'], 'string' | 'number' | 'boolean' | 'object' | 'array'>;
 type CombinedSchemaSelectionField = SchemaSelectionField & {
   source: SchemaFieldSource;
   selected: boolean;
 };
-type ApiImportSource = 'mokelay' | 'apifox';
 
 const props = defineProps<MDatasourceEditorProps & {
   onChange?: (payload: MDatasourceEditorProps) => void;
@@ -189,37 +171,15 @@ const apiDomainError = ref('');
 const hasLoadedApiDomains = ref(false);
 const settingsDialogRef = ref<HTMLDialogElement | null>(null);
 const isSettingsDialogOpen = ref(false);
-const apiImportSource = ref<ApiImportSource>('mokelay');
-const apiImportDialogRef = ref<HTMLDialogElement | null>(null);
+const apiImportSource = ref<DatasourceApiImportSource>('mokelay');
 const isApiImportDialogOpen = ref(false);
 const fullSchemaDialogRef = ref<HTMLDialogElement | null>(null);
 const isFullSchemaDialogOpen = ref(false);
 const fullSchemaText = ref('');
 const fullSchemaError = ref('');
-const responseMockDialogRef = ref<HTMLDialogElement | null>(null);
 const isResponseMockDialogOpen = ref(false);
 const responseMockTargetIndex = ref<number | null>(null);
-const responseMockHeaderData = ref<MDatasourceKeyValueItem[]>([]);
-const responseMockQueryData = ref<MDatasourceKeyValueItem[]>([]);
-const responseMockBodyData = shallowRef<ResponseMockBodyItem[]>([]);
 const responseMockError = ref('');
-const mokelayApiSource = ref<MokelayApiSource>('user');
-const mokelayApiOptionsBySource = ref<Record<MokelayApiSource, MokelayApiRecord[]>>({
-  user: [],
-  system: []
-});
-const selectedMokelayApiUuid = ref('');
-const apifoxProjectOptions = ref<ApifoxProjectRecord[]>([]);
-const selectedApifoxProjectId = ref('');
-const apifoxApiId = ref('');
-const apiImportOptionsLoading = ref(false);
-const apiImportLoading = ref(false);
-const apiImportError = ref('');
-const loadedMokelayApiSources = ref<Record<MokelayApiSource, boolean>>({
-  user: false,
-  system: false
-});
-const hasLoadedApifoxProjects = ref(false);
 const isReadOnly = computed(() => !props.edit);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
@@ -249,11 +209,8 @@ const processorPreviewExamples = computed(() => responseExamples.value.map((exam
   value: example.value,
   error: example.error
 })));
-const isApiImportBusy = computed(() => apiImportOptionsLoading.value || apiImportLoading.value || apiDomainLoading.value);
 const isResponseCaptureBusy = computed(() => responseExamples.value.some((item) => item.loading));
-const mokelayApiOptions = computed(() => mokelayApiOptionsBySource.value[mokelayApiSource.value]);
 const isApiDomainSelectDisabled = computed(() => isReadOnly.value || apiDomainLoading.value || !apiDomainOptions.value.length);
-const apiImportDialogTitle = computed(() => t(`datasource.import.sources.${apiImportSource.value}`));
 const datasourceSummaryDomain = computed(() => {
   const rawDomain = apiState.domain.trim();
   if (!rawDomain) {
@@ -272,17 +229,21 @@ const apiDomainEmptyOptionText = computed(() => {
 
   return apiDomainError.value || t('datasource.import.emptyApiDomains');
 });
-const canImportApi = computed(() => {
-  if (isReadOnly.value || isApiImportBusy.value) {
-    return false;
-  }
-
-  if (apiImportSource.value === 'mokelay') {
-    return Boolean(selectedMokelayApiUuid.value);
-  }
-
-  return Boolean(selectedApifoxProjectId.value && apifoxApiId.value.trim());
-});
+const responseMockBodyEntries = computed(() => apiState.bodyData
+  .map((item, index) => ({ item, index }))
+  .filter(({ item }) => item.key.trim()));
+const responseMockHeaderData = computed(() => apiState.headerData
+  .filter((item) => item.key.trim())
+  .map((item) => ({ ...item })));
+const responseMockQueryData = computed(() => apiState.queryData
+  .filter((item) => item.key.trim())
+  .map((item) => ({ ...item })));
+const responseMockBodyData = computed<MDatasourceBodyItem[]>(() => responseMockBodyEntries.value.map(({ item }) => ({
+  key: item.key,
+  dataType: item.dataType,
+  value: normalizeBodyValue(item.dataType, item.value)
+})));
+const responseMockBodyFiles = computed(() => responseMockBodyEntries.value.map(({ index }) => bodyFileInputs.value[index]));
 
 useEditorBlockToolbarAlignment(rootRef);
 
@@ -490,30 +451,6 @@ async function ensureApiDomainOptions(force = false) {
   }
 }
 
-function getImportApiDomainUuid(hostOrUuid: string) {
-  const matchedValue = normalizeApiDomainUuid(hostOrUuid, apiDomainOptions.value);
-  if (matchedValue) {
-    return matchedValue;
-  }
-
-  const trimmedValue = hostOrUuid.trim();
-  if (!trimmedValue || /^[a-z][a-z\d+\-.]*:/i.test(trimmedValue) || trimmedValue.startsWith('/')) {
-    return '';
-  }
-
-  return normalizeApiDomainUuid(`https://${trimmedValue}`, apiDomainOptions.value) ||
-    normalizeApiDomainUuid(`http://${trimmedValue}`, apiDomainOptions.value);
-}
-
-function getFallbackApifoxApiDomainUuid(importedDomain: string) {
-  if (importedDomain.trim()) {
-    return '';
-  }
-
-  return normalizeApiDomainUuid(apiState.domain, apiDomainOptions.value) ||
-    getDefaultApiDomainUuid(apiDomainOptions.value);
-}
-
 function isDefaultBlankApiState() {
   return apiState.domain === DEFAULT_API_DOMAIN_UUID &&
     !apiState.path.trim() &&
@@ -525,7 +462,6 @@ function isDefaultBlankApiState() {
 function applyImportedApiDatasource(imported: ImportedApiDatasource) {
   syncApiState(imported.datasource);
   syncTransientSchemaState(imported.datasource.schemaSelections, imported.responseExamples);
-  apiImportError.value = '';
   emitApiChange();
 }
 
@@ -557,29 +493,21 @@ function restoreSettingsDialog(shouldRestore: boolean) {
   }
 }
 
-function setApiImportSource(value: ApiImportSource) {
+function setApiImportSource(value: DatasourceApiImportSource) {
   if (!props.edit) return;
 
   apiImportSource.value = value;
-  apiImportError.value = '';
 }
 
-function openApiImportDialog(source: ApiImportSource) {
+function openApiImportDialog(source: DatasourceApiImportSource) {
   if (!props.edit) return;
 
   setApiImportSource(source);
   isApiImportDialogOpen.value = true;
-  if (!apiImportDialogRef.value?.open) {
-    apiImportDialogRef.value?.showModal();
-  }
-  void ensureApiImportOptions();
 }
 
 function closeApiImportDialog() {
   isApiImportDialogOpen.value = false;
-  if (apiImportDialogRef.value?.open) {
-    apiImportDialogRef.value.close();
-  }
 }
 
 function openFullSchemaDialog(index: number) {
@@ -611,159 +539,6 @@ function closeFullSchemaDialog() {
   fullSchemaError.value = '';
   if (fullSchemaDialogRef.value?.open) {
     fullSchemaDialogRef.value.close();
-  }
-}
-
-function selectDefaultMokelayApi() {
-  if (mokelayApiOptions.value.some((api) => api.uuid === selectedMokelayApiUuid.value)) {
-    return;
-  }
-
-  selectedMokelayApiUuid.value = mokelayApiOptions.value[0]?.uuid ?? '';
-}
-
-function changeMokelayApiSource(event: Event) {
-  if (!props.edit || isApiImportBusy.value) return;
-
-  mokelayApiSource.value = (event.target as HTMLSelectElement).value === 'system' ? 'system' : 'user';
-  selectedMokelayApiUuid.value = '';
-  apiImportError.value = '';
-  void loadMokelayApiOptions();
-}
-
-function selectDefaultApifoxProject() {
-  if (apifoxProjectOptions.value.some((project) => project.id === selectedApifoxProjectId.value)) {
-    return;
-  }
-
-  selectedApifoxProjectId.value = apifoxProjectOptions.value[0]?.id ?? '';
-}
-
-function getApiImportErrorMessage(error: unknown) {
-  if (error instanceof DatasourceApiImportError) {
-    if (error.code === 'unsupportedMethod') {
-      return `${t('datasource.import.errors.unsupportedMethod')} ${error.method || ''}`.trim();
-    }
-
-    return t(`datasource.import.errors.${error.code}`);
-  }
-
-  return error instanceof Error ? error.message : String(error);
-}
-
-async function loadMokelayApiOptions(force = false) {
-  const source = mokelayApiSource.value;
-  if (apiImportOptionsLoading.value || (!force && loadedMokelayApiSources.value[source])) {
-    selectDefaultMokelayApi();
-    return;
-  }
-
-  apiImportOptionsLoading.value = true;
-  apiImportError.value = '';
-
-  try {
-    const result = await listApis({ page: 1, pageSize: 100, source });
-    mokelayApiOptionsBySource.value = {
-      ...mokelayApiOptionsBySource.value,
-      [source]: result.apis
-    };
-    loadedMokelayApiSources.value = {
-      ...loadedMokelayApiSources.value,
-      [source]: true
-    };
-    if (mokelayApiSource.value === source) {
-      selectDefaultMokelayApi();
-    }
-  } catch (error) {
-    apiImportError.value = error instanceof Error ? error.message : t('datasource.import.errors.loadOptions');
-  } finally {
-    apiImportOptionsLoading.value = false;
-  }
-}
-
-async function loadApifoxProjectOptions(force = false) {
-  if (apiImportOptionsLoading.value || (!force && hasLoadedApifoxProjects.value)) {
-    return;
-  }
-
-  apiImportOptionsLoading.value = true;
-  apiImportError.value = '';
-
-  try {
-    const result = await listApifoxProjects();
-    apifoxProjectOptions.value = result.projects;
-    hasLoadedApifoxProjects.value = true;
-    selectDefaultApifoxProject();
-  } catch (error) {
-    apiImportError.value = error instanceof Error ? error.message : t('datasource.import.errors.loadOptions');
-  } finally {
-    apiImportOptionsLoading.value = false;
-  }
-}
-
-async function ensureApiImportOptions(force = false) {
-  if (!props.edit) {
-    return;
-  }
-
-  if (apiImportSource.value === 'mokelay') {
-    await loadMokelayApiOptions(force);
-    return;
-  }
-
-  await loadApifoxProjectOptions(force);
-}
-
-function refreshApiImportOptions() {
-  void ensureApiImportOptions(true);
-}
-
-async function importSelectedApi() {
-  if (!props.edit || !canImportApi.value) return;
-
-  apiImportLoading.value = true;
-  apiImportError.value = '';
-
-  try {
-    await ensureApiDomainOptions();
-
-    if (apiImportSource.value === 'mokelay') {
-      const api = mokelayApiSource.value === 'system'
-        ? await getBuiltInApi(selectedMokelayApiUuid.value)
-        : await getApi(selectedMokelayApiUuid.value);
-      const domainUuid = getImportApiDomainUuid(DEFAULT_API_DOMAIN_UUID) || getDefaultApiDomainUuid(apiDomainOptions.value);
-      if (!domainUuid) {
-        throw new Error(t('datasource.import.errors.apiDomainNotFound'));
-      }
-
-      applyImportedApiDatasource(buildDatasourceFromMokelayApi(api, domainUuid));
-      closeApiImportDialog();
-      return;
-    }
-
-    const result = await getApifoxApiDetail({
-      projectId: selectedApifoxProjectId.value,
-      apiId: apifoxApiId.value.trim()
-    });
-    const imported = buildDatasourceFromApifoxApi(result, apifoxApiId.value.trim());
-    const domainUuid = getImportApiDomainUuid(imported.datasource.domain) ||
-      getFallbackApifoxApiDomainUuid(imported.datasource.domain);
-    if (!domainUuid) {
-      throw new Error(t('datasource.import.errors.apiDomainNotFound'));
-    }
-
-    applyImportedApiDatasource({
-      ...imported,
-      datasource: {
-        ...imported.datasource,
-        domain: domainUuid
-      }
-    });
-    closeApiImportDialog();
-  } catch (error) {
-    apiImportError.value = getApiImportErrorMessage(error);
-  } finally {
-    apiImportLoading.value = false;
   }
 }
 
@@ -1091,19 +866,6 @@ async function translateSchemaSelectionLabels() {
   }
 }
 
-function getResponseMockRequestOptions(): DatasourceRequestOptions {
-  const bodyFiles: Record<number, File> = {};
-  responseMockBodyData.value.forEach((item, index) => {
-    const file = item.file;
-    if (!file) return;
-    bodyFiles[index] = file;
-  });
-
-  return {
-    bodyFiles
-  };
-}
-
 function hasConfiguredRequestKeys() {
   return apiState.headerData.some((item) => item.key.trim()) ||
     apiState.queryData.some((item) => item.key.trim()) ||
@@ -1112,68 +874,13 @@ function hasConfiguredRequestKeys() {
 
 function openResponseMockDialog(index: number) {
   responseMockTargetIndex.value = index;
-  responseMockHeaderData.value = apiState.headerData
-    .filter((item) => item.key.trim())
-    .map((item) => ({ ...item }));
-  responseMockQueryData.value = apiState.queryData
-    .filter((item) => item.key.trim())
-    .map((item) => ({ ...item }));
-  const mockBodyData: ResponseMockBodyItem[] = [];
-  apiState.bodyData.forEach((item, sourceIndex) => {
-    if (!item.key.trim()) return;
-
-    const normalizedValue = normalizeBodyValue(item.dataType, item.value);
-    mockBodyData.push({
-      key: item.key,
-      dataType: item.dataType,
-      value: normalizedValue,
-      input: getBodyValueInput({ ...item, value: normalizedValue }),
-      error: '',
-      file: bodyFileInputs.value[sourceIndex]
-    });
-  });
-  responseMockBodyData.value = mockBodyData;
   responseMockError.value = '';
   isResponseMockDialogOpen.value = true;
-  if (!responseMockDialogRef.value?.open) {
-    responseMockDialogRef.value?.showModal();
-  }
 }
 
 function closeResponseMockDialog() {
   isResponseMockDialogOpen.value = false;
   responseMockTargetIndex.value = null;
-  if (responseMockDialogRef.value?.open) {
-    responseMockDialogRef.value.close();
-  }
-}
-
-function updateResponseMockBodyValue(index: number, inputValue: string) {
-  const item = responseMockBodyData.value[index];
-  if (!item) return;
-
-  item.input = inputValue;
-  const parsed = parseBodyValue(item.dataType, inputValue);
-  if (!parsed.ok) {
-    item.error = parsed.error;
-    triggerRef(responseMockBodyData);
-    return;
-  }
-
-  item.value = parsed.value;
-  item.error = '';
-  triggerRef(responseMockBodyData);
-}
-
-function updateResponseMockBodyFile(index: number, file?: File) {
-  const item = responseMockBodyData.value[index];
-  if (!item || item.dataType !== 'file') return;
-
-  item.file = file;
-  item.value = file ? getBodyFileValue(file) : getDefaultBodyValue('file');
-  item.input = getBodyValueInput(item);
-  item.error = '';
-  triggerRef(responseMockBodyData);
 }
 
 async function runResponseCapture(
@@ -1220,37 +927,17 @@ function captureResponseExample(index: number) {
   void runResponseCapture(index, buildApiDatasource());
 }
 
-function captureResponseExampleWithMock() {
+function captureResponseExampleWithMock(payload: DatasourceResponseMockCapturePayload) {
   const targetIndex = responseMockTargetIndex.value;
   if (targetIndex === null || isResponseCaptureBusy.value) return;
 
-  const invalidBodyItem = responseMockBodyData.value.find((item) => Boolean(item.error));
-  if (invalidBodyItem) {
-    responseMockError.value = t('datasource.validation.fixMockBeforeCapture');
-    return;
-  }
-
-  if (apiState.method === 'POST') {
-    const missingFileItem = responseMockBodyData.value.find((item) => item.dataType === 'file' && !item.file);
-    if (missingFileItem) {
-      missingFileItem.error = t('datasource.validation.missingFile');
-      triggerRef(responseMockBodyData);
-      responseMockError.value = t('datasource.validation.fixMockBeforeCapture');
-      return;
-    }
-  }
-
   const datasource = normalizeApiDatasource({
     ...buildApiDatasource(),
-    headerData: responseMockHeaderData.value,
-    queryData: responseMockQueryData.value,
-    bodyData: responseMockBodyData.value.map((item) => ({
-      key: item.key,
-      dataType: item.dataType,
-      value: item.value
-    }))
+    headerData: payload.headerData,
+    queryData: payload.queryData,
+    bodyData: payload.bodyData
   });
-  void runResponseCapture(targetIndex, datasource, getResponseMockRequestOptions(), true);
+  void runResponseCapture(targetIndex, datasource, payload.options, true);
 }
 
 function selectResponseSchema(index: number) {
@@ -1457,7 +1144,7 @@ watch(
               class="ce-datasource-tool__import-source-button"
               type="button"
               data-testid="datasource-import-open-mokelay"
-              :disabled="apiImportOptionsLoading || apiImportLoading"
+              :disabled="isReadOnly"
               @click="openApiImportDialog('mokelay')"
             >
               <span class="ce-datasource-tool__import-source-icon" aria-hidden="true">
@@ -1472,7 +1159,7 @@ watch(
               class="ce-datasource-tool__import-source-button"
               type="button"
               data-testid="datasource-import-open-apifox"
-              :disabled="apiImportOptionsLoading || apiImportLoading"
+              :disabled="isReadOnly"
               @click="openApiImportDialog('apifox')"
             >
               <span class="ce-datasource-tool__import-source-icon" aria-hidden="true">
@@ -1488,126 +1175,15 @@ watch(
       </section>
 
       <Teleport to="body">
-        <dialog
+        <DatasourceApiImportDialog
           v-if="edit"
-          ref="apiImportDialogRef"
-          class="ce-datasource-tool__import-dialog"
-          data-testid="datasource-api-import-dialog"
-          :aria-hidden="!isApiImportDialogOpen"
-          aria-labelledby="datasource-api-import-dialog-title"
-          @close="isApiImportDialogOpen = false"
-        >
-          <div class="ce-datasource-tool__import-dialog-panel">
-          <div class="ce-datasource-tool__import-dialog-header">
-            <h3
-              id="datasource-api-import-dialog-title"
-              class="ce-datasource-tool__import-dialog-title"
-              data-testid="datasource-api-import-dialog-title"
-            >
-              {{ apiImportDialogTitle }}
-            </h3>
-            <button
-              class="ce-datasource-tool__import-dialog-close"
-              type="button"
-              data-testid="datasource-api-import-dialog-close"
-              @click="closeApiImportDialog"
-            >
-              {{ t('editor.close') }}
-            </button>
-          </div>
-
-          <div class="ce-datasource-tool__import-dialog-body">
-            <template v-if="apiImportSource === 'mokelay'">
-              <label class="ce-datasource-tool__field">
-                <span class="ce-datasource-tool__label">{{ t('datasource.fields.apiSource') }}</span>
-                <select
-                  class="ce-datasource-tool__input"
-                  data-testid="datasource-import-mokelay-source"
-                  :disabled="isApiImportBusy"
-                  :value="mokelayApiSource"
-                  @change="changeMokelayApiSource"
-                >
-                  <option value="user">{{ t('datasource.import.apiSources.user') }}</option>
-                  <option value="system">{{ t('datasource.import.apiSources.system') }}</option>
-                </select>
-              </label>
-              <label class="ce-datasource-tool__field">
-                <span class="ce-datasource-tool__label">{{ t('datasource.fields.mokelayApi') }}</span>
-                <select
-                  class="ce-datasource-tool__input"
-                  data-testid="datasource-import-mokelay-api"
-                  :disabled="isApiImportBusy || !mokelayApiOptions.length"
-                  :value="selectedMokelayApiUuid"
-                  @change="selectedMokelayApiUuid = ($event.target as HTMLSelectElement).value"
-                >
-                  <option v-if="!mokelayApiOptions.length" value="">
-                    {{ t('datasource.import.emptyMokelayApis') }}
-                  </option>
-                  <option v-for="api in mokelayApiOptions" :key="api.uuid" :value="api.uuid">
-                    {{ api.name }} ({{ api.method }})
-                  </option>
-                </select>
-              </label>
-            </template>
-            <template v-else>
-              <label class="ce-datasource-tool__field">
-                <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxProject') }}</span>
-                <select
-                  class="ce-datasource-tool__input"
-                  data-testid="datasource-import-apifox-project"
-                  :disabled="isApiImportBusy || !apifoxProjectOptions.length"
-                  :value="selectedApifoxProjectId"
-                  @change="selectedApifoxProjectId = ($event.target as HTMLSelectElement).value"
-                >
-                  <option v-if="!apifoxProjectOptions.length" value="">
-                    {{ t('datasource.import.emptyApifoxProjects') }}
-                  </option>
-                  <option v-for="project in apifoxProjectOptions" :key="project.id" :value="project.id">
-                    {{ project.name }}
-                  </option>
-                </select>
-              </label>
-              <label class="ce-datasource-tool__field">
-                <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxApiId') }}</span>
-                <input
-                  class="ce-datasource-tool__input"
-                  data-testid="datasource-import-apifox-api-id"
-                  type="text"
-                  :readonly="isApiImportBusy"
-                  :placeholder="t('datasource.import.placeholders.apifoxApiId')"
-                  :value="apifoxApiId"
-                  @input="apifoxApiId = ($event.target as HTMLInputElement).value"
-                  @keydown.stop
-                />
-              </label>
-            </template>
-            <p v-if="apiImportError" class="ce-datasource-tool__error" data-testid="datasource-import-error">
-              {{ apiImportError }}
-            </p>
-          </div>
-
-          <div class="ce-datasource-tool__import-dialog-actions">
-            <button
-              class="ce-datasource-tool__action"
-              type="button"
-              data-testid="datasource-import-refresh"
-              :disabled="isApiImportBusy"
-              @click="refreshApiImportOptions"
-            >
-              {{ apiImportOptionsLoading ? t('datasource.actions.refreshing') : t('datasource.actions.refresh') }}
-            </button>
-            <button
-              class="ce-datasource-tool__schema-button"
-              type="button"
-              data-testid="datasource-import-apply"
-              :disabled="!canImportApi"
-              @click="importSelectedApi"
-            >
-              {{ apiImportLoading ? t('datasource.actions.importingApi') : t('datasource.actions.importApi') }}
-            </button>
-          </div>
-          </div>
-        </dialog>
+          :open="isApiImportDialogOpen"
+          :source="apiImportSource"
+          :current-domain="apiState.domain"
+          :readonly="isReadOnly"
+          @close="closeApiImportDialog"
+          @imported="applyImportedApiDatasource"
+        />
       </Teleport>
 
       <section class="ce-datasource-tool__config-section" data-testid="datasource-request-config">
@@ -1892,160 +1468,19 @@ watch(
       </section>
 
       <Teleport to="body">
-        <dialog
+        <DatasourceResponseMockDialog
           v-if="edit"
-          ref="responseMockDialogRef"
-          class="ce-datasource-tool__import-dialog ce-datasource-tool__response-mock-dialog"
-          data-testid="datasource-response-mock-dialog"
-          :aria-hidden="!isResponseMockDialogOpen"
-          aria-labelledby="datasource-response-mock-dialog-title"
-          @close="isResponseMockDialogOpen = false; responseMockTargetIndex = null"
-        >
-          <div class="ce-datasource-tool__import-dialog-panel">
-          <div class="ce-datasource-tool__import-dialog-header">
-            <h3 id="datasource-response-mock-dialog-title" class="ce-datasource-tool__import-dialog-title">
-              {{ t('datasource.responseMock.title') }}
-            </h3>
-            <button
-              class="ce-datasource-tool__import-dialog-close"
-              type="button"
-              data-testid="datasource-response-mock-close"
-              :disabled="isResponseCaptureBusy"
-              @click="closeResponseMockDialog"
-            >
-              {{ t('editor.close') }}
-            </button>
-          </div>
-
-          <div class="ce-datasource-tool__import-dialog-body ce-datasource-tool__response-mock-body">
-            <p class="ce-datasource-tool__section-copy">{{ t('datasource.responseMock.help') }}</p>
-
-            <section v-if="responseMockHeaderData.length" class="ce-datasource-tool__response-mock-section">
-              <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.headers') }}</div>
-              <div
-                v-for="(item, index) in responseMockHeaderData"
-                :key="`response-mock-header-${index}`"
-                class="ce-datasource-tool__response-mock-row"
-              >
-                <input class="ce-datasource-tool__input" type="text" readonly :value="item.key" />
-                <input
-                  class="ce-datasource-tool__input"
-                  :data-testid="`datasource-response-mock-header-${index}`"
-                  type="text"
-                  :placeholder="t('datasource.fields.mock')"
-                  :value="item.value"
-                  @input="item.value = ($event.target as HTMLInputElement).value"
-                  @keydown.stop
-                />
-              </div>
-            </section>
-
-            <section v-if="responseMockQueryData.length" class="ce-datasource-tool__response-mock-section">
-              <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.queries') }}</div>
-              <div
-                v-for="(item, index) in responseMockQueryData"
-                :key="`response-mock-query-${index}`"
-                class="ce-datasource-tool__response-mock-row"
-              >
-                <input class="ce-datasource-tool__input" type="text" readonly :value="item.key" />
-                <input
-                  class="ce-datasource-tool__input"
-                  :data-testid="`datasource-response-mock-query-${index}`"
-                  type="text"
-                  :placeholder="t('datasource.fields.mock')"
-                  :value="item.value"
-                  @input="item.value = ($event.target as HTMLInputElement).value"
-                  @keydown.stop
-                />
-              </div>
-            </section>
-
-            <section v-if="responseMockBodyData.length" class="ce-datasource-tool__response-mock-section">
-              <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.body') }}</div>
-              <div
-                v-for="(item, index) in responseMockBodyData"
-                :key="`response-mock-body-${index}`"
-                class="ce-datasource-tool__response-mock-body-row"
-              >
-                <input class="ce-datasource-tool__input" type="text" readonly :value="item.key" />
-                <input class="ce-datasource-tool__input" type="text" readonly :value="item.dataType" />
-                <select
-                  v-if="item.dataType === 'boolean'"
-                  class="ce-datasource-tool__input"
-                  :data-testid="`datasource-response-mock-body-${index}`"
-                  :value="String(item.value === true)"
-                  @change="updateResponseMockBodyValue(index, ($event.target as HTMLSelectElement).value)"
-                >
-                  <option value="false">false</option>
-                  <option value="true">true</option>
-                </select>
-                <input
-                  v-else-if="item.dataType === 'null'"
-                  class="ce-datasource-tool__input"
-                  :data-testid="`datasource-response-mock-body-${index}`"
-                  type="text"
-                  readonly
-                  value="null"
-                />
-                <input
-                  v-else-if="item.dataType === 'file'"
-                  class="ce-datasource-tool__input"
-                  :data-testid="`datasource-response-mock-body-${index}`"
-                  type="file"
-                  @change="updateResponseMockBodyFile(index, ($event.target as HTMLInputElement).files?.[0])"
-                  @keydown.stop
-                />
-                <textarea
-                  v-else-if="item.dataType === 'object' || item.dataType === 'array'"
-                  class="ce-datasource-tool__textarea ce-datasource-tool__textarea--value"
-                  :data-testid="`datasource-response-mock-body-${index}`"
-                  spellcheck="false"
-                  :value="item.input"
-                  @input="updateResponseMockBodyValue(index, ($event.target as HTMLTextAreaElement).value)"
-                  @keydown.stop
-                ></textarea>
-                <input
-                  v-else
-                  class="ce-datasource-tool__input"
-                  :data-testid="`datasource-response-mock-body-${index}`"
-                  :type="item.dataType === 'number' ? 'number' : 'text'"
-                  :placeholder="t('datasource.fields.mock')"
-                  :value="item.input"
-                  @input="updateResponseMockBodyValue(index, ($event.target as HTMLInputElement).value)"
-                  @keydown.stop
-                />
-                <p v-if="item.error" class="ce-datasource-tool__body-error ce-datasource-tool__response-mock-body-error">
-                  {{ item.error }}
-                </p>
-              </div>
-            </section>
-
-            <p v-if="responseMockError" class="ce-datasource-tool__error" data-testid="datasource-response-mock-error">
-              {{ responseMockError }}
-            </p>
-          </div>
-
-          <div class="ce-datasource-tool__import-dialog-actions">
-            <button
-              class="ce-datasource-tool__action"
-              type="button"
-              :disabled="isResponseCaptureBusy"
-              @click="closeResponseMockDialog"
-            >
-              {{ t('datasource.actions.cancel') }}
-            </button>
-            <button
-              class="ce-datasource-tool__schema-button"
-              type="button"
-              data-testid="datasource-response-mock-submit"
-              :disabled="isResponseCaptureBusy"
-              @click="captureResponseExampleWithMock"
-            >
-              {{ isResponseCaptureBusy ? t('datasource.actions.capturingResponseExample') : t('datasource.actions.capture') }}
-            </button>
-          </div>
-          </div>
-        </dialog>
+          :open="isResponseMockDialogOpen"
+          :method="apiState.method"
+          :header-data="responseMockHeaderData"
+          :query-data="responseMockQueryData"
+          :body-data="responseMockBodyData"
+          :body-files="responseMockBodyFiles"
+          :loading="isResponseCaptureBusy"
+          :error="responseMockError"
+          @close="closeResponseMockDialog"
+          @capture="captureResponseExampleWithMock"
+        />
       </Teleport>
 
       <section class="ce-datasource-tool__config-section" data-testid="datasource-response-config">
