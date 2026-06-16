@@ -99,18 +99,35 @@ test('adds a fields editor with default value and opens read-only preview dialog
 });
 
 test('manually adds edits removes and saves only selected fields', async ({ page }) => {
+  let translationRequest: Record<string, unknown> | undefined;
+  await page.route('**/api/mokelay/ai-translate', async (route) => {
+    translationRequest = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          translations: {
+            name: '姓名',
+            age: '年龄'
+          }
+        }
+      })
+    });
+  });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '字段编辑器');
   const dialog = await openFieldsSettings(page);
 
   await dialog.getByTestId('fields-add').click();
-  await dialog.getByTestId('fields-label-0').fill('姓名');
-  await dialog.getByTestId('fields-variable-0').fill('name');
+  await dialog.getByTestId('fields-label-0').fill('name');
+  await dialog.getByTestId('fields-variable-0').fill('profile.name');
   await dialog.getByTestId('fields-data-type-0').selectOption('string');
 
   await dialog.getByTestId('fields-add').click();
-  await dialog.getByTestId('fields-label-1').fill('年龄');
-  await dialog.getByTestId('fields-variable-1').fill('age');
+  await dialog.getByTestId('fields-label-1').fill('age');
+  await dialog.getByTestId('fields-variable-1').fill('data.users[].age');
   await dialog.getByTestId('fields-data-type-1').selectOption('number');
 
   await dialog.getByTestId('fields-add').click();
@@ -123,6 +140,19 @@ test('manually adds edits removes and saves only selected fields', async ({ page
   expect(dialogBox).not.toBeNull();
   expect(panelBox).not.toBeNull();
   expect(Math.abs(dialogBox!.height - panelBox!.height)).toBeLessThanOrEqual(2);
+
+  await dialog.getByTestId('fields-translate-labels').click();
+  await expect.poll(() => translationRequest).toEqual({
+    texts: ['name', 'age'],
+    sourceLanguage: 'English',
+    targetLanguage: '中文'
+  });
+  await expect(dialog.getByTestId('fields-label-0')).toHaveValue('姓名');
+  await expect(dialog.getByTestId('fields-label-1')).toHaveValue('年龄');
+
+  await dialog.getByTestId('fields-truncate-variables').click();
+  await expect(dialog.getByTestId('fields-variable-0')).toHaveValue('name');
+  await expect(dialog.getByTestId('fields-variable-1')).toHaveValue('age');
 
   await dialog.getByTestId('fields-save').click();
   await expect(page.getByTestId('fields-summary')).toContainText('已设置 2 个字段');
@@ -167,15 +197,24 @@ test('imports request fields from a Mokelay orchestration API', async ({ page })
   await importDialog.getByTestId('datasource-import-apply').click();
   await expect(importDialog).not.toBeVisible();
 
-  await expect(dialog.getByTestId('fields-label-0')).toHaveValue('Authorization');
-  await expect(dialog.getByTestId('fields-variable-1')).toHaveValue('page');
-  await expect(dialog.getByTestId('fields-variable-2')).toHaveValue('keyword');
+  await expect(dialog.getByTestId('fields-empty')).toBeVisible();
+  await expect(dialog.getByTestId('fields-available-section')).toBeVisible();
+  await dialog.getByTestId('fields-available-search').fill('page');
+  await expect(dialog.getByTestId('fields-available-field-page')).toBeVisible();
+  await expect(dialog.getByTestId('fields-available-field-keyword')).toHaveCount(0);
+  await dialog.getByTestId('fields-available-add-page').click();
+  await expect(dialog.getByTestId('fields-label-0')).toHaveValue('page');
+  await expect(dialog.getByTestId('fields-available-add-page')).toHaveText('已添加');
+
+  await dialog.getByTestId('fields-available-search').fill('');
+  await dialog.getByTestId('fields-available-add-Authorization').click();
+  await dialog.getByTestId('fields-available-add-keyword').click();
   await dialog.getByTestId('fields-save').click();
   await page.getByTestId('save-button').click();
 
   expect(getFieldsValue(await getSavedBlocks(page))).toEqual([
-    { label: 'Authorization', variable: 'Authorization', dataType: 'string' },
     { label: 'page', variable: 'page', dataType: 'string' },
+    { label: 'Authorization', variable: 'Authorization', dataType: 'string' },
     { label: 'keyword', variable: 'keyword', dataType: 'string' }
   ]);
 });
@@ -244,24 +283,26 @@ test('imports request fields from an APIFox API', async ({ page }) => {
   await importDialog.getByTestId('datasource-import-apply').click();
   await expect(importDialog).not.toBeVisible();
 
+  await expect(dialog.getByTestId('fields-empty')).toBeVisible();
+  await expect(dialog.getByTestId('fields-available-add-X-Trace')).toBeVisible();
+  await expect(dialog.getByTestId('fields-available-add-token')).toBeVisible();
+  await expect(dialog.getByTestId('fields-available-add-limit')).toBeVisible();
+  await expect(dialog.getByTestId('fields-available-add-ok')).toBeVisible();
+  await dialog.getByTestId('fields-available-add-X-Trace').click();
+  await dialog.getByTestId('fields-available-add-limit').click();
+  await dialog.getByTestId('fields-available-add-ok').click();
   await expect(dialog.getByTestId('fields-variable-0')).toHaveValue('X-Trace');
-  await expect(dialog.getByTestId('fields-variable-1')).toHaveValue('token');
-  await expect(dialog.getByTestId('fields-variable-2')).toHaveValue('keyword');
-  await expect(dialog.getByTestId('fields-data-type-3')).toHaveValue('number');
-  await expect(dialog.getByTestId('fields-variable-4')).toHaveValue('ok');
-  await expect(dialog.getByTestId('fields-data-type-4')).toHaveValue('boolean');
-  await expect(dialog.getByTestId('fields-variable-5')).toHaveValue('total');
-  await expect(dialog.getByTestId('fields-data-type-5')).toHaveValue('number');
+  await expect(dialog.getByTestId('fields-variable-1')).toHaveValue('limit');
+  await expect(dialog.getByTestId('fields-data-type-1')).toHaveValue('number');
+  await expect(dialog.getByTestId('fields-variable-2')).toHaveValue('ok');
+  await expect(dialog.getByTestId('fields-data-type-2')).toHaveValue('boolean');
   await dialog.getByTestId('fields-save').click();
   await page.getByTestId('save-button').click();
 
   expect(getFieldsValue(await getSavedBlocks(page))).toEqual([
     { label: 'X-Trace', variable: 'X-Trace', dataType: 'string' },
-    { label: 'token', variable: 'token', dataType: 'string' },
-    { label: 'keyword', variable: 'keyword', dataType: 'string' },
     { label: 'limit', variable: 'limit', dataType: 'number' },
-    { label: 'ok', variable: 'ok', dataType: 'boolean' },
-    { label: 'total', variable: 'total', dataType: 'number' }
+    { label: 'ok', variable: 'ok', dataType: 'boolean' }
   ]);
 });
 
@@ -332,23 +373,25 @@ test('captures response fields with full variable paths after importing an API',
   await responseMockDialog.getByTestId('datasource-response-mock-submit').click();
   await expect(responseMockDialog).not.toBeVisible();
 
-  await expect(dialog.getByTestId('fields-variable-3')).toHaveValue('data.users[]');
-  await expect(dialog.getByTestId('fields-variable-4')).toHaveValue('data.users[].id');
-  await expect(dialog.getByTestId('fields-variable-5')).toHaveValue('data.users[].name');
-  await expect(dialog.getByTestId('fields-variable-6')).toHaveValue('ok');
-  await expect(dialog.getByTestId('fields-variable-7')).toHaveValue('data');
+  await expect(dialog.getByTestId('fields-empty')).toBeVisible();
+  await expect(dialog.getByTestId('fields-available-add-data.users[]')).toBeVisible();
+  await expect(dialog.getByTestId('fields-available-add-data.users[].id')).toBeVisible();
+  await expect(dialog.getByTestId('fields-available-add-data.users[].name')).toBeVisible();
+  await dialog.getByTestId('fields-available-search').fill('users');
+  await expect(dialog.getByTestId('fields-available-field-ok')).toHaveCount(0);
+  await dialog.getByTestId('fields-available-add-data.users[]').click();
+  await dialog.getByTestId('fields-available-add-data.users[].id').click();
+  await dialog.getByTestId('fields-available-add-data.users[].name').click();
+  await expect(dialog.getByTestId('fields-variable-0')).toHaveValue('data.users[]');
+  await expect(dialog.getByTestId('fields-variable-1')).toHaveValue('data.users[].id');
+  await expect(dialog.getByTestId('fields-variable-2')).toHaveValue('data.users[].name');
 
   await dialog.getByTestId('fields-save').click();
   await page.getByTestId('save-button').click();
   expect(getFieldsValue(await getSavedBlocks(page))).toEqual([
-    { label: 'X-Trace', variable: 'X-Trace', dataType: 'string' },
-    { label: 'token', variable: 'token', dataType: 'string' },
-    { label: 'keyword', variable: 'keyword', dataType: 'string' },
     { label: 'users', variable: 'data.users[]', dataType: 'array' },
     { label: 'id', variable: 'data.users[].id', dataType: 'number' },
-    { label: 'name', variable: 'data.users[].name', dataType: 'string' },
-    { label: 'ok', variable: 'ok', dataType: 'boolean' },
-    { label: 'data', variable: 'data', dataType: 'object' }
+    { label: 'name', variable: 'data.users[].name', dataType: 'string' }
   ]);
 });
 
@@ -375,4 +418,53 @@ test('keeps the field list scrollable and footer actions visible with many field
 
   await dialog.getByTestId('fields-save').click();
   await expect(page.getByTestId('fields-summary')).toContainText('已设置 24 个字段');
+});
+
+test('keeps selected field list visible when many imported fields are available', async ({ page }) => {
+  await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'many_available_fields_api',
+        name: '大量字段接口',
+        method: 'POST',
+        status: 'draft',
+        apiJson: {
+          uuid: 'many_available_fields_api',
+          alias: '大量字段接口',
+          method: 'POST',
+          request: {
+            header: Array.from({ length: 8 }, (_, index) => `Header-${index + 1}`),
+            query: Array.from({ length: 12 }, (_, index) => `query_${index + 1}`),
+            body: Array.from({ length: 16 }, (_, index) => `body_${index + 1}`)
+          },
+          response: {
+            ok: true
+          }
+        }
+      }
+    ]
+  });
+  await switchLocaleToChinese(page);
+  await addEditorTool(page, '字段编辑器');
+  const dialog = await openFieldsSettings(page);
+
+  const importDialog = await openMokelayApiImport(page);
+  await importDialog.getByTestId('datasource-import-mokelay-api').selectOption('many_available_fields_api');
+  await importDialog.getByTestId('datasource-import-apply').click();
+  await expect(importDialog).not.toBeVisible();
+
+  const availableBody = dialog.locator('.ce-fields-editor__section-body--available');
+  await expect(availableBody).toBeVisible();
+  await expect(dialog.getByTestId('fields-list-section')).toBeVisible();
+  await expect(dialog.getByTestId('fields-add')).toBeVisible();
+  await expect(dialog.getByTestId('fields-save')).toBeVisible();
+
+  const availableScrollMetrics = await availableBody.evaluate((element) => ({
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight
+  }));
+  expect(availableScrollMetrics.scrollHeight).toBeGreaterThan(availableScrollMetrics.clientHeight);
+
+  await dialog.getByTestId('fields-available-add-Header-1').click();
+  await expect(dialog.getByTestId('fields-label-0')).toHaveValue('Header-1');
 });

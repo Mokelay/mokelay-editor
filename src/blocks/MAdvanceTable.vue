@@ -2,8 +2,8 @@
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
 import MDatasourceEditor from '@/blocks/MDatasourceEditor.vue';
+import MAdvanceTableColumnsEditor from '@/blocks/MAdvanceTableColumnsEditor.vue';
 import {
-  createParagraphBlock,
   getParagraphText,
   normalizeStoredBlocks,
   type StoredBlock
@@ -13,15 +13,15 @@ import {
   type MDatasourceApiObject
 } from '@/utils/datasource';
 import { isRecord } from '@/utils/datasourceSchema';
+import {
+  normalizeAdvanceTableColumns as normalizeColumns,
+  type MAdvanceTableColumnConfig
+} from '@/utils/advanceTableColumns';
 
-export type MAdvanceTableFixed = 'left' | 'right' | '' | null;
-
-export interface MAdvanceTableColumnConfig {
-  columnName?: string;
-  columnContent?: StoredBlock[];
-  width?: number | null;
-  fixed?: MAdvanceTableFixed;
-}
+export type {
+  MAdvanceTableColumnConfig,
+  MAdvanceTableFixed
+} from '@/utils/advanceTableColumns';
 
 export interface MAdvanceTableProps {
   edit: boolean;
@@ -29,75 +29,6 @@ export interface MAdvanceTableProps {
   selection?: boolean;
   columns?: MAdvanceTableColumnConfig[];
   data?: MDatasourceApiObject;
-}
-
-function getTextValue(text: string, id?: string) {
-  return [createParagraphBlock(text, id)] satisfies StoredBlock[];
-}
-
-function getTagValue() {
-  return [
-    {
-      id: 'advance-table-default-tag',
-      type: 'MTag',
-      data: {
-        tagName: '{{tag}}',
-        type: '{{tagType}}',
-        size: 'small',
-        color: '',
-        closable: false
-      }
-    }
-  ] satisfies StoredBlock[];
-}
-
-function getLinkValue() {
-  return [
-    {
-      id: 'advance-table-default-link',
-      type: 'MLink',
-      data: {
-        text: '{{linkText}}',
-        url: '{{linkUrl}}',
-        open: false
-      }
-    }
-  ] satisfies StoredBlock[];
-}
-
-function getDefaultColumns(): MAdvanceTableColumnConfig[] {
-  return [
-    {
-      columnName: i18n.t('advanceTable.defaultColumns.name'),
-      columnContent: getTextValue('{{name}}', 'advance-table-default-name'),
-      width: 180,
-      fixed: 'left'
-    },
-    {
-      columnName: i18n.t('advanceTable.defaultColumns.status'),
-      columnContent: getTextValue('{{status}}', 'advance-table-default-status'),
-      width: 140,
-      fixed: null
-    },
-    {
-      columnName: i18n.t('advanceTable.defaultColumns.tag'),
-      columnContent: getTagValue(),
-      width: 120,
-      fixed: null
-    },
-    {
-      columnName: i18n.t('advanceTable.defaultColumns.owner'),
-      columnContent: getTextValue('{{owner}}', 'advance-table-default-owner'),
-      width: 160,
-      fixed: null
-    },
-    {
-      columnName: i18n.t('advanceTable.defaultColumns.link'),
-      columnContent: getLinkValue(),
-      width: 180,
-      fixed: null
-    }
-  ];
 }
 
 function getDatasourceExternalFields() {
@@ -133,6 +64,12 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
           type: 'checkbox' as const
         },
         {
+          key: 'columns',
+          label: i18n.t('advanceTable.properties.columns'),
+          type: 'component' as const,
+          component: MAdvanceTableColumnsEditor
+        },
+        {
           key: 'data',
           label: i18n.t('advanceTable.properties.data'),
           type: 'component' as const,
@@ -147,8 +84,7 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
   },
   createInitialProps: () => ({
     index: false,
-    selection: false,
-    columns: getDefaultColumns()
+    selection: false
   }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
@@ -159,31 +95,15 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
   }),
   serialize: (props) => {
     const data = normalizeDatasourceConfig(props.data);
+    const columns = normalizeColumns(props.columns);
     return {
       index: props.index === true,
       selection: props.selection === true,
-      columns: normalizeColumns(props.columns),
+      ...(columns.length ? { columns } : {}),
       ...(data ? { data } : {})
     };
   }
 });
-
-function normalizeColumns(columns?: MAdvanceTableColumnConfig[]) {
-  if (!Array.isArray(columns) || !columns.length) {
-    return getDefaultColumns();
-  }
-
-  const normalized = columns
-    .filter((column): column is MAdvanceTableColumnConfig => typeof column === 'object' && column !== null)
-    .map((column, index) => ({
-      columnName: column.columnName?.trim() || `${i18n.t('advanceTable.defaultColumnName')}${index + 1}`,
-      columnContent: normalizeStoredBlocks(column.columnContent),
-      width: normalizeWidth(column.width),
-      fixed: normalizeFixed(column.fixed)
-    }));
-
-  return normalized.length ? normalized : getDefaultColumns();
-}
 
 function normalizeDatasourceConfig(value: unknown): MDatasourceApiObject | undefined {
   if (!isRecord(value)) {
@@ -194,17 +114,6 @@ function normalizeDatasourceConfig(value: unknown): MDatasourceApiObject | undef
   return datasource.type === 'API' ? datasource : undefined;
 }
 
-function normalizeWidth(width?: number | null) {
-  if (typeof width !== 'number' || !Number.isFinite(width) || width <= 0) {
-    return null;
-  }
-
-  return Math.round(width);
-}
-
-function normalizeFixed(fixed?: MAdvanceTableFixed) {
-  return fixed === 'left' || fixed === 'right' ? fixed : null;
-}
 </script>
 
 <script setup lang="ts">
@@ -230,20 +139,28 @@ let datasourceLoadId = 0;
 const normalizedColumns = computed(() => normalizeColumns(props.columns));
 const normalizedDatasource = computed(() => normalizeDatasourceConfig(props.data));
 const normalizedData = computed(() => datasourceRows.value);
+const hasConfiguredColumns = computed(() => normalizedColumns.value.length > 0);
+const displayRows = computed(() => hasConfiguredColumns.value ? normalizedData.value : []);
 const hasSelectionColumn = computed(() => props.selection === true);
 const hasIndexColumn = computed(() => props.index === true);
 const shouldShowEmptyRow = computed(() =>
+  !hasConfiguredColumns.value ||
   !normalizedDatasource.value ||
   datasourceLoading.value ||
   Boolean(datasourceError.value) ||
-  !normalizedData.value.length
+  !displayRows.value.length
 );
 const emptyMessage = computed(() => {
+  if (!hasConfiguredColumns.value) return t('advanceTable.noColumns');
   if (!normalizedDatasource.value) return t('advanceTable.noDatasource');
   if (datasourceLoading.value) return t('advanceTable.loading');
   if (datasourceError.value) return datasourceError.value;
   return t('advanceTable.empty');
 });
+const emptyColumnSpan = computed(() => Math.max(
+  1,
+  normalizedColumns.value.length + (hasSelectionColumn.value ? 1 : 0) + (hasIndexColumn.value ? 1 : 0)
+));
 const selectionColumnWidth = 44;
 const indexColumnWidth = 56;
 const fallbackFixedColumnWidth = 160;
@@ -477,7 +394,7 @@ function toggleRow(rowIndex: number) {
 }
 
 function isAllRowsSelected() {
-  return normalizedData.value.length > 0 && normalizedData.value.every((_, index) => selectedRows.value.has(index));
+  return displayRows.value.length > 0 && displayRows.value.every((_, index) => selectedRows.value.has(index));
 }
 
 function toggleAllRows() {
@@ -486,7 +403,7 @@ function toggleAllRows() {
     return;
   }
 
-  selectedRows.value = new Set(normalizedData.value.map((_, index) => index));
+  selectedRows.value = new Set(displayRows.value.map((_, index) => index));
 }
 
 watch(
@@ -540,7 +457,7 @@ watch(
         </thead>
         <tbody>
           <tr
-            v-for="(row, rowIndex) in normalizedData"
+            v-for="(row, rowIndex) in displayRows"
             :key="`row-${rowIndex}`"
             class="ce-advance-table-tool__row"
             :class="{ 'ce-advance-table-tool__row--selected': isRowSelected(rowIndex) }"
@@ -590,7 +507,7 @@ watch(
           <tr v-if="shouldShowEmptyRow">
             <td
               class="ce-advance-table-tool__cell ce-advance-table-tool__empty"
-              :colspan="normalizedColumns.length + (selection ? 1 : 0) + (index ? 1 : 0)"
+              :colspan="emptyColumnSpan"
             >
               {{ emptyMessage }}
             </td>

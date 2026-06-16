@@ -104,6 +104,7 @@ import {
   inferJSONSchema,
   type SchemaSelectionField
 } from '@/utils/datasourceSchema';
+import { translateTextsToChinese } from '@/utils/translationsApi';
 import type { ImportedApiDatasource } from '@/utils/datasourceApiImport';
 
 type FieldsEditorCandidateSource = 'saved' | 'manual' | 'api' | 'response';
@@ -124,7 +125,11 @@ const rootRef = ref<HTMLElement | null>(null);
 const settingsDialogRef = ref<HTMLDialogElement | null>(null);
 const isSettingsDialogOpen = ref(false);
 const fieldsDraft = ref<FieldsEditorCandidate[]>([]);
+const availableFieldsDraft = ref<FieldsEditorCandidate[]>([]);
+const availableFieldSearch = ref('');
 const validationError = ref('');
+const fieldTranslationLoading = ref(false);
+const fieldTranslationError = ref('');
 const apiImportSource = ref<DatasourceApiImportSource>('mokelay');
 const isApiImportDialogOpen = ref(false);
 const importedDatasource = shallowRef<MDatasourceApiObject | null>(null);
@@ -137,8 +142,24 @@ let fieldCandidateId = 0;
 
 const savedFields = computed(() => committedFields.value);
 const savedFieldCount = computed(() => savedFields.value.length);
-const selectedDraftCount = computed(() => fieldsDraft.value.filter((field) => field.selected).length);
+const selectedDraftCount = computed(() => fieldsDraft.value.length);
 const isReadOnly = computed(() => !props.edit);
+const visibleAvailableFields = computed(() => {
+  const selectedVariables = new Set(fieldsDraft.value.map((field) => field.variable.trim()).filter(Boolean));
+  const search = availableFieldSearch.value.trim().toLowerCase();
+
+  return availableFieldsDraft.value
+    .map((field) => ({
+      ...field,
+      selected: selectedVariables.has(field.variable.trim())
+    }))
+    .filter((field) => {
+      if (!search) return true;
+      return field.label.toLowerCase().includes(search) ||
+        field.variable.toLowerCase().includes(search) ||
+        field.dataType.toLowerCase().includes(search);
+    });
+});
 const responseMockBodyEntries = computed(() => (importedDatasource.value?.bodyData ?? [])
   .map((item, index) => ({ item, index }))
   .filter(({ item }) => item.key.trim()));
@@ -179,7 +200,10 @@ function createCandidate(
 
 function createDraftFromSavedValue() {
   fieldsDraft.value = savedFields.value.map((field) => createCandidate(field, true, 'saved'));
+  availableFieldsDraft.value = [];
+  availableFieldSearch.value = '';
   validationError.value = '';
+  fieldTranslationError.value = '';
   responseCaptureError.value = '';
   importedDatasource.value = null;
 }
@@ -228,6 +252,16 @@ function addField() {
   }, true, 'manual'));
 }
 
+function addAvailableField(field: FieldsEditorCandidate) {
+  if (isReadOnly.value || field.selected) return;
+
+  const normalized = normalizeFieldsEditorValue([field])[0];
+  if (!normalized) return;
+
+  fieldsDraft.value.push(createCandidate(normalized, true, field.source));
+  validationError.value = '';
+}
+
 function updateField(index: number, field: keyof MFieldsEditorField, value: string) {
   if (isReadOnly.value) return;
 
@@ -235,16 +269,6 @@ function updateField(index: number, field: keyof MFieldsEditorField, value: stri
   if (!item) return;
 
   item[field] = field === 'dataType' ? normalizeFieldsEditorDataType(value) : value;
-  validationError.value = '';
-}
-
-function toggleField(index: number, selected: boolean) {
-  if (isReadOnly.value) return;
-
-  const item = fieldsDraft.value[index];
-  if (!item) return;
-
-  item.selected = selected;
   validationError.value = '';
 }
 
@@ -259,11 +283,11 @@ function mergeFieldCandidates(fields: MFieldsEditorField[], source: FieldsEditor
   if (isReadOnly.value) return;
 
   const existingVariables = new Set(
-    fieldsDraft.value
+    availableFieldsDraft.value
       .map((field) => field.variable.trim())
       .filter(Boolean)
   );
-  const nextFields = [...fieldsDraft.value];
+  const nextFields = [...availableFieldsDraft.value];
 
   fields.forEach((field) => {
     const normalized = normalizeFieldsEditorValue([field])[0];
@@ -275,7 +299,8 @@ function mergeFieldCandidates(fields: MFieldsEditorField[], source: FieldsEditor
     existingVariables.add(normalized.variable);
   });
 
-  fieldsDraft.value = nextFields;
+  availableFieldsDraft.value = nextFields;
+  availableFieldSearch.value = '';
   validationError.value = '';
 }
 
@@ -430,9 +455,7 @@ function captureResponseFieldsWithMock(payload: DatasourceResponseMockCapturePay
 }
 
 function validateSelectedFields() {
-  const selectedFields = fieldsDraft.value
-    .filter((field) => field.selected)
-    .map((field) => getCandidateField(field));
+  const selectedFields = fieldsDraft.value.map((field) => getCandidateField(field));
 
   for (const field of selectedFields) {
     if (!field.label || !field.variable) {
@@ -459,6 +482,42 @@ function validateSelectedFields() {
     ok: true as const,
     value: selectedFields
   };
+}
+
+async function translateSelectedFieldLabels() {
+  if (isReadOnly.value || fieldTranslationLoading.value || !fieldsDraft.value.length) return;
+
+  fieldTranslationLoading.value = true;
+  fieldTranslationError.value = '';
+  try {
+    const translations = await translateTextsToChinese(fieldsDraft.value.map((field) => field.label));
+    fieldsDraft.value = fieldsDraft.value.map((field) => ({
+      ...field,
+      label: translations[field.label] ?? field.label
+    }));
+  } catch {
+    fieldTranslationError.value = t('fieldsEditor.validation.translateFieldsFailed');
+  } finally {
+    fieldTranslationLoading.value = false;
+  }
+}
+
+function getVariableTail(variable: string) {
+  const normalized = variable.trim();
+  if (!normalized) return '';
+
+  const tail = normalized.split('.').filter(Boolean).pop() ?? normalized;
+  return tail.replace(/\[\]$/g, '') || normalized;
+}
+
+function truncateSelectedFieldVariablesToTail() {
+  if (isReadOnly.value || !fieldsDraft.value.length) return;
+
+  fieldsDraft.value = fieldsDraft.value.map((field) => ({
+    ...field,
+    variable: getVariableTail(field.variable)
+  }));
+  validationError.value = '';
 }
 
 function saveFields() {
@@ -576,6 +635,70 @@ watch(
           </section>
 
           <section
+            v-if="edit && availableFieldsDraft.length"
+            class="ce-fields-editor__section ce-fields-editor__section--available"
+            data-testid="fields-available-section"
+          >
+            <div class="ce-fields-editor__section-header">
+              <div>
+                <div class="ce-fields-editor__section-title">{{ t('fieldsEditor.sections.availableFields') }}</div>
+                <p class="ce-fields-editor__section-copy">{{ t('fieldsEditor.help.availableFields') }}</p>
+              </div>
+            </div>
+            <div class="ce-fields-editor__section-body ce-fields-editor__section-body--available">
+              <label class="ce-fields-editor__field">
+                <span class="ce-fields-editor__label">{{ t('fieldsEditor.columns.variable') }}</span>
+                <input
+                  class="ce-fields-editor__input"
+                  data-testid="fields-available-search"
+                  type="search"
+                  :placeholder="t('fieldsEditor.placeholders.searchFields')"
+                  :value="availableFieldSearch"
+                  @input="availableFieldSearch = ($event.target as HTMLInputElement).value"
+                  @keydown.stop
+                />
+              </label>
+
+              <div
+                v-if="visibleAvailableFields.length"
+                class="ce-fields-editor__available-list"
+                data-testid="fields-available-list"
+              >
+                <div
+                  v-for="field in visibleAvailableFields"
+                  :key="field.id"
+                  class="ce-fields-editor__available-field"
+                  :data-testid="`fields-available-field-${field.variable}`"
+                >
+                  <span class="ce-fields-editor__available-main">
+                    <span class="ce-fields-editor__available-label">{{ field.label }}</span>
+                    <span class="ce-fields-editor__available-variable">{{ field.variable }}</span>
+                  </span>
+                  <span class="ce-fields-editor__available-actions">
+                    <span class="ce-fields-editor__badge">{{ field.dataType }}</span>
+                    <button
+                      class="ce-fields-editor__field-action"
+                      type="button"
+                      :disabled="isReadOnly || field.selected"
+                      :data-testid="`fields-available-add-${field.variable}`"
+                      @click="addAvailableField(field)"
+                    >
+                      {{ field.selected ? t('fieldsEditor.actions.added') : t('fieldsEditor.actions.addCandidate') }}
+                    </button>
+                  </span>
+                </div>
+              </div>
+              <p
+                v-else
+                class="ce-fields-editor__empty"
+                data-testid="fields-available-empty"
+              >
+                {{ t('fieldsEditor.emptySearch') }}
+              </p>
+            </div>
+          </section>
+
+          <section
             class="ce-fields-editor__section ce-fields-editor__section--fields"
             data-testid="fields-list-section"
           >
@@ -586,15 +709,36 @@ watch(
                   {{ t('fieldsEditor.summary.selectedCount').replace('{count}', String(selectedDraftCount)) }}
                 </p>
               </div>
-              <button
-                v-if="edit"
-                class="ce-fields-editor__secondary-button"
-                type="button"
-                data-testid="fields-add"
-                @click="addField"
-              >
-                {{ t('fieldsEditor.actions.add') }}
-              </button>
+              <div v-if="edit" class="ce-fields-editor__section-actions">
+                <button
+                  class="ce-fields-editor__secondary-button"
+                  type="button"
+                  data-testid="fields-add"
+                  @click="addField"
+                >
+                  {{ t('fieldsEditor.actions.add') }}
+                </button>
+                <button
+                  class="ce-fields-editor__secondary-button"
+                  type="button"
+                  data-testid="fields-translate-labels"
+                  :disabled="fieldTranslationLoading || !fieldsDraft.length"
+                  @click="translateSelectedFieldLabels"
+                >
+                  {{ fieldTranslationLoading
+                    ? t('fieldsEditor.actions.translatingLabels')
+                    : t('fieldsEditor.actions.translateLabels') }}
+                </button>
+                <button
+                  class="ce-fields-editor__secondary-button"
+                  type="button"
+                  data-testid="fields-truncate-variables"
+                  :disabled="!fieldsDraft.length"
+                  @click="truncateSelectedFieldVariablesToTail"
+                >
+                  {{ t('fieldsEditor.actions.truncateVariables') }}
+                </button>
+              </div>
             </div>
 
             <div class="ce-fields-editor__section-body ce-fields-editor__section-body--fields">
@@ -604,7 +748,6 @@ watch(
 
               <div v-else class="ce-fields-editor__table" data-testid="fields-list">
                 <div class="ce-fields-editor__table-head" aria-hidden="true">
-                  <span>{{ t('fieldsEditor.columns.selected') }}</span>
                   <span>{{ t('fieldsEditor.columns.label') }}</span>
                   <span>{{ t('fieldsEditor.columns.variable') }}</span>
                   <span>{{ t('fieldsEditor.columns.dataType') }}</span>
@@ -617,16 +760,6 @@ watch(
                   class="ce-fields-editor__row"
                   :data-testid="`fields-row-${index}`"
                 >
-                  <label class="ce-fields-editor__checkbox-label">
-                    <input
-                      type="checkbox"
-                      :data-testid="`fields-selected-${index}`"
-                      :disabled="isReadOnly"
-                      :checked="field.selected"
-                      @change="toggleField(index, ($event.target as HTMLInputElement).checked)"
-                    />
-                    <span>{{ t('fieldsEditor.columns.selected') }}</span>
-                  </label>
                   <input
                     class="ce-fields-editor__input"
                     :data-testid="`fields-label-${index}`"
@@ -672,6 +805,9 @@ watch(
 
               <p v-if="validationError" class="ce-fields-editor__error" data-testid="fields-validation-error">
                 {{ validationError }}
+              </p>
+              <p v-if="fieldTranslationError" class="ce-fields-editor__error" data-testid="fields-translation-error">
+                {{ fieldTranslationError }}
               </p>
             </div>
           </section>
@@ -850,6 +986,10 @@ watch(
   flex: 0 1 auto;
 }
 
+.ce-fields-editor__section--available {
+  flex: 0 1 auto;
+}
+
 .ce-fields-editor__section-header {
   flex: 0 0 auto;
   display: flex;
@@ -859,6 +999,13 @@ watch(
   border-bottom: 1px solid rgb(226 232 240);
   padding: 12px 14px;
   background: rgb(248 250 252);
+}
+
+.ce-fields-editor__section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .ce-fields-editor__section-body {
@@ -875,6 +1022,12 @@ watch(
   overflow: auto;
 }
 
+.ce-fields-editor__section-body--available {
+  flex: 0 1 auto;
+  max-height: min(34vh, 360px);
+  overflow: auto;
+}
+
 .ce-fields-editor__section-title {
   color: rgb(15 23 42);
   font-size: 15px;
@@ -887,15 +1040,89 @@ watch(
   font-size: 13px;
 }
 
+.ce-fields-editor__field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ce-fields-editor__label {
+  color: rgb(51 65 85);
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .ce-fields-editor__import-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+.ce-fields-editor__available-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  align-items: start;
+}
+
+.ce-fields-editor__available-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 8px;
+  padding: 7px 8px;
+  background: rgb(255 255 255);
+}
+
+.ce-fields-editor__available-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ce-fields-editor__available-label {
+  overflow: hidden;
+  color: rgb(15 23 42);
+  font-weight: 650;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ce-fields-editor__available-variable {
+  overflow: hidden;
+  color: rgb(100 116 139);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ce-fields-editor__available-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ce-fields-editor__badge {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgb(239 246 255);
+  color: rgb(30 64 175);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
 .ce-fields-editor__import-button,
 .ce-fields-editor__secondary-button,
-.ce-fields-editor__danger-button {
+.ce-fields-editor__danger-button,
+.ce-fields-editor__field-action {
   border: 1px solid rgb(203 213 225);
   border-radius: 8px;
   padding: 6px 10px;
@@ -914,10 +1141,21 @@ watch(
   color: rgb(185 28 28);
 }
 
+.ce-fields-editor__field-action {
+  border-color: rgb(147 197 253);
+  color: rgb(30 64 175);
+}
+
 .ce-fields-editor__import-button:hover,
 .ce-fields-editor__secondary-button:hover,
-.ce-fields-editor__danger-button:hover {
+.ce-fields-editor__danger-button:hover,
+.ce-fields-editor__field-action:hover {
   background: rgb(248 250 252);
+}
+
+.ce-fields-editor__field-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .ce-fields-editor__table {
@@ -930,7 +1168,7 @@ watch(
 .ce-fields-editor__table-head,
 .ce-fields-editor__row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1fr) minmax(120px, 0.35fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(120px, 0.35fr) auto;
   gap: 8px;
   align-items: center;
 }
@@ -946,15 +1184,6 @@ watch(
   border-radius: 8px;
   padding: 8px;
   background: rgb(255 255 255);
-}
-
-.ce-fields-editor__checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: rgb(51 65 85);
-  font-size: 12px;
-  font-weight: 650;
 }
 
 .ce-fields-editor__input {
@@ -1027,6 +1256,7 @@ watch(
 
 :global(.dark) .ce-fields-editor__dialog-panel,
 :global(.dark) .ce-fields-editor__section,
+:global(.dark) .ce-fields-editor__available-field,
 :global(.dark) .ce-fields-editor__row {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
@@ -1043,13 +1273,20 @@ watch(
 }
 
 :global(.dark) .ce-fields-editor__section-copy,
+:global(.dark) .ce-fields-editor__label,
+:global(.dark) .ce-fields-editor__available-variable,
 :global(.dark) .ce-fields-editor__table-head,
 :global(.dark) .ce-fields-editor__empty {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-fields-editor__checkbox-label {
-  color: rgb(203 213 225);
+:global(.dark) .ce-fields-editor__available-label {
+  color: rgb(226 232 240);
+}
+
+:global(.dark) .ce-fields-editor__badge {
+  background: rgb(30 58 138 / 0.45);
+  color: rgb(191 219 254);
 }
 
 :global(.dark) .ce-fields-editor__input {
@@ -1066,7 +1303,8 @@ watch(
 
 :global(.dark) .ce-fields-editor__import-button,
 :global(.dark) .ce-fields-editor__secondary-button,
-:global(.dark) .ce-fields-editor__danger-button {
+:global(.dark) .ce-fields-editor__danger-button,
+:global(.dark) .ce-fields-editor__field-action {
   border-color: rgb(71 85 105);
   background: rgb(30 41 59);
   color: rgb(226 232 240);
@@ -1078,7 +1316,8 @@ watch(
 
 :global(.dark) .ce-fields-editor__import-button:hover,
 :global(.dark) .ce-fields-editor__secondary-button:hover,
-:global(.dark) .ce-fields-editor__danger-button:hover {
+:global(.dark) .ce-fields-editor__danger-button:hover,
+:global(.dark) .ce-fields-editor__field-action:hover {
   background: rgb(51 65 85);
 }
 </style>

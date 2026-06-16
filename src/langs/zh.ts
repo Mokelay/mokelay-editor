@@ -125,6 +125,7 @@ export const zhMessages = {
     propertyPanelTitle: '高级表格属性',
     defaultColumnName: '列',
     empty: '暂无数据',
+    noColumns: '请先设置表格列',
     noDatasource: '没有数据源',
     loading: '正在加载数据...',
     loadFailed: '数据源加载失败',
@@ -135,17 +136,55 @@ export const zhMessages = {
     properties: {
       index: '显示序号列',
       selection: '显示多选列',
+      columns: '列配置',
       data: '数据源'
+    },
+    columnsEditor: {
+      settingsDialogTitle: '高级表格列设置',
+      empty: '暂无列，请先设置字段。',
+      customContent: '自定义单元格内容，将原样保留。',
+      summary: {
+        savedCount: '已设置 {count} 列',
+        draftCount: '当前 {count} 列'
+      },
+      sections: {
+        fields: '批量导入字段',
+        columns: '列二次设置'
+      },
+      columns: {
+        name: '列名',
+        variable: '字段变量',
+        width: '宽度',
+        fixed: '固定列',
+        template: '文本模板',
+        actions: '操作'
+      },
+      placeholders: {
+        name: '请输入列名',
+        variable: '请输入字段变量',
+        width: '自动',
+        template: '例如：{{name}}'
+      },
+      fixed: {
+        none: '不固定',
+        left: '左固定',
+        right: '右固定'
+      },
+      actions: {
+        settings: '设置列',
+        save: '保存',
+        cancel: '取消',
+        moveUp: '上移',
+        moveDown: '下移',
+        resetTemplate: '重置模板',
+        remove: '删除'
+      },
+      help: {
+        fields: '使用字段编辑器批量导入字段，保存字段后会同步生成或移除表格列。'
+      }
     },
     datasourceFields: {
       data: '列表数据'
-    },
-    defaultColumns: {
-      name: '名称',
-      status: '状态',
-      tag: '标签',
-      owner: '负责人',
-      link: '链接'
     },
     defaultRows: {
       first: {
@@ -394,6 +433,7 @@ export const zhMessages = {
     },
     sections: {
       importApi: '导入字段',
+      availableFields: '可选择字段',
       fields: '字段列表'
     },
     columns: {
@@ -405,24 +445,33 @@ export const zhMessages = {
     },
     placeholders: {
       label: '请输入字段名称',
-      variable: '请输入变量名'
+      variable: '请输入变量名',
+      searchFields: '按字段名称或变量搜索'
     },
     actions: {
       settings: '设置字段',
       add: '添加字段',
+      addCandidate: '添加',
+      added: '已添加',
       remove: '删除',
       save: '保存',
       cancel: '取消',
+      translateLabels: 'AI翻译字段名称',
+      translatingLabels: '翻译中...',
+      truncateVariables: '变量截取末尾',
       captureResponseFields: 'Mock抓取响应字段',
       capturingResponseFields: '正在抓取响应字段...'
     },
     help: {
-      importApi: '从接口参数导入字段，或在导入接口后抓取响应字段。'
+      importApi: '从接口参数导入字段，或在导入接口后抓取响应字段。',
+      availableFields: '从可选择字段中搜索并逐个添加需要使用的字段。'
     },
+    emptySearch: '没有匹配的可选择字段。',
     validation: {
       required: '已选择字段的字段名称和变量不能为空。',
       duplicateVariable: '已选择字段的变量不能重复。',
-      missingImportedApi: '请先导入接口信息。'
+      missingImportedApi: '请先导入接口信息。',
+      translateFieldsFailed: '字段翻译失败，请稍后重试。'
     }
   },
   formItem: {

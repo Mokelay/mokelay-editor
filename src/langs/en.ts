@@ -125,6 +125,7 @@ export const enMessages = {
     propertyPanelTitle: 'Advanced Table Properties',
     defaultColumnName: 'Column',
     empty: 'No data',
+    noColumns: 'Set table columns first',
     noDatasource: 'No datasource',
     loading: 'Loading data...',
     loadFailed: 'Failed to load datasource',
@@ -135,17 +136,55 @@ export const enMessages = {
     properties: {
       index: 'Show index column',
       selection: 'Show selection column',
+      columns: 'Columns',
       data: 'Datasource'
+    },
+    columnsEditor: {
+      settingsDialogTitle: 'Advanced table column settings',
+      empty: 'No columns yet. Set fields first.',
+      customContent: 'Custom cell content will be preserved.',
+      summary: {
+        savedCount: '{count} columns configured',
+        draftCount: '{count} columns now'
+      },
+      sections: {
+        fields: 'Bulk import fields',
+        columns: 'Column settings'
+      },
+      columns: {
+        name: 'Column name',
+        variable: 'Field variable',
+        width: 'Width',
+        fixed: 'Fixed',
+        template: 'Text template',
+        actions: 'Actions'
+      },
+      placeholders: {
+        name: 'Enter column name',
+        variable: 'Enter field variable',
+        width: 'Auto',
+        template: 'Example: {{name}}'
+      },
+      fixed: {
+        none: 'Not fixed',
+        left: 'Fixed left',
+        right: 'Fixed right'
+      },
+      actions: {
+        settings: 'Set columns',
+        save: 'Save',
+        cancel: 'Cancel',
+        moveUp: 'Move up',
+        moveDown: 'Move down',
+        resetTemplate: 'Reset template',
+        remove: 'Remove'
+      },
+      help: {
+        fields: 'Use the fields editor to bulk import fields. Saving fields will create or remove table columns.'
+      }
     },
     datasourceFields: {
       data: 'List data'
-    },
-    defaultColumns: {
-      name: 'Name',
-      status: 'Status',
-      tag: 'Tag',
-      owner: 'Owner',
-      link: 'Link'
     },
     defaultRows: {
       first: {
@@ -394,6 +433,7 @@ export const enMessages = {
     },
     sections: {
       importApi: 'Import fields',
+      availableFields: 'Available fields',
       fields: 'Field list'
     },
     columns: {
@@ -405,24 +445,33 @@ export const enMessages = {
     },
     placeholders: {
       label: 'Enter field name',
-      variable: 'Enter variable name'
+      variable: 'Enter variable name',
+      searchFields: 'Search by field name or variable'
     },
     actions: {
       settings: 'Set fields',
       add: 'Add field',
+      addCandidate: 'Add',
+      added: 'Added',
       remove: 'Remove',
       save: 'Save',
       cancel: 'Cancel',
+      translateLabels: 'AI translate field names',
+      translatingLabels: 'Translating...',
+      truncateVariables: 'Keep variable tail',
       captureResponseFields: 'Mock response fields',
       capturingResponseFields: 'Capturing response fields...'
     },
     help: {
-      importApi: 'Import fields from request parameters, or capture response fields after importing an API.'
+      importApi: 'Import fields from request parameters, or capture response fields after importing an API.',
+      availableFields: 'Search available fields and add only the fields needed by the component.'
     },
+    emptySearch: 'No available fields match the search.',
     validation: {
       required: 'Selected fields must include both field name and variable.',
       duplicateVariable: 'Selected field variables must be unique.',
-      missingImportedApi: 'Import API information first.'
+      missingImportedApi: 'Import API information first.',
+      translateFieldsFailed: 'Could not translate the fields. Try again later.'
     }
   },
   formItem: {
