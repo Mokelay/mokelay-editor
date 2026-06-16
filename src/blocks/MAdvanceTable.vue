@@ -1,5 +1,5 @@
 <script lang="ts">
-import { defineEditorTool } from '@/editors/editorToolDefinition';
+import { defineEditorTool, type EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
 import MDatasourceEditor from '@/blocks/MDatasourceEditor.vue';
 import MAdvanceTableColumnsEditor from '@/blocks/MAdvanceTableColumnsEditor.vue';
@@ -51,7 +51,7 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
     get title() {
       return i18n.t('advanceTable.propertyPanelTitle');
     },
-    get fields() {
+    get fields(): EditorToolPropertyField[] {
       return [
         {
           key: 'index',

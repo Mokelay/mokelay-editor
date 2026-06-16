@@ -36,6 +36,8 @@ export default defineConfig(function () { return ({
                         }
                         if (moduleId.includes('/src/blocks/MAdvanceInput.vue') ||
                             moduleId.includes('/src/blocks/MAdvanceTable.vue') ||
+                            moduleId.includes('/src/blocks/MAdvanceTableColumnsEditor.vue') ||
+                            moduleId.includes('/src/utils/advanceTableColumns') ||
                             moduleId.includes('/src/editors/inlineCustomComponents.ts')) {
                             return 'block-advanced';
                         }

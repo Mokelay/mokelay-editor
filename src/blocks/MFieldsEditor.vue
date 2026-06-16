@@ -90,7 +90,7 @@ import { useI18n } from '@/i18n';
 import {
   $remote as resolveDatasourceRemote,
   DatasourceError,
-  bodyDataTypes,
+  bodyDataTypes as setupBodyDataTypes,
   getDefaultApiDatasource,
   normalizeBodyValue,
   normalizeDatasource,
@@ -137,7 +137,7 @@ const isResponseMockDialogOpen = ref(false);
 const responseCaptureLoading = ref(false);
 const responseCaptureError = ref('');
 const committedFields = ref<MFieldsEditorField[]>(normalizeFieldsEditorValue(props.value));
-const fieldOptions = bodyDataTypes;
+const fieldOptions = setupBodyDataTypes;
 let fieldCandidateId = 0;
 
 const savedFields = computed(() => committedFields.value);

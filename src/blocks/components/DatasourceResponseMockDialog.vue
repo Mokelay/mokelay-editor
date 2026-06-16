@@ -208,7 +208,7 @@ function initializeMockState() {
         key: item.key,
         dataType: item.dataType,
         value: normalizedValue,
-        input: getBodyValueInput({ ...item, value: normalizedValue, error: '' }),
+        input: getBodyValueInput({ dataType: item.dataType, value: normalizedValue }),
         error: '',
         file
       };
