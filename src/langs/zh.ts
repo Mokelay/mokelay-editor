@@ -160,11 +160,20 @@ export const zhMessages = {
   datasource: {
     toolboxTitle: '数据源编辑器',
     title: '数据源',
+    settingsDialogTitle: '数据源设置',
     empty: '暂无配置项',
     emptySchema: '还没有字段配置，请先选择一条响应数据的 Schema。',
     emptySelectedFields: '暂无已选择字段。',
     noSelectableFields: '当前 Schema 中没有可选择的字段。',
     noFieldsMatchingPath: '没有匹配该路径的字段。',
+    summary: {
+      domain: '域名',
+      path: 'Path',
+      method: '方法',
+      emptyDomain: '未选择域名',
+      emptyPath: '未设置 Path',
+      emptyMethod: '未设置方法'
+    },
     fields: {
       domain: 'API 域名',
       path: 'API Path',
@@ -208,6 +217,7 @@ export const zhMessages = {
       remove: '删除',
       refresh: '刷新',
       refreshing: '刷新中...',
+      settings: '数据源设置',
       importApi: '导入',
       importingApi: '导入中...',
       addResponseExample: '添加响应数据',

@@ -2,6 +2,7 @@ import { Buffer } from 'node:buffer';
 import { expect, test, type Page } from '@playwright/test';
 import {
   addEditorTool,
+  expectToolToolbarBeside,
   getSavedBlocks,
   resetEditor,
   seedSavedConfig,
@@ -22,7 +23,26 @@ function getDatasourceValue(blocks: Awaited<ReturnType<typeof getSavedBlocks>>) 
   return blocks.find((block) => block.type === 'MDatasourceEditor')?.data?.value;
 }
 
+async function openDatasourceSettings(page: Page, index = 0) {
+  await page.getByTestId('datasource-settings-open').nth(index).click();
+  const dialog = page.locator('[data-testid="datasource-settings-dialog"][open]').last();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('datasource-api-panel')).toBeVisible();
+  return dialog;
+}
+
+async function closeDatasourceSettings(page: Page) {
+  const dialog = page.locator('[data-testid="datasource-settings-dialog"][open]');
+  if (await dialog.count()) {
+    await dialog.last().getByTestId('datasource-settings-close').click();
+    await expect(dialog).toHaveCount(0);
+  }
+}
+
 async function openMokelayApiImport(page: Page) {
+  if (!await page.getByTestId('datasource-import-open-mokelay').isVisible()) {
+    await openDatasourceSettings(page);
+  }
   await page.getByTestId('datasource-import-open-mokelay').click();
   const dialog = page.getByTestId('datasource-api-import-dialog');
   await expect(dialog).toBeVisible();
@@ -31,6 +51,9 @@ async function openMokelayApiImport(page: Page) {
 }
 
 async function openApifoxApiImport(page: Page) {
+  if (!await page.getByTestId('datasource-import-open-apifox').isVisible()) {
+    await openDatasourceSettings(page);
+  }
   await page.getByTestId('datasource-import-open-apifox').click();
   const dialog = page.getByTestId('datasource-api-import-dialog');
   await expect(dialog).toBeVisible();
@@ -40,6 +63,9 @@ async function openApifoxApiImport(page: Page) {
 
 async function openFullSchema(page: Page, index = 0) {
   const testId = index === 0 ? 'datasource-full-schema-open' : `datasource-full-schema-open-${index}`;
+  if (!await page.getByTestId(testId).isVisible()) {
+    await openDatasourceSettings(page);
+  }
   await page.getByTestId(testId).click();
   const dialog = page.getByTestId('datasource-full-schema-dialog');
   await expect(dialog).toBeVisible();
@@ -57,11 +83,17 @@ async function setSchemaPathDepth(page: Page, depth: number) {
 }
 
 async function addResponseExampleCard(page: Page) {
+  if (!await page.getByTestId('datasource-response-example-add').isVisible()) {
+    await openDatasourceSettings(page);
+  }
   await page.getByTestId('datasource-response-example-add').click();
   await expect(page.getByTestId('datasource-response-example')).toBeVisible();
 }
 
 async function openFieldPreview(page: Page, path: string) {
+  if (!await page.getByTestId(`datasource-selected-field-preview-${path}`).isVisible()) {
+    await openDatasourceSettings(page);
+  }
   await page.getByTestId(`datasource-selected-field-preview-${path}`).click();
   const dialog = page.getByTestId('datasource-processor-preview-dialog');
   await expect(dialog).toBeVisible();
@@ -79,6 +111,15 @@ test('adds a datasource editor with default API value and renders in preview', a
   await addEditorTool(page, '数据源编辑器');
 
   await expect(page.getByTestId('editor-datasource-tool')).toBeVisible();
+  await expect(page.getByTestId('datasource-settings-open')).toHaveText('数据源设置');
+  await expect(page.getByTestId('datasource-summary')).toContainText('API');
+  await expect(page.getByTestId('datasource-summary')).toContainText('mokelay');
+  await expect(page.getByTestId('datasource-summary')).toContainText('未设置 Path');
+  await expect(page.getByTestId('datasource-summary')).toContainText('GET');
+  await expect(page.getByTestId('datasource-api-panel')).not.toBeVisible();
+  await expectToolToolbarBeside(page, 'editor-datasource-tool');
+
+  await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-api-panel')).toBeVisible();
   await expect(page.locator('.ce-datasource-tool__type-button')).toHaveCount(0);
   await expect(page.getByTestId('datasource-type-api')).toHaveCount(0);
@@ -112,6 +153,8 @@ test('adds a datasource editor with default API value and renders in preview', a
   await expect(page.getByTestId('datasource-method')).toHaveValue('GET');
   await expect(page.locator('.ce-block')).toHaveCount(2);
 
+  await closeDatasourceSettings(page);
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
@@ -123,10 +166,13 @@ test('adds a datasource editor with default API value and renders in preview', a
     bodyData: [],
     queryData: []
   });
+  await closeDatasourceSettings(page);
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
-  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-api-panel')).toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open')).toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-summary')).toContainText('GET');
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-api-panel')).not.toBeVisible();
 });
 
 test('derives a read-only Schema without saving response examples or Schema', async ({ page }) => {
@@ -144,6 +190,7 @@ test('derives a read-only Schema without saving response examples or Schema', as
   expect(schema.properties.name.type).toBe('string');
   await closeFullSchema(fullSchemaDialog);
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   expect(getDatasourceValue(await getSavedBlocks(page))).toEqual({
     type: 'API',
@@ -185,6 +232,7 @@ test('keeps only selected paths that exist when switching response Schema', asyn
   await expect(page.getByTestId('datasource-selected-field-profile.name')).toBeVisible();
   await expect(page.getByTestId('datasource-selected-field-shared')).toBeVisible();
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   let datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue.responseExamples).toBeUndefined();
@@ -194,7 +242,7 @@ test('keeps only selected paths that exist when switching response Schema', asyn
     { label: 'shared', path: 'shared', type: 'string' }
   ]);
 
-  await page.getByTestId('datasource-response-example-add').click();
+  await addResponseExampleCard(page);
   await page.getByTestId('datasource-response-example-1').fill('{"profile":{"name":"Grace"},"count":2}');
 
   let fullSchemaDialog = await openFullSchema(page);
@@ -217,6 +265,7 @@ test('keeps only selected paths that exist when switching response Schema', asyn
   await expect(page.getByTestId('datasource-form-field-add-count')).toBeEnabled();
   await expect(page.getByTestId('datasource-selected-field-shared')).toHaveCount(0);
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue.schemaSelections).toEqual([
@@ -225,7 +274,9 @@ test('keeps only selected paths that exist when switching response Schema', asyn
   expect(datasourceValue.responseExamples).toBeUndefined();
   expect(datasourceValue.jsonSchema).toBeUndefined();
 
+  await openDatasourceSettings(page);
   await page.getByTestId('datasource-response-example-remove-0').click();
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue.schemaSelections).toEqual([
@@ -272,6 +323,7 @@ test('selects list and form fields from generated Schema with read-only field na
   expect(await page.getByTestId('datasource-form-field-label-title').evaluate((element) => element.tagName)).toBe('SPAN');
   await page.getByTestId('datasource-form-field-add-title').click();
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
@@ -450,6 +502,7 @@ test('shows saved selections without a response Schema and supports removing the
     ]
   });
 
+  await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-schema-empty')).toBeVisible();
   await expect(page.getByTestId('datasource-selected-field-users[].id')).toBeVisible();
   await expect(page.getByTestId('datasource-selected-field-label-users[].id')).toHaveText('用户 ID');
@@ -474,6 +527,7 @@ test('shows saved selections without a response Schema and supports removing the
   await expect(page.getByTestId('datasource-selected-field-title')).toHaveCount(0);
   await expect(page.getByTestId('datasource-form-field-add-title')).toBeEnabled();
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue.schemaSelections).toEqual([
@@ -509,6 +563,7 @@ test('configures, validates, orders, persists, and views string processors', asy
     }]
   });
 
+  await openDatasourceSettings(page);
   await page.getByTestId('datasource-selected-field-processors-config-createdAt').click();
   const dialog = page.getByTestId('datasource-processor-dialog');
   await expect(dialog).toBeVisible();
@@ -533,6 +588,7 @@ test('configures, validates, orders, persists, and views string processors', asy
 
   await expect(page.getByTestId('datasource-selected-field-processors-createdAt')).toContainText('日期时间格式化');
   await expect(page.getByTestId('datasource-selected-field-processors-createdAt')).toContainText('去除首尾空格');
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
 
   let datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
@@ -542,8 +598,11 @@ test('configures, validates, orders, persists, and views string processors', asy
   ]);
 
   await page.reload();
+  await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-selected-field-processors-createdAt')).toBeVisible();
+  await closeDatasourceSettings(page);
   await page.getByTestId('preview-button').click();
+  await page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open').click();
   await page.getByTestId('datasource-selected-field-processors-config-createdAt').click();
   const readonlyDialog = page.getByTestId('datasource-processor-dialog');
   await expect(readonlyDialog.getByTestId('datasource-processor-add')).toHaveCount(0);
@@ -729,6 +788,7 @@ test('shows unprocessed values and field preview errors without changing datasou
     .toHaveText('字段包含无法识别的 Processor，暂时无法生成预览。');
   await closeFieldPreview(dialog);
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue.schemaSelections).toEqual([
@@ -766,6 +826,7 @@ test('configures merge and filter processors while preserving unknown and incomp
     }]
   });
 
+  await openDatasourceSettings(page);
   const fieldCard = page.getByTestId('datasource-selected-field-users[]');
   const processorTags = page.getByTestId('datasource-selected-field-processors-users[]');
   const previewButton = page.getByTestId('datasource-selected-field-preview-users[]');
@@ -808,6 +869,7 @@ test('configures merge and filter processors while preserving unknown and incomp
   await dialog.getByTestId('processor-filter-condition-type-0').selectOption('gt');
   await dialog.getByTestId('processor-filter-value-0').fill('18');
   await dialog.getByTestId('datasource-processor-apply').click();
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
 
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
@@ -871,6 +933,7 @@ test('translates selected field labels to Chinese by original label', async ({ p
   });
   await switchLocaleToChinese(page);
 
+  await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-selected-fields-translate')).toHaveText('翻译为中文');
   await page.getByTestId('datasource-selected-fields-translate').click();
 
@@ -883,6 +946,7 @@ test('translates selected field labels to Chinese by original label', async ({ p
   await expect(page.getByTestId('datasource-selected-field-label-nested.hello')).toHaveText('你好');
   await expect(page.getByTestId('datasource-selected-field-label-functionName')).toHaveText('函数名称');
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue.schemaSelections).toEqual([
@@ -895,6 +959,7 @@ test('translates selected field labels to Chinese by original label', async ({ p
 test('edits API datasource lists and saves typed body values', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
 
   await expect(page.getByTestId('datasource-api-panel')).toBeVisible();
   await expect(page.getByTestId('datasource-test-button')).toHaveCount(0);
@@ -928,6 +993,9 @@ test('edits API datasource lists and saves typed body values', async ({ page }) 
   await page.getByTestId('datasource-body-value-1').fill('{"active":true,"roles":["admin"]}');
   await expect(page.getByTestId('datasource-body-error-1')).toHaveCount(0);
 
+  await closeDatasourceSettings(page);
+  await expect(page.getByTestId('datasource-summary')).toContainText('/v1/users');
+  await expect(page.getByTestId('datasource-summary')).toContainText('POST');
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
@@ -982,11 +1050,13 @@ test('loads API domain options and saves the selected domain uuid', async ({ pag
   });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
 
   await expect(page.getByTestId('datasource-domain')).toContainText('管理台');
   await page.getByTestId('datasource-domain').selectOption('manager');
   await page.getByTestId('datasource-path').fill('/v1/users');
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toMatchObject({
@@ -1045,9 +1115,13 @@ test('shares one API domain request across multiple datasource editors', async (
     ]
   });
 
-  await expect(page.getByTestId('datasource-domain')).toHaveCount(2);
-  await expect(page.getByTestId('datasource-domain').first()).toHaveValue('mokelay');
-  await expect(page.getByTestId('datasource-domain').nth(1)).toHaveValue('mokelay');
+  await expect(page.getByTestId('datasource-settings-open')).toHaveCount(2);
+  let settingsDialog = await openDatasourceSettings(page, 0);
+  await expect(settingsDialog.getByTestId('datasource-domain')).toHaveValue('mokelay');
+  await closeDatasourceSettings(page);
+  settingsDialog = await openDatasourceSettings(page, 1);
+  await expect(settingsDialog.getByTestId('datasource-domain')).toHaveValue('mokelay');
+  await closeDatasourceSettings(page);
   await expect.poll(() => apiState.apiDomainRequests.length).toBe(1);
 });
 
@@ -1091,6 +1165,7 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
   });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
 
   await expect(page.getByTestId('datasource-api-import-panel')).toBeVisible();
   await expect(page.getByTestId('datasource-import-open-mokelay')).toBeVisible();
@@ -1120,6 +1195,7 @@ test('imports API datasource from a Mokelay orchestration API', async ({ page })
   await page.getByTestId('datasource-response-schema-select-button').click();
   await expect(page.getByTestId('datasource-form-field-ok')).toBeVisible();
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue).toMatchObject({
@@ -1367,6 +1443,7 @@ test('imports API datasource from APIFox project and API ID', async ({ page }) =
   expect(importedSchema.properties.data.items.properties.age.type).toBe('number');
   await closeFullSchema(fullSchemaDialog);
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue).toMatchObject({
@@ -1443,6 +1520,7 @@ test('imports APIFox relative API path with the selected API domain', async ({ p
 
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
   const importDialog = await openApifoxApiImport(page);
   await importDialog.getByTestId('datasource-import-apifox-project').selectOption('mokelay-project');
@@ -1457,6 +1535,7 @@ test('imports APIFox relative API path with the selected API domain', async ({ p
   await expect(page.getByTestId('datasource-query-key-0')).toHaveValue('debug');
   await expect(page.getByTestId('datasource-body-key-0')).toHaveValue('email');
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toMatchObject({
@@ -1678,6 +1757,7 @@ test('imports APIFox grouped query parameters and request body parameters', asyn
   await expect(page.getByTestId('datasource-body-key-1')).toHaveValue('bbbbbb');
   await expect(page.getByTestId('datasource-response-example')).toHaveValue(JSON.stringify(responseExample, null, 2));
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue).toMatchObject({
@@ -1760,6 +1840,7 @@ test('does not overwrite API datasource when APIFox method is unsupported', asyn
 
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
   await page.getByTestId('datasource-domain').selectOption('existing');
   await page.getByTestId('datasource-path').fill('/keep');
   const importDialog = await openApifoxApiImport(page);
@@ -1776,6 +1857,7 @@ test('does not overwrite API datasource when APIFox method is unsupported', asyn
 test('saves API datasource file body metadata without file content', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
 
   const fileBuffer = Buffer.from('hello file');
 
@@ -1789,6 +1871,7 @@ test('saves API datasource file body metadata without file content', async ({ pa
     buffer: fileBuffer
   });
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
@@ -1811,7 +1894,9 @@ test('saves API datasource file body metadata without file content', async ({ pa
     queryData: []
   });
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('preview-button').click();
+  await page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open').click();
   await expect(
     page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-body-value-0')
   ).toHaveValue('avatar.txt');
@@ -1823,6 +1908,7 @@ test('parses an API response and saves only selected Schema fields', async ({ pa
   });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
 
   const apiSchema = {
     type: 'object',
@@ -1926,6 +2012,7 @@ test('parses an API response and saves only selected Schema fields', async ({ pa
   await expect(fullSchemaDialog.getByTestId('datasource-json-schema')).toHaveValue(JSON.stringify(apiSchema, null, 2));
   await closeFullSchema(fullSchemaDialog);
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toEqual({
@@ -1970,6 +2057,7 @@ test('uploads API datasource file body params as multipart form data', async ({ 
   });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
 
   const fileBuffer = Buffer.from('hello multipart');
   const apiSchema = {
@@ -2054,6 +2142,7 @@ test('requires selecting a file before generating API datasource schema', async 
   });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
 
   let requestCount = 0;
   await page.route('**/datasource-missing-file**', async (route) => {
@@ -2091,6 +2180,7 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
   });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
 
   const responseData = {
     pages: [
@@ -2277,6 +2367,7 @@ test('parses API datasource response with empty arrays into JSON Schema', async 
   });
   await switchLocaleToChinese(page);
   await addEditorTool(page, '数据源编辑器');
+  await openDatasourceSettings(page);
 
   const responseData = {
     type: 'API',
@@ -2394,10 +2485,15 @@ test('normalizes a saved JSON datasource to the default API config', async ({ pa
   });
 
   await expect(page.getByTestId('editor-datasource-tool')).toBeVisible();
+  await expect(page.getByTestId('datasource-settings-open')).toBeVisible();
+  await expect(page.getByTestId('datasource-summary')).toContainText('API');
+  await expect(page.getByTestId('datasource-api-panel')).not.toBeVisible();
+  await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-api-panel')).toBeVisible();
   await expect(page.getByTestId('datasource-raw-data')).toHaveCount(0);
   await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   expect(getDatasourceValue(await getSavedBlocks(page))).toEqual({
     type: 'API',
@@ -2409,9 +2505,11 @@ test('normalizes a saved JSON datasource to the default API config', async ({ pa
     queryData: []
   });
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('preview-button').click();
   await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
-  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-api-panel')).toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open')).toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-api-panel')).not.toBeVisible();
   expect(pageErrors).toEqual([]);
 });
 
@@ -2438,8 +2536,10 @@ test('migrates a saved API datasource host to a matching domain uuid', async ({ 
     ]
   });
 
+  await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page));
   expect(datasourceValue).toMatchObject({
@@ -2473,6 +2573,7 @@ test('clears an unmatched saved API datasource host and blocks execution', async
   });
   await switchLocaleToChinese(page);
 
+  await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-domain')).toHaveValue('');
   await addResponseExampleCard(page);
   await page.getByTestId('datasource-json-schema-parse-button').click();
@@ -2530,12 +2631,15 @@ test('loads saved API datasource in editor and preview', async ({ page }) => {
   });
 
   await expect(page.getByTestId('editor-datasource-tool')).toBeVisible();
+  await expect(page.getByTestId('datasource-summary')).toContainText('/v1/users');
+  await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-api-panel')).toBeVisible();
   await expect(page.getByTestId('datasource-domain')).toHaveValue('mokelay');
   await expect(page.getByTestId('datasource-header-key-0')).toHaveValue('Authorization');
   await expect(page.getByTestId('datasource-body-value-0')).toHaveValue('20');
   await expect(page.getByTestId('datasource-body-value-1')).toHaveValue(JSON.stringify([1, 2, 3], null, 2));
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('save-button').click();
   const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
   expect(datasourceValue.headerData).toEqual([{ key: 'Authorization', value: 'Bearer token' }]);
@@ -2545,6 +2649,7 @@ test('loads saved API datasource in editor and preview', async ({ page }) => {
   ]);
   expect(datasourceValue.queryData).toEqual([{ key: 'page', value: '1' }]);
 
+  await closeDatasourceSettings(page);
   await page.getByTestId('preview-button').click();
   await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
   await expect(page.getByTestId('datasource-header-add')).toHaveCount(0);

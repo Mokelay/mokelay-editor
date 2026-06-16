@@ -85,6 +85,7 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
 import { computed, reactive, ref, shallowRef, triggerRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import JsonTreeView from '@/blocks/components/JsonTreeView.vue';
+import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
 import {
   getApi,
   getBuiltInApi,
@@ -161,6 +162,7 @@ const props = defineProps<MDatasourceEditorProps & {
 }>();
 
 const { t } = useI18n();
+const rootRef = ref<HTMLElement | null>(null);
 const normalizedInitialValue = normalizeApiDatasource(props.value);
 const bodyDataTypeOptions = bodyDataTypes;
 const jsonSchemaValue = shallowRef<JSONSchema | undefined>();
@@ -170,6 +172,8 @@ const schemaTranslationLoading = ref(false);
 const schemaTranslationError = ref('');
 const processorFieldPath = ref<string | null>(null);
 const processorPreviewFieldPath = ref<string | null>(null);
+const shouldRestoreSettingsAfterProcessorDialog = ref(false);
+const shouldRestoreSettingsAfterProcessorPreviewDialog = ref(false);
 let responseExampleId = 0;
 const responseExamples = shallowRef<ResponseExampleState[]>(createResponseExampleStates());
 const schemaDataTypeFilter = ref<SchemaDataTypeFilter>('all');
@@ -183,6 +187,8 @@ const apiDomainOptions = ref<ApiDomainRecord[]>([]);
 const apiDomainLoading = ref(false);
 const apiDomainError = ref('');
 const hasLoadedApiDomains = ref(false);
+const settingsDialogRef = ref<HTMLDialogElement | null>(null);
+const isSettingsDialogOpen = ref(false);
 const apiImportSource = ref<ApiImportSource>('mokelay');
 const apiImportDialogRef = ref<HTMLDialogElement | null>(null);
 const isApiImportDialogOpen = ref(false);
@@ -248,6 +254,17 @@ const isResponseCaptureBusy = computed(() => responseExamples.value.some((item) 
 const mokelayApiOptions = computed(() => mokelayApiOptionsBySource.value[mokelayApiSource.value]);
 const isApiDomainSelectDisabled = computed(() => isReadOnly.value || apiDomainLoading.value || !apiDomainOptions.value.length);
 const apiImportDialogTitle = computed(() => t(`datasource.import.sources.${apiImportSource.value}`));
+const datasourceSummaryDomain = computed(() => {
+  const rawDomain = apiState.domain.trim();
+  if (!rawDomain) {
+    return t('datasource.summary.emptyDomain');
+  }
+
+  const matchedDomain = apiDomainOptions.value.find((domain) => domain.uuid === rawDomain);
+  return matchedDomain ? `${matchedDomain.alias} (${matchedDomain.host})` : rawDomain;
+});
+const datasourceSummaryPath = computed(() => apiState.path.trim() || t('datasource.summary.emptyPath'));
+const datasourceSummaryMethod = computed(() => apiState.method || t('datasource.summary.emptyMethod'));
 const apiDomainEmptyOptionText = computed(() => {
   if (apiDomainLoading.value) {
     return t('datasource.import.loadingApiDomains');
@@ -266,6 +283,8 @@ const canImportApi = computed(() => {
 
   return Boolean(selectedApifoxProjectId.value && apifoxApiId.value.trim());
 });
+
+useEditorBlockToolbarAlignment(rootRef);
 
 function formatJsonValue(value: JsonValue) {
   return JSON.stringify(value, null, 2);
@@ -508,6 +527,34 @@ function applyImportedApiDatasource(imported: ImportedApiDatasource) {
   syncTransientSchemaState(imported.datasource.schemaSelections, imported.responseExamples);
   apiImportError.value = '';
   emitApiChange();
+}
+
+function openSettingsDialog() {
+  isSettingsDialogOpen.value = true;
+  if (!settingsDialogRef.value?.open) {
+    settingsDialogRef.value?.showModal();
+  }
+}
+
+function closeSettingsDialog() {
+  isSettingsDialogOpen.value = false;
+  if (settingsDialogRef.value?.open) {
+    settingsDialogRef.value.close();
+  }
+}
+
+function captureSettingsDialogRestoreState() {
+  const shouldRestore = isSettingsDialogOpen.value;
+  if (shouldRestore) {
+    closeSettingsDialog();
+  }
+  return shouldRestore;
+}
+
+function restoreSettingsDialog(shouldRestore: boolean) {
+  if (shouldRestore) {
+    openSettingsDialog();
+  }
 }
 
 function setApiImportSource(value: ApiImportSource) {
@@ -980,19 +1027,27 @@ function removeSchemaSelection(path: string) {
 }
 
 function openProcessorDialog(path: string) {
+  shouldRestoreSettingsAfterProcessorDialog.value = captureSettingsDialogRestoreState();
   processorFieldPath.value = path;
 }
 
 function closeProcessorDialog() {
+  const shouldRestore = shouldRestoreSettingsAfterProcessorDialog.value;
   processorFieldPath.value = null;
+  shouldRestoreSettingsAfterProcessorDialog.value = false;
+  restoreSettingsDialog(shouldRestore);
 }
 
 function openProcessorPreviewDialog(path: string) {
+  shouldRestoreSettingsAfterProcessorPreviewDialog.value = captureSettingsDialogRestoreState();
   processorPreviewFieldPath.value = path;
 }
 
 function closeProcessorPreviewDialog() {
+  const shouldRestore = shouldRestoreSettingsAfterProcessorPreviewDialog.value;
   processorPreviewFieldPath.value = null;
+  shouldRestoreSettingsAfterProcessorPreviewDialog.value = false;
+  restoreSettingsDialog(shouldRestore);
 }
 
 function applyFieldProcessors(processors: ProcessorConfig[]) {
@@ -1008,8 +1063,11 @@ function applyFieldProcessors(processors: ProcessorConfig[]) {
         }
       : field
   ));
+  const shouldRestore = shouldRestoreSettingsAfterProcessorDialog.value;
   processorFieldPath.value = null;
+  shouldRestoreSettingsAfterProcessorDialog.value = false;
   emitCurrentDatasource();
+  restoreSettingsDialog(shouldRestore);
 }
 
 async function translateSchemaSelectionLabels() {
@@ -1334,12 +1392,61 @@ watch(
 </script>
 
 <template>
-  <div class="ce-datasource-tool" data-testid="editor-datasource-tool">
-    <div class="ce-datasource-tool__header">
-      <div class="ce-datasource-tool__title">{{ t('datasource.title') }}</div>
+  <div ref="rootRef" class="ce-datasource-tool" data-testid="editor-datasource-tool">
+    <div class="ce-datasource-tool__trigger-row">
+      <button
+        class="ce-datasource-tool__settings-button"
+        type="button"
+        data-testid="datasource-settings-open"
+        @click="openSettingsDialog"
+      >
+        {{ t('datasource.actions.settings') }}
+      </button>
+      <div class="ce-datasource-tool__summary" data-testid="datasource-summary">
+        <span class="ce-datasource-tool__summary-item ce-datasource-tool__summary-item--type">API</span>
+        <span class="ce-datasource-tool__summary-item">
+          <span class="ce-datasource-tool__summary-label">{{ t('datasource.summary.domain') }}</span>
+          <span class="ce-datasource-tool__summary-value">{{ datasourceSummaryDomain }}</span>
+        </span>
+        <span class="ce-datasource-tool__summary-item">
+          <span class="ce-datasource-tool__summary-label">{{ t('datasource.summary.path') }}</span>
+          <span class="ce-datasource-tool__summary-value">{{ datasourceSummaryPath }}</span>
+        </span>
+        <span class="ce-datasource-tool__summary-item">
+          <span class="ce-datasource-tool__summary-label">{{ t('datasource.summary.method') }}</span>
+          <span class="ce-datasource-tool__summary-value">{{ datasourceSummaryMethod }}</span>
+        </span>
+      </div>
     </div>
 
-    <div class="ce-datasource-tool__panel" data-testid="datasource-api-panel">
+    <dialog
+      ref="settingsDialogRef"
+      class="ce-datasource-tool__settings-dialog"
+      data-testid="datasource-settings-dialog"
+      :aria-hidden="!isSettingsDialogOpen"
+      aria-labelledby="datasource-settings-dialog-title"
+      @close="isSettingsDialogOpen = false"
+    >
+      <div class="ce-datasource-tool__settings-dialog-panel">
+        <div class="ce-datasource-tool__import-dialog-header">
+          <h3
+            id="datasource-settings-dialog-title"
+            class="ce-datasource-tool__import-dialog-title"
+            data-testid="datasource-settings-dialog-title"
+          >
+            {{ t('datasource.settingsDialogTitle') }}
+          </h3>
+          <button
+            class="ce-datasource-tool__import-dialog-close"
+            type="button"
+            data-testid="datasource-settings-close"
+            @click="closeSettingsDialog"
+          >
+            {{ t('editor.close') }}
+          </button>
+        </div>
+        <div class="ce-datasource-tool__settings-dialog-body">
+          <div class="ce-datasource-tool__panel" data-testid="datasource-api-panel">
       <section v-if="edit" class="ce-datasource-tool__config-section" data-testid="datasource-import-config">
         <div class="ce-datasource-tool__config-section-header">
           <div class="ce-datasource-tool__config-section-title">{{ t('datasource.sections.importApi') }}</div>
@@ -1380,16 +1487,17 @@ watch(
         </div>
       </section>
 
-      <dialog
-        v-if="edit"
-        ref="apiImportDialogRef"
-        class="ce-datasource-tool__import-dialog"
-        data-testid="datasource-api-import-dialog"
-        :aria-hidden="!isApiImportDialogOpen"
-        aria-labelledby="datasource-api-import-dialog-title"
-        @close="isApiImportDialogOpen = false"
-      >
-        <div class="ce-datasource-tool__import-dialog-panel">
+      <Teleport to="body">
+        <dialog
+          v-if="edit"
+          ref="apiImportDialogRef"
+          class="ce-datasource-tool__import-dialog"
+          data-testid="datasource-api-import-dialog"
+          :aria-hidden="!isApiImportDialogOpen"
+          aria-labelledby="datasource-api-import-dialog-title"
+          @close="isApiImportDialogOpen = false"
+        >
+          <div class="ce-datasource-tool__import-dialog-panel">
           <div class="ce-datasource-tool__import-dialog-header">
             <h3
               id="datasource-api-import-dialog-title"
@@ -1498,8 +1606,9 @@ watch(
               {{ apiImportLoading ? t('datasource.actions.importingApi') : t('datasource.actions.importApi') }}
             </button>
           </div>
-        </div>
-      </dialog>
+          </div>
+        </dialog>
+      </Teleport>
 
       <section class="ce-datasource-tool__config-section" data-testid="datasource-request-config">
         <div class="ce-datasource-tool__config-section-header">
@@ -1782,16 +1891,17 @@ watch(
         </div>
       </section>
 
-      <dialog
-        v-if="edit"
-        ref="responseMockDialogRef"
-        class="ce-datasource-tool__import-dialog ce-datasource-tool__response-mock-dialog"
-        data-testid="datasource-response-mock-dialog"
-        :aria-hidden="!isResponseMockDialogOpen"
-        aria-labelledby="datasource-response-mock-dialog-title"
-        @close="isResponseMockDialogOpen = false; responseMockTargetIndex = null"
-      >
-        <div class="ce-datasource-tool__import-dialog-panel">
+      <Teleport to="body">
+        <dialog
+          v-if="edit"
+          ref="responseMockDialogRef"
+          class="ce-datasource-tool__import-dialog ce-datasource-tool__response-mock-dialog"
+          data-testid="datasource-response-mock-dialog"
+          :aria-hidden="!isResponseMockDialogOpen"
+          aria-labelledby="datasource-response-mock-dialog-title"
+          @close="isResponseMockDialogOpen = false; responseMockTargetIndex = null"
+        >
+          <div class="ce-datasource-tool__import-dialog-panel">
           <div class="ce-datasource-tool__import-dialog-header">
             <h3 id="datasource-response-mock-dialog-title" class="ce-datasource-tool__import-dialog-title">
               {{ t('datasource.responseMock.title') }}
@@ -1934,8 +2044,9 @@ watch(
               {{ isResponseCaptureBusy ? t('datasource.actions.capturingResponseExample') : t('datasource.actions.capture') }}
             </button>
           </div>
-        </div>
-      </dialog>
+          </div>
+        </dialog>
+      </Teleport>
 
       <section class="ce-datasource-tool__config-section" data-testid="datasource-response-config">
         <div class="ce-datasource-tool__config-section-header">
@@ -2252,15 +2363,16 @@ watch(
           </p>
         </div>
 
-      <dialog
-        ref="fullSchemaDialogRef"
-        class="ce-datasource-tool__import-dialog ce-datasource-tool__schema-dialog"
-        data-testid="datasource-full-schema-dialog"
-        :aria-hidden="!isFullSchemaDialogOpen"
-        aria-labelledby="datasource-full-schema-dialog-title"
-        @close="isFullSchemaDialogOpen = false"
-      >
-        <div class="ce-datasource-tool__import-dialog-panel">
+      <Teleport to="body">
+        <dialog
+          ref="fullSchemaDialogRef"
+          class="ce-datasource-tool__import-dialog ce-datasource-tool__schema-dialog"
+          data-testid="datasource-full-schema-dialog"
+          :aria-hidden="!isFullSchemaDialogOpen"
+          aria-labelledby="datasource-full-schema-dialog-title"
+          @close="isFullSchemaDialogOpen = false"
+        >
+          <div class="ce-datasource-tool__import-dialog-panel">
           <div class="ce-datasource-tool__import-dialog-header">
             <h3
               id="datasource-full-schema-dialog-title"
@@ -2291,12 +2403,16 @@ watch(
               {{ fullSchemaError }}
             </p>
           </div>
-        </div>
-      </dialog>
+          </div>
+        </dialog>
+      </Teleport>
     </div>
         </div>
       </section>
     </div>
+        </div>
+      </div>
+    </dialog>
     <ProcessorConfigDialog
       :open="Boolean(processorFieldPath)"
       :field="processorField"
@@ -2316,27 +2432,103 @@ watch(
 <style scoped>
 .ce-datasource-tool {
   width: 100%;
-  border: 1px solid rgb(226 232 240);
-  border-radius: 8px;
-  background: rgb(255 255 255);
   color: rgb(15 23 42);
   font-size: 14px;
   line-height: 20px;
 }
 
-.ce-datasource-tool__header {
+.ce-datasource-tool__trigger-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 12px;
-  border-bottom: 1px solid rgb(226 232 240);
 }
 
-.ce-datasource-tool__title {
-  font-size: 15px;
+.ce-datasource-tool__settings-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  border: 1px solid rgb(20 184 166 / 0.55);
+  border-radius: 8px;
+  padding: 6px 14px;
+  background: rgb(20 184 166);
+  color: rgb(255 255 255);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ce-datasource-tool__settings-button:hover {
+  background: rgb(13 148 136);
+}
+
+.ce-datasource-tool__summary {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ce-datasource-tool__summary-item {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: rgb(248 250 252);
+  color: rgb(51 65 85);
+  font-size: 12px;
   font-weight: 650;
+  line-height: 18px;
+}
+
+.ce-datasource-tool__summary-item--type {
+  border-color: rgb(191 219 254);
+  background: rgb(239 246 255);
+  color: rgb(29 78 216);
+}
+
+.ce-datasource-tool__summary-label {
+  flex: 0 0 auto;
+  color: rgb(100 116 139);
+}
+
+.ce-datasource-tool__summary-value {
+  min-width: 0;
+  overflow: hidden;
   color: rgb(15 23 42);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ce-datasource-tool__settings-dialog {
+  width: min(calc(100vw - 32px), 1120px);
+  max-height: min(calc(100vh - 32px), 900px);
+  border: 0;
+  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
+  color: rgb(15 23 42);
+}
+
+.ce-datasource-tool__settings-dialog::backdrop {
+  background: rgb(15 23 42 / 0.45);
+}
+
+.ce-datasource-tool__settings-dialog-panel {
+  display: flex;
+  max-height: inherit;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgb(255 255 255);
+}
+
+.ce-datasource-tool__settings-dialog-body {
+  overflow-y: auto;
 }
 
 .ce-datasource-tool__panel {
@@ -3065,9 +3257,17 @@ watch(
 }
 
 @media (max-width: 720px) {
-  .ce-datasource-tool__header {
+  .ce-datasource-tool__trigger-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .ce-datasource-tool__summary {
+    flex-direction: column;
+  }
+
+  .ce-datasource-tool__summary-item {
+    width: 100%;
   }
 
   .ce-datasource-tool__schema-header {
@@ -3113,13 +3313,7 @@ watch(
 }
 
 :global(.dark) .ce-datasource-tool {
-  border-color: rgb(51 65 85);
-  background: rgb(15 23 42);
   color: rgb(226 232 240);
-}
-
-:global(.dark) .ce-datasource-tool__header {
-  border-bottom-color: rgb(51 65 85);
 }
 
 :global(.dark) .ce-datasource-tool__schema-panel {
@@ -3157,8 +3351,38 @@ watch(
   color: rgb(241 245 249);
 }
 
-:global(.dark) .ce-datasource-tool__title {
+:global(.dark) .ce-datasource-tool__settings-button {
+  border-color: rgb(45 212 191 / 0.55);
+  background: rgb(15 118 110);
+  color: rgb(240 253 250);
+}
+
+:global(.dark) .ce-datasource-tool__settings-button:hover {
+  background: rgb(13 148 136);
+}
+
+:global(.dark) .ce-datasource-tool__summary-item {
+  border-color: rgb(51 65 85);
+  background: rgb(30 41 59);
+  color: rgb(203 213 225);
+}
+
+:global(.dark) .ce-datasource-tool__summary-item--type {
+  border-color: rgb(96 165 250 / 0.55);
+  background: rgb(30 64 175 / 0.32);
+  color: rgb(191 219 254);
+}
+
+:global(.dark) .ce-datasource-tool__summary-label {
+  color: rgb(148 163 184);
+}
+
+:global(.dark) .ce-datasource-tool__summary-value {
   color: rgb(241 245 249);
+}
+
+:global(.dark) .ce-datasource-tool__settings-dialog-panel {
+  background: rgb(15 23 42);
 }
 
 :global(.dark) .ce-datasource-tool__section-title,

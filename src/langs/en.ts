@@ -160,11 +160,20 @@ export const enMessages = {
   datasource: {
     toolboxTitle: 'Datasource Editor',
     title: 'Datasource',
+    settingsDialogTitle: 'Datasource settings',
     empty: 'No items',
     emptySchema: 'No field config yet. Select the Schema from a response example first.',
     emptySelectedFields: 'No fields selected.',
     noSelectableFields: 'This schema does not contain selectable fields.',
     noFieldsMatchingPath: 'No fields match this path.',
+    summary: {
+      domain: 'Domain',
+      path: 'Path',
+      method: 'Method',
+      emptyDomain: 'No domain selected',
+      emptyPath: 'No path set',
+      emptyMethod: 'No method set'
+    },
     fields: {
       domain: 'API domain',
       path: 'API path',
@@ -208,6 +217,7 @@ export const enMessages = {
       remove: 'Remove',
       refresh: 'Refresh',
       refreshing: 'Refreshing...',
+      settings: 'Datasource settings',
       importApi: 'Import',
       importingApi: 'Importing...',
       addResponseExample: 'Add response data',
