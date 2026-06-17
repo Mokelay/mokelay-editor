@@ -106,6 +106,12 @@ import {
 } from '@/utils/datasourceSchema';
 import { translateTextsToChinese } from '@/utils/translationsApi';
 import type { ImportedApiDatasource } from '@/utils/datasourceApiImport';
+import {
+  getDefaultApiDomainUuid,
+  listApiDomains,
+  normalizeApiDomainUuid,
+  type ApiDomainRecord
+} from '@/utils/apiDomains';
 
 type FieldsEditorCandidateSource = 'saved' | 'manual' | 'api' | 'response';
 
@@ -133,7 +139,12 @@ const fieldTranslationError = ref('');
 const apiImportSource = ref<DatasourceApiImportSource>('mokelay');
 const isApiImportDialogOpen = ref(false);
 const importedDatasource = shallowRef<MDatasourceApiObject | null>(null);
+const apiDomainOptions = ref<ApiDomainRecord[]>([]);
+const apiDomainLoading = ref(false);
+const apiDomainError = ref('');
+const hasLoadedApiDomains = ref(false);
 const isResponseMockDialogOpen = ref(false);
+const responseMockDomain = ref('');
 const responseCaptureLoading = ref(false);
 const responseCaptureError = ref('');
 const committedFields = ref<MFieldsEditorField[]>(normalizeFieldsEditorValue(props.value));
@@ -205,6 +216,8 @@ function createDraftFromSavedValue() {
   validationError.value = '';
   fieldTranslationError.value = '';
   responseCaptureError.value = '';
+  responseMockDomain.value = '';
+  apiDomainError.value = '';
   importedDatasource.value = null;
 }
 
@@ -330,10 +343,65 @@ function getRequestFieldsFromDatasource(datasource: MDatasourceApiObject): MFiel
   return [...headerFields, ...queryFields, ...bodyFields];
 }
 
+function getNormalizedImportedDatasourceDomain() {
+  const datasourceDomain = importedDatasource.value?.domain ?? '';
+  if (!apiDomainOptions.value.length) {
+    return responseMockDomain.value || datasourceDomain;
+  }
+
+  return normalizeApiDomainUuid(responseMockDomain.value, apiDomainOptions.value) ||
+    normalizeApiDomainUuid(datasourceDomain, apiDomainOptions.value) ||
+    getDefaultApiDomainUuid(apiDomainOptions.value);
+}
+
+function updateImportedDatasourceDomain(domain: string) {
+  const datasource = importedDatasource.value;
+  if (!datasource || !domain || datasource.domain === domain) {
+    return;
+  }
+
+  importedDatasource.value = normalizeApiDatasource({
+    ...datasource,
+    domain
+  });
+}
+
+function normalizeImportedDatasourceDomain() {
+  const domain = getNormalizedImportedDatasourceDomain();
+  if (!domain) {
+    return;
+  }
+
+  responseMockDomain.value = domain;
+  updateImportedDatasourceDomain(domain);
+}
+
+async function ensureApiDomainOptions(force = false) {
+  if (!force && hasLoadedApiDomains.value) {
+    normalizeImportedDatasourceDomain();
+    return;
+  }
+
+  apiDomainLoading.value = true;
+  apiDomainError.value = '';
+
+  try {
+    apiDomainOptions.value = await listApiDomains(force);
+    hasLoadedApiDomains.value = true;
+    normalizeImportedDatasourceDomain();
+  } catch (error) {
+    apiDomainError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    apiDomainLoading.value = false;
+  }
+}
+
 function applyImportedApiDatasource(imported: ImportedApiDatasource) {
   importedDatasource.value = normalizeApiDatasource(imported.datasource);
+  responseMockDomain.value = importedDatasource.value.domain;
   mergeFieldCandidates(getRequestFieldsFromDatasource(importedDatasource.value), 'api');
   responseCaptureError.value = '';
+  void ensureApiDomainOptions();
   mergeImportedResponseFields(imported);
 }
 
@@ -420,7 +488,7 @@ async function runResponseCapture(datasource: MDatasourceApiObject, options?: Da
   }
 }
 
-function captureResponseFields() {
+async function captureResponseFields() {
   if (isReadOnly.value || responseCaptureLoading.value) return;
 
   const datasource = importedDatasource.value;
@@ -429,13 +497,32 @@ function captureResponseFields() {
     return;
   }
 
-  if (hasConfiguredRequestKeys(datasource)) {
+  await ensureApiDomainOptions();
+  if (apiDomainError.value) {
+    responseCaptureError.value = apiDomainError.value;
+    return;
+  }
+
+  const domain = getNormalizedImportedDatasourceDomain();
+  if (!domain) {
+    responseCaptureError.value = t('datasource.validation.missingApiDomain');
+    return;
+  }
+
+  responseMockDomain.value = domain;
+  const datasourceWithDomain = normalizeApiDatasource({
+    ...datasource,
+    domain
+  });
+  updateImportedDatasourceDomain(domain);
+
+  if (hasConfiguredRequestKeys(datasourceWithDomain)) {
     responseCaptureError.value = '';
     isResponseMockDialogOpen.value = true;
     return;
   }
 
-  void runResponseCapture(datasource);
+  void runResponseCapture(datasourceWithDomain);
 }
 
 function closeResponseMockDialog() {
@@ -446,8 +533,17 @@ function captureResponseFieldsWithMock(payload: DatasourceResponseMockCapturePay
   const datasource = importedDatasource.value;
   if (!datasource || responseCaptureLoading.value) return;
 
+  const domain = payload.domain?.trim() || getNormalizedImportedDatasourceDomain();
+  if (!domain) {
+    responseCaptureError.value = t('datasource.validation.missingApiDomain');
+    return;
+  }
+
+  responseMockDomain.value = domain;
+  updateImportedDatasourceDomain(domain);
   void runResponseCapture(normalizeApiDatasource({
     ...datasource,
+    domain,
     headerData: payload.headerData,
     queryData: payload.queryData,
     bodyData: payload.bodyData
@@ -620,7 +716,7 @@ watch(
                   class="ce-fields-editor__primary-button"
                   type="button"
                   data-testid="fields-capture-response-fields"
-                  :disabled="!importedDatasource || responseCaptureLoading"
+                  :disabled="!importedDatasource || responseCaptureLoading || apiDomainLoading"
                   @click="captureResponseFields"
                 >
                   {{ responseCaptureLoading
@@ -840,7 +936,7 @@ watch(
         v-if="edit"
         :open="isApiImportDialogOpen"
         :source="apiImportSource"
-        :current-domain="importedDatasource?.domain"
+        :current-domain="responseMockDomain || importedDatasource?.domain"
         :readonly="isReadOnly"
         @close="closeApiImportDialog"
         @imported="applyImportedApiDatasource"
@@ -851,6 +947,10 @@ watch(
       <DatasourceResponseMockDialog
         v-if="edit"
         :open="isResponseMockDialogOpen"
+        :domain="responseMockDomain || importedDatasource?.domain"
+        :api-domains="apiDomainOptions"
+        :domain-loading="apiDomainLoading"
+        :domain-error="apiDomainError"
         :method="importedDatasource?.method"
         :header-data="responseMockHeaderData"
         :query-data="responseMockQueryData"

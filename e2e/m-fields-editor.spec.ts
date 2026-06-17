@@ -308,11 +308,18 @@ test('imports request fields from an APIFox API', async ({ page }) => {
 
 test('captures response fields with full variable paths after importing an API', async ({ page }) => {
   await resetEditor(page, {
-    apiDomains: [localApiDomain]
+    apiDomains: [
+      {
+        uuid: 'remote',
+        alias: 'Remote API',
+        host: 'https://api.example.com'
+      },
+      localApiDomain
+    ]
   });
   await mockApifoxApi(page, {
     openapi: '3.0.0',
-    servers: [{ url: 'http://127.0.0.1:4173' }],
+    servers: [{ url: 'https://api.example.com' }],
     paths: {
       '/fields-response': {
         post: {
@@ -367,10 +374,17 @@ test('captures response fields with full variable paths after importing an API',
   await dialog.getByTestId('fields-capture-response-fields').click();
   const responseMockDialog = page.getByTestId('datasource-response-mock-dialog');
   await expect(responseMockDialog).toBeVisible();
+  await expect(responseMockDialog.getByTestId('datasource-response-mock-domain')).toHaveValue('remote');
+  await responseMockDialog.getByTestId('datasource-response-mock-domain').selectOption('local');
   await responseMockDialog.getByTestId('datasource-response-mock-header-0').fill('trace-1');
   await responseMockDialog.getByTestId('datasource-response-mock-query-0').fill('abc');
   await responseMockDialog.getByTestId('datasource-response-mock-body-0').fill('Ada');
+  const requestPromise = page.waitForRequest((request) =>
+    request.url().includes('/fields-response') && request.method() === 'POST'
+  );
   await responseMockDialog.getByTestId('datasource-response-mock-submit').click();
+  const request = await requestPromise;
+  expect(request.url()).toContain(`${localApiDomain.host}/fields-response`);
   await expect(responseMockDialog).not.toBeVisible();
 
   await expect(dialog.getByTestId('fields-empty')).toBeVisible();

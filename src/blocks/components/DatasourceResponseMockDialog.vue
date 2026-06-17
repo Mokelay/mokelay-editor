@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, shallowRef, triggerRef, watch } from 'vue';
+import { computed, nextTick, ref, shallowRef, triggerRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import {
   getDefaultBodyValue,
@@ -18,6 +18,7 @@ import {
   isJsonObjectValue,
   isJsonValue
 } from '@/utils/datasourceSchema';
+import type { ApiDomainRecord } from '@/utils/apiDomains';
 
 type BodyValueParseResult = {
   ok: true;
@@ -37,6 +38,7 @@ type ResponseMockBodyItem = {
 };
 
 export type DatasourceResponseMockCapturePayload = {
+  domain?: string;
   headerData: MDatasourceKeyValueItem[];
   queryData: MDatasourceKeyValueItem[];
   bodyData: MDatasourceBodyItem[];
@@ -45,6 +47,10 @@ export type DatasourceResponseMockCapturePayload = {
 
 const props = withDefaults(defineProps<{
   open: boolean;
+  domain?: string;
+  apiDomains?: ApiDomainRecord[];
+  domainLoading?: boolean;
+  domainError?: string;
   method?: MDatasourceApiMethod;
   headerData?: MDatasourceKeyValueItem[];
   queryData?: MDatasourceKeyValueItem[];
@@ -53,6 +59,10 @@ const props = withDefaults(defineProps<{
   loading?: boolean;
   error?: string;
 }>(), {
+  domain: '',
+  apiDomains: () => [],
+  domainLoading: false,
+  domainError: '',
   method: 'GET',
   headerData: () => [],
   queryData: () => [],
@@ -69,10 +79,21 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const dialogRef = ref<HTMLDialogElement | null>(null);
+const responseMockDomain = ref('');
 const responseMockHeaderData = ref<MDatasourceKeyValueItem[]>([]);
 const responseMockQueryData = ref<MDatasourceKeyValueItem[]>([]);
 const responseMockBodyData = shallowRef<ResponseMockBodyItem[]>([]);
 const localError = ref('');
+const shouldShowResponseMockDomain = computed(() =>
+  props.apiDomains.length > 0 || props.domainLoading || Boolean(props.domainError)
+);
+const responseMockDomainEmptyOptionText = computed(() => {
+  if (props.domainLoading) {
+    return t('datasource.import.loadingApiDomains');
+  }
+
+  return props.domainError || t('datasource.import.emptyApiDomains');
+});
 
 function formatJsonValue(value: JsonValue) {
   return JSON.stringify(value, null, 2);
@@ -190,6 +211,7 @@ function parseBodyValue(dataType: MDatasourceBodyDataType, inputValue: string): 
 }
 
 function initializeMockState() {
+  responseMockDomain.value = props.domain;
   responseMockHeaderData.value = props.headerData
     .filter((item) => item.key.trim())
     .map((item) => ({ ...item }));
@@ -258,6 +280,11 @@ function getResponseMockRequestOptions(): DatasourceRequestOptions | undefined {
 function captureResponseExampleWithMock() {
   if (props.loading) return;
 
+  if (shouldShowResponseMockDomain.value && !responseMockDomain.value.trim()) {
+    localError.value = t('datasource.validation.missingApiDomain');
+    return;
+  }
+
   const invalidBodyItem = responseMockBodyData.value.find((item) => Boolean(item.error));
   if (invalidBodyItem) {
     localError.value = t('datasource.validation.fixMockBeforeCapture');
@@ -276,6 +303,7 @@ function captureResponseExampleWithMock() {
 
   localError.value = '';
   emit('capture', {
+    domain: responseMockDomain.value.trim() || undefined,
     headerData: responseMockHeaderData.value,
     queryData: responseMockQueryData.value,
     bodyData: responseMockBodyData.value.map((item) => ({
@@ -338,6 +366,32 @@ watch(
 
       <div class="ce-datasource-tool__import-dialog-body ce-datasource-tool__response-mock-body">
         <p class="ce-datasource-tool__section-copy">{{ t('datasource.responseMock.help') }}</p>
+
+        <section v-if="shouldShowResponseMockDomain" class="ce-datasource-tool__response-mock-section">
+          <label class="ce-datasource-tool__field">
+            <span class="ce-datasource-tool__label">{{ t('datasource.fields.domain') }}</span>
+            <select
+              class="ce-datasource-tool__input"
+              data-testid="datasource-response-mock-domain"
+              :disabled="loading || domainLoading || !apiDomains.length"
+              :value="responseMockDomain"
+              @change="responseMockDomain = ($event.target as HTMLSelectElement).value"
+            >
+              <option v-if="!apiDomains.length" value="">
+                {{ responseMockDomainEmptyOptionText }}
+              </option>
+              <option v-else-if="!responseMockDomain" value="">
+                {{ t('datasource.import.selectApiDomain') }}
+              </option>
+              <option v-for="domainOption in apiDomains" :key="domainOption.uuid" :value="domainOption.uuid">
+                {{ domainOption.alias }} ({{ domainOption.host }})
+              </option>
+            </select>
+          </label>
+          <p v-if="domainError" class="ce-datasource-tool__error" data-testid="datasource-response-mock-domain-error">
+            {{ domainError }}
+          </p>
+        </section>
 
         <section v-if="responseMockHeaderData.length" class="ce-datasource-tool__response-mock-section">
           <div class="ce-datasource-tool__section-title">{{ t('datasource.sections.headers') }}</div>
@@ -557,6 +611,19 @@ watch(
   font-size: 13px;
 }
 
+.ce-datasource-tool__field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ce-datasource-tool__label {
+  color: rgb(51 65 85);
+  font-size: 13px;
+  font-weight: 650;
+}
+
 .ce-datasource-tool__input,
 .ce-datasource-tool__textarea {
   width: 100%;
@@ -673,6 +740,7 @@ watch(
   color: rgb(226 232 240);
 }
 
+:global(.dark) .ce-datasource-tool__label,
 :global(.dark) .ce-datasource-tool__section-copy {
   color: rgb(148 163 184);
 }
