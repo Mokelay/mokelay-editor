@@ -137,7 +137,9 @@ export const zhMessages = {
       index: '显示序号列',
       selection: '显示多选列',
       columns: '列配置',
-      data: '数据源'
+      data: '数据源',
+      ds: '数据源',
+      value: '值 JSON'
     },
     columnsEditor: {
       settingsDialogTitle: '高级表格列设置',

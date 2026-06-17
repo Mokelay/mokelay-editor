@@ -137,7 +137,9 @@ export const enMessages = {
       index: 'Show index column',
       selection: 'Show selection column',
       columns: 'Columns',
-      data: 'Datasource'
+      data: 'Datasource',
+      ds: 'Datasource',
+      value: 'Value JSON'
     },
     columnsEditor: {
       settingsDialogTitle: 'Advanced table column settings',

@@ -28,7 +28,9 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   const blocks = await getSavedBlocks(page);
   const tableBlock = blocks.find((block) => block.type === 'MAdvanceTable');
   expect(tableBlock?.data?.columns).toBeUndefined();
+  expect(tableBlock?.data?.ds).toBeUndefined();
   expect(tableBlock?.data?.data).toBeUndefined();
+  expect(tableBlock?.data?.value).toEqual({ data: [] });
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MAdvanceTable')).toBeVisible();
@@ -106,13 +108,15 @@ test('loads saved advanced table datasource blocks in editor', async ({ page }) 
               fixed: null
             }
           ],
-          data: [
-            {
-              name: 'Mokelay 页面',
-              tag: '设计',
-              tagType: 'warning'
-            }
-          ]
+          value: {
+            data: [
+              {
+                name: 'Mokelay 页面',
+                tag: '设计',
+                tagType: 'warning'
+              }
+            ]
+          }
         }
       },
       {
@@ -171,7 +175,7 @@ test('loads saved advanced table datasource blocks in editor', async ({ page }) 
               fixed: null
             }
           ],
-          data: {
+          ds: {
             type: 'API',
             domain: 'mokelay',
             path: '/advance-table-data',
@@ -193,6 +197,9 @@ test('loads saved advanced table datasource blocks in editor', async ({ page }) 
                 matchFieldPath: 'items[]'
               }
             ]
+          },
+          value: {
+            data: []
           }
         }
       }
@@ -201,7 +208,8 @@ test('loads saved advanced table datasource blocks in editor', async ({ page }) 
 
   const tables = page.getByTestId('editor-advance-table-tool');
   await expect(tables).toHaveCount(2);
-  await expect(tables.nth(0).getByTestId('advance-table')).toContainText('没有数据源');
+  await expect(tables.nth(0).getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
+  await expect(tables.nth(0).getByTestId('advance-table-cell-0-1')).toContainText('设计');
   await expect(tables.nth(1).getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
   await expect(tables.nth(1).getByTestId('advance-table-cell-0-1')).toContainText('设计');
   await expect(tables.nth(1).getByTestId('advance-table-cell-0-2')).toContainText('官网');
@@ -244,7 +252,7 @@ test('matches external datasource fields from advanced table property panel', as
               fixed: 'left'
             }
           ],
-          data: {
+          ds: {
             type: 'API',
             domain: 'mokelay',
             path: '/advance-table-data',
@@ -259,6 +267,9 @@ test('matches external datasource fields from advanced table property panel', as
                 type: 'array'
               }
             ]
+          },
+          value: {
+            data: []
           }
         }
       }
@@ -271,7 +282,7 @@ test('matches external datasource fields from advanced table property panel', as
   await expect(propertyButton).toBeVisible();
   await propertyButton.click();
   await expect(page.locator('[data-testid="tool-property-dialog"][open]')).toBeVisible();
-  await expect(page.getByTestId('tool-property-component-data')).toBeVisible();
+  await expect(page.getByTestId('tool-property-component-ds')).toBeVisible();
   await page.getByTestId('datasource-settings-open').click();
   const datasourceDialog = page.locator('[data-testid="datasource-settings-dialog"][open]').last();
   await expect(datasourceDialog.getByTestId('datasource-external-field-matching')).toBeVisible();
@@ -283,17 +294,32 @@ test('matches external datasource fields from advanced table property panel', as
   await page.getByTestId('save-button').click();
   const blocks = await getSavedBlocks(page);
   const tableBlock = blocks.find((block) => block.type === 'MAdvanceTable');
-  expect((tableBlock?.data?.data as any)?.matchingExternalFields).toEqual([
+  expect((tableBlock?.data?.ds as any)?.matchingExternalFields).toEqual([
     {
       label: '列表数据',
       variable: 'data',
       matchFieldPath: 'items[]'
     }
   ]);
+  expect(tableBlock?.data).not.toHaveProperty('data');
 });
 
 test('configures advanced table columns from property panel fields editor', async ({ page }) => {
   await switchLocaleToChinese(page);
+  await page.route('**/api/mokelay/ai-translate', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        data: {
+          translations: {
+            name: '名称'
+          }
+        }
+      })
+    });
+  });
   await page.route('**/advance-table-data', async (route) => {
     await route.fulfill({
       status: 200,
@@ -321,7 +347,7 @@ test('configures advanced table columns from property panel fields editor', asyn
           selection: false,
           columns: [
             {
-              columnName: '名称',
+              columnName: 'name',
               fieldVariable: 'name',
               fieldDataType: 'string',
               columnContent: [
@@ -337,7 +363,7 @@ test('configures advanced table columns from property panel fields editor', asyn
               fixed: 'left'
             }
           ],
-          data: {
+          ds: {
             type: 'API',
             domain: 'mokelay',
             path: '/advance-table-data',
@@ -359,6 +385,9 @@ test('configures advanced table columns from property panel fields editor', asyn
                 matchFieldPath: 'items[]'
               }
             ]
+          },
+          value: {
+            data: []
           }
         }
       }
@@ -378,6 +407,8 @@ test('configures advanced table columns from property panel fields editor', asyn
   await columnsDialog.getByTestId('fields-settings-open').click();
   const fieldsDialog = page.locator('[data-testid="fields-settings-dialog"][open]').last();
   await expect(fieldsDialog).toBeVisible();
+  await fieldsDialog.getByTestId('fields-translate-labels').click();
+  await expect(fieldsDialog.getByTestId('fields-label-0')).toHaveValue('名称');
   await fieldsDialog.getByTestId('fields-add').click();
   await fieldsDialog.getByTestId('fields-label-1').fill('优先级');
   await fieldsDialog.getByTestId('fields-variable-1').fill('priority');
@@ -385,6 +416,7 @@ test('configures advanced table columns from property panel fields editor', asyn
   await fieldsDialog.getByTestId('fields-save').click();
   await expect(fieldsDialog).not.toBeVisible();
 
+  await expect(columnsDialog.getByTestId('advance-table-column-name-0')).toHaveValue('名称');
   await expect(columnsDialog.getByTestId('advance-table-column-row-1')).toBeVisible();
   await columnsDialog.getByTestId('advance-table-column-name-1').fill('优先级列');
   await columnsDialog.getByTestId('advance-table-column-width-1').fill('160');

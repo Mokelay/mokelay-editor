@@ -478,7 +478,11 @@ export default class EditorToolFactory {
           }
         }
 
-        return typeof value === 'string' ? value : '';
+        if (typeof value === 'string' || typeof value === 'number') {
+          return String(value);
+        }
+
+        return '';
       }
 
       private setPropertyInputValidity(input: PropertyInput, message: string) {

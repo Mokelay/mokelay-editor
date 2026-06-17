@@ -592,13 +592,13 @@ export async function openToolPropertyPanel(page: Page, toolTestId: string) {
   const { settingsButton } = await expectToolToolbarBeside(page, toolTestId);
   await settingsButton.click();
 
-  const propertyButton = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '属性' });
+  const propertyButton = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: /属性|Properties/ });
   await expect(propertyButton).toBeVisible();
   await propertyButton.click();
 
   const propertyDialog = page.locator('[data-testid="tool-property-dialog"][open]');
   await expect(propertyDialog).toBeVisible();
-  await expect(page.getByTestId('tool-property-panel')).toBeVisible();
+  await expect(propertyDialog.getByTestId('tool-property-panel')).toBeVisible();
 
   return propertyDialog;
 }
@@ -607,7 +607,7 @@ export async function openToolEventsPanel(page: Page, toolTestId: string) {
   const { settingsButton } = await expectToolToolbarBeside(page, toolTestId);
   await settingsButton.click();
 
-  const eventButton = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '事件' });
+  const eventButton = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: /事件|Events/ });
   await expect(eventButton).toBeVisible();
   await eventButton.click();
 

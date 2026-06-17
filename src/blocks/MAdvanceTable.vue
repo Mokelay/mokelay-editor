@@ -28,7 +28,12 @@ export interface MAdvanceTableProps {
   index?: boolean;
   selection?: boolean;
   columns?: MAdvanceTableColumnConfig[];
-  data?: MDatasourceApiObject;
+  ds?: MDatasourceApiObject;
+  value?: MAdvanceTableValue;
+}
+
+export interface MAdvanceTableValue {
+  data: Record<string, unknown>[];
 }
 
 function getDatasourceExternalFields() {
@@ -70,14 +75,21 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
           component: MAdvanceTableColumnsEditor
         },
         {
-          key: 'data',
-          label: i18n.t('advanceTable.properties.data'),
+          key: 'ds',
+          label: i18n.t('advanceTable.properties.ds'),
           type: 'component' as const,
           component: MDatasourceEditor,
           getComponentProps: ({ value }) => ({
             value,
             matchingExternalFields: getDatasourceExternalFields()
           })
+        },
+        {
+          key: 'value',
+          label: i18n.t('advanceTable.properties.value'),
+          type: 'textarea' as const,
+          valueType: 'json' as const,
+          validationMessage: i18n.t('editor.invalidJson')
         }
       ];
     }
@@ -91,19 +103,44 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
     index: props.index === true,
     selection: props.selection === true,
     columns: normalizeColumns(props.columns),
-    data: normalizeDatasourceConfig(props.data)
+    ds: normalizeDatasourceConfig(props.ds),
+    value: normalizeAdvanceTableValue(props.value)
   }),
   serialize: (props) => {
-    const data = normalizeDatasourceConfig(props.data);
+    const ds = normalizeDatasourceConfig(props.ds);
     const columns = normalizeColumns(props.columns);
+    const value = normalizeAdvanceTableValue(props.value);
     return {
       index: props.index === true,
       selection: props.selection === true,
       ...(columns.length ? { columns } : {}),
-      ...(data ? { data } : {})
+      ...(ds ? { ds } : {}),
+      value
     };
   }
 });
+
+function normalizeAdvanceTableRows(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => isRecord(item))
+    .map((row) => ({ ...row }));
+}
+
+function normalizeAdvanceTableValue(value: unknown): MAdvanceTableValue {
+  if (!isRecord(value)) {
+    return {
+      data: []
+    };
+  }
+
+  return {
+    data: normalizeAdvanceTableRows(value.data)
+  };
+}
 
 function normalizeDatasourceConfig(value: unknown): MDatasourceApiObject | undefined {
   if (!isRecord(value)) {
@@ -131,30 +168,30 @@ const props = defineProps<MAdvanceTableProps & {
 const { t } = useI18n();
 const rootRef = ref<HTMLElement | null>(null);
 const selectedRows = ref(new Set<number>());
-const datasourceRows = shallowRef<Record<string, unknown>[]>([]);
+const tableValue = shallowRef<MAdvanceTableValue>(normalizeAdvanceTableValue(props.value));
 const datasourceLoading = ref(false);
 const datasourceError = ref('');
 let datasourceLoadId = 0;
 
 const normalizedColumns = computed(() => normalizeColumns(props.columns));
-const normalizedDatasource = computed(() => normalizeDatasourceConfig(props.data));
-const normalizedData = computed(() => datasourceRows.value);
+const normalizedDatasource = computed(() => normalizeDatasourceConfig(props.ds));
+const normalizedData = computed(() => tableValue.value.data);
 const hasConfiguredColumns = computed(() => normalizedColumns.value.length > 0);
 const displayRows = computed(() => hasConfiguredColumns.value ? normalizedData.value : []);
 const hasSelectionColumn = computed(() => props.selection === true);
 const hasIndexColumn = computed(() => props.index === true);
 const shouldShowEmptyRow = computed(() =>
   !hasConfiguredColumns.value ||
-  !normalizedDatasource.value ||
   datasourceLoading.value ||
   Boolean(datasourceError.value) ||
+  (!normalizedDatasource.value && !displayRows.value.length) ||
   !displayRows.value.length
 );
 const emptyMessage = computed(() => {
   if (!hasConfiguredColumns.value) return t('advanceTable.noColumns');
-  if (!normalizedDatasource.value) return t('advanceTable.noDatasource');
   if (datasourceLoading.value) return t('advanceTable.loading');
   if (datasourceError.value) return datasourceError.value;
+  if (!normalizedDatasource.value && !displayRows.value.length) return t('advanceTable.noDatasource');
   return t('advanceTable.empty');
 });
 const emptyColumnSpan = computed(() => Math.max(
@@ -175,19 +212,38 @@ function normalizeRuntimeRows(value: unknown): Record<string, unknown>[] | undef
   return value.map((row) => ({ ...row }));
 }
 
+function emitValueChange(value: MAdvanceTableValue) {
+  const payload: MAdvanceTableProps = {
+    edit: props.edit,
+    index: props.index,
+    selection: props.selection,
+    columns: props.columns,
+    ds: props.ds,
+    value
+  };
+  props.onToolChange?.(payload);
+  props.onChange?.(payload);
+}
+
+function setTableValue(value: unknown, emit = false) {
+  const normalizedValue = normalizeAdvanceTableValue(value);
+  tableValue.value = normalizedValue;
+  if (emit) {
+    emitValueChange(normalizedValue);
+  }
+}
+
 async function loadDatasourceRows() {
   const datasource = normalizedDatasource.value;
   const loadId = ++datasourceLoadId;
   selectedRows.value = new Set();
 
   if (!datasource) {
-    datasourceRows.value = [];
     datasourceLoading.value = false;
     datasourceError.value = '';
     return;
   }
 
-  datasourceRows.value = [];
   datasourceLoading.value = true;
   datasourceError.value = '';
 
@@ -207,7 +263,7 @@ async function loadDatasourceRows() {
       return;
     }
 
-    datasourceRows.value = rows;
+    setTableValue({ data: rows }, true);
   } catch {
     if (loadId !== datasourceLoadId) return;
     datasourceError.value = t('advanceTable.loadFailed');
@@ -407,7 +463,15 @@ function toggleAllRows() {
 }
 
 watch(
-  () => props.data,
+  () => props.value,
+  (value) => {
+    setTableValue(value);
+  },
+  { deep: true }
+);
+
+watch(
+  () => props.ds,
   () => {
     void loadDatasourceRows();
   },

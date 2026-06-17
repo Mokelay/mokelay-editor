@@ -128,6 +128,7 @@ function mergeFieldsIntoColumns(fields: MFieldsEditorField[]) {
 
     return {
       ...existingColumn,
+      columnName: field.label,
       fieldVariable: field.variable,
       fieldDataType: field.dataType
     };

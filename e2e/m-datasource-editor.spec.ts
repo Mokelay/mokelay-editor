@@ -2225,12 +2225,14 @@ test('parses API datasource response with mixed array item fields into anyOf JSO
           {
             id: '3SJpF3qjCu',
             data: {
-              data: [
-                {
-                  tag: '设计',
-                  name: 'Mokelay 页面'
-                }
-              ],
+              value: {
+                data: [
+                  {
+                    tag: '设计',
+                    name: 'Mokelay 页面'
+                  }
+                ]
+              },
               columns: [
                 {
                   fixed: 'left',
