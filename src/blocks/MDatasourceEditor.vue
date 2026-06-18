@@ -65,7 +65,16 @@ export interface MDatasourceEditorProps {
   edit: boolean;
   value?: MDatasourceApiObject;
   matchingExternalFields?: MDatasourceExternalField[];
+  showPageBreak?: boolean;
 }
+
+export type MDatasourceEditorRuntimeData = {
+  rawResponse?: JsonValue;
+  data?: JsonValue;
+  page: number;
+  pageSize: number;
+  total: number;
+};
 
 function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
   const normalized = normalizeDatasource(value);
@@ -85,7 +94,8 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
     value: normalizeApiDatasource(props.value),
-    matchingExternalFields: normalizeDatasourceExternalFields(props.matchingExternalFields)
+    matchingExternalFields: normalizeDatasourceExternalFields(props.matchingExternalFields),
+    showPageBreak: props.showPageBreak === true
   }),
   serialize: (props) => ({
     value: normalizeApiDatasource(props.value)
@@ -121,6 +131,7 @@ import {
   processorName,
   type ProcessorConfig
 } from '@/processors';
+import { resolveDatasourceRuntimeData } from '@/utils/datasourceRuntime';
 
 type KeyValueListName = 'headerData' | 'queryData';
 type BodyValueParseResult = {
@@ -149,7 +160,6 @@ type CombinedSchemaSelectionField = SchemaSelectionField & {
   source: SchemaFieldSource;
   selected: boolean;
 };
-
 const props = defineProps<MDatasourceEditorProps & {
   onChange?: (payload: MDatasourceEditorProps) => void;
   onToolChange?: (payload: MDatasourceEditorProps) => void;
@@ -195,6 +205,11 @@ const fullSchemaError = ref('');
 const isResponseMockDialogOpen = ref(false);
 const responseMockTargetIndex = ref<number | null>(null);
 const responseMockError = ref('');
+const runtimeData = shallowRef<MDatasourceEditorRuntimeData>({
+  page: 1,
+  pageSize: 10,
+  total: 0
+});
 const isReadOnly = computed(() => !props.edit);
 const configuredMatchingExternalFields = computed(() => normalizeDatasourceExternalFields(props.matchingExternalFields));
 const hasMatchingExternalFields = computed(() => configuredMatchingExternalFields.value.length > 0);
@@ -310,6 +325,26 @@ function normalizeSearchValue(value: string) {
   return value.trim().toLowerCase();
 }
 
+function normalizePositiveIntegerValue(value: unknown, fallback: number) {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : fallback;
+  const normalized = Math.trunc(parsed);
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : fallback;
+}
+
+function normalizeNonNegativeIntegerValue(value: unknown, fallback: number) {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : fallback;
+  const normalized = Math.trunc(parsed);
+  return Number.isFinite(normalized) && normalized >= 0 ? normalized : fallback;
+}
+
 function getSchemaPathDepth(path: string) {
   return path.split('.').filter(Boolean).length || 1;
 }
@@ -401,7 +436,8 @@ function getDatasourcePayload(value: MDatasourceApiObject): MDatasourceEditorPro
   return {
     edit: props.edit,
     value: normalizeApiDatasource(value),
-    matchingExternalFields: configuredMatchingExternalFields.value
+    matchingExternalFields: configuredMatchingExternalFields.value,
+    showPageBreak: props.showPageBreak === true
   };
 }
 
@@ -434,6 +470,34 @@ function emitCurrentDatasource() {
 
 function emitApiChange() {
   emitDatasource(buildApiDatasource());
+}
+
+function getMatchedRuntimeValue(fields: Array<{ variable: string; value?: JsonValue }>, variable: string) {
+  return fields.find((field) => field.variable === variable)?.value;
+}
+
+function normalizeDatasourceEditorRuntimeData(
+  rawResponse: JsonValue,
+  fields: Array<{ variable: string; value?: JsonValue }>
+): MDatasourceEditorRuntimeData {
+  const data = getMatchedRuntimeValue(fields, 'data');
+  return {
+    rawResponse,
+    data,
+    page: normalizePositiveIntegerValue(getMatchedRuntimeValue(fields, 'page'), 1),
+    pageSize: normalizePositiveIntegerValue(getMatchedRuntimeValue(fields, 'pageSize'), 10),
+    total: normalizeNonNegativeIntegerValue(getMatchedRuntimeValue(fields, 'total'), 0)
+  };
+}
+
+async function getData() {
+  const resolvedData = await resolveDatasourceRuntimeData(buildApiDatasource());
+  const normalizedRuntimeData = normalizeDatasourceEditorRuntimeData(
+    resolvedData.rawResponse,
+    resolvedData.matchingExternalFieldData
+  );
+  runtimeData.value = normalizedRuntimeData;
+  return normalizedRuntimeData;
 }
 
 function getBodyFileValue(file: File): MDatasourceBodyFileValue {
@@ -1151,6 +1215,10 @@ function getBodyValueInput(item: Pick<ApiStateBodyItem, 'dataType' | 'value'>) {
 }
 
 void ensureApiDomainOptions();
+
+defineExpose({
+  getData
+});
 
 watch(
   () => props.value,

@@ -136,10 +136,16 @@ export const zhMessages = {
     properties: {
       index: '显示序号列',
       selection: '显示多选列',
+      showPageBreak: '显示分页',
       columns: '列配置',
       data: '数据源',
-      ds: '数据源',
-      value: '值 JSON'
+      ds: '数据源'
+    },
+    pagination: {
+      label: '分页',
+      summary: '第 {start}-{end} 条，共 {total} 条 · 第 {page} / {totalPages} 页',
+      previous: '上一页',
+      next: '下一页'
     },
     columnsEditor: {
       settingsDialogTitle: '高级表格列设置',
@@ -186,7 +192,10 @@ export const zhMessages = {
       }
     },
     datasourceFields: {
-      data: '列表数据'
+      data: '列表数据',
+      page: '当前页',
+      pageSize: '每页条数',
+      total: '总数'
     },
     defaultRows: {
       first: {

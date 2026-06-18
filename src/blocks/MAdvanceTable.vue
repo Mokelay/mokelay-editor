@@ -27,13 +27,9 @@ export interface MAdvanceTableProps {
   edit: boolean;
   index?: boolean;
   selection?: boolean;
+  showPageBreak?: boolean;
   columns?: MAdvanceTableColumnConfig[];
   ds?: MDatasourceApiObject;
-  value?: MAdvanceTableValue;
-}
-
-export interface MAdvanceTableValue {
-  data: Record<string, unknown>[];
 }
 
 function getDatasourceExternalFields() {
@@ -41,6 +37,18 @@ function getDatasourceExternalFields() {
     {
       label: i18n.t('advanceTable.datasourceFields.data'),
       variable: 'data'
+    },
+    {
+      label: i18n.t('advanceTable.datasourceFields.page'),
+      variable: 'page'
+    },
+    {
+      label: i18n.t('advanceTable.datasourceFields.pageSize'),
+      variable: 'pageSize'
+    },
+    {
+      label: i18n.t('advanceTable.datasourceFields.total'),
+      variable: 'total'
     }
   ];
 }
@@ -69,6 +77,11 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
           type: 'checkbox' as const
         },
         {
+          key: 'showPageBreak',
+          label: i18n.t('advanceTable.properties.showPageBreak'),
+          type: 'checkbox' as const
+        },
+        {
           key: 'columns',
           label: i18n.t('advanceTable.properties.columns'),
           type: 'component' as const,
@@ -79,17 +92,11 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
           label: i18n.t('advanceTable.properties.ds'),
           type: 'component' as const,
           component: MDatasourceEditor,
-          getComponentProps: ({ value }) => ({
+          getComponentProps: ({ value, state }) => ({
             value,
-            matchingExternalFields: getDatasourceExternalFields()
+            matchingExternalFields: getDatasourceExternalFields(),
+            showPageBreak: state.showPageBreak === true
           })
-        },
-        {
-          key: 'value',
-          label: i18n.t('advanceTable.properties.value'),
-          type: 'textarea' as const,
-          valueType: 'json' as const,
-          validationMessage: i18n.t('editor.invalidJson')
         }
       ];
     }
@@ -102,45 +109,22 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
     edit: props.edit ?? false,
     index: props.index === true,
     selection: props.selection === true,
+    showPageBreak: props.showPageBreak === true,
     columns: normalizeColumns(props.columns),
-    ds: normalizeDatasourceConfig(props.ds),
-    value: normalizeAdvanceTableValue(props.value)
+    ds: normalizeDatasourceConfig(props.ds)
   }),
   serialize: (props) => {
     const ds = normalizeDatasourceConfig(props.ds);
     const columns = normalizeColumns(props.columns);
-    const value = normalizeAdvanceTableValue(props.value);
     return {
       index: props.index === true,
       selection: props.selection === true,
+      showPageBreak: props.showPageBreak === true,
       ...(columns.length ? { columns } : {}),
-      ...(ds ? { ds } : {}),
-      value
+      ...(ds ? { ds } : {})
     };
   }
 });
-
-function normalizeAdvanceTableRows(value: unknown): Record<string, unknown>[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .filter((item): item is Record<string, unknown> => isRecord(item))
-    .map((row) => ({ ...row }));
-}
-
-function normalizeAdvanceTableValue(value: unknown): MAdvanceTableValue {
-  if (!isRecord(value)) {
-    return {
-      data: []
-    };
-  }
-
-  return {
-    data: normalizeAdvanceTableRows(value.data)
-  };
-}
 
 function normalizeDatasourceConfig(value: unknown): MDatasourceApiObject | undefined {
   if (!isRecord(value)) {
@@ -158,28 +142,68 @@ import { computed, ref, shallowRef, watch } from 'vue';
 import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
 import { getInlineCustomComponentDefinition } from '@/editors/inlineCustomComponents';
 import { useI18n } from '@/i18n';
-import { resolveDatasourceRuntimeData } from '@/utils/datasourceRuntime';
+import {
+  resolveDatasourceRuntimeData,
+  type DatasourceRuntimeMatchingExternalFieldData
+} from '@/utils/datasourceRuntime';
 
 const props = defineProps<MAdvanceTableProps & {
   onChange?: (payload: MAdvanceTableProps) => void;
   onToolChange?: (payload: MAdvanceTableProps) => void;
 }>();
 
+type PaginationState = {
+  page: number;
+  pageSize: number;
+  total: number;
+};
+
 const { t } = useI18n();
 const rootRef = ref<HTMLElement | null>(null);
 const selectedRows = ref(new Set<number>());
-const tableValue = shallowRef<MAdvanceTableValue>(normalizeAdvanceTableValue(props.value));
+const tableData = shallowRef<Record<string, unknown>[]>([]);
+const paginationState = ref<PaginationState>({
+  page: 1,
+  pageSize: 10,
+  total: 0
+});
 const datasourceLoading = ref(false);
 const datasourceError = ref('');
 let datasourceLoadId = 0;
 
 const normalizedColumns = computed(() => normalizeColumns(props.columns));
 const normalizedDatasource = computed(() => normalizeDatasourceConfig(props.ds));
-const normalizedData = computed(() => tableValue.value.data);
+const normalizedData = computed(() => tableData.value);
 const hasConfiguredColumns = computed(() => normalizedColumns.value.length > 0);
 const displayRows = computed(() => hasConfiguredColumns.value ? normalizedData.value : []);
 const hasSelectionColumn = computed(() => props.selection === true);
 const hasIndexColumn = computed(() => props.index === true);
+const shouldShowPageBreak = computed(() => props.showPageBreak === true);
+const pagination = computed(() => {
+  const pageSize = normalizePositiveIntegerValue(paginationState.value.pageSize, 10);
+  const total = normalizeNonNegativeIntegerValue(paginationState.value.total, 0);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(normalizePositiveIntegerValue(paginationState.value.page, 1), 1), totalPages);
+  const start = total > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const end = total > 0 ? Math.min(currentPage * pageSize, total) : 0;
+
+  return {
+    currentPage,
+    end,
+    hasNextPage: currentPage < totalPages,
+    hasPreviousPage: currentPage > 1,
+    pageSize,
+    start,
+    total,
+    totalPages
+  };
+});
+const paginationSummary = computed(() => t('advanceTable.pagination.summary')
+  .replace('{start}', String(pagination.value.start))
+  .replace('{end}', String(pagination.value.end))
+  .replace('{total}', String(pagination.value.total))
+  .replace('{page}', String(pagination.value.currentPage))
+  .replace('{totalPages}', String(pagination.value.totalPages)));
 const shouldShowEmptyRow = computed(() =>
   !hasConfiguredColumns.value ||
   datasourceLoading.value ||
@@ -212,31 +236,54 @@ function normalizeRuntimeRows(value: unknown): Record<string, unknown>[] | undef
   return value.map((row) => ({ ...row }));
 }
 
-function emitValueChange(value: MAdvanceTableValue) {
-  const payload: MAdvanceTableProps = {
-    edit: props.edit,
-    index: props.index,
-    selection: props.selection,
-    columns: props.columns,
-    ds: props.ds,
-    value
-  };
-  props.onToolChange?.(payload);
-  props.onChange?.(payload);
+function normalizePositiveIntegerValue(value: unknown, fallback: number) {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : fallback;
+  const normalized = Math.trunc(parsed);
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : fallback;
 }
 
-function setTableValue(value: unknown, emit = false) {
-  const normalizedValue = normalizeAdvanceTableValue(value);
-  tableValue.value = normalizedValue;
-  if (emit) {
-    emitValueChange(normalizedValue);
-  }
+function normalizeNonNegativeIntegerValue(value: unknown, fallback: number) {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : fallback;
+  const normalized = Math.trunc(parsed);
+  return Number.isFinite(normalized) && normalized >= 0 ? normalized : fallback;
+}
+
+function getMatchedRuntimeField(
+  fields: DatasourceRuntimeMatchingExternalFieldData[],
+  variable: string
+) {
+  return fields.find((field) => field.variable === variable);
+}
+
+function getMatchedRuntimeValue(
+  fields: DatasourceRuntimeMatchingExternalFieldData[],
+  variable: string
+) {
+  return getMatchedRuntimeField(fields, variable)?.value;
+}
+
+function resetRuntimeData() {
+  tableData.value = [];
+  paginationState.value = {
+    page: 1,
+    pageSize: 10,
+    total: 0
+  };
 }
 
 async function loadDatasourceRows() {
   const datasource = normalizedDatasource.value;
   const loadId = ++datasourceLoadId;
   selectedRows.value = new Set();
+  resetRuntimeData();
 
   if (!datasource) {
     datasourceLoading.value = false;
@@ -263,7 +310,12 @@ async function loadDatasourceRows() {
       return;
     }
 
-    setTableValue({ data: rows }, true);
+    tableData.value = rows;
+    paginationState.value = {
+      page: normalizePositiveIntegerValue(getMatchedRuntimeValue(runtimeData.matchingExternalFieldData, 'page'), 1),
+      pageSize: normalizePositiveIntegerValue(getMatchedRuntimeValue(runtimeData.matchingExternalFieldData, 'pageSize'), 10),
+      total: normalizeNonNegativeIntegerValue(getMatchedRuntimeValue(runtimeData.matchingExternalFieldData, 'total'), 0)
+    };
   } catch {
     if (loadId !== datasourceLoadId) return;
     datasourceError.value = t('advanceTable.loadFailed');
@@ -463,14 +515,6 @@ function toggleAllRows() {
 }
 
 watch(
-  () => props.value,
-  (value) => {
-    setTableValue(value);
-  },
-  { deep: true }
-);
-
-watch(
   () => props.ds,
   () => {
     void loadDatasourceRows();
@@ -579,6 +623,21 @@ watch(
         </tbody>
       </table>
     </div>
+    <div
+      v-if="shouldShowPageBreak"
+      class="ce-advance-table-tool__pagination"
+      data-testid="advance-table-pagination"
+    >
+      <p data-testid="advance-table-pagination-summary">{{ paginationSummary }}</p>
+      <div class="ce-advance-table-tool__pagination-actions" :aria-label="t('advanceTable.pagination.label')">
+        <button type="button" :disabled="!pagination.hasPreviousPage">
+          {{ t('advanceTable.pagination.previous') }}
+        </button>
+        <button type="button" :disabled="!pagination.hasNextPage">
+          {{ t('advanceTable.pagination.next') }}
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -663,6 +722,56 @@ watch(
   accent-color: rgb(37 99 235);
 }
 
+.ce-advance-table-tool__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid rgb(226 232 240);
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  padding: 10px 12px;
+  background: rgb(248 250 252);
+}
+
+.ce-advance-table-tool__scroller:has(+ .ce-advance-table-tool__pagination) {
+  border-radius: 8px 8px 0 0;
+}
+
+.ce-advance-table-tool__pagination p {
+  margin: 0;
+  color: rgb(71 85 105);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.ce-advance-table-tool__pagination-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.ce-advance-table-tool__pagination button {
+  min-width: 72px;
+  height: 36px;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 8px;
+  background: rgb(255 255 255);
+  color: rgb(51 65 85);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: default;
+}
+
+.ce-advance-table-tool__pagination button:disabled {
+  color: rgb(148 163 184);
+  background: rgb(248 250 252);
+}
+
 .ce-advance-table-tool__cell-token {
   display: inline-flex;
   align-items: center;
@@ -708,5 +817,32 @@ watch(
 
 :global(.dark) .ce-advance-table-tool__empty {
   color: rgb(148 163 184);
+}
+
+:global(.dark) .ce-advance-table-tool__pagination {
+  border-color: rgb(51 65 85);
+  background: rgb(30 41 59);
+}
+
+:global(.dark) .ce-advance-table-tool__pagination p {
+  color: rgb(203 213 225);
+}
+
+:global(.dark) .ce-advance-table-tool__pagination button {
+  border-color: rgb(71 85 105);
+  background: rgb(15 23 42);
+  color: rgb(226 232 240);
+}
+
+:global(.dark) .ce-advance-table-tool__pagination button:disabled {
+  color: rgb(100 116 139);
+  background: rgb(2 6 23);
+}
+
+@media (max-width: 640px) {
+  .ce-advance-table-tool__pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 </style>

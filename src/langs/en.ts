@@ -136,10 +136,16 @@ export const enMessages = {
     properties: {
       index: 'Show index column',
       selection: 'Show selection column',
+      showPageBreak: 'Show pagination',
       columns: 'Columns',
       data: 'Datasource',
-      ds: 'Datasource',
-      value: 'Value JSON'
+      ds: 'Datasource'
+    },
+    pagination: {
+      label: 'Pagination',
+      summary: '{start}-{end} of {total} · Page {page} / {totalPages}',
+      previous: 'Previous',
+      next: 'Next'
     },
     columnsEditor: {
       settingsDialogTitle: 'Advanced table column settings',
@@ -186,7 +192,10 @@ export const enMessages = {
       }
     },
     datasourceFields: {
-      data: 'List data'
+      data: 'List data',
+      page: 'Page',
+      pageSize: 'Page size',
+      total: 'Total'
     },
     defaultRows: {
       first: {

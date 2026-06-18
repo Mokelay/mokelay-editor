@@ -2658,3 +2658,152 @@ test('loads saved API datasource in editor and preview', async ({ page }) => {
   await expect(page.getByTestId('datasource-body-remove-0')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
+
+test('exposes getData runtime method without saving runtime fields', async ({ page }) => {
+  const responseData = {
+    items: [
+      {
+        name: 'Ada Lovelace'
+      }
+    ],
+    page: 2,
+    pageSize: 1,
+    total: 3
+  };
+
+  await page.route('**/datasource-runtime-data', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(responseData)
+    });
+  });
+
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'runtime-datasource',
+        type: 'MDatasourceEditor',
+        data: {
+          value: {
+            type: 'API',
+            domain: 'mokelay',
+            path: '/datasource-runtime-data',
+            method: 'GET',
+            headerData: [],
+            bodyData: [],
+            queryData: [],
+            schemaSelections: [
+              {
+                label: '列表数据',
+                path: 'items[]',
+                type: 'array'
+              },
+              {
+                label: '当前页',
+                path: 'page',
+                type: 'number'
+              },
+              {
+                label: '每页条数',
+                path: 'pageSize',
+                type: 'number'
+              },
+              {
+                label: '总数',
+                path: 'total',
+                type: 'number'
+              }
+            ],
+            matchingExternalFields: [
+              {
+                label: '列表数据',
+                variable: 'data',
+                matchFieldPath: 'items[]'
+              },
+              {
+                label: '当前页',
+                variable: 'page',
+                matchFieldPath: 'page'
+              },
+              {
+                label: '每页条数',
+                variable: 'pageSize',
+                matchFieldPath: 'pageSize'
+              },
+              {
+                label: '总数',
+                variable: 'total',
+                matchFieldPath: 'total'
+              }
+            ]
+          }
+        }
+      },
+      {
+        id: 'runtime-button',
+        type: 'MButton',
+        data: {
+          label: 'Load data',
+          variant: 'primary',
+          align: 'left',
+          action: { type: 'submit' }
+        },
+        events: [
+          {
+            event: 'click',
+            block: 'runtime-datasource',
+            method: 'getData'
+          }
+        ]
+      }
+    ]
+  });
+
+  await page.getByTestId('save-button').click();
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
+  expect(datasourceValue).not.toHaveProperty('data');
+  expect(datasourceValue).not.toHaveProperty('page');
+  expect(datasourceValue).not.toHaveProperty('pageSize');
+  expect(datasourceValue).not.toHaveProperty('total');
+
+  await page.getByTestId('preview-button').click();
+  const directRequestPromise = page.waitForRequest((request) =>
+    request.url().includes('/datasource-runtime-data') && request.method() === 'GET'
+  );
+  const runtimeData = await page
+    .getByTestId('preview-block-MDatasourceEditor')
+    .getByTestId('editor-datasource-tool')
+    .evaluate(async (element) => {
+      const component = (element as HTMLElement & {
+        __vueParentComponent?: {
+          exposed?: {
+            getData?: () => Promise<unknown>;
+          };
+        };
+      }).__vueParentComponent;
+      const getData = component?.exposed?.getData;
+      if (!getData) {
+        throw new Error('MDatasourceEditor.getData was not exposed.');
+      }
+
+      return await getData();
+    });
+  await directRequestPromise;
+
+  expect(runtimeData).toEqual({
+    rawResponse: responseData,
+    data: responseData.items,
+    page: 2,
+    pageSize: 1,
+    total: 3
+  });
+
+  const eventRequestPromise = page.waitForRequest((request) =>
+    request.url().includes('/datasource-runtime-data') && request.method() === 'GET'
+  );
+  await page.getByRole('button', { name: 'Load data' }).click();
+  await eventRequestPromise;
+});

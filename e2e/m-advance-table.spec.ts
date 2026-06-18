@@ -30,7 +30,8 @@ test('adds an advanced table and renders it in preview', async ({ page }) => {
   expect(tableBlock?.data?.columns).toBeUndefined();
   expect(tableBlock?.data?.ds).toBeUndefined();
   expect(tableBlock?.data?.data).toBeUndefined();
-  expect(tableBlock?.data?.value).toEqual({ data: [] });
+  expect(tableBlock?.data?.showPageBreak).toBe(false);
+  expect(tableBlock?.data?.value).toBeUndefined();
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MAdvanceTable')).toBeVisible();
@@ -107,16 +108,7 @@ test('loads saved advanced table datasource blocks in editor', async ({ page }) 
               width: 120,
               fixed: null
             }
-          ],
-          value: {
-            data: [
-              {
-                name: 'Mokelay 页面',
-                tag: '设计',
-                tagType: 'warning'
-              }
-            ]
-          }
+          ]
         }
       },
       {
@@ -197,9 +189,6 @@ test('loads saved advanced table datasource blocks in editor', async ({ page }) 
                 matchFieldPath: 'items[]'
               }
             ]
-          },
-          value: {
-            data: []
           }
         }
       }
@@ -208,8 +197,8 @@ test('loads saved advanced table datasource blocks in editor', async ({ page }) 
 
   const tables = page.getByTestId('editor-advance-table-tool');
   await expect(tables).toHaveCount(2);
-  await expect(tables.nth(0).getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
-  await expect(tables.nth(0).getByTestId('advance-table-cell-0-1')).toContainText('设计');
+  await expect(tables.nth(0).getByTestId('advance-table-row-0')).toHaveCount(0);
+  await expect(tables.nth(0).getByTestId('advance-table')).toContainText('没有数据源');
   await expect(tables.nth(1).getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
   await expect(tables.nth(1).getByTestId('advance-table-cell-0-1')).toContainText('设计');
   await expect(tables.nth(1).getByTestId('advance-table-cell-0-2')).toContainText('官网');
@@ -267,9 +256,6 @@ test('matches external datasource fields from advanced table property panel', as
                 type: 'array'
               }
             ]
-          },
-          value: {
-            data: []
           }
         }
       }
@@ -299,9 +285,170 @@ test('matches external datasource fields from advanced table property panel', as
       label: '列表数据',
       variable: 'data',
       matchFieldPath: 'items[]'
+    },
+    {
+      label: '当前页',
+      variable: 'page',
+      matchFieldPath: ''
+    },
+    {
+      label: '每页条数',
+      variable: 'pageSize',
+      matchFieldPath: ''
+    },
+    {
+      label: '总数',
+      variable: 'total',
+      matchFieldPath: ''
     }
   ]);
   expect(tableBlock?.data).not.toHaveProperty('data');
+  expect(tableBlock?.data).not.toHaveProperty('value');
+});
+
+test('shows datasource pagination below advanced table without saving runtime data', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await page.route('**/advance-table-page-data', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          { name: 'Mokelay 页面' },
+          { name: '高级表格' }
+        ],
+        page: 1,
+        pageSize: 2,
+        total: 5
+      })
+    });
+  });
+
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'paginated-table',
+        type: 'MAdvanceTable',
+        data: {
+          index: false,
+          selection: false,
+          showPageBreak: false,
+          columns: [
+            {
+              columnName: '名称',
+              columnContent: [
+                {
+                  id: 'advance-table-name-content',
+                  type: 'paragraph',
+                  data: {
+                    text: '{{name}}'
+                  }
+                }
+              ],
+              width: 180,
+              fixed: 'left'
+            }
+          ],
+          ds: {
+            type: 'API',
+            domain: 'mokelay',
+            path: '/advance-table-page-data',
+            method: 'GET',
+            headerData: [],
+            bodyData: [],
+            queryData: [],
+            schemaSelections: [
+              {
+                label: '列表数据',
+                path: 'items[]',
+                type: 'array'
+              },
+              {
+                label: '当前页',
+                path: 'page',
+                type: 'number'
+              },
+              {
+                label: '每页条数',
+                path: 'pageSize',
+                type: 'number'
+              },
+              {
+                label: '总数',
+                path: 'total',
+                type: 'number'
+              }
+            ],
+            matchingExternalFields: [
+              {
+                label: '列表数据',
+                variable: 'data',
+                matchFieldPath: 'items[]'
+              },
+              {
+                label: '当前页',
+                variable: 'page',
+                matchFieldPath: 'page'
+              },
+              {
+                label: '每页条数',
+                variable: 'pageSize',
+                matchFieldPath: 'pageSize'
+              },
+              {
+                label: '总数',
+                variable: 'total',
+                matchFieldPath: 'total'
+              }
+            ]
+          }
+        }
+      }
+    ]
+  });
+
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Mokelay 页面');
+  await expect(page.getByTestId('advance-table-cell-1-0')).toContainText('高级表格');
+  await expect(page.getByTestId('advance-table-pagination')).toHaveCount(0);
+
+  const propertyDialog = await openToolPropertyPanel(page, 'editor-advance-table-tool');
+  await propertyDialog.getByTestId('tool-property-input-showPageBreak').check();
+  await propertyDialog.getByTestId('tool-property-close').click();
+
+  await expect(page.getByTestId('advance-table-pagination-summary')).toHaveText('第 1-2 条，共 5 条 · 第 1 / 3 页');
+  await expect(page.getByTestId('advance-table-pagination').getByRole('button', { name: '上一页' })).toBeDisabled();
+  await expect(page.getByTestId('advance-table-pagination').getByRole('button', { name: '下一页' })).toBeEnabled();
+
+  await page.getByTestId('save-button').click();
+  const blocks = await getSavedBlocks(page);
+  const tableBlock = blocks.find((block) => block.type === 'MAdvanceTable');
+  expect(tableBlock?.data?.showPageBreak).toBe(true);
+  expect(tableBlock?.data).not.toHaveProperty('value');
+  expect(tableBlock?.data).not.toHaveProperty('data');
+  expect((tableBlock?.data?.ds as any)?.matchingExternalFields).toEqual([
+    {
+      label: '列表数据',
+      variable: 'data',
+      matchFieldPath: 'items[]'
+    },
+    {
+      label: '当前页',
+      variable: 'page',
+      matchFieldPath: 'page'
+    },
+    {
+      label: '每页条数',
+      variable: 'pageSize',
+      matchFieldPath: 'pageSize'
+    },
+    {
+      label: '总数',
+      variable: 'total',
+      matchFieldPath: 'total'
+    }
+  ]);
 });
 
 test('configures advanced table columns from property panel fields editor', async ({ page }) => {
@@ -385,9 +532,6 @@ test('configures advanced table columns from property panel fields editor', asyn
                 matchFieldPath: 'items[]'
               }
             ]
-          },
-          value: {
-            data: []
           }
         }
       }

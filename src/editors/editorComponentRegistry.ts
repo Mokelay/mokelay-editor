@@ -20,7 +20,6 @@ import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
 import MLinearScaleField, { mLinearScaleFieldEditorTool } from '@/blocks/MLinearScaleField.vue';
 import MLinkField, { mLinkFieldEditorTool } from '@/blocks/MLinkField.vue';
 import MMatrixField, { mMatrixFieldEditorTool } from '@/blocks/MMatrixField.vue';
-import MPageBreak, { mPageBreakEditorTool } from '@/blocks/MPageBreak.vue';
 import MPhoneField, { mPhoneFieldEditorTool } from '@/blocks/MPhoneField.vue';
 import MRadioGroupField, { mRadioGroupFieldEditorTool } from '@/blocks/MRadioGroupField.vue';
 import MRatingField, { mRatingFieldEditorTool } from '@/blocks/MRatingField.vue';
@@ -173,10 +172,6 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MMatrixField)]: {
     component: markRaw(MMatrixField),
     ...mMatrixFieldEditorTool
-  },
-  [getEditorComponentName(MPageBreak)]: {
-    component: markRaw(MPageBreak),
-    ...mPageBreakEditorTool
   },
   [getEditorComponentName(MThankYouPage)]: {
     component: markRaw(MThankYouPage),
