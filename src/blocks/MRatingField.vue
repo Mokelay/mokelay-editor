@@ -8,6 +8,7 @@ import {
   stringValue,
   valueField
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MRatingFieldProps {
   edit: boolean;
@@ -54,6 +55,7 @@ export const mRatingFieldEditorTool = defineEditorTool<MRatingFieldProps>({
   createInitialProps: () => ({
     ...ratingFieldDefaults
   }),
+  getDataFields: () => valueBlockDataField('number'),
   normalizeProps: normalizeRatingFieldProps,
   serialize: (props) => {
     const normalized = normalizeRatingFieldProps(props);

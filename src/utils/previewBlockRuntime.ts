@@ -13,6 +13,7 @@ export type BlockRuntimeHandle = {
   id: string;
   type: string;
   instance: unknown;
+  data?: Record<string, unknown>;
 };
 
 export type BlockEventInvocation = {
@@ -26,6 +27,7 @@ export type PreviewBlockRuntime = {
   registerBlock: (id: string, handle: BlockRuntimeHandle) => void;
   unregisterBlock: (id: string, instance?: unknown) => void;
   invokeBlockMethod: (eventConfig: BlockEvent, sourceBlock: PreviewRuntimeBlock, event: unknown) => void;
+  getBlockDataContext: (excludeBlockId?: string) => Promise<Record<string, Record<string, unknown>>>;
 };
 
 export const PreviewBlockRuntimeKey: InjectionKey<PreviewBlockRuntime> = Symbol('PreviewBlockRuntime');
@@ -42,6 +44,20 @@ function getCallableMethod(instance: unknown, methodName: string) {
 
   const method = (instance as Record<string, unknown>)[methodName];
   return typeof method === 'function' ? method : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+async function resolveBlockData(handle: BlockRuntimeHandle) {
+  const getData = getCallableMethod(handle.instance, 'getData');
+  if (getData) {
+    const value = await getData.call(handle.instance);
+    return isRecord(value) ? value : {};
+  }
+
+  return handle.data ?? {};
 }
 
 export function createPreviewBlockRuntime(): PreviewBlockRuntime {
@@ -99,6 +115,13 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
       } catch (error) {
         warnRuntime('Target method threw.', { eventConfig, sourceBlock, targetBlock, error });
       }
+    },
+
+    async getBlockDataContext(excludeBlockId) {
+      const entries = await Promise.all([...handles.values()]
+        .filter((handle) => handle.id !== excludeBlockId)
+        .map(async (handle) => [handle.id, await resolveBlockData(handle)] as const));
+      return Object.fromEntries(entries);
     }
   };
 }

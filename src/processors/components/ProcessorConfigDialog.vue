@@ -23,6 +23,7 @@ const props = defineProps<{
   open: boolean;
   field?: DatasourceSchemaSelection;
   readonly?: boolean;
+  teleportDisabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -126,7 +127,7 @@ watch(() => [props.open, props.field?.path], () => {
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport to="body" :disabled="teleportDisabled">
     <div
       v-if="open && field"
       class="processor-dialog-backdrop"

@@ -72,8 +72,10 @@ function getBlockProps(block: OutputData['blocks'][number]) {
     ...definition.normalizeProps({
       ...(definition.createInitialProps?.() ?? {}),
       ...block.data,
-      edit: false
-    })
+      edit: false,
+      currentBlockId: getBlockId(block)
+    }),
+    currentBlockId: getBlockId(block)
   };
 }
 
@@ -92,7 +94,10 @@ function registerCurrentBlock() {
   previewRuntime.registerBlock(id, {
     id,
     type: props.block.type,
-    instance
+    instance,
+    data: typeof props.block.data === 'object' && props.block.data !== null
+      ? props.block.data as Record<string, unknown>
+      : {}
   });
   registeredId = id;
   registeredInstance = instance;

@@ -8,6 +8,7 @@ import {
   pageDslPropertyTitle,
   stringValue
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MPhoneFieldProps {
   edit: boolean;
@@ -50,6 +51,7 @@ export const mPhoneFieldEditorTool = defineEditorTool<MPhoneFieldProps>({
   createInitialProps: () => ({
     ...phoneFieldDefaults
   }),
+  getDataFields: () => valueBlockDataField('string'),
   normalizeProps: normalizePhoneFieldProps,
   serialize: (props) => {
     const normalized = normalizePhoneFieldProps(props);

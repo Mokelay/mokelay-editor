@@ -20,6 +20,7 @@ type EditorToolFactoryOptions = {
   data?: Record<string, unknown>;
   config?: Record<string, unknown>;
   block?: {
+    id?: string;
     dispatchChange: () => void;
   };
 };
@@ -77,7 +78,8 @@ export default class EditorToolFactory {
         this.blockApi = block;
         const mergedProps = {
           ...(config ?? {}),
-          ...removeInternalBlockEventsFromData(data)
+          ...removeInternalBlockEventsFromData(data),
+          ...(typeof block?.id === 'string' && block.id.trim() ? { currentBlockId: block.id.trim() } : {})
         };
         this.events = getInternalBlockEventsFromData(data);
 
@@ -85,9 +87,15 @@ export default class EditorToolFactory {
           throw new Error(`EditorToolFactory requires config.edit to be explicitly set for "${toolName}".`);
         }
 
-        this.state = definition.normalizeProps({
-          ...mergedProps
-        });
+        this.state = {
+          ...definition.normalizeProps({
+            ...mergedProps
+          }),
+          ...(typeof mergedProps.currentBlockId === 'string' ? { currentBlockId: mergedProps.currentBlockId } : {}),
+          ...(typeof mergedProps.getAvailableBlockDataSources === 'function'
+            ? { getAvailableBlockDataSources: mergedProps.getAvailableBlockDataSources }
+            : {})
+        };
       }
 
       render() {
@@ -427,6 +435,8 @@ export default class EditorToolFactory {
         const value = this.getPropertyFieldValue(field.key);
         return {
           edit,
+          currentBlockId: typeof state.currentBlockId === 'string' ? state.currentBlockId : undefined,
+          getAvailableBlockDataSources: state.getAvailableBlockDataSources,
           value,
           ...(field.getComponentProps?.({ value, state, edit }) ?? {})
         };
@@ -524,10 +534,16 @@ export function createEditorTools(
         toolName,
         {
           class: EditorToolFactory.create(toolName),
-          config: definition.normalizeProps({
-            ...(definition.createInitialProps?.() ?? {}),
-            ...sharedConfig
-          })
+          config: {
+            ...definition.normalizeProps({
+              ...(definition.createInitialProps?.() ?? {}),
+              ...sharedConfig
+            }),
+            ...(sharedConfig.getAvailableBlockDataSources
+              ? { getAvailableBlockDataSources: sharedConfig.getAvailableBlockDataSources }
+              : {}),
+            ...(sharedConfig.currentBlockId ? { currentBlockId: sharedConfig.currentBlockId } : {})
+          }
         }
       ])
   );

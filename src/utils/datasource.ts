@@ -15,6 +15,14 @@ import {
   resolveApiDomainHost,
   type ApiDomainErrorCode
 } from '@/utils/apiDomains';
+import {
+  isVariableValueConfig,
+  resolveVariableValueConfig,
+  stringifyVariableValue,
+  type VariableValueConfig,
+  type VariableValueDataType,
+  type VariableValueResolveContext
+} from '@/utils/variableValue';
 
 export type MDatasourceType = 'JSON' | 'API';
 export type MDatasourceApiMethod = 'GET' | 'POST';
@@ -34,18 +42,19 @@ export type {
 
 export interface MDatasourceKeyValueItem {
   key: string;
-  value: string;
+  value: string | VariableValueConfig;
 }
 
 export interface MDatasourceBodyItem {
   key: string;
   dataType: MDatasourceBodyDataType;
-  value: JsonValue;
+  value: JsonValue | VariableValueConfig;
 }
 
 export interface MDatasourceExternalField {
   label: string;
   variable: string;
+  type?: VariableValueDataType;
 }
 
 export interface MDatasourceMatchingExternalField extends MDatasourceExternalField {
@@ -74,6 +83,7 @@ export type MDatasourceObject = MDatasourceJsonObject | MDatasourceApiObject;
 
 export type DatasourceRequestOptions = {
   bodyFiles?: Record<number, File>;
+  variableContext?: VariableValueResolveContext;
 };
 export type RemoteFunction = (value: MDatasourceObject, options?: DatasourceRequestOptions) => Promise<JsonValue>;
 export type SchemaFunction = (value: MDatasourceObject, options?: DatasourceRequestOptions) => Promise<JSONSchema>;
@@ -154,7 +164,11 @@ export function getDefaultBodyValue(dataType: MDatasourceBodyDataType): JsonValu
   return '';
 }
 
-export function normalizeBodyValue(dataType: MDatasourceBodyDataType, value: unknown): JsonValue {
+export function normalizeBodyValue(dataType: MDatasourceBodyDataType, value: unknown): JsonValue | VariableValueConfig {
+  if (isVariableValueConfig(value)) {
+    return value;
+  }
+
   if (dataType === 'string') {
     return typeof value === 'string' ? value : normalizeString(value);
   }
@@ -193,7 +207,7 @@ function normalizeKeyValueList(value: unknown): MDatasourceKeyValueItem[] {
     .filter((item): item is Record<string, unknown> => isRecord(item))
     .map((item) => ({
       key: normalizeString(item.key),
-      value: normalizeString(item.value)
+      value: isVariableValueConfig(item.value) ? item.value : normalizeString(item.value)
     }));
 }
 
@@ -225,8 +239,17 @@ function normalizeExternalField(value: unknown): MDatasourceExternalField | unde
 
   return {
     label,
-    variable
+    variable,
+    type: normalizeExternalFieldType(value.type)
   };
+}
+
+function normalizeExternalFieldType(value: unknown): VariableValueDataType | undefined {
+  if (value === 'string' || value === 'number' || value === 'boolean' || value === 'object' || value === 'array') {
+    return value;
+  }
+
+  return undefined;
 }
 
 export function normalizeDatasourceExternalFields(value: unknown): MDatasourceExternalField[] {
@@ -327,7 +350,28 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
   return datasource;
 }
 
-export function getDatasourceRequestUrl(datasource: MDatasourceApiObject, domainHost = datasource.domain) {
+function resolveDatasourceVariableValue(value: unknown, context?: VariableValueResolveContext) {
+  return isVariableValueConfig(value)
+    ? resolveVariableValueConfig(value, context ?? {})
+    : value;
+}
+
+function stringifyResolvedDatasourceValue(value: unknown, context?: VariableValueResolveContext) {
+  const resolved = resolveDatasourceVariableValue(value, context);
+  if (resolved === undefined || resolved === null) return '';
+  if (typeof resolved === 'string' || typeof resolved === 'number' || typeof resolved === 'boolean') return String(resolved);
+  try {
+    return JSON.stringify(resolved);
+  } catch {
+    return String(resolved);
+  }
+}
+
+export function getDatasourceRequestUrl(
+  datasource: MDatasourceApiObject,
+  domainHost = datasource.domain,
+  context?: VariableValueResolveContext
+) {
   const domain = domainHost.trim();
   const path = datasource.path.trim();
   const absolutePath = /^[a-z][a-z\d+\-.]*:/i.test(path);
@@ -344,16 +388,16 @@ export function getDatasourceRequestUrl(datasource: MDatasourceApiObject, domain
   datasource.queryData.forEach((item) => {
     const key = item.key.trim();
     if (!key) return;
-    url.searchParams.append(key, item.value);
+    url.searchParams.append(key, stringifyResolvedDatasourceValue(item.value, context));
   });
 
   return url.toString();
 }
 
-async function getResolvedDatasourceRequestUrl(datasource: MDatasourceApiObject) {
+async function getResolvedDatasourceRequestUrl(datasource: MDatasourceApiObject, context?: VariableValueResolveContext) {
   try {
     const domainHost = await resolveApiDomainHost(datasource.domain);
-    return getDatasourceRequestUrl(datasource, domainHost);
+    return getDatasourceRequestUrl(datasource, domainHost, context);
   } catch (error) {
     if (error instanceof ApiDomainError) {
       throw new DatasourceError(error.code, error.message);
@@ -363,14 +407,14 @@ async function getResolvedDatasourceRequestUrl(datasource: MDatasourceApiObject)
   }
 }
 
-export function getDatasourceRequestHeaders(datasource: MDatasourceApiObject) {
+export function getDatasourceRequestHeaders(datasource: MDatasourceApiObject, context?: VariableValueResolveContext) {
   const headers = new Headers();
   const hasFileBody = hasDatasourceFileBody(datasource);
   datasource.headerData.forEach((item) => {
     const key = item.key.trim();
     if (!key) return;
     if (hasFileBody && key.toLowerCase() === 'content-type') return;
-    headers.set(key, item.value);
+    headers.set(key, stringifyResolvedDatasourceValue(item.value, context));
   });
 
   if (datasource.method === 'POST' && !hasFileBody && !headers.has('Content-Type')) {
@@ -384,7 +428,11 @@ function hasDatasourceFileBody(datasource: MDatasourceApiObject) {
   return datasource.method === 'POST' && datasource.bodyData.some((item) => item.dataType === 'file');
 }
 
-function getFormDataValue(item: MDatasourceBodyItem) {
+function getFormDataValue(item: MDatasourceBodyItem, context?: VariableValueResolveContext) {
+  if (isVariableValueConfig(item.value)) {
+    return stringifyResolvedDatasourceValue(item.value, context);
+  }
+
   const normalizedValue = normalizeBodyValue(item.dataType, item.value);
   if (item.dataType === 'object' || item.dataType === 'array') {
     return JSON.stringify(normalizedValue);
@@ -419,7 +467,7 @@ export function getDatasourceRequestBody(datasource: MDatasourceApiObject, optio
         return;
       }
 
-      formData.append(key, getFormDataValue(item));
+      formData.append(key, getFormDataValue(item, options?.variableContext));
     });
 
     return formData;
@@ -428,7 +476,11 @@ export function getDatasourceRequestBody(datasource: MDatasourceApiObject, optio
   const body = datasource.bodyData.reduce<Record<string, JsonValue>>((result, item) => {
     const key = item.key.trim();
     if (!key) return result;
-    result[key] = normalizeBodyValue(item.dataType, item.value);
+    const value = normalizeBodyValue(item.dataType, item.value);
+    const resolvedValue = resolveDatasourceVariableValue(value, options?.variableContext);
+    result[key] = isJsonValue(resolvedValue)
+      ? cloneJsonValue(resolvedValue)
+      : stringifyResolvedDatasourceValue(value, options?.variableContext);
     return result;
   }, {});
 
@@ -463,9 +515,9 @@ export const $remote: RemoteFunction = async (value, options) => {
     return cloneJsonValue(datasource.rawData);
   }
 
-  const response = await fetch(await getResolvedDatasourceRequestUrl(datasource), {
+  const response = await fetch(await getResolvedDatasourceRequestUrl(datasource, options?.variableContext), {
     method: datasource.method,
-    headers: getDatasourceRequestHeaders(datasource),
+    headers: getDatasourceRequestHeaders(datasource, options?.variableContext),
     body: getDatasourceRequestBody(datasource, options)
   });
 

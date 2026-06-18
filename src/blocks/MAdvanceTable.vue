@@ -10,8 +10,10 @@ import {
 } from '@/utils/storedBlocks';
 import {
   normalizeDatasource,
+  type MDatasourceBodyItem,
   type MDatasourceApiObject
 } from '@/utils/datasource';
+import type { BlockDataField, VariableValueConfig } from '@/utils/variableValue';
 import { isRecord } from '@/utils/datasourceSchema';
 import {
   normalizeAdvanceTableColumns as normalizeColumns,
@@ -25,6 +27,7 @@ export type {
 
 export interface MAdvanceTableProps {
   edit: boolean;
+  currentBlockId?: string;
   index?: boolean;
   selection?: boolean;
   showPageBreak?: boolean;
@@ -32,23 +35,27 @@ export interface MAdvanceTableProps {
   ds?: MDatasourceApiObject;
 }
 
-function getDatasourceExternalFields() {
+function getAdvanceTableDataFields(): BlockDataField[] {
   return [
     {
       label: i18n.t('advanceTable.datasourceFields.data'),
-      variable: 'data'
+      variable: 'data',
+      dataType: 'array'
     },
     {
       label: i18n.t('advanceTable.datasourceFields.page'),
-      variable: 'page'
+      variable: 'page',
+      dataType: 'number'
     },
     {
       label: i18n.t('advanceTable.datasourceFields.pageSize'),
-      variable: 'pageSize'
+      variable: 'pageSize',
+      dataType: 'number'
     },
     {
       label: i18n.t('advanceTable.datasourceFields.total'),
-      variable: 'total'
+      variable: 'total',
+      dataType: 'number'
     }
   ];
 }
@@ -94,7 +101,11 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
           component: MDatasourceEditor,
           getComponentProps: ({ value, state }) => ({
             value,
-            matchingExternalFields: getDatasourceExternalFields(),
+            matchingExternalFields: getAdvanceTableDataFields().map((field) => ({
+              label: field.label,
+              variable: field.variable,
+              type: field.dataType
+            })),
             showPageBreak: state.showPageBreak === true
           })
         }
@@ -105,8 +116,10 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
     index: false,
     selection: false
   }),
+  getDataFields: () => getAdvanceTableDataFields(),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
+    currentBlockId: props.currentBlockId,
     index: props.index === true,
     selection: props.selection === true,
     showPageBreak: props.showPageBreak === true,
@@ -138,7 +151,7 @@ function normalizeDatasourceConfig(value: unknown): MDatasourceApiObject | undef
 </script>
 
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue';
+import { computed, inject, ref, shallowRef, watch } from 'vue';
 import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
 import { getInlineCustomComponentDefinition } from '@/editors/inlineCustomComponents';
 import { useI18n } from '@/i18n';
@@ -146,6 +159,7 @@ import {
   resolveDatasourceRuntimeData,
   type DatasourceRuntimeMatchingExternalFieldData
 } from '@/utils/datasourceRuntime';
+import { PreviewBlockRuntimeKey } from '@/utils/previewBlockRuntime';
 
 const props = defineProps<MAdvanceTableProps & {
   onChange?: (payload: MAdvanceTableProps) => void;
@@ -159,6 +173,7 @@ type PaginationState = {
 };
 
 const { t } = useI18n();
+const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 const rootRef = ref<HTMLElement | null>(null);
 const selectedRows = ref(new Set<number>());
 const tableData = shallowRef<Record<string, unknown>[]>([]);
@@ -273,10 +288,38 @@ function getMatchedRuntimeValue(
 function resetRuntimeData() {
   tableData.value = [];
   paginationState.value = {
-    page: 1,
-    pageSize: 10,
-    total: 0
+    page: pagination.value.currentPage,
+    pageSize: pagination.value.pageSize,
+    total: pagination.value.total
   };
+}
+
+function getVariableConfigBlockId(value: unknown) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return '';
+  const config = value as Partial<VariableValueConfig>;
+  return config.mode === 'variable' &&
+    config.blockType === 'MAdvanceTable' &&
+    typeof config.blockId === 'string'
+    ? config.blockId
+    : '';
+}
+
+function getDatasourceSelfReferenceBlockId(datasource: MDatasourceApiObject) {
+  if (props.currentBlockId) return props.currentBlockId;
+  const referencedBlockIds = new Set<string>();
+  datasource.headerData.forEach((item) => {
+    const blockId = getVariableConfigBlockId(item.value);
+    if (blockId) referencedBlockIds.add(blockId);
+  });
+  datasource.queryData.forEach((item) => {
+    const blockId = getVariableConfigBlockId(item.value);
+    if (blockId) referencedBlockIds.add(blockId);
+  });
+  datasource.bodyData.forEach((item: MDatasourceBodyItem) => {
+    const blockId = getVariableConfigBlockId(item.value);
+    if (blockId) referencedBlockIds.add(blockId);
+  });
+  return referencedBlockIds.size === 1 ? [...referencedBlockIds][0] : '';
 }
 
 async function loadDatasourceRows() {
@@ -295,7 +338,14 @@ async function loadDatasourceRows() {
   datasourceError.value = '';
 
   try {
-    const runtimeData = await resolveDatasourceRuntimeData(datasource);
+    const selfBlockId = getDatasourceSelfReferenceBlockId(datasource);
+    const blocks = await previewRuntime?.getBlockDataContext(selfBlockId) ?? {};
+    if (selfBlockId) {
+      blocks[selfBlockId] = getData();
+    }
+    const runtimeData = await resolveDatasourceRuntimeData(datasource, {
+      variableContext: { blocks }
+    });
     if (loadId !== datasourceLoadId) return;
 
     const matchedDataField = runtimeData.matchingExternalFieldData.find((field) => field.variable === 'data');
@@ -324,6 +374,15 @@ async function loadDatasourceRows() {
       datasourceLoading.value = false;
     }
   }
+}
+
+function getData() {
+  return {
+    data: tableData.value,
+    page: pagination.value.currentPage,
+    pageSize: pagination.value.pageSize,
+    total: pagination.value.total
+  };
 }
 
 function stringifyCellValue(value: unknown) {
@@ -514,6 +573,17 @@ function toggleAllRows() {
   selectedRows.value = new Set(displayRows.value.map((_, index) => index));
 }
 
+function goToPage(page: number) {
+  if (datasourceLoading.value) return;
+  const targetPage = Math.min(Math.max(page, 1), pagination.value.totalPages);
+  if (targetPage === pagination.value.currentPage) return;
+  paginationState.value = {
+    ...paginationState.value,
+    page: targetPage
+  };
+  void loadDatasourceRows();
+}
+
 watch(
   () => props.ds,
   () => {
@@ -521,6 +591,10 @@ watch(
   },
   { deep: true, immediate: true }
 );
+
+defineExpose({
+  getData
+});
 </script>
 
 <template>
@@ -630,10 +704,18 @@ watch(
     >
       <p data-testid="advance-table-pagination-summary">{{ paginationSummary }}</p>
       <div class="ce-advance-table-tool__pagination-actions" :aria-label="t('advanceTable.pagination.label')">
-        <button type="button" :disabled="!pagination.hasPreviousPage">
+        <button
+          type="button"
+          :disabled="datasourceLoading || !pagination.hasPreviousPage"
+          @click="goToPage(pagination.currentPage - 1)"
+        >
           {{ t('advanceTable.pagination.previous') }}
         </button>
-        <button type="button" :disabled="!pagination.hasNextPage">
+        <button
+          type="button"
+          :disabled="datasourceLoading || !pagination.hasNextPage"
+          @click="goToPage(pagination.currentPage + 1)"
+        >
           {{ t('advanceTable.pagination.next') }}
         </button>
       </div>

@@ -5,6 +5,7 @@ import Table from '@editorjs/table';
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
+import { getEditorComponentDefinition } from '@/editors/editorComponentRegistry';
 import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
 import {
   finalizeEditorBlocksWithEvents,
@@ -15,6 +16,7 @@ import {
   createPreviewBlockRuntime,
   PreviewBlockRuntimeKey
 } from '@/utils/previewBlockRuntime';
+import type { BlockDataField, BlockDataSource, VariableValueDataType } from '@/utils/variableValue';
 
 // MPage 作为容器块，既支持 EditorJS 编辑态，也支持组件化预览态。
 export interface MPageProps {
@@ -66,6 +68,42 @@ function buildOutput(blocks: OutputData['blocks']): OutputData {
   return {
     blocks: finalizeEditorBlocksWithEvents(blocks)
   };
+}
+
+function inferDataType(value: unknown): VariableValueDataType {
+  if (Array.isArray(value)) return 'array';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'object' && value !== null) return 'object';
+  return 'string';
+}
+
+function inferBlockDataFields(data: Record<string, unknown>): BlockDataField[] {
+  return Object.entries(data)
+    .filter(([key, value]) => !key.startsWith('_') && value !== undefined)
+    .map(([key, value]) => ({
+      label: key,
+      variable: key,
+      dataType: inferDataType(value)
+    }));
+}
+
+function getAvailableBlockDataSources(excludeBlockId?: string): BlockDataSource[] {
+  const blocks = Array.isArray(editorDataCache.blocks) ? editorDataCache.blocks : [];
+  return blocks.flatMap((block): BlockDataSource[] => {
+    if (!block.id || block.id === excludeBlockId) return [];
+    const definition = getEditorComponentDefinition(block.type);
+    const data = typeof block.data === 'object' && block.data !== null
+      ? block.data as Record<string, unknown>
+      : {};
+    const fields = definition?.getDataFields?.({ data, blockId: block.id }) ?? inferBlockDataFields(data);
+    return [{
+      blockId: block.id,
+      blockType: block.type,
+      blockLabel: `${block.type} / ${block.id}`,
+      fields
+    }];
+  });
 }
 
 async function saveEditorJsInstance(instance: EditorJS): Promise<OutputData | undefined> {
@@ -178,7 +216,7 @@ function stopEditorSyncListeners() {
 async function mountEditor() {
   if (!holderRef.value || !shouldRenderEditor.value || editor) return;
   const columnTools: Record<string, ToolSettings> = {
-    ...(createEditorTools({ edit: true }) as Record<string, ToolSettings>),
+    ...(createEditorTools({ edit: true, getAvailableBlockDataSources }) as Record<string, ToolSettings>),
     table: {
       class: Table as unknown as ToolSettings['class'],
       inlineToolbar: true

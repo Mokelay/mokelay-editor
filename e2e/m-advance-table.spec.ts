@@ -451,6 +451,109 @@ test('shows datasource pagination below advanced table without saving runtime da
   ]);
 });
 
+test('reloads datasource with updated page when pagination buttons are clicked', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  const requestedUrls: string[] = [];
+  await page.route('**/advance-table-pagination-actions**', async (route) => {
+    const url = new URL(route.request().url());
+    requestedUrls.push(route.request().url());
+    const currentPage = Number(url.searchParams.get('page') || '1');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: currentPage === 2
+          ? [{ name: '第二页数据' }]
+          : [{ name: '第一页数据' }],
+        page: currentPage,
+        pageSize: 10,
+        total: 18
+      })
+    });
+  });
+
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [{
+      id: 'paginated-self-table',
+      type: 'MAdvanceTable',
+      data: {
+        index: false,
+        selection: false,
+        showPageBreak: true,
+        columns: [{
+          columnName: '名称',
+          columnContent: [{
+            id: 'advance-table-page-action-name',
+            type: 'paragraph',
+            data: {
+              text: '{{name}}'
+            }
+          }]
+        }],
+        ds: {
+          type: 'API',
+          domain: 'mokelay',
+          path: '/advance-table-pagination-actions',
+          method: 'GET',
+          headerData: [],
+          bodyData: [],
+          queryData: [
+            {
+              key: 'page',
+              value: {
+                mode: 'variable',
+                blockId: 'paginated-self-table',
+                blockType: 'MAdvanceTable',
+                variable: 'page'
+              }
+            },
+            {
+              key: 'pageSize',
+              value: {
+                mode: 'variable',
+                blockId: 'paginated-self-table',
+                blockType: 'MAdvanceTable',
+                variable: 'pageSize'
+              }
+            }
+          ],
+          schemaSelections: [
+            { label: '列表数据', path: 'items[]', type: 'array' },
+            { label: '当前页', path: 'page', type: 'number' },
+            { label: '每页条数', path: 'pageSize', type: 'number' },
+            { label: '总数', path: 'total', type: 'number' }
+          ],
+          matchingExternalFields: [
+            { label: '列表数据', variable: 'data', matchFieldPath: 'items[]' },
+            { label: '当前页', variable: 'page', matchFieldPath: 'page' },
+            { label: '每页条数', variable: 'pageSize', matchFieldPath: 'pageSize' },
+            { label: '总数', variable: 'total', matchFieldPath: 'total' }
+          ]
+        }
+      }
+    }]
+  });
+
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('第一页数据');
+  expect(requestedUrls[0]).toContain('page=1');
+  expect(requestedUrls[0]).toContain('pageSize=10');
+
+  const nextRequest = page.waitForRequest((request) =>
+    request.url().includes('/advance-table-pagination-actions') &&
+    request.url().includes('page=2') &&
+    request.url().includes('pageSize=10')
+  );
+  await page.getByTestId('advance-table-pagination').getByRole('button', { name: '下一页' }).click();
+  await nextRequest;
+
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('第二页数据');
+  await expect(page.getByTestId('advance-table-pagination-summary')).toHaveText('第 11-18 条，共 18 条 · 第 2 / 2 页');
+  await expect(page.getByTestId('advance-table-pagination').getByRole('button', { name: '下一页' })).toBeDisabled();
+  await expect(page.getByTestId('advance-table-pagination').getByRole('button', { name: '上一页' })).toBeEnabled();
+});
+
 test('configures advanced table columns from property panel fields editor', async ({ page }) => {
   await switchLocaleToChinese(page);
   await page.route('**/api/mokelay/ai-translate', async (route) => {

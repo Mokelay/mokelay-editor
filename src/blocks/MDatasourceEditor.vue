@@ -63,6 +63,8 @@ export type { SchemaSelectionField } from '@/utils/datasourceSchema';
 
 export interface MDatasourceEditorProps {
   edit: boolean;
+  currentBlockId?: string;
+  getAvailableBlockDataSources?: import('@/utils/variableValue').GetAvailableBlockDataSources;
   value?: MDatasourceApiObject;
   matchingExternalFields?: MDatasourceExternalField[];
   showPageBreak?: boolean;
@@ -93,6 +95,8 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
   }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
+    currentBlockId: props.currentBlockId,
+    getAvailableBlockDataSources: props.getAvailableBlockDataSources,
     value: normalizeApiDatasource(props.value),
     matchingExternalFields: normalizeDatasourceExternalFields(props.matchingExternalFields),
     showPageBreak: props.showPageBreak === true
@@ -104,9 +108,10 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
 </script>
 
 <script setup lang="ts">
-import { computed, reactive, ref, shallowRef, triggerRef, watch } from 'vue';
+import { computed, inject, reactive, ref, shallowRef, triggerRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import JsonTreeView from '@/blocks/components/JsonTreeView.vue';
+import MVariableValueEditor from '@/blocks/MVariableValueEditor.vue';
 import DatasourceApiImportDialog, {
   type DatasourceApiImportSource
 } from '@/blocks/components/DatasourceApiImportDialog.vue';
@@ -132,11 +137,19 @@ import {
   type ProcessorConfig
 } from '@/processors';
 import { resolveDatasourceRuntimeData } from '@/utils/datasourceRuntime';
+import { PreviewBlockRuntimeKey } from '@/utils/previewBlockRuntime';
+import {
+  isVariableValueConfig,
+  stringifyVariableValue,
+  type BlockDataSource,
+  type VariableOption,
+  type VariableValueConfig
+} from '@/utils/variableValue';
 
 type KeyValueListName = 'headerData' | 'queryData';
 type BodyValueParseResult = {
   ok: true;
-  value: JsonValue;
+  value: JsonValue | VariableValueConfig;
 } | {
   ok: false;
   error: string;
@@ -166,6 +179,7 @@ const props = defineProps<MDatasourceEditorProps & {
 }>();
 
 const { t } = useI18n();
+const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 const rootRef = ref<HTMLElement | null>(null);
 const normalizedInitialValue = normalizeApiDatasource(props.value);
 const bodyDataTypeOptions = bodyDataTypes;
@@ -212,6 +226,19 @@ const runtimeData = shallowRef<MDatasourceEditorRuntimeData>({
 });
 const isReadOnly = computed(() => !props.edit);
 const configuredMatchingExternalFields = computed(() => normalizeDatasourceExternalFields(props.matchingExternalFields));
+const variableOptions = computed<VariableOption[]>(() => {
+  const variablesByName = new Map<string, VariableOption>();
+  [...configuredMatchingExternalFields.value, ...matchingExternalFieldsValue.value].forEach((field) => {
+    if (variablesByName.has(field.variable)) return;
+    variablesByName.set(field.variable, {
+      name: field.variable,
+      label: field.label,
+      type: field.type ?? 'string'
+    });
+  });
+  return [...variablesByName.values()];
+});
+const blockDataSources = computed<BlockDataSource[]>(() => props.getAvailableBlockDataSources?.() ?? []);
 const hasMatchingExternalFields = computed(() => configuredMatchingExternalFields.value.length > 0);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
@@ -491,7 +518,10 @@ function normalizeDatasourceEditorRuntimeData(
 }
 
 async function getData() {
-  const resolvedData = await resolveDatasourceRuntimeData(buildApiDatasource());
+  const blocks = await previewRuntime?.getBlockDataContext(props.currentBlockId);
+  const resolvedData = await resolveDatasourceRuntimeData(buildApiDatasource(), {
+    variableContext: blocks ? { blocks } : {}
+  });
   const normalizedRuntimeData = normalizeDatasourceEditorRuntimeData(
     resolvedData.rawResponse,
     resolvedData.matchingExternalFieldData
@@ -726,14 +756,18 @@ function updateKeyValueItem(
   listName: KeyValueListName,
   index: number,
   field: keyof MDatasourceKeyValueItem,
-  value: string
+  value: string | VariableValueConfig
 ) {
   if (!props.edit) return;
 
   const item = apiState[listName][index];
   if (!item) return;
 
-  item[field] = value;
+  if (field === 'key') {
+    item.key = typeof value === 'string' ? value : stringifyVariableValue(value);
+  } else {
+    item.value = value;
+  }
   emitApiChange();
 }
 
@@ -799,6 +833,23 @@ function updateBodyValue(index: number, inputValue: string) {
   item.value = parsed.value;
   bodyValueErrors.value[index] = '';
   emitApiChange();
+}
+
+function updateBodyVariableValue(index: number, value: unknown) {
+  if (!props.edit) return;
+
+  const item = apiState.bodyData[index];
+  if (!item) return;
+
+  if (isVariableValueConfig(value)) {
+    item.value = value;
+    bodyValueInputs.value[index] = stringifyVariableValue(value);
+    bodyValueErrors.value[index] = '';
+    emitApiChange();
+    return;
+  }
+
+  updateBodyValue(index, typeof value === 'string' ? value : stringifyVariableValue(value));
 }
 
 function updateBodyFile(index: number, file?: File) {
@@ -1199,6 +1250,10 @@ function parseBodyValue(dataType: MDatasourceBodyDataType, inputValue: string): 
 
 function getBodyValueInput(item: Pick<ApiStateBodyItem, 'dataType' | 'value'>) {
   const normalizedValue = normalizeBodyValue(item.dataType, item.value);
+  if (isVariableValueConfig(normalizedValue)) {
+    return stringifyVariableValue(normalizedValue);
+  }
+
   if (item.dataType === 'file') {
     return normalizeBodyFileValue(normalizedValue).name;
   }
@@ -1435,15 +1490,16 @@ watch(
             @input="updateKeyValueItem('headerData', index, 'key', ($event.target as HTMLInputElement).value)"
             @keydown.stop
           />
-          <input
-            class="ce-datasource-tool__input"
-            :data-testid="`datasource-header-value-${index}`"
-            type="text"
+          <MVariableValueEditor
+            :testid="`datasource-header-value-${index}`"
+            :model-value="item.value"
+            :variables="variableOptions"
+            :block-data-sources="blockDataSources"
+            :current-block-id="currentBlockId"
+            value-type="string"
             :readonly="isReadOnly"
             :placeholder="t('datasource.fields.value')"
-            :value="item.value"
-            @input="updateKeyValueItem('headerData', index, 'value', ($event.target as HTMLInputElement).value)"
-            @keydown.stop
+            @update:model-value="updateKeyValueItem('headerData', index, 'value', $event as string | VariableValueConfig)"
           />
           <button
             v-if="edit"
@@ -1489,15 +1545,16 @@ watch(
             @input="updateKeyValueItem('queryData', index, 'key', ($event.target as HTMLInputElement).value)"
             @keydown.stop
           />
-          <input
-            class="ce-datasource-tool__input"
-            :data-testid="`datasource-query-value-${index}`"
-            type="text"
+          <MVariableValueEditor
+            :testid="`datasource-query-value-${index}`"
+            :model-value="item.value"
+            :variables="variableOptions"
+            :block-data-sources="blockDataSources"
+            :current-block-id="currentBlockId"
+            value-type="string"
             :readonly="isReadOnly"
             :placeholder="t('datasource.fields.value')"
-            :value="item.value"
-            @input="updateKeyValueItem('queryData', index, 'value', ($event.target as HTMLInputElement).value)"
-            @keydown.stop
+            @update:model-value="updateKeyValueItem('queryData', index, 'value', $event as string | VariableValueConfig)"
           />
           <button
             v-if="edit"
@@ -1554,19 +1611,8 @@ watch(
               {{ dataType }}
             </option>
           </select>
-          <select
-            v-if="body.dataType === 'boolean'"
-            class="ce-datasource-tool__input"
-            :data-testid="`datasource-body-value-${index}`"
-            :disabled="isReadOnly"
-            :value="String(body.value === true)"
-            @change="updateBodyValue(index, ($event.target as HTMLSelectElement).value)"
-          >
-            <option value="false">false</option>
-            <option value="true">true</option>
-          </select>
           <input
-            v-else-if="body.dataType === 'null'"
+            v-if="body.dataType === 'null'"
             class="ce-datasource-tool__input"
             :data-testid="`datasource-body-value-${index}`"
             type="text"
@@ -1590,26 +1636,18 @@ watch(
             readonly
             :value="getBodyValueInput(body)"
           />
-          <textarea
-            v-else-if="body.dataType === 'object' || body.dataType === 'array'"
-            class="ce-datasource-tool__textarea ce-datasource-tool__textarea--value"
-            :data-testid="`datasource-body-value-${index}`"
-            spellcheck="false"
-            :readonly="isReadOnly"
-            :value="bodyValueInputs[index] ?? getBodyValueInput(body)"
-            @input="updateBodyValue(index, ($event.target as HTMLTextAreaElement).value)"
-            @keydown.stop
-          ></textarea>
-          <input
+          <MVariableValueEditor
             v-else
-            class="ce-datasource-tool__input"
-            :data-testid="`datasource-body-value-${index}`"
-            :type="body.dataType === 'number' ? 'number' : 'text'"
+            :testid="`datasource-body-value-${index}`"
+            :model-value="body.value"
+            :variables="variableOptions"
+            :block-data-sources="blockDataSources"
+            :current-block-id="currentBlockId"
+            :value-type="body.dataType === 'object' || body.dataType === 'array' || body.dataType === 'number' || body.dataType === 'boolean' ? body.dataType : 'string'"
             :readonly="isReadOnly"
+            :multiline="body.dataType === 'object' || body.dataType === 'array'"
             :placeholder="t('datasource.fields.value')"
-            :value="bodyValueInputs[index] ?? getBodyValueInput(body)"
-            @input="updateBodyValue(index, ($event.target as HTMLInputElement).value)"
-            @keydown.stop
+            @update:model-value="updateBodyVariableValue(index, $event)"
           />
           <button
             v-if="edit"
@@ -2913,7 +2951,7 @@ watch(
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 8px;
-  align-items: start;
+  align-items: center;
 }
 
 .ce-datasource-tool__body-row {

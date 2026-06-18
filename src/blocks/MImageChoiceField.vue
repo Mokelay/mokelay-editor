@@ -12,6 +12,7 @@ import {
   stringValue,
   type PageDslOption
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MImageChoiceFieldProps {
   edit: boolean;
@@ -62,6 +63,7 @@ export const mImageChoiceFieldEditorTool = defineEditorTool<MImageChoiceFieldPro
     multiple: imageChoiceFieldDefaults.multiple,
     options: [...imageChoiceFieldDefaults.options]
   }),
+  getDataFields: (context) => valueBlockDataField(context.data.multiple === true ? 'array' : 'string'),
   normalizeProps: normalizeImageChoiceFieldProps,
   serialize: (props) => {
     const normalized = normalizeImageChoiceFieldProps(props);

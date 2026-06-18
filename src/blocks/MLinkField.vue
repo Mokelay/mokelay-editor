@@ -8,6 +8,7 @@ import {
   pageDslPropertyTitle,
   stringValue
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MLinkFieldProps {
   edit: boolean;
@@ -50,6 +51,7 @@ export const mLinkFieldEditorTool = defineEditorTool<MLinkFieldProps>({
   createInitialProps: () => ({
     ...linkFieldDefaults
   }),
+  getDataFields: () => valueBlockDataField('string'),
   normalizeProps: normalizeLinkFieldProps,
   serialize: (props) => {
     const normalized = normalizeLinkFieldProps(props);

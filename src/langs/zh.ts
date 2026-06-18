@@ -67,6 +67,58 @@ export const zhMessages = {
     confirmRoleLabel: '确认',
     messageRoleLabel: '消息'
   },
+  variableValue: {
+    modeLabel: '变量编辑模式',
+    modes: {
+      input: '直接输入',
+      variable: '单变量',
+      flow: '高级'
+    },
+    previous: '上一配置',
+    actions: {
+      insert: '插入变量'
+    },
+    insert: {
+      title: '插入变量',
+      search: '搜索变量',
+      empty: '暂无可用变量'
+    },
+    variable: {
+      placeholder: '请选择变量',
+      blockPlaceholder: '选择组件',
+      fieldPlaceholder: '选择数据',
+      emptySources: '暂无可读取数据的组件',
+      missingBlock: '缺失组件 {blockId}',
+      legacySource: '旧变量',
+      variable: '变量',
+      configureProcessors: '配置处理器'
+    },
+    flow: {
+      title: '高级变量流程',
+      subtitle: '通过变量、处理器和 if-else 节点编排最终输出值。',
+      library: '节点库',
+      inspector: '节点属性',
+      noSelection: '请选择一个节点。',
+      open: '打开画布',
+      summary: '流程',
+      nodes: {
+        variable: '变量',
+        constant: '常量',
+        processor: '处理器',
+        if: 'if-else',
+        output: '输出'
+      },
+      fields: {
+        value: '值',
+        left: '左值',
+        operator: '条件',
+        right: '右值'
+      },
+      validation: {
+        singleOutput: '高级流程只能有一个输出节点。'
+      }
+    }
+  },
   input: {
     toolboxTitle: '输入框',
     defaultPlaceholder: '请输入.....',

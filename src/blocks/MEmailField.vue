@@ -8,6 +8,7 @@ import {
   pageDslPropertyTitle,
   stringValue
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MEmailFieldProps {
   edit: boolean;
@@ -50,6 +51,7 @@ export const mEmailFieldEditorTool = defineEditorTool<MEmailFieldProps>({
   createInitialProps: () => ({
     ...emailFieldDefaults
   }),
+  getDataFields: () => valueBlockDataField('string'),
   normalizeProps: normalizeEmailFieldProps,
   serialize: (props) => {
     const normalized = normalizeEmailFieldProps(props);

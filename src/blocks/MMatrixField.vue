@@ -13,6 +13,7 @@ import {
   type PageDslMatrixRow,
   type PageDslOption
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MMatrixFieldProps {
   edit: boolean;
@@ -67,6 +68,7 @@ export const mMatrixFieldEditorTool = defineEditorTool<MMatrixFieldProps>({
     rows: [...matrixFieldDefaults.rows],
     options: [...matrixFieldDefaults.options]
   }),
+  getDataFields: () => valueBlockDataField('object'),
   normalizeProps: normalizeMatrixFieldProps,
   serialize: (props) => {
     const normalized = normalizeMatrixFieldProps(props);

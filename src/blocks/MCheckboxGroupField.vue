@@ -11,6 +11,7 @@ import {
   stringValue,
   type PageDslOption
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MCheckboxGroupFieldProps {
   edit: boolean;
@@ -58,6 +59,7 @@ export const mCheckboxGroupFieldEditorTool = defineEditorTool<MCheckboxGroupFiel
     value: [],
     options: [...checkboxGroupFieldDefaults.options]
   }),
+  getDataFields: () => valueBlockDataField('array'),
   normalizeProps: normalizeCheckboxGroupFieldProps,
   serialize: (props) => {
     const normalized = normalizeCheckboxGroupFieldProps(props);

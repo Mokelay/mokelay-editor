@@ -1033,6 +1033,111 @@ test('edits API datasource lists and saves typed body values', async ({ page }) 
   });
 });
 
+test('edits datasource parameter values with input, single variable, and advanced flow modes', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await seedSavedConfig(page, {
+    blocks: [
+      {
+        id: 'input-source',
+        type: 'MInput',
+        data: {
+          placeholder: 'name',
+          value: 'mokelay'
+        }
+      },
+      {
+        id: 'advance-table-source',
+        type: 'MAdvanceTable',
+        data: {
+          index: false,
+          selection: false,
+          showPageBreak: true
+        }
+      },
+      {
+        id: 'datasource-variable-values',
+        type: 'MDatasourceEditor',
+        data: {
+          value: {
+            type: 'API',
+            domain: 'mokelay',
+            path: '/users',
+            method: 'POST',
+            headerData: [],
+            bodyData: [],
+            queryData: []
+          }
+        }
+      }
+    ]
+  });
+
+  await openDatasourceSettings(page);
+  await page.getByTestId('datasource-header-add').click();
+  await page.getByTestId('datasource-header-key-0').fill('Authorization');
+  await page.getByTestId('datasource-header-value-0').fill('Bearer ');
+
+  await page.getByTestId('datasource-query-add').click();
+  await page.getByTestId('datasource-query-key-0').fill('token');
+  const queryEditor = page.getByTestId('datasource-query-value-0-editor');
+  await queryEditor.getByTestId('variable-mode-variable').click();
+  await expect(queryEditor.getByTestId('variable-block-select')).not.toContainText('legacy');
+  await expect(queryEditor.getByTestId('variable-block-select')).toContainText('MInput / input-source');
+  await expect(queryEditor.getByTestId('variable-block-select')).toContainText('MAdvanceTable / advance-table-source');
+  await queryEditor.getByTestId('variable-block-select').selectOption('advance-table-source');
+  await queryEditor.getByTestId('variable-single-select').selectOption('page');
+  await queryEditor.getByTestId('variable-single-processors').click();
+  const processorDialog = page.getByTestId('datasource-processor-dialog');
+  await expect(processorDialog).toBeVisible();
+  await processorDialog.getByTestId('datasource-processor-select').selectOption('date_time_format');
+  await processorDialog.getByTestId('datasource-processor-add').click();
+  await processorDialog.getByTestId('datasource-processor-apply').click();
+
+  await page.getByTestId('datasource-body-add').click();
+  await page.getByTestId('datasource-body-key-0').fill('payload');
+  const bodyEditor = page.getByTestId('datasource-body-value-0-editor');
+  await bodyEditor.getByTestId('variable-mode-flow').click();
+  const flowDialog = page.getByTestId('variable-flow-dialog');
+  await expect(flowDialog).toBeVisible();
+  await flowDialog.getByTestId('variable-flow-add-variable').click();
+  await flowDialog.getByTestId('variable-flow-add-variable').click();
+  await flowDialog.getByTestId('variable-flow-add-if').click();
+  await flowDialog.getByTestId('variable-flow-apply').click();
+  await expect(flowDialog).toHaveCount(0);
+
+  await closeDatasourceSettings(page);
+  await page.getByTestId('save-button').click();
+
+  const datasourceValue = getDatasourceValue(await getSavedBlocks(page)) as any;
+  expect(datasourceValue.headerData).toEqual([{
+    key: 'Authorization',
+    value: 'Bearer '
+  }]);
+  expect(datasourceValue.queryData).toEqual([{
+    key: 'token',
+    value: {
+      mode: 'variable',
+      blockId: 'advance-table-source',
+      blockType: 'MAdvanceTable',
+      variable: 'page',
+      processors: [{
+        processor: 'date_time_format',
+        param: 'yyyy-MM-dd HH:mm:SS'
+      }]
+    }
+  }]);
+  expect(datasourceValue.bodyData[0].value.mode).toBe('flow');
+  expect(datasourceValue.bodyData[0].value.flow.nodes.map((node: any) => node.type)).toEqual(
+    expect.arrayContaining(['constant', 'output', 'variable', 'if'])
+  );
+
+  await page.reload();
+  await openDatasourceSettings(page);
+  await page.getByTestId('datasource-body-value-0-editor').getByTestId('variable-flow-open').click();
+  await expect(page.getByTestId('variable-flow-dialog')).toBeVisible();
+  await expect(page.getByTestId('variable-flow-node-output_1')).toBeVisible();
+});
+
 test('loads API domain options and saves the selected domain uuid', async ({ page }) => {
   const apiState = await resetEditor(page, {
     apiDomains: [
@@ -2806,4 +2911,198 @@ test('exposes getData runtime method without saving runtime fields', async ({ pa
   );
   await page.getByRole('button', { name: 'Load data' }).click();
   await eventRequestPromise;
+});
+
+test('resolves MAdvanceTable self scoped page variables in its datasource request', async ({ page }) => {
+  const responseData = {
+    rows: [
+      {
+        name: 'Ada'
+      }
+    ],
+    page: 1,
+    pageSize: 10,
+    total: 1
+  };
+
+  await page.route('**/advance-table-self-runtime**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(responseData)
+    });
+  });
+
+  const requestPromise = page.waitForRequest((request) =>
+    request.url().includes('/advance-table-self-runtime') && request.method() === 'GET'
+  );
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [{
+      id: 'self-advance-table',
+      type: 'MAdvanceTable',
+      data: {
+        columns: [{
+          columnName: '名称',
+          columnContent: [{
+            id: 'self-table-name',
+            type: 'paragraph',
+            data: {
+              text: '{{name}}'
+            }
+          }]
+        }],
+        ds: {
+          type: 'API',
+          domain: 'mokelay',
+          path: '/advance-table-self-runtime',
+          method: 'GET',
+          headerData: [],
+          bodyData: [],
+          queryData: [
+            {
+              key: 'page',
+              value: {
+                mode: 'variable',
+                blockId: 'self-advance-table',
+                blockType: 'MAdvanceTable',
+                variable: 'page'
+              }
+            },
+            {
+              key: 'pageSize',
+              value: {
+                mode: 'variable',
+                blockId: 'self-advance-table',
+                blockType: 'MAdvanceTable',
+                variable: 'pageSize'
+              }
+            }
+          ],
+          schemaSelections: [
+            { label: '列表数据', path: 'rows[]', type: 'array' },
+            { label: '当前页', path: 'page', type: 'number' },
+            { label: '每页条数', path: 'pageSize', type: 'number' },
+            { label: '总数', path: 'total', type: 'number' }
+          ],
+          matchingExternalFields: [
+            { label: '列表数据', variable: 'data', matchFieldPath: 'rows[]' },
+            { label: '当前页', variable: 'page', matchFieldPath: 'page' },
+            { label: '每页条数', variable: 'pageSize', matchFieldPath: 'pageSize' },
+            { label: '总数', variable: 'total', matchFieldPath: 'total' }
+          ]
+        }
+      }
+    }]
+  });
+
+  const request = await requestPromise;
+
+  expect(request.url()).toContain('page=1');
+  expect(request.url()).toContain('pageSize=10');
+  await expect(page.getByTestId('advance-table')).toContainText('Ada');
+});
+
+test('resolves block scoped single variable values in datasource requests', async ({ page }) => {
+  const responseData = { ok: true };
+
+  await page.route('**/datasource-variable-runtime**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(responseData)
+    });
+  });
+
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'source-input',
+        type: 'MInput',
+        data: {
+          placeholder: 'token',
+          value: 'mokelay-token'
+        }
+      },
+      {
+        id: 'variable-runtime-datasource',
+        type: 'MDatasourceEditor',
+        data: {
+          value: {
+            type: 'API',
+            domain: 'mokelay',
+            path: '/datasource-variable-runtime',
+            method: 'POST',
+            headerData: [{
+              key: 'X-Token',
+              value: {
+                mode: 'variable',
+                blockId: 'source-input',
+                blockType: 'MInput',
+                variable: 'value'
+              }
+            }],
+            queryData: [{
+              key: 'token',
+              value: {
+                mode: 'variable',
+                blockId: 'source-input',
+                blockType: 'MInput',
+                variable: 'value'
+              }
+            }],
+            bodyData: [{
+              key: 'token',
+              dataType: 'string',
+              value: {
+                mode: 'variable',
+                blockId: 'source-input',
+                blockType: 'MInput',
+                variable: 'value'
+              }
+            }]
+          }
+        }
+      }
+    ]
+  });
+
+  await page.getByTestId('preview-button').click();
+  const requestPromise = page.waitForRequest((request) =>
+    request.url().includes('/datasource-variable-runtime') && request.method() === 'POST'
+  );
+  const runtimeData = await page
+    .getByTestId('preview-block-MDatasourceEditor')
+    .getByTestId('editor-datasource-tool')
+    .evaluate(async (element) => {
+      const component = (element as HTMLElement & {
+        __vueParentComponent?: {
+          exposed?: {
+            getData?: () => Promise<unknown>;
+          };
+        };
+      }).__vueParentComponent;
+      const getData = component?.exposed?.getData;
+      if (!getData) {
+        throw new Error('MDatasourceEditor.getData was not exposed.');
+      }
+
+      return await getData();
+    });
+  const request = await requestPromise;
+
+  expect(request.url()).toContain('token=mokelay-token');
+  expect(request.headers()['x-token']).toBe('mokelay-token');
+  expect(request.postDataJSON()).toEqual({
+    token: 'mokelay-token'
+  });
+  expect(runtimeData).toEqual({
+    rawResponse: responseData,
+    page: 1,
+    pageSize: 10,
+    total: 0
+  });
 });

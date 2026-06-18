@@ -67,6 +67,58 @@ export const enMessages = {
     confirmRoleLabel: 'Confirm',
     messageRoleLabel: 'Message'
   },
+  variableValue: {
+    modeLabel: 'Variable editing mode',
+    modes: {
+      input: 'Input',
+      variable: 'Single variable',
+      flow: 'Advanced'
+    },
+    previous: 'Previous config',
+    actions: {
+      insert: 'Insert variable'
+    },
+    insert: {
+      title: 'Insert variable',
+      search: 'Search variables',
+      empty: 'No variables available'
+    },
+    variable: {
+      placeholder: 'Select variable',
+      blockPlaceholder: 'Select block',
+      fieldPlaceholder: 'Select data',
+      emptySources: 'No readable block data',
+      missingBlock: 'Missing block {blockId}',
+      legacySource: 'Legacy variables',
+      variable: 'Variable',
+      configureProcessors: 'Configure processors'
+    },
+    flow: {
+      title: 'Advanced variable flow',
+      subtitle: 'Compose the final value with variables, processors, and if-else nodes.',
+      library: 'Nodes',
+      inspector: 'Node properties',
+      noSelection: 'Select a node.',
+      open: 'Open canvas',
+      summary: 'Flow',
+      nodes: {
+        variable: 'Variable',
+        constant: 'Constant',
+        processor: 'Processor',
+        if: 'if-else',
+        output: 'Output'
+      },
+      fields: {
+        value: 'Value',
+        left: 'Left value',
+        operator: 'Operator',
+        right: 'Right value'
+      },
+      validation: {
+        singleOutput: 'Advanced flow can only have one output node.'
+      }
+    }
+  },
   input: {
     toolboxTitle: 'Input',
     defaultPlaceholder: 'Please enter...',

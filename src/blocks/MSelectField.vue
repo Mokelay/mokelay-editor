@@ -11,6 +11,7 @@ import {
   valueField,
   type PageDslOption
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MSelectFieldProps {
   edit: boolean;
@@ -57,6 +58,7 @@ export const mSelectFieldEditorTool = defineEditorTool<MSelectFieldProps>({
     value: selectFieldDefaults.value,
     options: [...selectFieldDefaults.options]
   }),
+  getDataFields: () => valueBlockDataField('string'),
   normalizeProps: normalizeSelectFieldProps,
   serialize: (props) => {
     const normalized = normalizeSelectFieldProps(props);

@@ -8,6 +8,7 @@ import {
   stringValue,
   valueField
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MLinearScaleFieldProps {
   edit: boolean;
@@ -57,6 +58,7 @@ export const mLinearScaleFieldEditorTool = defineEditorTool<MLinearScaleFieldPro
   createInitialProps: () => ({
     ...linearScaleFieldDefaults
   }),
+  getDataFields: () => valueBlockDataField('number'),
   normalizeProps: normalizeLinearScaleFieldProps,
   serialize: (props) => {
     const normalized = normalizeLinearScaleFieldProps(props);

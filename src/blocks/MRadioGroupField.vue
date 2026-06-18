@@ -11,6 +11,7 @@ import {
   valueField,
   type PageDslOption
 } from '@/blocks/pageDslEditorTools';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MRadioGroupFieldProps {
   edit: boolean;
@@ -58,6 +59,7 @@ export const mRadioGroupFieldEditorTool = defineEditorTool<MRadioGroupFieldProps
     value: radioGroupFieldDefaults.value,
     options: [...radioGroupFieldDefaults.options]
   }),
+  getDataFields: () => valueBlockDataField('string'),
   normalizeProps: normalizeRadioGroupFieldProps,
   serialize: (props) => {
     const normalized = normalizeRadioGroupFieldProps(props);

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 // 输入框组件在编辑器中的属性定义。
 export interface MInputProps {
@@ -40,6 +41,7 @@ export const mInputEditorTool = defineEditorTool<MInputProps>({
     placeholder: i18n.t('input.defaultPlaceholder'),
     value: ''
   }),
+  getDataFields: () => valueBlockDataField('string'),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
     placeholder: props.placeholder ?? '',
