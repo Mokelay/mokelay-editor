@@ -45,6 +45,8 @@ type CreateEditorToolsOptions = {
   exclude?: Iterable<string>;
 };
 
+type MergedEditorToolProps = Partial<EditorToolComponentProps> & Record<string, unknown>;
+
 // 缓存已经构建过的工具类，避免重复创建 class。
 const toolClassCache = new Map<string, EditorToolClass>();
 
@@ -76,7 +78,7 @@ export default class EditorToolFactory {
       constructor({ data, config, block }: EditorToolFactoryOptions) {
         // data 是已保存 block.data，config 是工具级固定配置（例如 edit）。
         this.blockApi = block;
-        const mergedProps = {
+        const mergedProps: MergedEditorToolProps = {
           ...(config ?? {}),
           ...removeInternalBlockEventsFromData(data),
           ...(typeof block?.id === 'string' && block.id.trim() ? { currentBlockId: block.id.trim() } : {})

@@ -371,8 +371,8 @@ function normalizeBlockReference(value: unknown) {
 function normalizeLegacyTemplateConfig(value: LegacyVariableValueConfig): VariableValueConfig {
   const parts = value.parts.flatMap((part): LegacyVariableValuePart[] => {
     if (!isRecord(part)) return [];
-    if (typeof part.text === 'string') return [{ text: part.text }];
-    if (typeof part.variable !== 'string' || !part.variable.trim()) return [];
+    if ('text' in part && typeof part.text === 'string') return [{ text: part.text }];
+    if (!('variable' in part) || typeof part.variable !== 'string' || !part.variable.trim()) return [];
     return [{
       variable: part.variable.trim(),
       ...normalizeProcessorsProp(part.processors)

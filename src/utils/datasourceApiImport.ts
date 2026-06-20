@@ -428,7 +428,7 @@ function bodyParameterListToBodyItems(
         value: createBodyMock(schema, dataType, openapiRoot)
       };
     })
-    .filter((item): item is MDatasourceBodyItem => Boolean(item));
+    .filter((item): item is { key: string; dataType: MDatasourceBodyDataType; value: JsonValue } => Boolean(item));
 }
 
 function schemaPropertiesToBodyItems(schema: unknown, openapiRoot: unknown): MDatasourceBodyItem[] {
@@ -508,7 +508,8 @@ function createBodyMock(
   openapiRoot: unknown
 ): JsonValue {
   const example = readExampleValue(schema, openapiRoot);
-  return normalizeBodyValue(dataType, example === undefined ? getDefaultBodyValue(dataType) : example);
+  const normalizedValue = normalizeBodyValue(dataType, example === undefined ? getDefaultBodyValue(dataType) : example);
+  return isJsonValue(normalizedValue) ? normalizedValue : getDefaultBodyValue(dataType);
 }
 
 function getResponseJsonSchema(responses: unknown, openapiRoot: unknown): JSONSchema | undefined {

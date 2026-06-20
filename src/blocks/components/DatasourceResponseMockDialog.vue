@@ -107,8 +107,15 @@ function getBodyFileValue(file: File): MDatasourceBodyFileValue {
   };
 }
 
+function normalizeMockBodyValue(dataType: MDatasourceBodyDataType, value: unknown): JsonValue {
+  const normalizedValue = normalizeBodyValue(dataType, value);
+  return isJsonValue(normalizedValue)
+    ? cloneJsonValue(normalizedValue)
+    : getDefaultBodyValue(dataType);
+}
+
 function getBodyValueInput(item: Pick<ResponseMockBodyItem, 'dataType' | 'value'>) {
-  const normalizedValue = normalizeBodyValue(item.dataType, item.value);
+  const normalizedValue = normalizeMockBodyValue(item.dataType, item.value);
   if (item.dataType === 'file') {
     return normalizeBodyFileValue(normalizedValue).name;
   }
@@ -225,7 +232,7 @@ function initializeMockState() {
     }))
     .filter(({ item }) => item.key.trim())
     .map(({ item, file }) => {
-      const normalizedValue = normalizeBodyValue(item.dataType, item.value);
+      const normalizedValue = normalizeMockBodyValue(item.dataType, item.value);
       return {
         key: item.key,
         dataType: item.dataType,

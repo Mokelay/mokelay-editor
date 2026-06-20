@@ -14,7 +14,7 @@
     "e2e:headed": "playwright test --headed",
     "e2e:debug": "playwright test --debug",
     "e2e:install": "playwright install chromium",
-    "deploy": "gh-pages -d dist --cname editor.mokelay.com",
+    "deploy": "npm run build && gh-pages -d dist --cname editor.mokelay.com",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
