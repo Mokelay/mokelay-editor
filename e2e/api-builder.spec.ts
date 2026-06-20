@@ -366,7 +366,32 @@ test('creates an API from a sample, configures response, and dry-runs it', async
 
   await page.getByRole('button', { name: '响应' }).click();
   await expect(page.getByText('响应组装')).toBeVisible();
+  await expect(page.getByTestId('api-response-terminal-password_false_node')).toBeVisible();
+  await expect(page.getByTestId('api-response-terminal-set_user_session')).toBeVisible();
   await expect(page.locator('[data-testid="api-builder-json"]')).toContainText('"uuid": "login_users"');
+  await expect(page.locator('[data-testid="api-builder-json"]')).toContainText('"responses"');
+  await page.getByTestId('api-response-terminal-password_false_node').click();
+  await expect(page.locator('[data-testid="api-builder-json"]')).toContainText('"user": null');
+  const responseFieldKey = page.getByTestId('api-response-field-key');
+  await expect(responseFieldKey).toHaveCount(1);
+  await responseFieldKey.click();
+  await responseFieldKey.press('ControlOrMeta+A');
+  await page.keyboard.type('message');
+  await expect(responseFieldKey).toBeFocused();
+  await expect(responseFieldKey).toHaveValue('message');
+  await responseFieldKey.press('Backspace');
+  await expect(responseFieldKey).toBeFocused();
+  await expect(responseFieldKey).toHaveValue('messag');
+  await responseFieldKey.press('ControlOrMeta+A');
+  await page.keyboard.type('m');
+  await responseFieldKey.press('Backspace');
+  await expect(responseFieldKey).toBeFocused();
+  await expect(responseFieldKey).toHaveValue('');
+  await page.getByRole('button', { name: '添加响应字段' }).click();
+  await page.getByRole('button', { name: '添加响应字段' }).click();
+  await expect(responseFieldKey).toHaveCount(3);
+  await expect(responseFieldKey.nth(1)).toHaveValue('data');
+  await expect(responseFieldKey.nth(2)).toHaveValue('data_1');
 
   await page.getByRole('button', { name: /测试/ }).click();
   await page.getByRole('button', { name: '运行 Dry-run' }).click();

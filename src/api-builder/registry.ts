@@ -10,7 +10,9 @@ import type {
   ExecutableApiBlock,
   ProcessorConfig,
   ProcessableKey,
-  RequestLocation
+  RequestLocation,
+  ResponseConfig,
+  ResponseTerminal
 } from '@/api-builder/types';
 
 export type BlockGroup = 'query' | 'write' | 'session';
@@ -416,6 +418,55 @@ export function isStandardBlock(block: ApiBlock): block is ApiStandardBlock {
   return block.uuid !== 'starter' && (!('type' in block) || block.type !== 'controller');
 }
 
+export function collectResponseTerminals(apiJson: ApiJson): ResponseTerminal[] {
+  const terminals: ResponseTerminal[] = [];
+
+  for (const block of apiJson.blocks ?? []) {
+    if (isStarterBlock(block)) {
+      if (block.nextBlock === null) {
+        terminals.push({
+          uuid: 'starter',
+          label: 'Starter'
+        });
+      }
+      continue;
+    }
+
+    if (isControllerBlock(block)) {
+      for (const node of block.nodes) {
+        if (node.nextBlock === null) {
+          terminals.push({
+            uuid: node.uuid,
+            label: `${block.alias || block.uuid} / ${controllerNodeLabel(node)}`
+          });
+        }
+      }
+      continue;
+    }
+
+    if (block.nextBlock === null) {
+      terminals.push({
+        uuid: block.uuid,
+        label: block.alias || block.uuid
+      });
+    }
+  }
+
+  return terminals;
+}
+
+export function hasDefaultResponse(apiJson: ApiJson) {
+  return Object.prototype.hasOwnProperty.call(apiJson, 'response');
+}
+
+export function getResponseForTerminal(apiJson: ApiJson, terminalUuid: string): ResponseConfig {
+  if (apiJson.responses && Object.prototype.hasOwnProperty.call(apiJson.responses, terminalUuid)) {
+    return apiJson.responses[terminalUuid] ?? null;
+  }
+
+  return hasDefaultResponse(apiJson) ? apiJson.response ?? null : null;
+}
+
 export function createStarterBlock(nextBlock: string | null = null): ApiBlock {
   return {
     uuid: 'starter',
@@ -559,6 +610,13 @@ function randomToken() {
   return Math.random().toString(36).slice(2, 8);
 }
 
+function controllerNodeLabel(node: { alias?: string; type?: 'DEFAULT'; value?: string | number | boolean }) {
+  if (node.alias) return node.alias;
+  if (node.type === 'DEFAULT') return 'DEFAULT';
+  if (typeof node.value === 'boolean') return node.value ? 'true' : 'false';
+  return String(node.value ?? 'case');
+}
+
 function buildRegisterTemplate(options: TemplateOptions): ApiJson {
   const returnValue = objectFromFields(options.returnFields, "blocks['read_record'].outputs.data");
 
@@ -686,8 +744,13 @@ function buildLoginTemplate(options: TemplateOptions): ApiJson {
       passwordController,
       setSession
     ],
-    response: {
-      user: objectFromFields(options.returnFields, "blocks['read_user'].outputs.data")
+    responses: {
+      set_user_session: {
+        user: objectFromFields(options.returnFields, "blocks['read_user'].outputs.data")
+      },
+      password_false_node: {
+        user: null
+      }
     }
   };
 }

@@ -23,6 +23,8 @@ export type CalculateTemplate = {
   processors?: ProcessorConfig[];
 };
 
+export type ResponseConfig = Record<string, unknown> | null;
+
 export type ConditionType = 'GE' | 'GT' | 'LE' | 'LT' | 'NEQ' | 'EQ' | 'NOTIN' | 'IN';
 export type GroupType = 'AND' | 'OR';
 
@@ -106,7 +108,13 @@ export type ApiJson = {
   method: HttpMethod | string;
   request?: RequestSchema;
   blocks?: ApiBlock[];
-  response?: Record<string, unknown> | null;
+  response?: ResponseConfig;
+  responses?: Record<string, ResponseConfig>;
+};
+
+export type ResponseTerminal = {
+  uuid: string;
+  label: string;
 };
 
 export type ApiBuilderStatus = 'draft' | 'published';

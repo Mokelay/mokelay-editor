@@ -16,6 +16,7 @@ import { runDryApiTest, createRequestSnapshot } from '@/api-builder/dryRun';
 import {
   blockDefinitions,
   cloneValue,
+  collectResponseTerminals,
   controllerDefinitions,
   conditionTypes,
   createBlock,
@@ -26,6 +27,7 @@ import {
   getBlockDefinition,
   getControllerDefinition,
   getProcessorDefinition,
+  hasDefaultResponse,
   isControllerBlock,
   isStandardBlock,
   isStarterBlock,
@@ -65,6 +67,7 @@ import type {
   ProcessorConfig,
   RequestLocation,
   RequestSnapshot,
+  ResponseConfig,
   ValidationIssue
 } from '@/api-builder/types';
 
@@ -96,6 +99,7 @@ const apiInfoSourceJson = ref<ApiJson | null>(null);
 const apiInfoSourceLayout = ref<ApiBuilderLayout | null>(null);
 const apiInfoError = ref('');
 const serverDraftIds = ref(new Set<string>());
+const selectedResponseTerminalUuid = ref('');
 const testRequest = ref<RequestSnapshot>({ header: {}, query: {}, body: {} });
 const lastTestResult = ref<DryRunResult | null>(null);
 const apiInfoForm = reactive({
@@ -126,6 +130,8 @@ const activeBlock = computed(() => {
 });
 const activeStandardBlock = computed(() => activeBlock.value && isStandardBlock(activeBlock.value) ? activeBlock.value : null);
 const activeController = computed(() => activeBlock.value && isControllerBlock(activeBlock.value) ? activeBlock.value : null);
+const responseTerminals = computed(() => activeDraft.value ? collectResponseTerminals(activeDraft.value.apiJson) : []);
+const usesTerminalResponses = computed(() => Boolean(activeDraft.value?.apiJson.responses) || responseTerminals.value.length > 1);
 const variableOptions = computed(() => {
   if (!activeDraft.value) return [];
   const beforeBlockUuid = selection.value.type === 'block' ? selection.value.uuid : undefined;
@@ -175,6 +181,20 @@ watch(
       return;
     }
     testRequest.value = createRequestSnapshot(generateApiJson(draft), testRequest.value);
+  },
+  { immediate: true }
+);
+
+watch(
+  responseTerminals,
+  (terminals) => {
+    if (!terminals.length) {
+      selectedResponseTerminalUuid.value = '';
+      return;
+    }
+    if (!terminals.some((terminal) => terminal.uuid === selectedResponseTerminalUuid.value)) {
+      selectedResponseTerminalUuid.value = terminals[0].uuid;
+    }
   },
   { immediate: true }
 );
@@ -725,11 +745,21 @@ function duplicateBlock(block: ApiBlock) {
 function removeBlock(block: ApiBlock) {
   if (!activeDraft.value) return;
   if (isStarterBlock(block)) return;
+  removeBlockResponseTerminals(block);
   activeDraft.value.apiJson.blocks = (activeDraft.value.apiJson.blocks ?? []).filter((item) => item.uuid !== block.uuid);
   clearReferencesToBlock(block.uuid);
   activeDraft.value.disabledBlockIds = activeDraft.value.disabledBlockIds.filter((uuid) => uuid !== block.uuid);
   removeNodePosition(block.uuid);
   selection.value = { type: 'api' };
+}
+
+function removeBlockResponseTerminals(block: ApiBlock) {
+  if (isStarterBlock(block)) return;
+  if (isControllerBlock(block)) {
+    block.nodes.forEach((node) => removeResponseTerminal(node.uuid));
+    return;
+  }
+  removeResponseTerminal(block.uuid);
 }
 
 function toggleBlockDisabled(block: ApiBlock) {
@@ -1180,8 +1210,16 @@ function updateActiveBlockUuid(value: string) {
     if (block.nextBlock === previous) block.nextBlock = next;
   }
 
+  renameResponseTerminal(previous, next);
   moveNodePosition(previous, next);
   selection.value = { type: 'block', uuid: next };
+}
+
+function updateControllerNodeUuid(node: ControllerNode, value: string) {
+  const previous = node.uuid;
+  const next = value.trim();
+  node.uuid = next;
+  renameResponseTerminal(previous, next);
 }
 
 function nodeLabel(node: ControllerNode) {
@@ -1213,6 +1251,10 @@ function addSwitchDefault(controller: ApiController) {
 
 function removeControllerNode(controller: ApiController, index: number) {
   if (controller.functionName === 'if_controller') return;
+  const node = controller.nodes[index];
+  if (node) {
+    removeResponseTerminal(node.uuid);
+  }
   controller.nodes.splice(index, 1);
 }
 
@@ -1365,28 +1407,103 @@ function getResponseEntries() {
   return Object.entries(response);
 }
 
+function writeResponseEntries(entries: Array<[string, unknown]>) {
+  const response = ensureResponseObject();
+  Object.keys(response).forEach((key) => delete response[key]);
+  entries.forEach(([key, value]) => {
+    response[key] = value;
+  });
+}
+
+function nextResponseFieldKey(response: Record<string, unknown>) {
+  if (!Object.prototype.hasOwnProperty.call(response, 'data')) {
+    return 'data';
+  }
+
+  let index = 1;
+  let key = `data_${index}`;
+  while (Object.prototype.hasOwnProperty.call(response, key)) {
+    index += 1;
+    key = `data_${index}`;
+  }
+  return key;
+}
+
+function getSelectedResponseTerminalLabel() {
+  return responseTerminals.value.find((terminal) => terminal.uuid === selectedResponseTerminalUuid.value)?.label || selectedResponseTerminalUuid.value;
+}
+
+function selectResponseTerminal(uuid: string) {
+  selectedResponseTerminalUuid.value = uuid;
+  ensureResponseObject();
+}
+
 function ensureResponseObject() {
   if (!activeDraft.value) return {};
-  if (!isRecord(activeDraft.value.apiJson.response)) {
-    activeDraft.value.apiJson.response = {};
+  const apiJson = activeDraft.value.apiJson;
+
+  if (usesTerminalResponses.value) {
+    const terminalUuid = selectedResponseTerminalUuid.value || responseTerminals.value[0]?.uuid || 'starter';
+    selectedResponseTerminalUuid.value = terminalUuid;
+    apiJson.responses ??= {};
+    if (!Object.prototype.hasOwnProperty.call(apiJson.responses, terminalUuid)) {
+      apiJson.responses[terminalUuid] = hasDefaultResponse(apiJson)
+        ? cloneValue(apiJson.response ?? null)
+        : null;
+    }
+    if (!isRecord(apiJson.responses[terminalUuid])) {
+      apiJson.responses[terminalUuid] = {};
+    }
+    return apiJson.responses[terminalUuid] as Record<string, unknown>;
   }
-  return activeDraft.value.apiJson.response;
+
+  if (!isRecord(apiJson.response)) {
+    apiJson.response = {};
+  }
+  return apiJson.response as Record<string, unknown>;
 }
 
 function addResponseField() {
   const response = ensureResponseObject();
-  response.data = variableOptions.value[0] ? makeTemplate(variableOptions.value[0].path) : null;
+  response[nextResponseFieldKey(response)] = variableOptions.value[0] ? makeTemplate(variableOptions.value[0].path) : null;
 }
 
-function updateResponseField(oldKey: string, newKey: string, value: unknown) {
-  const response = ensureResponseObject();
-  delete response[oldKey];
-  response[newKey || oldKey] = value;
+function updateResponseField(index: number, key: string, value: unknown) {
+  const entries = getResponseEntries();
+  if (!entries[index]) return;
+  entries[index] = [key, value];
+  writeResponseEntries(entries);
 }
 
-function removeResponseField(key: string) {
-  const response = ensureResponseObject();
-  delete response[key];
+function removeResponseField(index: number) {
+  const entries = getResponseEntries();
+  if (!entries[index]) return;
+  entries.splice(index, 1);
+  writeResponseEntries(entries);
+}
+
+function renameResponseTerminal(previous: string, next: string) {
+  if (!activeDraft.value || !previous || !next || previous === next) return;
+  const responses = activeDraft.value.apiJson.responses;
+  if (responses && Object.prototype.hasOwnProperty.call(responses, previous)) {
+    if (!Object.prototype.hasOwnProperty.call(responses, next)) {
+      responses[next] = responses[previous] as ResponseConfig;
+    }
+    delete responses[previous];
+  }
+  if (selectedResponseTerminalUuid.value === previous) {
+    selectedResponseTerminalUuid.value = next;
+  }
+}
+
+function removeResponseTerminal(uuid: string) {
+  if (!activeDraft.value) return;
+  if (activeDraft.value.apiJson.responses) {
+    delete activeDraft.value.apiJson.responses[uuid];
+  }
+  if (selectedResponseTerminalUuid.value === uuid) {
+    selectedResponseTerminalUuid.value = '';
+  }
 }
 
 function setTemplateValue(target: (value: unknown) => void, path: string) {
@@ -1817,17 +1934,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <template v-else-if="selection.type === 'response'">
             <h3 class="text-base font-semibold text-slate-950 dark:text-white">响应组装</h3>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">把变量映射到响应 data 的字段。</p>
+            <div v-if="usesTerminalResponses" class="mt-4">
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="terminal in responseTerminals"
+                  :key="terminal.uuid"
+                  class="builder-small-button"
+                  :class="{ 'border-teal-500 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-500/10 dark:text-teal-100': selectedResponseTerminalUuid === terminal.uuid }"
+                  :data-testid="`api-response-terminal-${terminal.uuid}`"
+                  @click="selectResponseTerminal(terminal.uuid)"
+                >
+                  {{ terminal.label }}
+                </button>
+              </div>
+              <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">当前终点：{{ getSelectedResponseTerminalLabel() || '未选择' }}</p>
+            </div>
             <div class="mt-4 space-y-3">
-              <div v-for="[key, value] in getResponseEntries()" :key="key" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                <input class="builder-input" :value="key" @input="updateResponseField(key, ($event.target as HTMLInputElement).value, value)">
+              <div v-for="([key, value], index) in getResponseEntries()" :key="`${selectedResponseTerminalUuid || 'default'}-${index}`" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                <input class="builder-input" :value="key" data-testid="api-response-field-key" @input="updateResponseField(index, ($event.target as HTMLInputElement).value, value)">
                 <div class="mt-2 grid gap-2">
-                  <input class="builder-input font-mono text-xs" :value="formatUnknown(value)" @input="updateResponseField(key, key, parseLooseValue(($event.target as HTMLInputElement).value))">
-                  <select class="builder-input" @change="setTemplateValue((next) => updateResponseField(key, key, next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                  <input class="builder-input font-mono text-xs" :value="formatUnknown(value)" @input="updateResponseField(index, key, parseLooseValue(($event.target as HTMLInputElement).value))">
+                  <select class="builder-input" @change="setTemplateValue((next) => updateResponseField(index, key, next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                     <option value="">从变量选择器填入</option>
                     <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }} · {{ option.path }}</option>
                   </select>
                 </div>
-                <button class="mt-2 text-xs text-rose-600" @click="removeResponseField(key)">删除字段</button>
+                <button class="mt-2 text-xs text-rose-600" @click="removeResponseField(index)">删除字段</button>
               </div>
               <button class="builder-secondary-button w-full" @click="addResponseField">添加响应字段</button>
             </div>
@@ -2060,7 +2192,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                     <div class="grid gap-2">
                       <label class="builder-field">
                         <span>Node UUID</span>
-                        <input v-model="node.uuid" class="builder-input font-mono">
+                        <input :value="node.uuid" class="builder-input font-mono" @input="updateControllerNodeUuid(node, ($event.target as HTMLInputElement).value)">
                       </label>
                       <label class="builder-field">
                         <span>别名</span>

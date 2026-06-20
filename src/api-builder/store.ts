@@ -1,4 +1,4 @@
-import { cloneValue, createEmptyApiJson, createStarterBlock } from '@/api-builder/registry';
+import { cloneValue, collectResponseTerminals, createEmptyApiJson, createStarterBlock } from '@/api-builder/registry';
 import { normalizeProcessors } from '@/processors';
 import type {
   ApiBlock,
@@ -10,6 +10,7 @@ import type {
   ApiBuilderNodePosition,
   ApiStandardBlock,
   ControllerNode,
+  ResponseConfig,
   StarterBlock
 } from '@/api-builder/types';
 
@@ -74,20 +75,32 @@ export function normalizeApiJson(value: unknown): ApiJson {
     return createEmptyApiJson();
   }
 
-  return {
+  const normalized: ApiJson = {
     uuid: readString(value.uuid) || `api_${randomToken()}`,
     alias: readString(value.alias) || '未命名 API',
     method: readString(value.method).toUpperCase() === 'POST' ? 'POST' : 'GET',
     request: normalizeRequest(value.request),
     blocks: normalizeBlocks(value.blocks),
-    response: isRecord(value.response) ? cloneValue(value.response) : value.response === null ? null : null
   };
+  if (Object.prototype.hasOwnProperty.call(value, 'response')) {
+    normalized.response = normalizeResponseConfig(value.response) ?? null;
+  }
+  const responses = normalizeResponses(value.responses);
+  if (responses) {
+    normalized.responses = responses;
+  }
+
+  return normalized;
 }
 
 export function generateApiJson(draft: ApiBuilderDraft): ApiJson {
   const apiJson = cloneValue(normalizeApiJson(draft.apiJson));
   const disabled = new Set(draft.disabledBlockIds);
   apiJson.blocks = clearDisabledReferences((apiJson.blocks ?? []).filter((block) => block.uuid === 'starter' || !disabled.has(block.uuid)), disabled);
+  apiJson.responses = filterResponsesForTerminals(apiJson.responses, apiJson);
+  if (apiJson.responses && Object.keys(apiJson.responses).length === 0) {
+    delete apiJson.responses;
+  }
   return apiJson;
 }
 
@@ -122,6 +135,36 @@ function normalizeProcessableKeys(value: unknown) {
       };
     })
     .filter((item): item is string | { key: string; processors: ReturnType<typeof normalizeProcessors> } => Boolean(item));
+}
+
+function normalizeResponseConfig(value: unknown): ResponseConfig | undefined {
+  if (isRecord(value)) return cloneValue(value);
+  if (value === null) return null;
+  return undefined;
+}
+
+function normalizeResponses(value: unknown) {
+  if (!isRecord(value)) return undefined;
+  const responses: Record<string, ResponseConfig> = {};
+
+  for (const [uuid, response] of Object.entries(value)) {
+    const normalized = normalizeResponseConfig(response);
+    if (uuid && normalized !== undefined) {
+      responses[uuid] = normalized;
+    }
+  }
+
+  return Object.keys(responses).length ? responses : undefined;
+}
+
+function filterResponsesForTerminals(
+  responses: Record<string, ResponseConfig> | undefined,
+  apiJson: ApiJson
+) {
+  if (!responses) return undefined;
+  const terminalUuids = new Set(collectResponseTerminals(apiJson).map((terminal) => terminal.uuid));
+  const filtered = Object.fromEntries(Object.entries(responses).filter(([uuid]) => terminalUuids.has(uuid)));
+  return Object.keys(filtered).length ? filtered : undefined;
 }
 
 function normalizeBlocks(value: unknown) {

@@ -71,7 +71,7 @@ export function buildDatasourceFromMokelayApi(
   }
 
   const method = normalizeImportedMethod(apiJson.method || api.method);
-  const responseExample = getMokelayResponseExample(apiJson.response);
+  const responseExamples = getMokelayResponseExamples(apiJson);
 
   return {
     datasource: normalizeDatasource({
@@ -83,7 +83,7 @@ export function buildDatasourceFromMokelayApi(
       queryData: requestDeclarationsToKeyValueItems(apiJson, 'query'),
       bodyData: requestDeclarationsToBodyItems(apiJson)
     }) as MDatasourceApiObject,
-    ...(responseExample !== undefined ? { responseExamples: [responseExample] } : {})
+    ...(responseExamples.length ? { responseExamples } : {})
   };
 }
 
@@ -122,11 +122,15 @@ export function buildDatasourceFromApifoxApi(
   };
 }
 
-function getMokelayResponseExample(response: ApiJson['response']): JsonValue | undefined {
-  return {
+function getMokelayResponseExamples(apiJson: ApiJson): JsonValue[] {
+  const responseConfigs = apiJson.responses
+    ? Object.values(apiJson.responses)
+    : [apiJson.response];
+
+  return responseConfigs.map((response) => ({
     ok: true,
     data: isJsonValue(response) ? response : null
-  };
+  }));
 }
 
 function getJsonSchemaFromExample(value: JsonValue): JSONSchema | undefined {

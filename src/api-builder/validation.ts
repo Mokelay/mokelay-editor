@@ -1,6 +1,8 @@
 import {
+  collectResponseTerminals,
   declarationKey,
   getBlockDefinition,
+  hasDefaultResponse,
   isControllerBlock,
   isStandardBlock,
   isStarterBlock,
@@ -139,6 +141,7 @@ export function validateApiJson(apiJson: ApiJson): ValidationIssue[] {
   }
 
   validateGraph(apiJson, executableUuids, add);
+  validateResponses(apiJson, add);
   validateTemplateReferences(apiJson, add);
 
   return issues;
@@ -378,6 +381,31 @@ function validateOutputs(
     }
     if (typeof output !== 'string') {
       validateProcessors(output.processors ?? [], add, target);
+    }
+  }
+}
+
+function validateResponses(
+  apiJson: ApiJson,
+  add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void
+) {
+  if (!apiJson.responses) return;
+
+  const terminals = collectResponseTerminals(apiJson);
+  const terminalUuids = new Set(terminals.map((terminal) => terminal.uuid));
+  const responseUuids = new Set(Object.keys(apiJson.responses));
+
+  for (const responseUuid of responseUuids) {
+    if (!terminalUuids.has(responseUuid)) {
+      add('error', `responses.${responseUuid} 必须对应一个 nextBlock 为 null 的终点。`, 'response');
+    }
+  }
+
+  if (hasDefaultResponse(apiJson)) return;
+
+  for (const terminal of terminals) {
+    if (!responseUuids.has(terminal.uuid)) {
+      add('error', `responses 缺少终点 ${terminal.label} (${terminal.uuid}) 的响应配置。`, 'response');
     }
   }
 }

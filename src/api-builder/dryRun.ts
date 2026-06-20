@@ -1,5 +1,6 @@
 import {
   declarationKey,
+  getResponseForTerminal,
   isControllerBlock,
   isStandardBlock,
   isStarterBlock,
@@ -62,6 +63,7 @@ export function runDryApiTest(apiJson: ApiJson, request: RequestSnapshot): DryRu
     blocks: {}
   };
   const logs: DryRunBlockLog[] = [];
+  let terminalUuid = 'starter';
 
   try {
     applyRequestProcessors(apiJson, context);
@@ -83,13 +85,14 @@ export function runDryApiTest(apiJson: ApiJson, request: RequestSnapshot): DryRu
       });
     }
   } else {
-    executeDryRunGraph(apiJson, context, logs, errors);
+    terminalUuid = executeDryRunGraph(apiJson, context, logs, errors);
   }
 
   let data: unknown = null;
   if (!errors.length) {
     try {
-      data = apiJson.response == null ? null : resolveTemplates(apiJson.response, context);
+      const response = getResponseForTerminal(apiJson, terminalUuid);
+      data = response == null ? null : resolveTemplates(response, context);
     } catch (error) {
       errors.push(readErrorMessage(error));
     }
@@ -141,31 +144,37 @@ function executeDryRunGraph(
   const blockMap = new Map(blocks.filter((block) => !isStarterBlock(block)).map((block) => [block.uuid, block]));
   const visited = new Set<string>();
   let nextBlock = starter?.nextBlock ?? null;
+  let terminalUuid = 'starter';
 
   while (nextBlock !== null) {
     if (visited.has(nextBlock)) {
       errors.push(`流程存在循环：${nextBlock}`);
-      return;
+      return terminalUuid;
     }
     visited.add(nextBlock);
 
     const block = blockMap.get(nextBlock);
     if (!block) {
       errors.push(`流程指向不存在的节点：${nextBlock}`);
-      return;
+      return terminalUuid;
     }
 
     if (isControllerBlock(block)) {
-      nextBlock = executeDryRunController(block, context, logs, errors);
-      if (errors.length) return;
+      const node = executeDryRunController(block, context, logs, errors);
+      if (errors.length || !node) return terminalUuid;
+      terminalUuid = node.uuid;
+      nextBlock = node.nextBlock ?? null;
       continue;
     }
 
     if (isStandardBlock(block)) {
       nextBlock = executeDryRunBlock(block, context, logs, errors);
-      if (errors.length) return;
+      if (errors.length) return terminalUuid;
+      terminalUuid = block.uuid;
     }
   }
+
+  return terminalUuid;
 }
 
 function executeDryRunBlock(
@@ -223,7 +232,7 @@ function executeDryRunController(
       status: 'success',
       message: `命中分支：${node.uuid}`
     });
-    return node.nextBlock ?? null;
+    return node;
   } catch (error) {
     const message = readErrorMessage(error);
     errors.push(message);
