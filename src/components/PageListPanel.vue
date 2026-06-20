@@ -1,12 +1,27 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import { $confirm, $message } from '@/utils/globalCalls';
-import { createPage, deletePage, listPages, type MokelayPage, type MokelayPagesPagination } from '@/utils/pagesApi';
+import {
+  createPage,
+  deletePage,
+  listPages,
+  listSystemPages,
+  type MokelayPage,
+  type MokelayPagesPagination,
+  type PageSource
+} from '@/utils/pagesApi';
+
+const props = withDefaults(defineProps<{
+  source?: PageSource;
+}>(), {
+  source: 'user'
+});
 
 const emit = defineEmits<{
-  (event: 'open-page', uuid: string): void;
+  (event: 'open-page', uuid: string, source: PageSource): void;
   (event: 'page-created', page: MokelayPage): void;
+  (event: 'source-change', source: PageSource): void;
 }>();
 
 const PAGE_SIZE = 10;
@@ -21,9 +36,11 @@ const createPageName = ref('');
 const createPageError = ref('');
 const isDeletingPageUuid = ref<string | null>(null);
 const currentPage = ref(1);
+const pageSource = ref<PageSource>(props.source);
 const pagination = ref<MokelayPagesPagination>(createEmptyPagination(1));
 let loadRequestId = 0;
 
+const isSystemSource = computed(() => pageSource.value === 'system');
 const pageTotalLabel = computed(() => t('pageList.total').replace('{count}', String(pagination.value.total)));
 const pageRangeLabel = computed(() => {
   const total = pagination.value.total;
@@ -48,6 +65,17 @@ onMounted(() => {
   void refreshPages();
 });
 
+watch(
+  () => props.source,
+  (source) => {
+    if (source === pageSource.value) return;
+    pageSource.value = source;
+    currentPage.value = 1;
+    pagination.value = createEmptyPagination(1);
+    void refreshPages(1);
+  }
+);
+
 async function refreshPages(pageNumber = currentPage.value) {
   const normalizedPageNumber = Math.max(1, Math.floor(pageNumber));
   const requestId = loadRequestId + 1;
@@ -56,7 +84,7 @@ async function refreshPages(pageNumber = currentPage.value) {
   pageListError.value = '';
 
   try {
-    const result = await listPages({
+    const result = await (isSystemSource.value ? listSystemPages : listPages)({
       page: normalizedPageNumber,
       pageSize: PAGE_SIZE
     });
@@ -80,6 +108,15 @@ async function refreshPages(pageNumber = currentPage.value) {
   }
 }
 
+function changePageSource(source: PageSource) {
+  if (pageSource.value === source || isLoadingPages.value) return;
+  pageSource.value = source;
+  currentPage.value = 1;
+  pagination.value = createEmptyPagination(1);
+  emit('source-change', source);
+  void refreshPages(1);
+}
+
 function goToPreviousPage() {
   if (isLoadingPages.value || !pagination.value.hasPreviousPage) return;
   void refreshPages(currentPage.value - 1);
@@ -91,6 +128,7 @@ function goToNextPage() {
 }
 
 function openCreateDialog() {
+  if (isSystemSource.value) return;
   createPageName.value = formatPageName(new Date());
   createPageError.value = '';
   isCreateDialogOpen.value = true;
@@ -102,6 +140,7 @@ function closeCreateDialog() {
 }
 
 async function submitCreatePage() {
+  if (isSystemSource.value) return;
   const name = createPageName.value.trim();
   const validationMessage = validatePageName(name);
 
@@ -129,6 +168,7 @@ async function submitCreatePage() {
 }
 
 async function confirmDeletePage(page: MokelayPage) {
+  if (isSystemSource.value) return;
   if (isDeletingPageUuid.value) return;
 
   const pageName = page.name || t('pageList.unnamedPage');
@@ -250,9 +290,33 @@ function formatPageName(date: Date) {
             {{ pageTotalLabel }}
           </p>
         </div>
-        <button data-testid="create-page-button" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="openCreateDialog">
-          {{ t('pageList.createPage') }}
-        </button>
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <div class="flex rounded-lg border border-slate-300 bg-slate-50 p-1 text-sm dark:border-slate-600 dark:bg-slate-800" role="group" :aria-label="t('pageList.source.label')">
+            <button
+              data-testid="page-source-user"
+              type="button"
+              class="rounded-md px-3 py-1.5 font-medium"
+              :class="pageSource === 'user' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'"
+              :disabled="isLoadingPages"
+              @click="changePageSource('user')"
+            >
+              {{ t('pageList.source.user') }}
+            </button>
+            <button
+              data-testid="page-source-system"
+              type="button"
+              class="rounded-md px-3 py-1.5 font-medium"
+              :class="pageSource === 'system' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'"
+              :disabled="isLoadingPages"
+              @click="changePageSource('system')"
+            >
+              {{ t('pageList.source.system') }}
+            </button>
+          </div>
+          <button v-if="!isSystemSource" data-testid="create-page-button" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="openCreateDialog">
+            {{ t('pageList.createPage') }}
+          </button>
+        </div>
       </div>
 
       <p v-if="pageListError" data-testid="page-list-error" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ pageListError }}</p>
@@ -285,10 +349,11 @@ function formatPageName(date: Date) {
                 <td class="px-4 py-3 text-slate-500 dark:text-slate-400">{{ formatDate(page.updatedAt) }}</td>
                 <td class="px-4 py-3 text-right">
                   <div class="flex justify-end gap-2 whitespace-nowrap">
-                    <button class="rounded-md px-2 py-1 text-teal-700 hover:bg-teal-50 dark:text-teal-200 dark:hover:bg-teal-500/10" @click="emit('open-page', page.uuid)">
+                    <button class="rounded-md px-2 py-1 text-teal-700 hover:bg-teal-50 dark:text-teal-200 dark:hover:bg-teal-500/10" @click="emit('open-page', page.uuid, pageSource)">
                       {{ t('pageList.open') }}
                     </button>
                     <button
+                      v-if="!isSystemSource"
                       :data-testid="`delete-page-button-${page.uuid}`"
                       class="rounded-md px-2 py-1 text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-rose-200 dark:hover:bg-rose-500/10"
                       :disabled="isDeletingPageUuid !== null"

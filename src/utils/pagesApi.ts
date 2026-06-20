@@ -24,6 +24,8 @@ export type ListPagesParams = {
   pageSize: number;
 };
 
+export type PageSource = 'user' | 'system';
+
 export type MokelayPagesPagination = {
   page: number;
   pageSize: number;
@@ -50,6 +52,7 @@ type PageResponse = {
 type PagesResponse = {
   pages?: unknown;
   pagination?: unknown;
+  count?: unknown;
 };
 
 type DeleteResponse = {
@@ -86,6 +89,15 @@ export async function getPage(uuid: string) {
   return normalizePageResponse(unwrapApiResponse(response.data));
 }
 
+export async function getSystemPage(uuid: string) {
+  const response = await apiClient.get<MokelayApiResponse<PageResponse>>('/api/mokelay/read_mokelay_page_json', {
+    params: {
+      uuid
+    }
+  });
+  return normalizePageResponse(unwrapApiResponse(response.data));
+}
+
 export async function updatePage(uuid: string, payload: UpdatePagePayload) {
   const response = await apiClient.post<MokelayApiResponse<PageResponse>>('/api/mokelay/update_page_blocks_by_uuid', payload, {
     params: {
@@ -100,6 +112,28 @@ export async function listPages(params: ListPagesParams) {
     params
   });
   return normalizePagesResponse(unwrapApiResponse(response.data));
+}
+
+export async function listSystemPages(params: ListPagesParams) {
+  const response = await apiClient.get<MokelayApiResponse<PagesResponse>>('/api/mokelay/list_mokelay_page_jsons');
+  const normalized = normalizePagesResponse(unwrapApiResponse(response.data));
+  const page = Math.max(1, Math.floor(params.page));
+  const pageSize = Math.max(1, Math.floor(params.pageSize));
+  const total = normalized.pages.length;
+  const totalPages = total > 0 ? Math.ceil(total / pageSize) : 0;
+  const start = (page - 1) * pageSize;
+
+  return {
+    pages: normalized.pages.slice(start, start + pageSize),
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages,
+      hasPreviousPage: page > 1,
+      hasNextPage: totalPages > 0 && page < totalPages
+    }
+  };
 }
 
 export async function deletePage(uuid: string) {

@@ -84,6 +84,62 @@ test('supports going to the next page in the page list', async ({ page }) => {
   await expect(page.getByTestId('page-list-next-button')).toBeDisabled();
 });
 
+test('switches to built-in pages and opens a system page DSL', async ({ page }) => {
+  const systemUuid = 'mokelay_list_page';
+  await resetEditor(page, {
+    initialRoute: '/#/pages',
+    pages: [{
+      uuid: 'user-page-001',
+      name: 'User page',
+      blocks: [],
+      createdAt: '2026-05-05T00:00:00.000Z',
+      updatedAt: '2026-05-06T00:00:00.000Z'
+    }],
+    systemPages: [{
+      uuid: systemUuid,
+      name: '页面列表',
+      blocks: [{
+        id: 'system-page-title',
+        type: 'paragraph',
+        data: {
+          text: 'Built-in page DSL'
+        }
+      }],
+      createdAt: '2026-06-20T00:00:00.000Z',
+      updatedAt: '2026-06-20T00:00:00.000Z'
+    }]
+  });
+
+  const listSystemPagesRequest = page.waitForRequest((request) =>
+    request.method() === 'GET' &&
+    new URL(request.url()).pathname === '/api/mokelay/list_mokelay_page_jsons'
+  );
+
+  await page.getByTestId('page-source-system').click();
+  await listSystemPagesRequest;
+
+  await expect(page).toHaveURL(/#\/pages\?source=system$/);
+  await expect(page.getByRole('row', { name: /页面列表/ })).toBeVisible();
+  await expect(page.getByRole('row', { name: /User page/ })).toHaveCount(0);
+  await expect(page.getByTestId('create-page-button')).toHaveCount(0);
+  await expect(page.getByTestId(`delete-page-button-${systemUuid}`)).toHaveCount(0);
+
+  const readSystemPageRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'GET' &&
+      url.pathname === '/api/mokelay/read_mokelay_page_json' &&
+      url.searchParams.get('uuid') === systemUuid;
+  });
+
+  await page.getByRole('row', { name: /页面列表/ }).getByRole('button', { name: /打开|Open/ }).click();
+  await readSystemPageRequest;
+
+  await expect(page).toHaveURL(new RegExp(`#\\/pages\\/${systemUuid}\\?source=system$`));
+  await expect(page.getByTestId('page-name-input')).toHaveValue('页面列表');
+  await expect(page.getByTestId('editor-panel')).toContainText('Built-in page DSL');
+  await expect(page.getByTestId('save-button')).toBeDisabled();
+});
+
 test('deletes a page from the page list after confirmation', async ({ page }) => {
   const uuid = 'delete-page-1111';
   const apiState = await resetEditor(page, {

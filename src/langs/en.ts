@@ -680,6 +680,11 @@ export const enMessages = {
     empty: 'No pages yet. Create one to get started.',
     loadFailed: 'Failed to load pages. Please try again.',
     createFailed: 'Failed to create page. Please try again.',
+    source: {
+      label: 'Page source',
+      user: 'User-created',
+      system: 'Built-in'
+    },
     createDialogTitle: 'Create page',
     pageName: 'Page name',
     creating: 'Creating...',

@@ -76,6 +76,7 @@ type MockPagesApiOptions = {
   createUuid?: string;
   initialRoute?: string;
   pages?: MockMokelayPage[];
+  systemPages?: MockMokelayPage[];
   apps?: MockMokelayApp[];
   datasources?: MockMokelayDatasource[];
   syncedDatasourceSchemas?: Record<string, MockDatasourceTableSchema[]>;
@@ -112,6 +113,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 
   const now = '2026-05-06T00:00:00.000Z';
   const pages = new Map<string, MockMokelayPage>();
+  const systemPages = new Map<string, MockMokelayPage>();
   const apps = new Map<string, MockMokelayApp>();
   const datasources = new Map<string, MockMokelayDatasource>();
   const apis = new Map<string, MockMokelayApi>();
@@ -131,6 +133,14 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 
   for (const pageRecord of options.pages ?? []) {
     pages.set(pageRecord.uuid, {
+      createdAt: now,
+      updatedAt: now,
+      ...pageRecord
+    });
+  }
+
+  for (const pageRecord of options.systemPages ?? []) {
+    systemPages.set(pageRecord.uuid, {
       createdAt: now,
       updatedAt: now,
       ...pageRecord
@@ -349,6 +359,29 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_mokelay_page_jsons') {
+      const pageRecords = Array.from(systemPages.values())
+        .sort((a, b) => a.uuid.localeCompare(b.uuid));
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            pages: pageRecords.map((pageRecord) => ({
+              uuid: pageRecord.uuid,
+              name: pageRecord.name,
+              blocks: pageRecord.blocks,
+              createdAt: pageRecord.createdAt,
+              updatedAt: pageRecord.updatedAt
+            })),
+            count: pageRecords.length
+          }
+        })
+      });
+      return;
+    }
+
     if (method === 'GET' && url.pathname === '/api/mokelay/list_api_domains') {
       apiDomainRequests.push(request.url());
       await fulfillApiDomains(route, Array.from(apiDomains.values()), corsHeaders);
@@ -411,6 +444,12 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
           }
         })
       });
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/read_mokelay_page_json') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      await fulfillPage(route, systemPages.get(uuid) ?? null, corsHeaders);
       return;
     }
 
@@ -499,7 +538,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, apps, datasources, apis, systemApis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests };
+  return { pages, systemPages, apps, datasources, apis, systemApis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {

@@ -6,7 +6,7 @@ import { useI18n } from '@/i18n';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 import { $message } from '@/utils/globalCalls';
 import { getInitialEditorBlocks } from '@/utils/editorData';
-import { createPage, getPage, updatePage, type MokelayPage } from '@/utils/pagesApi';
+import { createPage, getPage, getSystemPage, updatePage, type MokelayPage, type PageSource } from '@/utils/pagesApi';
 
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
@@ -48,6 +48,7 @@ function getInitialThemeMode() {
 
 type ParsedRoute = {
   pageUuid: string | null;
+  pageSource: PageSource;
   apiUuid: string | null;
   apiBuilder: boolean;
   apiSource: 'user' | 'system';
@@ -62,6 +63,7 @@ const { t, localeValue, setLocale } = useI18n();
 const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
 const currentPageUuid = ref<string | null>(null);
 const currentPageName = ref(formatPageName(new Date()));
+const currentPageSource = ref<PageSource>('user');
 const pageBlocks = ref<OutputData['blocks']>(getInitialEditorBlocks(t));
 const isLoadingPage = ref(false);
 const isSavingPage = ref(false);
@@ -70,6 +72,7 @@ let loadRequestId = 0;
 
 const parsedRoute = computed(() => parseRouteHash(routeHash.value));
 const routePageUuid = computed(() => parsedRoute.value.pageUuid);
+const routePageSource = computed(() => parsedRoute.value.pageSource);
 const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
 const isDatasourceListPage = computed(() => parsedRoute.value.datasourceList);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
@@ -80,6 +83,7 @@ const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.va
 const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isPreviewPage.value && !isEditorPage.value && !isPageListPage.value);
 const isPagesSection = computed(() => isPageListPage.value || isEditorPage.value || isPreviewPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
+const isSaveReady = computed(() => isEditorReady.value && currentPageSource.value === 'user');
 
 function applyTheme(dark: boolean) {
   document.documentElement.classList.toggle('dark', dark);
@@ -100,6 +104,7 @@ function parseRouteHash(hash: string): ParsedRoute {
   if (apiMatch) {
     return {
       pageUuid: null,
+      pageSource: 'user',
       apiUuid: apiMatch[1] ? safeDecodeURIComponent(apiMatch[1]) : null,
       apiBuilder: true,
       apiSource,
@@ -112,6 +117,7 @@ function parseRouteHash(hash: string): ParsedRoute {
   if (path === '/datasources') {
     return {
       pageUuid: null,
+      pageSource: 'user',
       apiUuid: null,
       apiBuilder: false,
       apiSource: 'user',
@@ -124,6 +130,7 @@ function parseRouteHash(hash: string): ParsedRoute {
   if (path === '/pages') {
     return {
       pageUuid: null,
+      pageSource: apiSource,
       apiUuid: null,
       apiBuilder: false,
       apiSource: 'user',
@@ -136,6 +143,7 @@ function parseRouteHash(hash: string): ParsedRoute {
   if (pageMatch) {
     return {
       pageUuid: safeDecodeURIComponent(pageMatch[1]),
+      pageSource: apiSource,
       apiUuid: null,
       apiBuilder: false,
       apiSource: 'user',
@@ -147,6 +155,7 @@ function parseRouteHash(hash: string): ParsedRoute {
 
   return {
     pageUuid: null,
+    pageSource: 'user',
     apiUuid: null,
     apiBuilder: false,
     apiSource: 'user',
@@ -164,12 +173,20 @@ function safeDecodeURIComponent(value: string) {
   }
 }
 
-function getEditorHash(uuid: string) {
-  return `/pages/${encodeURIComponent(uuid)}`;
+function sourceQuery(source: PageSource) {
+  return source === 'system' ? '?source=system' : '';
 }
 
-function getPreviewHash(uuid: string) {
-  return `/pages/${encodeURIComponent(uuid)}/preview`;
+function getPageListHash(source: PageSource) {
+  return `/pages${sourceQuery(source)}`;
+}
+
+function getEditorHash(uuid: string, source: PageSource = 'user') {
+  return `/pages/${encodeURIComponent(uuid)}${sourceQuery(source)}`;
+}
+
+function getPreviewHash(uuid: string, source: PageSource = 'user') {
+  return `/pages/${encodeURIComponent(uuid)}/preview${sourceQuery(source)}`;
 }
 
 function persistDraftBlocks(blocks: OutputData['blocks']) {
@@ -187,20 +204,22 @@ function applyPage(page: MokelayPage) {
 function resetToLocalDraft() {
   loadRequestId += 1;
   currentPageUuid.value = null;
+  currentPageSource.value = 'user';
   currentPageName.value = formatPageName(new Date());
   pageError.value = '';
   isLoadingPage.value = false;
   pageBlocks.value = getInitialEditorBlocks(t);
 }
 
-async function loadPage(uuid: string) {
+async function loadPage(uuid: string, source: PageSource) {
   const requestId = loadRequestId + 1;
   loadRequestId = requestId;
   isLoadingPage.value = true;
   pageError.value = '';
+  currentPageSource.value = source;
 
   try {
-    const page = await getPage(uuid);
+    const page = source === 'system' ? await getSystemPage(uuid) : await getPage(uuid);
     if (requestId !== loadRequestId) {
       return;
     }
@@ -210,6 +229,7 @@ async function loadPage(uuid: string) {
       return;
     }
     currentPageUuid.value = uuid;
+    currentPageSource.value = source;
     currentPageName.value = formatPageName(new Date());
     pageBlocks.value = [];
     pageError.value = toErrorMessage(error) || t('page.loadFailed');
@@ -250,8 +270,8 @@ watch(isDark, (dark) => {
 });
 
 watch(
-  [routePageUuid, isApiBuilderPage],
-  ([uuid, apiBuilder]) => {
+  [routePageUuid, routePageSource, isApiBuilderPage],
+  ([uuid, source, apiBuilder]) => {
     if (apiBuilder) {
       return;
     }
@@ -261,11 +281,11 @@ watch(
       return;
     }
 
-    if (uuid === currentPageUuid.value) {
+    if (uuid === currentPageUuid.value && source === currentPageSource.value) {
       return;
     }
 
-    void loadPage(uuid);
+    void loadPage(uuid, source);
   },
   { immediate: true }
 );
@@ -293,7 +313,7 @@ async function readEditorBlocks() {
 }
 
 async function saveEditorContent() {
-  if (isSavingPage.value || isLoadingPage.value) {
+  if (isSavingPage.value || isLoadingPage.value || currentPageSource.value !== 'user') {
     return;
   }
 
@@ -329,20 +349,24 @@ async function openPreviewPage() {
   }
 
   await readEditorBlocks();
-  window.location.hash = currentPageUuid.value ? getPreviewHash(currentPageUuid.value) : '/preview';
+  window.location.hash = currentPageUuid.value ? getPreviewHash(currentPageUuid.value, currentPageSource.value) : '/preview';
 }
 
 function backToEditorPage() {
   const uuid = routePageUuid.value ?? currentPageUuid.value;
-  window.location.hash = uuid ? getEditorHash(uuid) : '/';
+  window.location.hash = uuid ? getEditorHash(uuid, currentPageSource.value) : '/';
 }
 
 function backToPageList() {
-  window.location.hash = '/pages';
+  window.location.hash = getPageListHash(currentPageSource.value);
 }
 
-function openPageFromList(uuid: string) {
-  window.location.hash = getEditorHash(uuid);
+function openPageFromList(uuid: string, source: PageSource) {
+  window.location.hash = getEditorHash(uuid, source);
+}
+
+function handlePageSourceChange(source: PageSource) {
+  window.location.hash = getPageListHash(source);
 }
 
 function handlePageCreated(page: MokelayPage) {
@@ -425,7 +449,7 @@ function handlePageCreated(page: MokelayPage) {
             <button
               data-testid="save-button"
               class="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="!isEditorReady"
+              :disabled="!isSaveReady"
               @click="saveEditorContent"
             >
               {{ isSavingPage ? t('editor.saving') : t('editor.saveContent') }}
@@ -484,8 +508,10 @@ function handlePageCreated(page: MokelayPage) {
       </div>
       <PageListPanel
         v-else-if="isPageListPage"
+        :source="routePageSource"
         @open-page="openPageFromList"
         @page-created="handlePageCreated"
+        @source-change="handlePageSourceChange"
       />
       <DatasourceListPanel v-else-if="isDatasourceListPage" />
       <AppListPanel v-else />

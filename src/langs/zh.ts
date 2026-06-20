@@ -680,6 +680,11 @@ export const zhMessages = {
     empty: '暂无页面，可以先创建一个页面。',
     loadFailed: '页面列表加载失败，请稍后重试。',
     createFailed: '页面创建失败，请稍后重试。',
+    source: {
+      label: '页面来源',
+      user: '用户创建',
+      system: '系统内置'
+    },
     createDialogTitle: '创建页面',
     pageName: '页面名称',
     creating: '创建中...',

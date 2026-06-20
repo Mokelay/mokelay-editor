@@ -145,10 +145,11 @@ test('switches to system APIs and opens them as read-only before copying', async
   });
 
   await page.goto('/#/apis');
-  await page.getByTestId('api-source-select').selectOption('system');
+  await page.getByTestId('api-source-system').click();
 
   await expect(page).toHaveURL(/#\/apis\?source=system$/);
   await expect.poll(() => apiState.apiListRequests.some((requestUrl) => new URL(requestUrl).pathname === '/api/mokelay/list_mokelay_api_jsons')).toBe(true);
+  await expect(page.getByTestId('api-builder-new')).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: '状态' })).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: '最近编辑' })).toHaveCount(0);
   const systemRow = page.getByRole('row', { name: /zeta_system/ });
@@ -233,7 +234,8 @@ test('loads a system API from a direct source-aware URL', async ({ page }) => {
   await expect(page.getByText('系统内置', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '返回 API 列表' }).click();
   await expect(page).toHaveURL(/#\/apis\?source=system$/);
-  await expect(page.getByTestId('api-source-select')).toHaveValue('system');
+  await expect(page.getByTestId('api-source-system')).toHaveClass(/bg-white/);
+  await expect(page.getByTestId('api-builder-new')).toHaveCount(0);
 });
 
 test('keeps API detail blocks when the list response finishes after detail refresh', async ({ page }) => {

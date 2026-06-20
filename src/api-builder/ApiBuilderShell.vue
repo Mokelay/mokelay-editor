@@ -407,8 +407,7 @@ function navigateToDraft(draft: ApiBuilderDraft) {
   }
 }
 
-function changeApiSource(event: Event) {
-  const source = (event.target as HTMLSelectElement).value === 'system' ? 'system' : 'user';
+function changeApiSource(source: MokelayApiSource) {
   window.location.hash = apiListHash(source);
 }
 
@@ -1612,15 +1611,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               接口编排工作台。先把接口入口、请求参数、编排步骤和响应结构搭顺，再保存为 Mokelay Orchestration API JSON。
             </p>
           </div>
-          <div class="flex flex-wrap items-end gap-3">
-            <label class="builder-field min-w-40">
-              <span>接口来源</span>
-              <select data-testid="api-source-select" class="builder-input" :value="selectedApiSource" @change="changeApiSource">
-                <option value="user">用户创建</option>
-                <option value="system">系统内置</option>
-              </select>
-            </label>
-            <button data-testid="api-builder-new" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="createBlankDraft">
+          <div class="flex flex-wrap items-center justify-end gap-3">
+            <div class="flex rounded-lg border border-slate-300 bg-slate-50 p-1 text-sm dark:border-slate-600 dark:bg-slate-800" role="group" aria-label="接口来源">
+              <button
+                data-testid="api-source-user"
+                type="button"
+                class="rounded-md px-3 py-1.5 font-medium"
+                :class="selectedApiSource === 'user' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'"
+                :disabled="isApiListLoading"
+                @click="changeApiSource('user')"
+              >
+                用户创建
+              </button>
+              <button
+                data-testid="api-source-system"
+                type="button"
+                class="rounded-md px-3 py-1.5 font-medium"
+                :class="selectedApiSource === 'system' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'"
+                :disabled="isApiListLoading"
+                @click="changeApiSource('system')"
+              >
+                系统内置
+              </button>
+            </div>
+            <button v-if="selectedApiSource === 'user'" data-testid="api-builder-new" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="createBlankDraft">
               新建 API
             </button>
           </div>
