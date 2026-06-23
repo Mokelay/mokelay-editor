@@ -687,6 +687,11 @@ export const zhMessages = {
     saving: '保存中...',
     save: '保存',
     edit: '编辑',
+    schemaDetails: 'Schema详情',
+    schemaDetailsTitle: '{alias} Schema详情',
+    schemaDetailsSummary: '{tables} 张表 · {columns} 个字段',
+    schemaFields: '{count} 个字段',
+    schemaEmpty: '暂无 Schema 数据，请先同步 Schema。',
     syncSchema: '同步 Schema',
     syncing: '同步中...',
     schemaNotSynced: '未同步',
@@ -708,6 +713,11 @@ export const zhMessages = {
       description: '描述',
       schema: 'Schema',
       actions: '操作'
+    },
+    schemaColumns: {
+      name: '字段名',
+      type: '字段类型',
+      dataType: '数据类型'
     }
   },
   pageList: {

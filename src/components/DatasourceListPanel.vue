@@ -27,6 +27,7 @@ const formDescription = ref('');
 const formError = ref('');
 const isSaving = ref(false);
 const syncingUuids = ref<Set<string>>(new Set());
+const schemaDetailsDatasource = ref<MokelayDatasource | null>(null);
 let loadRequestId = 0;
 
 const totalLabel = computed(() => t('datasourceList.total').replace('{count}', String(pagination.value.total)));
@@ -45,6 +46,18 @@ const currentPageLabel = computed(() => t('datasourceList.currentPage')
 const dialogTitle = computed(() => editingDatasource.value
   ? t('datasourceList.editDialogTitle')
   : t('datasourceList.createDialogTitle'));
+const schemaDetailsTitle = computed(() => {
+  const datasource = schemaDetailsDatasource.value;
+  return t('datasourceList.schemaDetailsTitle')
+    .replace('{alias}', datasource?.alias || datasource?.uuid || '');
+});
+const schemaDetailsSummary = computed(() => {
+  const tables = schemaDetailsDatasource.value?.schemaData ?? [];
+  const columnCount = tables.reduce((total, table) => total + table.columns.length, 0);
+  return t('datasourceList.schemaDetailsSummary')
+    .replace('{tables}', String(tables.length))
+    .replace('{columns}', String(columnCount));
+});
 
 onMounted(() => {
   void refreshDatasources();
@@ -91,6 +104,14 @@ function openEditDialog(datasource: MokelayDatasource) {
 function closeDialog() {
   if (isSaving.value) return;
   isDialogOpen.value = false;
+}
+
+function openSchemaDetails(datasource: MokelayDatasource) {
+  schemaDetailsDatasource.value = datasource;
+}
+
+function closeSchemaDetails() {
+  schemaDetailsDatasource.value = null;
 }
 
 async function submitDatasource() {
@@ -149,12 +170,20 @@ function replaceDatasource(updated: MokelayDatasource) {
   datasources.value = datasources.value.map((datasource) => (
     datasource.uuid === updated.uuid ? updated : datasource
   ));
+
+  if (schemaDetailsDatasource.value?.uuid === updated.uuid) {
+    schemaDetailsDatasource.value = updated;
+  }
 }
 
 function schemaLabel(datasource: MokelayDatasource) {
   return datasource.schemaData.length
     ? t('datasourceList.schemaTables').replace('{count}', String(datasource.schemaData.length))
     : t('datasourceList.schemaNotSynced');
+}
+
+function schemaFieldsLabel(count: number) {
+  return t('datasourceList.schemaFields').replace('{count}', String(count));
 }
 
 function validateAlias(alias: string) {
@@ -243,6 +272,9 @@ function normalizePaginationForDisplay(value: MokelayDatasourcesPagination, requ
                   <button :data-testid="`edit-datasource-button-${datasource.uuid}`" class="rounded-md px-2 py-1 text-teal-700 hover:bg-teal-50 dark:text-teal-200 dark:hover:bg-teal-500/10" @click="openEditDialog(datasource)">
                     {{ t('datasourceList.edit') }}
                   </button>
+                  <button :data-testid="`schema-details-button-${datasource.uuid}`" class="rounded-md px-2 py-1 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800" @click="openSchemaDetails(datasource)">
+                    {{ t('datasourceList.schemaDetails') }}
+                  </button>
                   <button
                     :data-testid="`sync-datasource-button-${datasource.uuid}`"
                     class="rounded-md px-2 py-1 text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-indigo-200 dark:hover:bg-indigo-500/10"
@@ -303,6 +335,57 @@ function normalizePaginationForDisplay(value: MokelayDatasourcesPagination, requ
             </button>
           </div>
         </form>
+      </section>
+    </div>
+
+    <div v-if="schemaDetailsDatasource" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" @click.self="closeSchemaDetails">
+      <section class="flex max-h-[88vh] w-full max-w-4xl flex-col rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="datasource-schema-dialog-title">
+        <header class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 p-5 dark:border-slate-700">
+          <div>
+            <p class="text-sm font-medium text-teal-700 dark:text-teal-300">Mokelay Datasource</p>
+            <h2 id="datasource-schema-dialog-title" class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">{{ schemaDetailsTitle }}</h2>
+            <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">{{ schemaDetailsSummary }}</p>
+          </div>
+          <button type="button" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" @click="closeSchemaDetails">
+            {{ t('editor.close') }}
+          </button>
+        </header>
+
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+          <p v-if="!schemaDetailsDatasource.schemaData.length" data-testid="schema-details-empty" class="rounded-lg bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            {{ t('datasourceList.schemaEmpty') }}
+          </p>
+          <div v-else class="grid gap-4">
+            <section
+              v-for="table in schemaDetailsDatasource.schemaData"
+              :key="table.name"
+              class="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-4 py-3 dark:bg-slate-800/70">
+                <h3 class="font-mono text-sm font-semibold text-slate-950 dark:text-white">{{ table.name }}</h3>
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ schemaFieldsLabel(table.columns.length) }}</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+                  <thead class="bg-white text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                    <tr>
+                      <th class="px-4 py-3">{{ t('datasourceList.schemaColumns.name') }}</th>
+                      <th class="px-4 py-3">{{ t('datasourceList.schemaColumns.type') }}</th>
+                      <th class="px-4 py-3">{{ t('datasourceList.schemaColumns.dataType') }}</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                    <tr v-for="column in table.columns" :key="`${table.name}-${column.name}`">
+                      <td class="px-4 py-3 font-mono text-slate-900 dark:text-slate-100">{{ column.name }}</td>
+                      <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ column.type }}</td>
+                      <td class="px-4 py-3 text-slate-600 dark:text-slate-300">{{ column.dataType }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
       </section>
     </div>
   </section>

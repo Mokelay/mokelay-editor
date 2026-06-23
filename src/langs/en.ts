@@ -687,6 +687,11 @@ export const enMessages = {
     saving: 'Saving...',
     save: 'Save',
     edit: 'Edit',
+    schemaDetails: 'Schema details',
+    schemaDetailsTitle: '{alias} Schema details',
+    schemaDetailsSummary: '{tables} tables · {columns} columns',
+    schemaFields: '{count} columns',
+    schemaEmpty: 'No schema data yet. Sync schema first.',
     syncSchema: 'Sync schema',
     syncing: 'Syncing...',
     schemaNotSynced: 'Not synced',
@@ -708,6 +713,11 @@ export const enMessages = {
       description: 'Description',
       schema: 'Schema',
       actions: 'Actions'
+    },
+    schemaColumns: {
+      name: 'Field',
+      type: 'Column type',
+      dataType: 'Data type'
     }
   },
   pageList: {
