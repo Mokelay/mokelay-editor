@@ -17,9 +17,14 @@ import MFormItem, {
 } from '@/blocks/MFormItem.vue';
 import {
   cloneSelectorBlock,
-  normalizeSelectorBlock,
-  type StoredBlock
+  normalizeSelectorBlock
 } from '@/blocks/mEditorSelectorEditorTool';
+import {
+  createInitialFormItemEditorBlock,
+  getDefaultFormItemToolName,
+  getFormItemToolNames,
+  isAllowedFormItemToolName
+} from '@/blocks/mFormItemTools';
 import {
   cloneFormItemData,
   normalizeMFormItem,
@@ -27,11 +32,8 @@ import {
   type MFormItemData,
   type MFormProps
 } from '@/blocks/mFormEditorTool';
-import {
-  getEditorComponentDefinition,
-  getEditorComponentRegistry
-} from '@/editors/editorComponentRegistry';
-import type { EditorToolComponentProps, EditorToolPropertyField } from '@/editors/editorToolDefinition';
+import { getEditorComponentDefinition } from '@/editors/editorComponentRegistry';
+import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import { getEditorJsI18nMessages, i18n, useI18n } from '@/i18n';
 import { cloneBlockEvents, normalizeBlockEvents, type BlockEvent } from '@/utils/blockEvents';
 import {
@@ -54,7 +56,6 @@ type FormItemToolClass = new (options: FormItemToolOptions) => {
   renderSettings: () => MenuConfig;
 };
 
-const INTERNAL_FORM_TOOL_NAMES = new Set(['MPage', 'MForm', 'MFormItem', 'MEditorSelector']);
 const formItemToolClassCache = new Map<string, FormItemToolClass>();
 
 const props = withDefaults(defineProps<MFormProps & {
@@ -81,14 +82,6 @@ let editorMutationObserver: MutationObserver | null = null;
 let scheduledEditorSync: number | null = null;
 let editorDataCache: OutputData = buildOutput(previewItems.value);
 
-function generateBlockId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID().slice(0, 10);
-  }
-
-  return Math.random().toString(36).slice(2, 12);
-}
-
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')
@@ -97,37 +90,8 @@ function escapeHtml(value: string) {
     .replace(/>/g, '&gt;');
 }
 
-function getFormItemToolNames() {
-  return Object.keys(getEditorComponentRegistry()).filter((toolName) =>
-    !INTERNAL_FORM_TOOL_NAMES.has(toolName) && Boolean(getEditorComponentDefinition(toolName))
-  );
-}
-
-function isAllowedFormItemToolName(toolName: string) {
-  return getFormItemToolNames().includes(toolName);
-}
-
-function getDefaultFormItemToolName() {
-  const preferredToolName = 'MInput';
-  return isAllowedFormItemToolName(preferredToolName) ? preferredToolName : getFormItemToolNames()[0];
-}
-
-function createInitialEditorBlock(toolName: string): StoredBlock {
-  const definition = getEditorComponentDefinition(toolName);
-  if (!definition) {
-    throw new Error(`MForm could not find a registered component for "${toolName}".`);
-  }
-
-  const normalizedProps = definition.normalizeProps({
-    ...(definition.createInitialProps?.() ?? {}),
-    edit: true
-  } as Partial<EditorToolComponentProps>);
-
-  return {
-    id: generateBlockId(),
-    type: toolName,
-    data: definition.serialize(normalizedProps)
-  };
+function normalizeOptionalString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 function createFormItemTool(toolName: string): FormItemToolClass {
@@ -151,6 +115,7 @@ function createFormItemTool(toolName: string): FormItemToolClass {
     private propertyDialog: HTMLDialogElement | null = null;
     private eventsDialog: BlockEventsDialogController | null = null;
     private events: BlockEvent[] = [];
+    private fieldDataType = '';
     private toolbarAlignTimer: number | null = null;
     private readonly blockApi?: FormItemToolOptions['block'];
     private readonly handleToolbarPointer = () => {
@@ -162,11 +127,12 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       const edit = typeof config?.edit === 'boolean' ? config.edit : true;
       const existingEditor = normalizeSelectorBlock(data?.editor);
       this.events = cloneBlockEvents(data?.events);
+      this.fieldDataType = normalizeOptionalString(data?.fieldDataType);
 
       this.state = reactive(normalizeFormItemProps({
         ...(data ?? {}),
         edit,
-        editor: existingEditor ?? createInitialEditorBlock(toolName)
+        editor: existingEditor ?? createInitialFormItemEditorBlock(toolName)
       })) as NormalizedMFormItemProps;
     }
 
@@ -207,6 +173,7 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       const events = cloneBlockEvents(this.events);
       return {
         ...serializeFormItemProps(this.state),
+        ...(this.fieldDataType ? { fieldDataType: this.fieldDataType } : {}),
         events
       };
     }

@@ -170,7 +170,45 @@ export const zhMessages = {
   },
   form: {
     toolboxTitle: '表单',
-    placeholder: '添加表单项'
+    propertyPanelTitle: '表单属性',
+    placeholder: '添加表单项',
+    properties: {
+      items: '表单项配置'
+    },
+    itemsEditor: {
+      settingsDialogTitle: '表单项设置',
+      empty: '暂无表单项，请先设置字段。',
+      summary: {
+        savedCount: '已设置 {count} 个表单项',
+        draftCount: '当前 {count} 个表单项'
+      },
+      sections: {
+        fields: '批量导入字段',
+        items: '表单项二次设置'
+      },
+      columns: {
+        label: '字段文本',
+        variable: '变量名',
+        layout: '布局方式',
+        editor: '组件类型',
+        actions: '操作'
+      },
+      placeholders: {
+        label: '请输入字段文本',
+        variable: '请输入变量名'
+      },
+      actions: {
+        settings: '设置表单项',
+        save: '保存',
+        cancel: '取消',
+        moveUp: '上移',
+        moveDown: '下移',
+        remove: '删除'
+      },
+      help: {
+        fields: '使用字段编辑器批量导入字段，保存字段后会同步生成或移除表单项。'
+      }
+    }
   },
   advanceTable: {
     toolboxTitle: '高级表格',

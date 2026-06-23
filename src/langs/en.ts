@@ -170,7 +170,45 @@ export const enMessages = {
   },
   form: {
     toolboxTitle: 'Form',
-    placeholder: 'Add a form item'
+    propertyPanelTitle: 'Form Properties',
+    placeholder: 'Add a form item',
+    properties: {
+      items: 'Form item settings'
+    },
+    itemsEditor: {
+      settingsDialogTitle: 'Form item settings',
+      empty: 'No form items yet. Set fields first.',
+      summary: {
+        savedCount: '{count} form items configured',
+        draftCount: '{count} form items now'
+      },
+      sections: {
+        fields: 'Bulk import fields',
+        items: 'Form item settings'
+      },
+      columns: {
+        label: 'Field label',
+        variable: 'Variable name',
+        layout: 'Layout',
+        editor: 'Component type',
+        actions: 'Actions'
+      },
+      placeholders: {
+        label: 'Enter field label',
+        variable: 'Enter variable name'
+      },
+      actions: {
+        settings: 'Set form items',
+        save: 'Save',
+        cancel: 'Cancel',
+        moveUp: 'Move up',
+        moveDown: 'Move down',
+        remove: 'Remove'
+      },
+      help: {
+        fields: 'Use the fields editor to bulk import fields. Saving fields will create or remove form items.'
+      }
+    }
   },
   advanceTable: {
     toolboxTitle: 'Advanced Table',
