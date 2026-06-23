@@ -1,9 +1,9 @@
 import type { OutputBlockData, OutputData } from '@editorjs/editorjs';
+import { cloneActions, normalizeActions, type ActionConfig } from '@/actions';
 
 export type BlockEvent = {
   event: string;
-  block: string;
-  method: string;
+  actions: ActionConfig[];
 };
 
 export const INTERNAL_BLOCK_EVENTS_DATA_KEY = '__mokelayBlockEvents';
@@ -38,8 +38,7 @@ function isBlockArray(value: unknown): value is OutputBlockData[] {
 export function createEmptyBlockEvent(): BlockEvent {
   return {
     event: '',
-    block: '',
-    method: ''
+    actions: []
   };
 }
 
@@ -52,14 +51,16 @@ export function normalizeBlockEvents(value: unknown): BlockEvent[] {
     .filter((item): item is PlainRecord => isRecord(item))
     .map((item) => ({
       event: eventFieldValue(item.event),
-      block: eventFieldValue(item.block),
-      method: eventFieldValue(item.method)
+      actions: normalizeActions(item.actions)
     }))
-    .filter((item) => item.event || item.block || item.method);
+    .filter((item) => item.event && item.actions.length);
 }
 
 export function cloneBlockEvents(value: unknown): BlockEvent[] {
-  return normalizeBlockEvents(value).map((item) => ({ ...item }));
+  return normalizeBlockEvents(value).map((item) => ({
+    event: item.event,
+    actions: cloneActions(item.actions)
+  }));
 }
 
 export function getInternalBlockEventsFromData(data: unknown) {

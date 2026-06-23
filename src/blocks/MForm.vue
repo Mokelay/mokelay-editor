@@ -472,6 +472,17 @@ function buildOutput(items: MFormItemData[]): OutputData {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readEditorValue(value: unknown) {
+  if (isRecord(value) && Object.prototype.hasOwnProperty.call(value, 'value')) {
+    return value.value;
+  }
+  return value;
+}
+
 function getFormItemRuntimeBlock(item: MFormItemData, index: number): PreviewRuntimeBlock {
   return {
     id: `form-item-${item.variableName || index}`,
@@ -490,7 +501,7 @@ function getFormItemEventListeners(item: MFormItemData, index: number) {
     const previousListener = listeners[eventConfig.event];
     listeners[eventConfig.event] = (event: unknown) => {
       previousListener?.(event);
-      previewRuntime?.invokeBlockMethod(eventConfig, sourceBlock, event);
+      previewRuntime?.invokeBlockActions(eventConfig, sourceBlock, event);
     };
   });
 
@@ -642,8 +653,23 @@ async function saveEditor() {
   return editorDataCache;
 }
 
+async function getData() {
+  const blockData = await previewRuntime?.getBlockDataContext(props.currentBlockId) ?? {};
+
+  return Object.fromEntries(previewItems.value.map((item) => {
+    const editorId = item.editor?.id;
+    const runtimeValue = editorId ? blockData[editorId] : undefined;
+    const fallbackValue = readEditorValue(item.editor?.data);
+    return [
+      item.variableName,
+      readEditorValue(runtimeValue) ?? fallbackValue ?? ''
+    ];
+  }));
+}
+
 defineExpose({
-  saveEditor
+  saveEditor,
+  getData
 });
 
 onMounted(async () => {

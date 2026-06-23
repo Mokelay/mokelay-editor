@@ -14,7 +14,8 @@ import {
 } from '@/utils/blockEvents';
 import {
   createPreviewBlockRuntime,
-  PreviewBlockRuntimeKey
+  PreviewBlockRuntimeKey,
+  type BlockRuntimeHandle
 } from '@/utils/previewBlockRuntime';
 import type { BlockDataField, BlockDataSource, VariableValueDataType } from '@/utils/variableValue';
 
@@ -22,6 +23,7 @@ import type { BlockDataField, BlockDataSource, VariableValueDataType } from '@/u
 export interface MPageProps {
   edit?: boolean;
   value?: OutputData['blocks'];
+  pageId?: string;
   onToolChange?: (payload: { edit: boolean; value: OutputData['blocks'] }) => void;
 }
 
@@ -32,6 +34,7 @@ const props = withDefaults(defineProps<MPageProps>(), {
 
 const emit = defineEmits<{
   (event: 'change', blocks: OutputData['blocks']): void;
+  (event: 'close'): void;
 }>();
 
 const shouldRenderEditor = computed(() => props.edit);
@@ -284,13 +287,69 @@ async function saveEditor() {
   return output;
 }
 
+function getData() {
+  return {
+    blocks: previewBlocks.value
+  };
+}
+
+function close() {
+  emit('close');
+}
+
+const pageRuntimeInstance = {
+  saveEditor,
+  getData,
+  close
+};
+let registeredPageRuntimeId = '';
+
+function getPageRuntimeId() {
+  return typeof props.pageId === 'string' ? props.pageId.trim() : '';
+}
+
+function createPageRuntimeHandle(id: string): BlockRuntimeHandle {
+  return {
+    id,
+    type: 'MPage',
+    instance: pageRuntimeInstance
+  };
+}
+
+function unregisterPageRuntime() {
+  if (!registeredPageRuntimeId) return;
+  previewRuntime.unregisterBlock(registeredPageRuntimeId, pageRuntimeInstance);
+  registeredPageRuntimeId = '';
+}
+
+function syncPageRuntimeRegistration() {
+  const nextId = getPageRuntimeId();
+  if (registeredPageRuntimeId === nextId) return;
+
+  unregisterPageRuntime();
+  if (!nextId) return;
+
+  registeredPageRuntimeId = nextId;
+  previewRuntime.registerBlock(nextId, createPageRuntimeHandle(nextId));
+}
+
 defineExpose({
-  saveEditor
+  saveEditor,
+  getData,
+  close
 });
 
 onMounted(async () => {
   await mountEditor();
 });
+
+watch(
+  () => props.pageId,
+  () => {
+    syncPageRuntimeRegistration();
+  },
+  { immediate: true }
+);
 
 watch(
   () => props.value,
@@ -332,6 +391,7 @@ watch(shouldRenderEditor, async (enabled) => {
 });
 
 onBeforeUnmount(async () => {
+  unregisterPageRuntime();
   await unmountEditor();
 });
 </script>

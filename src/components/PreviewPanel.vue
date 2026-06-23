@@ -186,14 +186,14 @@ watch(
       </p>
 
       <div v-else-if="previewMode === 'pc'" data-testid="preview-pc-canvas" class="min-h-full">
-        <MPage :edit="false" :value="blocks" />
+        <MPage :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" />
       </div>
 
       <div v-else-if="previewMode === 'h5'" data-testid="preview-h5-canvas" class="flex min-h-full justify-center overflow-auto bg-slate-100 px-4 py-6 dark:bg-slate-950">
         <div data-testid="preview-phone-shell" class="relative shrink-0 rounded-[52px] border-[10px] border-slate-950 bg-slate-950 p-3 shadow-2xl dark:border-slate-800 dark:bg-slate-800">
           <div class="absolute left-1/2 top-3 z-10 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-slate-950 dark:bg-slate-800"></div>
           <div data-testid="preview-phone-screen" class="h-[844px] w-[390px] overflow-auto rounded-[34px] bg-white p-4 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
-            <MPage :edit="false" :value="blocks" />
+            <MPage :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" />
           </div>
         </div>
       </div>

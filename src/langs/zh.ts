@@ -35,8 +35,7 @@ export const zhMessages = {
       empty: '暂无事件。',
       fields: {
         event: '触发事件 event',
-        block: '触发组件 block',
-        method: '触发方法 method'
+        actions: 'Action配置'
       }
     }
   },

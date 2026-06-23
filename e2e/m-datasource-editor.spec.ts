@@ -2859,8 +2859,17 @@ test('exposes getData runtime method without saving runtime fields', async ({ pa
         events: [
           {
             event: 'click',
-            block: 'runtime-datasource',
-            method: 'getData'
+            actions: [
+              {
+                uuid: 'load_runtime_datasource',
+                action: 'call_block_method',
+                inputs: {
+                  blockId: 'runtime-datasource',
+                  method: 'getData'
+                },
+                nextAction: null
+              }
+            ]
           }
         ]
       }

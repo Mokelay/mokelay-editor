@@ -249,7 +249,7 @@ defineExpose({
 .global-call-dialog-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 1300;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -331,7 +331,7 @@ defineExpose({
   position: fixed;
   top: 18px;
   left: 50%;
-  z-index: 1100;
+  z-index: 1400;
   display: flex;
   width: min(92vw, 520px);
   transform: translateX(-50%);

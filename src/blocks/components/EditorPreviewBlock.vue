@@ -120,7 +120,7 @@ const blockEventListeners = computed(() => {
     const previousListener = listeners[eventConfig.event];
     listeners[eventConfig.event] = (event: unknown) => {
       previousListener?.(event);
-      previewRuntime?.invokeBlockMethod(eventConfig, props.block as PreviewRuntimeBlock, event);
+      previewRuntime?.invokeBlockActions(eventConfig, props.block as PreviewRuntimeBlock, event);
     };
   });
 

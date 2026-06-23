@@ -3,6 +3,7 @@ import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
 import { cloneSelectorBlock, type StoredBlock } from '@/blocks/mEditorSelectorEditorTool';
 import { cloneBlockEvents, type BlockEvent } from '@/utils/blockEvents';
+import { normalizeVariableDataType } from '@/utils/variableValue';
 import {
   normalizeFormItemProps,
   type MFormItemLayout,
@@ -22,6 +23,7 @@ export interface MFormItemData {
 
 export interface MFormProps {
   edit: boolean;
+  currentBlockId?: string;
   items?: MFormItemData[];
 }
 
@@ -99,8 +101,14 @@ export const mFormEditorTool = defineEditorTool<MFormProps>({
   createInitialProps: () => ({
     items: []
   }),
+  getDataFields: (context) => normalizeMFormItems(context.data.items).map((item) => ({
+    label: item.labelName,
+    variable: item.variableName,
+    dataType: normalizeVariableDataType(item.fieldDataType)
+  })),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
+    currentBlockId: props.currentBlockId,
     items: normalizeMFormItems(props.items)
   }),
   serialize: (props) => ({

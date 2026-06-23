@@ -80,8 +80,15 @@ function focus() {
   inputRef.value?.focus();
 }
 
+function getData() {
+  return {
+    value: inputRef.value?.value ?? props.value ?? ''
+  };
+}
+
 defineExpose({
-  focus
+  focus,
+  getData
 });
 </script>
 

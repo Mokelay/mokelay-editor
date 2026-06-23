@@ -19,3 +19,72 @@
 body {
   @apply m-0 bg-slate-100 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100;
 }
+
+.action-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 0.55);
+}
+
+.action-dialog-panel {
+  display: flex;
+  width: min(900px, 94vw);
+  max-height: min(760px, 90vh);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 12px;
+  background: rgb(255 255 255);
+  color: rgb(15 23 42);
+  box-shadow: 0 24px 80px rgb(15 23 42 / 0.3);
+}
+
+.action-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgb(226 232 240);
+  padding: 14px 16px;
+}
+
+.action-dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.action-dialog-close {
+  border: 0;
+  border-radius: 8px;
+  background: rgb(226 232 240);
+  padding: 8px 12px;
+  color: rgb(51 65 85);
+  font-weight: 600;
+}
+
+.action-dialog-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.dark .action-dialog-panel {
+  border-color: rgb(51 65 85);
+  background: rgb(15 23 42);
+  color: rgb(226 232 240);
+}
+
+.dark .action-dialog-header {
+  border-color: rgb(51 65 85);
+}
+
+.dark .action-dialog-close {
+  background: rgb(51 65 85);
+  color: rgb(241 245 249);
+}

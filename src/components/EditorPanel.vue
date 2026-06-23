@@ -126,7 +126,7 @@ defineExpose({
 }
 
 :deep(.mokelay-editor-tool__events-dialog) {
-  width: min(100%, 680px);
+  width: min(100%, 920px);
 }
 
 :deep(.mokelay-editor-tool__events-body) {
@@ -152,7 +152,7 @@ defineExpose({
 :deep(.mokelay-editor-tool__event-fields) {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(180px, 0.3fr) minmax(240px, 1fr);
   gap: 10px;
 }
 
@@ -161,6 +161,10 @@ defineExpose({
   min-width: 0;
   flex-direction: column;
   gap: 6px;
+}
+
+:deep(.mokelay-editor-tool__event-action-field) {
+  min-width: 240px;
 }
 
 :deep(.mokelay-editor-tool__event-add),

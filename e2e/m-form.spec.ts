@@ -312,8 +312,17 @@ test('keeps existing form item editor and events when saving form items editor',
               events: [
                 {
                   event: 'click',
-                  block: 'target-block',
-                  method: 'focus'
+                  actions: [
+                    {
+                      uuid: 'focus_link',
+                      action: 'call_block_method',
+                      inputs: {
+                        blockId: 'target-block',
+                        method: 'focus'
+                      },
+                      nextAction: null
+                    }
+                  ]
                 }
               ]
             }
@@ -337,7 +346,7 @@ test('keeps existing form item editor and events when saving form items editor',
   const formBlock = blocks.find((block) => block.type === 'MForm');
   const items = formBlock?.data?.items as Array<{
     editor?: { id?: string; type?: string; data?: Record<string, unknown> };
-    events?: Array<{ event?: string; block?: string; method?: string }>;
+    events?: Array<{ event?: string; actions?: Array<Record<string, unknown>> }>;
   }> | undefined;
 
   expect(items).toHaveLength(1);
@@ -353,10 +362,21 @@ test('keeps existing form item editor and events when saving form items editor',
   expect(items?.[0]?.events).toEqual([
     {
       event: 'click',
-      block: 'target-block',
-      method: 'focus'
+      actions: [
+        {
+          uuid: 'focus_link',
+          action: 'call_block_method',
+          inputs: {
+            blockId: 'target-block',
+            method: 'focus'
+          },
+          nextAction: null
+        }
+      ]
     }
   ]);
+  expect(items?.[0]?.events?.[0]).not.toHaveProperty('block');
+  expect(items?.[0]?.events?.[0]).not.toHaveProperty('method');
 });
 
 test('switches nested selector toolbar to the hovered form item', async ({ page }) => {

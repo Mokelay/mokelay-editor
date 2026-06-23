@@ -35,8 +35,7 @@ export const enMessages = {
       empty: 'No events yet.',
       fields: {
         event: 'Trigger event',
-        block: 'Trigger block',
-        method: 'Trigger method'
+        actions: 'Action config'
       }
     }
   },

@@ -19,6 +19,7 @@ import {
   type MAdvanceTableColumnConfig,
   type MAdvanceTableFixed
 } from '@/utils/advanceTableColumns';
+import { cloneBlockEvents } from '@/utils/blockEvents';
 
 type ColumnsEditorPayload = {
   value: MAdvanceTableColumnConfig[];
@@ -47,7 +48,7 @@ function cloneColumns(value?: MAdvanceTableColumnConfig[]) {
     columnContent: column.columnContent?.map((block) => ({
       ...block,
       data: { ...block.data },
-      ...(block.events ? { events: block.events.map((event) => ({ ...event })) } : {})
+      ...(block.events ? { events: cloneBlockEvents(block.events) } : {})
     }))
   }));
 }

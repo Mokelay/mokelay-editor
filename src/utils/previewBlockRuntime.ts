@@ -1,6 +1,7 @@
 import type { InjectionKey } from 'vue';
 import type { OutputData } from '@editorjs/editorjs';
 import type { BlockEvent } from '@/utils/blockEvents';
+import { runActionGraph } from '@/actions';
 
 export type PreviewRuntimeBlock = OutputData['blocks'][number] | {
   id?: string;
@@ -16,17 +17,19 @@ export type BlockRuntimeHandle = {
   data?: Record<string, unknown>;
 };
 
-export type BlockEventInvocation = {
+export type BlockMethodInvocation = {
   sourceBlock: PreviewRuntimeBlock;
   targetBlock: BlockRuntimeHandle;
-  eventConfig: BlockEvent;
   event: unknown;
+  eventConfig?: BlockEvent;
+  actionConfig?: unknown;
+  inputs?: Record<string, unknown>;
 };
 
 export type PreviewBlockRuntime = {
   registerBlock: (id: string, handle: BlockRuntimeHandle) => void;
   unregisterBlock: (id: string, instance?: unknown) => void;
-  invokeBlockMethod: (eventConfig: BlockEvent, sourceBlock: PreviewRuntimeBlock, event: unknown) => void;
+  invokeBlockActions: (eventConfig: BlockEvent, sourceBlock: PreviewRuntimeBlock, event: unknown) => void;
   getBlockDataContext: (excludeBlockId?: string) => Promise<Record<string, Record<string, unknown>>>;
 };
 
@@ -34,7 +37,7 @@ export const PreviewBlockRuntimeKey: InjectionKey<PreviewBlockRuntime> = Symbol(
 
 function warnRuntime(message: string, details?: unknown) {
   if (!import.meta.env.DEV) return;
-  console.warn(`[Mokelay preview events] ${message}`, details);
+  console.warn(`[Mokelay preview actions] ${message}`, details);
 }
 
 function getCallableMethod(instance: unknown, methodName: string) {
@@ -63,6 +66,41 @@ async function resolveBlockData(handle: BlockRuntimeHandle) {
 export function createPreviewBlockRuntime(): PreviewBlockRuntime {
   const handles = new Map<string, BlockRuntimeHandle>();
 
+  async function getBlockDataContext(excludeBlockId?: string) {
+    const entries = await Promise.all([...handles.values()]
+      .filter((handle) => handle.id !== excludeBlockId)
+      .map(async (handle) => [handle.id, await resolveBlockData(handle)] as const));
+    return Object.fromEntries(entries);
+  }
+
+  async function callBlockMethod(
+    blockId: string,
+    methodName: string,
+    invocation: Omit<BlockMethodInvocation, 'targetBlock'>
+  ) {
+    if (!blockId || !methodName) {
+      warnRuntime('Skipped incomplete block method action.', { blockId, methodName, invocation });
+      return undefined;
+    }
+
+    const targetBlock = handles.get(blockId);
+    if (!targetBlock) {
+      warnRuntime('Target block was not found.', { blockId, methodName, invocation });
+      return undefined;
+    }
+
+    const method = getCallableMethod(targetBlock.instance, methodName);
+    if (!method) {
+      warnRuntime('Target method was not exposed.', { blockId, methodName, targetBlock, invocation });
+      return undefined;
+    }
+
+    return await method.call(targetBlock.instance, {
+      ...invocation,
+      targetBlock
+    } satisfies BlockMethodInvocation);
+  }
+
   return {
     registerBlock(id, handle) {
       if (!id) return;
@@ -80,48 +118,30 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
       handles.delete(id);
     },
 
-    invokeBlockMethod(eventConfig, sourceBlock, event) {
-      if (!eventConfig.event || !eventConfig.block || !eventConfig.method) {
-        warnRuntime('Skipped incomplete event config.', { eventConfig, sourceBlock });
+    invokeBlockActions(eventConfig, sourceBlock, event) {
+      if (!eventConfig.event || !eventConfig.actions.length) {
+        warnRuntime('Skipped incomplete event action config.', { eventConfig, sourceBlock });
         return;
       }
 
-      const targetBlock = handles.get(eventConfig.block);
-      if (!targetBlock) {
-        warnRuntime('Target block was not found.', { eventConfig, sourceBlock });
-        return;
-      }
-
-      const method = getCallableMethod(targetBlock.instance, eventConfig.method);
-      if (!method) {
-        warnRuntime('Target method was not exposed.', { eventConfig, sourceBlock, targetBlock });
-        return;
-      }
-
-      const invocation: BlockEventInvocation = {
+      void runActionGraph({
+        actions: eventConfig.actions,
         sourceBlock,
-        targetBlock,
-        eventConfig,
-        event
-      };
-
-      try {
-        const result = method.call(targetBlock.instance, invocation);
-        if (result && typeof (result as Promise<unknown>).catch === 'function') {
-          void (result as Promise<unknown>).catch((error) => {
-            warnRuntime('Target method rejected.', { eventConfig, sourceBlock, targetBlock, error });
-          });
-        }
-      } catch (error) {
-        warnRuntime('Target method threw.', { eventConfig, sourceBlock, targetBlock, error });
-      }
+        event,
+        getBlockDataContext,
+        callBlockMethod: (blockId, methodName, actionInvocation) => callBlockMethod(blockId, methodName, {
+          sourceBlock,
+          event,
+          eventConfig,
+          ...(typeof actionInvocation === 'object' && actionInvocation !== null
+            ? actionInvocation as Record<string, unknown>
+            : {})
+        })
+      }).catch((error) => {
+        warnRuntime('Action graph failed.', { eventConfig, sourceBlock, error });
+      });
     },
 
-    async getBlockDataContext(excludeBlockId) {
-      const entries = await Promise.all([...handles.values()]
-        .filter((handle) => handle.id !== excludeBlockId)
-        .map(async (handle) => [handle.id, await resolveBlockData(handle)] as const));
-      return Object.fromEntries(entries);
-    }
+    getBlockDataContext
   };
 }

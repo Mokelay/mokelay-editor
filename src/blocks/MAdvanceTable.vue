@@ -385,6 +385,11 @@ function getData() {
   };
 }
 
+async function refresh() {
+  await loadDatasourceRows();
+  return getData();
+}
+
 function stringifyCellValue(value: unknown) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value;
@@ -593,7 +598,8 @@ watch(
 );
 
 defineExpose({
-  getData
+  getData,
+  refresh
 });
 </script>
 

@@ -12,8 +12,7 @@ export type SavedBlock = {
   data?: Record<string, unknown>;
   events?: Array<{
     event: string;
-    block: string;
-    method: string;
+    actions: Array<Record<string, unknown>>;
   }>;
 };
 
@@ -660,18 +659,10 @@ export async function openToolEventsPanel(page: Page, toolTestId: string) {
 export async function fillEventRow(
   eventsDialog: Locator,
   index: number,
-  values: { event?: string; block?: string; method?: string }
+  values: { event?: string }
 ) {
   if (values.event !== undefined) {
     await eventsDialog.getByTestId(`tool-event-input-${index}-event`).fill(values.event);
-  }
-
-  if (values.block !== undefined) {
-    await eventsDialog.getByTestId(`tool-event-input-${index}-block`).fill(values.block);
-  }
-
-  if (values.method !== undefined) {
-    await eventsDialog.getByTestId(`tool-event-input-${index}-method`).fill(values.method);
   }
 }
 

@@ -1,5 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { resetEditor } from './helpers/editor';
+import { resetEditor, type MockMokelayPage } from './helpers/editor';
+
+function readSystemPageAsset(uuid: string): MockMokelayPage {
+  const filePath = resolve(process.cwd(), '../mokelay-server/server/assets/mokelay-pages', `${uuid}.json`);
+  return JSON.parse(readFileSync(filePath, 'utf8')) as MockMokelayPage;
+}
 
 test('renders the page list and opens a page editor', async ({ page }) => {
   const uuid = '11111111-2222-4333-8444-555555555555';
@@ -138,6 +145,75 @@ test('switches to built-in pages and opens a system page DSL', async ({ page }) 
   await expect(page.getByTestId('page-name-input')).toHaveValue('页面列表');
   await expect(page.getByTestId('editor-panel')).toContainText('Built-in page DSL');
   await expect(page.getByTestId('save-button')).toBeDisabled();
+});
+
+test('built-in page list opens the create page dialog and submits the form value', async ({ page }) => {
+  const listPage = readSystemPageAsset('mokelay_list_page');
+  const createPage = readSystemPageAsset('mokelay_create_page');
+
+  await resetEditor(page, {
+    initialRoute: '/#/pages/mokelay_list_page?source=system',
+    systemPages: [listPage, createPage]
+  });
+
+  await expect(page.getByTestId('page-name-input')).toHaveValue('页面列表');
+  await page.getByTestId('preview-button').click();
+
+  const readCreateDialogPage = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'GET' &&
+      url.pathname === '/api/mokelay/read_mokelay_page_json' &&
+      url.searchParams.get('uuid') === 'mokelay_create_page';
+  });
+
+  await page.getByTestId('preview-panel').getByRole('button', { name: '创建页面' }).click();
+  await readCreateDialogPage;
+
+  const dialog = page.getByTestId('action-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('action-dialog-title')).toHaveText('创建页面');
+  await dialog.getByTestId('editor-input-control').fill('测试页面');
+
+  const createPageRequests: unknown[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_page') {
+      createPageRequests.push(request.postDataJSON());
+    }
+  });
+
+  await dialog.getByRole('button', { name: '保存页面' }).click();
+  await expect(page.getByTestId('global-call-confirm')).toBeVisible();
+  await expect(page.getByTestId('global-call-dialog-content')).toContainText('确定要创建该页面吗？');
+  await page.getByTestId('global-call-cancel').click();
+  await expect(page.getByTestId('global-call-confirm')).toHaveCount(0);
+  await page.waitForTimeout(100);
+  expect(createPageRequests).toHaveLength(0);
+
+  const createPageRequest = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_page'
+  );
+  const refreshListRequest = page.waitForRequest((listRequest) => {
+    const url = new URL(listRequest.url());
+    return listRequest.method() === 'GET' &&
+      url.pathname === '/api/mokelay/list_pages' &&
+      url.searchParams.get('page') === '1' &&
+      url.searchParams.get('pageSize') === '10';
+  });
+  await dialog.getByRole('button', { name: '保存页面' }).click();
+  await expect(page.getByTestId('global-call-confirm')).toBeVisible();
+  await expect(page.getByTestId('global-call-dialog-content')).toContainText('确定要创建该页面吗？');
+  await page.getByTestId('global-call-ok').click();
+
+  const request = await createPageRequest;
+  expect(request.postDataJSON()).toEqual({
+    name: '测试页面',
+    blocks: []
+  });
+  expect(createPageRequests).toHaveLength(1);
+
+  await refreshListRequest;
+  await expect(page.getByTestId('action-dialog')).toHaveCount(0);
+  await expect(page.getByTestId('preview-panel')).toContainText('测试页面');
 });
 
 test('deletes a page from the page list after confirmation', async ({ page }) => {
