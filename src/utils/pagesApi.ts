@@ -10,6 +10,7 @@ export type MokelayPage = {
 };
 
 export type CreatePagePayload = {
+  uuid?: string;
   name: string;
   blocks: OutputData['blocks'];
 };

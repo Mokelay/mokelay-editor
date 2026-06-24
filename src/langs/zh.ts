@@ -10,8 +10,92 @@ export const zhMessages = {
     apps: 'Apps',
     datasources: '数据源',
     pageList: '页面列表',
+    aiChat: 'AI Chat',
     chinese: '中文',
     english: 'English'
+  },
+  aiChat: {
+    title: 'AI DSL 生成',
+    subtitle: '输入需求文档和上下文，让 AI 生成页面 DSL、接口 DSL，以及无法直接表达时的能力升级计划。',
+    empty: '还没有对话。输入需求后，生成结果会显示在这里。',
+    turn: '对话',
+    loading: 'AI 正在生成 DSL...',
+    copySuccess: 'JSON 已复制',
+    copyFailed: '复制失败，请手动复制 JSON。',
+    fields: {
+      requirementDocument: '需求文档',
+      projectContext: 'projectContext JSON',
+      dslContext: 'dslContext JSON',
+      generationPreferences: 'generationPreferences JSON'
+    },
+    placeholders: {
+      requirementDocument: '例如：客户管理：需要客户列表、创建客户、删除客户，删除前需要确认。',
+      projectContext: '{\n  "app": "crm",\n  "datasource": "Mokelay"\n}',
+      dslContext: '{\n  "availableBlocks": ["MAdvanceTable", "MForm", "MButton"]\n}',
+      generationPreferences: '{\n  "language": "zh-CN",\n  "naming": "snake_case"\n}'
+    },
+    actions: {
+      generate: '生成 DSL',
+      generating: '生成中...',
+      clear: '清空会话',
+      copyJson: '复制 JSON'
+    },
+    save: {
+      openPage: '打开页面',
+      openApi: '打开接口',
+      pageFailed: '页面保存失败。',
+      apiFailed: '接口保存失败。',
+      invalidPage: '生成的页面 DSL 不是合法对象。',
+      invalidPageUuid: '页面 uuid 必须是合法 UUID。',
+      invalidApi: '生成的接口 DSL 不是合法对象。',
+      invalidApiUuid: '接口 uuid 不能为空。',
+      invalidApiMethod: '接口 method 不能为空。',
+      itemStatus: {
+        saving: '保存中',
+        success: '已保存',
+        error: '保存失败'
+      },
+      summary: {
+        saving: '正在保存生成结果：{saved}/{total} 已完成。',
+        complete: '生成结果已保存：共 {total} 项。',
+        partial: '生成结果部分保存成功：{saved} 项成功，{failed} 项失败。',
+        error: '生成结果保存失败：{failed} 项失败。'
+      }
+    },
+    errors: {
+      requirementRequired: '请输入需求文档。',
+      invalidJson: '请输入合法 JSON，或留空不传。',
+      requestFailed: 'AI DSL 生成失败。'
+    },
+    status: {
+      pending: '生成中',
+      success: '已完成',
+      error: '失败'
+    },
+    generated: {
+      summary: 'Summary',
+      pages: 'Pages',
+      apis: 'APIs',
+      upgradePlan: 'Upgrade Plan',
+      traceability: 'Traceability',
+      notes: 'Warnings / Assumptions',
+      fullJson: '完整 JSON',
+      emptySummary: '未返回摘要。',
+      noPages: '没有生成页面 DSL。',
+      noApis: '没有生成接口 DSL。',
+      noUpgrades: '没有需要升级的能力。',
+      pageFallback: '页面 {index}',
+      apiFallback: '接口 {index}',
+      traceFallback: '需求 {index}',
+      upgradeFallback: '升级项 {index}'
+    },
+    upgrade: {
+      processors: 'Processors',
+      blocks: 'Blocks',
+      actions: 'Actions',
+      controls: 'Controls',
+      components: 'Components'
+    }
   },
   editor: {
     placeholder: '开始输入你的内容...',

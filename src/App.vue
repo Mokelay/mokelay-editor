@@ -13,6 +13,7 @@ const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPane
 const PageListPanel = defineAsyncComponent(() => import('@/components/PageListPanel.vue'));
 const AppListPanel = defineAsyncComponent(() => import('@/components/AppListPanel.vue'));
 const DatasourceListPanel = defineAsyncComponent(() => import('@/components/DatasourceListPanel.vue'));
+const ChatAiPanel = defineAsyncComponent(() => import('@/components/ChatAiPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 
 const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
@@ -53,6 +54,7 @@ type ParsedRoute = {
   apiBuilder: boolean;
   apiSource: 'user' | 'system';
   datasourceList: boolean;
+  aiChat: boolean;
   pageList: boolean;
   preview: boolean;
 };
@@ -77,10 +79,11 @@ const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
 const isDatasourceListPage = computed(() => parsedRoute.value.datasourceList);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
 const routeApiSource = computed(() => parsedRoute.value.apiSource);
+const isAiChatPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.aiChat);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
 const isPageListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.pageList);
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && Boolean(routePageUuid.value));
-const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isPreviewPage.value && !isEditorPage.value && !isPageListPage.value);
+const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isEditorPage.value && !isPageListPage.value);
 const isPagesSection = computed(() => isPageListPage.value || isEditorPage.value || isPreviewPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 const isSaveReady = computed(() => isEditorReady.value && currentPageSource.value === 'user');
@@ -109,6 +112,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       apiBuilder: true,
       apiSource,
       datasourceList: false,
+      aiChat: false,
       pageList: false,
       preview: false
     };
@@ -122,6 +126,21 @@ function parseRouteHash(hash: string): ParsedRoute {
       apiBuilder: false,
       apiSource: 'user',
       datasourceList: true,
+      aiChat: false,
+      pageList: false,
+      preview: false
+    };
+  }
+
+  if (path === '/ai-chat') {
+    return {
+      pageUuid: null,
+      pageSource: 'user',
+      apiUuid: null,
+      apiBuilder: false,
+      apiSource: 'user',
+      datasourceList: false,
+      aiChat: true,
       pageList: false,
       preview: false
     };
@@ -135,6 +154,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       apiBuilder: false,
       apiSource: 'user',
       datasourceList: false,
+      aiChat: false,
       pageList: true,
       preview: false
     };
@@ -148,6 +168,7 @@ function parseRouteHash(hash: string): ParsedRoute {
       apiBuilder: false,
       apiSource: 'user',
       datasourceList: false,
+      aiChat: false,
       pageList: false,
       preview: Boolean(pageMatch[2])
     };
@@ -160,6 +181,7 @@ function parseRouteHash(hash: string): ParsedRoute {
     apiBuilder: false,
     apiSource: 'user',
     datasourceList: false,
+    aiChat: false,
     pageList: false,
     preview: path === '/preview'
   };
@@ -270,9 +292,9 @@ watch(isDark, (dark) => {
 });
 
 watch(
-  [routePageUuid, routePageSource, isApiBuilderPage],
-  ([uuid, source, apiBuilder]) => {
-    if (apiBuilder) {
+  [routePageUuid, routePageSource, isApiBuilderPage, isAiChatPage],
+  ([uuid, source, apiBuilder, aiChat]) => {
+    if (apiBuilder || aiChat) {
       return;
     }
 
@@ -437,6 +459,13 @@ function handlePageCreated(page: MokelayPage) {
               {{ t('app.pageList') }}
             </a>
             <a
+              href="#/ai-chat"
+              class="rounded-md px-3 py-1.5 font-medium"
+              :class="isAiChatPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+            >
+              {{ t('app.aiChat') }}
+            </a>
+            <a
               href="#/apis"
               class="rounded-md px-3 py-1.5 font-medium"
               :class="isApiBuilderPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
@@ -514,6 +543,7 @@ function handlePageCreated(page: MokelayPage) {
         @source-change="handlePageSourceChange"
       />
       <DatasourceListPanel v-else-if="isDatasourceListPage" />
+      <ChatAiPanel v-else-if="isAiChatPage" />
       <AppListPanel v-else />
     </main>
   </TooltipProvider>

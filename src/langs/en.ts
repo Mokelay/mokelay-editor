@@ -10,8 +10,92 @@ export const enMessages = {
     apps: 'Apps',
     datasources: 'Datasources',
     pageList: 'Pages',
+    aiChat: 'AI Chat',
     chinese: '中文',
     english: 'English'
+  },
+  aiChat: {
+    title: 'AI DSL Generator',
+    subtitle: 'Enter a requirement document and context to generate page DSL, API DSL, and upgrade plans for capabilities that cannot be expressed directly.',
+    empty: 'No conversation yet. Generated DSL results will appear here.',
+    turn: 'Turn',
+    loading: 'AI is generating DSL...',
+    copySuccess: 'JSON copied',
+    copyFailed: 'Copy failed. Please copy the JSON manually.',
+    fields: {
+      requirementDocument: 'Requirement document',
+      projectContext: 'projectContext JSON',
+      dslContext: 'dslContext JSON',
+      generationPreferences: 'generationPreferences JSON'
+    },
+    placeholders: {
+      requirementDocument: 'Example: Customer management needs a customer list, create customer, and delete customer with confirmation.',
+      projectContext: '{\n  "app": "crm",\n  "datasource": "Mokelay"\n}',
+      dslContext: '{\n  "availableBlocks": ["MAdvanceTable", "MForm", "MButton"]\n}',
+      generationPreferences: '{\n  "language": "en",\n  "naming": "snake_case"\n}'
+    },
+    actions: {
+      generate: 'Generate DSL',
+      generating: 'Generating...',
+      clear: 'Clear conversation',
+      copyJson: 'Copy JSON'
+    },
+    save: {
+      openPage: 'Open page',
+      openApi: 'Open API',
+      pageFailed: 'Failed to save page.',
+      apiFailed: 'Failed to save API.',
+      invalidPage: 'Generated page DSL is not a valid object.',
+      invalidPageUuid: 'Page uuid must be a valid UUID.',
+      invalidApi: 'Generated API DSL is not a valid object.',
+      invalidApiUuid: 'API uuid is required.',
+      invalidApiMethod: 'API method is required.',
+      itemStatus: {
+        saving: 'Saving',
+        success: 'Saved',
+        error: 'Save failed'
+      },
+      summary: {
+        saving: 'Saving generated results: {saved}/{total} complete.',
+        complete: 'Generated results saved: {total} items.',
+        partial: 'Generated results partially saved: {saved} succeeded, {failed} failed.',
+        error: 'Failed to save generated results: {failed} failed.'
+      }
+    },
+    errors: {
+      requirementRequired: 'Enter a requirement document.',
+      invalidJson: 'Enter valid JSON, or leave this field empty.',
+      requestFailed: 'AI DSL generation failed.'
+    },
+    status: {
+      pending: 'Generating',
+      success: 'Complete',
+      error: 'Failed'
+    },
+    generated: {
+      summary: 'Summary',
+      pages: 'Pages',
+      apis: 'APIs',
+      upgradePlan: 'Upgrade Plan',
+      traceability: 'Traceability',
+      notes: 'Warnings / Assumptions',
+      fullJson: 'Full JSON',
+      emptySummary: 'No summary returned.',
+      noPages: 'No page DSL generated.',
+      noApis: 'No API DSL generated.',
+      noUpgrades: 'No capability upgrades required.',
+      pageFallback: 'Page {index}',
+      apiFallback: 'API {index}',
+      traceFallback: 'Requirement {index}',
+      upgradeFallback: 'Upgrade {index}'
+    },
+    upgrade: {
+      processors: 'Processors',
+      blocks: 'Blocks',
+      actions: 'Actions',
+      controls: 'Controls',
+      components: 'Components'
+    }
   },
   editor: {
     placeholder: 'Start typing your content...',

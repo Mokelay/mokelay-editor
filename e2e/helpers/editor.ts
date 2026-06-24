@@ -71,6 +71,17 @@ export type MockApiSnapshot = {
   createdAt: string;
 };
 
+export type MockAiGenerateDslResponse =
+  | {
+      type?: 'success';
+      data: Record<string, unknown>;
+    }
+  | {
+      type: 'error';
+      code: string;
+      message: string;
+    };
+
 type MockPagesApiOptions = {
   createUuid?: string;
   initialRoute?: string;
@@ -83,6 +94,7 @@ type MockPagesApiOptions = {
   apis?: MockMokelayApi[];
   systemApis?: MockMokelayApi[];
   apiDomains?: MockApiDomain[];
+  aiGenerateDslResponses?: MockAiGenerateDslResponse[];
   seedDefaultPage?: boolean;
   apiDelays?: {
     listApis?: number;
@@ -119,10 +131,14 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const systemApis = new Map<string, MockMokelayApi>();
   const apiDomains = new Map<string, MockApiDomain>();
   const apiSnapshots: MockApiSnapshot[] = [];
+  const pageCreatePayloads: Record<string, unknown>[] = [];
+  const pageUpdatePayloads: Record<string, unknown>[] = [];
   const apiSavePayloads: Record<string, unknown>[] = [];
   const apiDomainRequests: string[] = [];
   const apiListRequests: string[] = [];
   const systemApiReadRequests: string[] = [];
+  const aiGenerateDslRequests: Record<string, unknown>[] = [];
+  let aiGenerateDslResponseIndex = 0;
   const corsHeaders = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
@@ -205,10 +221,34 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 
     const url = new URL(request.url());
 
+    if (method === 'POST' && url.pathname === '/api/mokelay/ai-generate-dsl') {
+      const payload = readJsonPayload(request.postDataJSON());
+      aiGenerateDslRequests.push(payload);
+      const responseConfig = options.aiGenerateDslResponses?.[aiGenerateDslResponseIndex++] ?? {
+        data: defaultAiGenerateDslResponse()
+      };
+
+      if (responseConfig.type === 'error') {
+        await fulfillApiError(route, responseConfig.code, responseConfig.message, corsHeaders);
+        return;
+      }
+
+      await fulfillAiGenerateDsl(route, responseConfig.data, corsHeaders);
+      return;
+    }
+
     if (method === 'POST' && url.pathname === '/api/mokelay/create_page') {
       const payload = readJsonPayload(request.postDataJSON());
+      pageCreatePayloads.push(payload);
+      const requestedUuid = readString(payload.uuid);
+
+      if (requestedUuid && pages.has(requestedUuid)) {
+        await fulfillApiError(route, 'BLOCK_DUPLICATE_RECORD', '页面标识已存在。', corsHeaders);
+        return;
+      }
+
       const pageRecord: MockMokelayPage = {
-        uuid: options.createUuid ?? defaultPageUuid,
+        uuid: requestedUuid || options.createUuid || defaultPageUuid,
         name: typeof payload.name === 'string' ? payload.name : '',
         blocks: Array.isArray(payload.blocks) ? payload.blocks as SavedBlock[] : [],
         createdAt: now,
@@ -460,6 +500,10 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
         return;
       }
       const payload = readJsonPayload(request.postDataJSON());
+      pageUpdatePayloads.push({
+        uuid,
+        ...payload
+      });
       const pageRecord = {
         ...existingPage,
         name: typeof payload.name === 'string' ? payload.name : existingPage.name,
@@ -537,7 +581,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, systemPages, apps, datasources, apis, systemApis, apiDomains, apiSnapshots, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests };
+  return { pages, systemPages, apps, datasources, apis, systemApis, apiDomains, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests, aiGenerateDslRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -708,6 +752,26 @@ function defaultApiDomain(): MockApiDomain {
     uuid: 'mokelay',
     alias: 'Mokelay 域名',
     host: 'https://api.mokelay.com'
+  };
+}
+
+function defaultAiGenerateDslResponse() {
+  return {
+    version: 1,
+    status: 'complete',
+    summary: 'Generated DSL.',
+    pages: [],
+    apis: [],
+    upgradePlan: {
+      processors: [],
+      blocks: [],
+      actions: [],
+      controls: [],
+      components: []
+    },
+    traceability: [],
+    assumptions: [],
+    warnings: []
   };
 }
 
@@ -958,6 +1022,21 @@ async function fulfillApiDomains(
           host: domainRecord.host
         }))
       }
+    })
+  });
+}
+
+async function fulfillAiGenerateDsl(
+  route: Route,
+  data: Record<string, unknown>,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data
     })
   });
 }
