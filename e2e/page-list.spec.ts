@@ -216,6 +216,89 @@ test('built-in page list opens the create page dialog and submits the form value
   await expect(page.getByTestId('preview-panel')).toContainText('测试页面');
 });
 
+test('built-in page list operation column opens and deletes pages from DSL actions', async ({ page }) => {
+  const listPage = readSystemPageAsset('mokelay_list_page');
+  const openUuid = 'open-page-1111';
+  const deleteUuid = 'delete-page-2222';
+  const apiState = await resetEditor(page, {
+    initialRoute: '/#/pages/mokelay_list_page?source=system',
+    systemPages: [listPage],
+    pages: [
+      {
+        uuid: openUuid,
+        name: 'Open target',
+        blocks: [],
+        createdAt: '2026-05-05T00:00:00.000Z',
+        updatedAt: '2026-05-07T00:00:00.000Z'
+      },
+      {
+        uuid: deleteUuid,
+        name: 'Delete target',
+        blocks: [],
+        createdAt: '2026-05-05T00:00:00.000Z',
+        updatedAt: '2026-05-06T00:00:00.000Z'
+      }
+    ]
+  });
+
+  await expect(page.getByTestId('page-name-input')).toHaveValue('页面列表');
+  await page.getByTestId('preview-button').click();
+
+  const preview = page.getByTestId('preview-panel');
+  await expect(preview.getByRole('columnheader', { name: '操作' })).toBeVisible();
+  await expect(preview.getByRole('row', { name: /Open target/ }).getByRole('button', { name: '打开' })).toBeVisible();
+  await expect(preview.getByRole('row', { name: /Delete target/ }).getByRole('button', { name: '删除' })).toBeVisible();
+
+  const deleteRequests: unknown[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/delete_page_by_uuid') {
+      deleteRequests.push(request.postDataJSON());
+    }
+  });
+
+  await preview.getByRole('row', { name: /Delete target/ }).getByRole('button', { name: '删除' }).click();
+  await expect(page.getByTestId('global-call-confirm')).toBeVisible();
+  await expect(page.getByTestId('global-call-dialog-content')).toContainText('Delete target');
+  await page.getByTestId('global-call-cancel').click();
+  await expect(page.getByTestId('global-call-confirm')).toHaveCount(0);
+  await page.waitForTimeout(100);
+  expect(deleteRequests).toHaveLength(0);
+  await expect(preview.getByRole('row', { name: /Delete target/ })).toBeVisible();
+
+  const deleteRequestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/delete_page_by_uuid'
+  );
+  const refreshListRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'GET' &&
+      url.pathname === '/api/mokelay/list_pages' &&
+      url.searchParams.get('page') === '1' &&
+      url.searchParams.get('pageSize') === '10';
+  });
+
+  await preview.getByRole('row', { name: /Delete target/ }).getByRole('button', { name: '删除' }).click();
+  await expect(page.getByTestId('global-call-confirm')).toBeVisible();
+  await page.getByTestId('global-call-ok').click();
+
+  const deleteRequest = await deleteRequestPromise;
+  expect(deleteRequest.postDataJSON()).toEqual({ uuid: deleteUuid });
+  await refreshListRequest;
+  await expect(preview.getByRole('row', { name: /Delete target/ })).toHaveCount(0);
+  expect(apiState.pages.has(deleteUuid)).toBe(false);
+
+  const openPageRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'GET' &&
+      url.pathname === '/api/mokelay/read_page_by_uuid' &&
+      url.searchParams.get('uuid') === openUuid;
+  });
+  await preview.getByRole('row', { name: /Open target/ }).getByRole('button', { name: '打开' }).click();
+  await openPageRequest;
+
+  await expect(page).toHaveURL(new RegExp(`#\\/pages\\/${openUuid}$`));
+  await expect(page.getByTestId('page-name-input')).toHaveValue('Open target');
+});
+
 test('deletes a page from the page list after confirmation', async ({ page }) => {
   const uuid = 'delete-page-1111';
   const apiState = await resetEditor(page, {

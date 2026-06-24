@@ -159,7 +159,11 @@ import {
   resolveDatasourceRuntimeData,
   type DatasourceRuntimeMatchingExternalFieldData
 } from '@/utils/datasourceRuntime';
-import { PreviewBlockRuntimeKey } from '@/utils/previewBlockRuntime';
+import { normalizeBlockEvents } from '@/utils/blockEvents';
+import {
+  PreviewBlockRuntimeKey,
+  type PreviewRuntimeBlock
+} from '@/utils/previewBlockRuntime';
 
 const props = defineProps<MAdvanceTableProps & {
   onChange?: (payload: MAdvanceTableProps) => void;
@@ -466,6 +470,22 @@ function getPreviewProps(block: StoredBlock) {
   });
 }
 
+function getCellBlockEventListeners(block: StoredBlock) {
+  if (props.edit) return {};
+
+  const listeners: Record<string, (event: unknown) => void> = {};
+  normalizeBlockEvents(block.events).forEach((eventConfig) => {
+    if (!eventConfig.event) return;
+    const previousListener = listeners[eventConfig.event];
+    listeners[eventConfig.event] = (event: unknown) => {
+      previousListener?.(event);
+      previewRuntime?.invokeBlockActions(eventConfig, block as PreviewRuntimeBlock, event);
+    };
+  });
+
+  return listeners;
+}
+
 function getBlockText(block: StoredBlock) {
   return getParagraphText(block);
 }
@@ -687,7 +707,11 @@ defineExpose({
               >
                 <span v-if="block.type === 'paragraph'" class="ce-advance-table-tool__cell-text">{{ getBlockText(block) }}</span>
                 <span v-else class="ce-advance-table-tool__cell-token">
-                  <component :is="getPreviewComponent(block.type)" v-bind="getPreviewProps(block)" />
+                  <component
+                    :is="getPreviewComponent(block.type)"
+                    v-bind="getPreviewProps(block)"
+                    v-on="getCellBlockEventListeners(block)"
+                  />
                 </span>
               </template>
             </td>
@@ -863,8 +887,25 @@ defineExpose({
 .ce-advance-table-tool__cell-token {
   display: inline-flex;
   align-items: center;
-  margin: 0 2px;
+  margin: 2px 3px;
   vertical-align: middle;
+}
+
+.ce-advance-table-tool__cell-token :deep(.page-dsl-block) {
+  display: inline-flex;
+  width: auto;
+}
+
+.ce-advance-table-tool__cell-token :deep(.page-dsl-button-wrap) {
+  display: inline-flex;
+}
+
+.ce-advance-table-tool__cell-token :deep(.page-dsl-button) {
+  min-height: 30px;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .ce-advance-table-tool__empty {

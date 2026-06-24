@@ -1,4 +1,5 @@
 import { markRaw, type Component } from 'vue';
+import MButton, { mButtonEditorTool } from '@/blocks/MButton.vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
 import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
 import MTag, { mTagEditorTool } from '@/blocks/MTag.vue';
@@ -12,6 +13,10 @@ export type InlineCustomComponentDefinition = Pick<
 };
 
 const inlineCustomComponents = {
+  MButton: {
+    component: markRaw(MButton),
+    ...mButtonEditorTool
+  },
   MInput: {
     component: markRaw(MInput),
     ...mInputEditorTool

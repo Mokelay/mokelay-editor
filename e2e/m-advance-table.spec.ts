@@ -554,6 +554,103 @@ test('reloads datasource with updated page when pagination buttons are clicked',
   await expect(page.getByTestId('advance-table-pagination').getByRole('button', { name: '上一页' })).toBeEnabled();
 });
 
+test('runs button action events from advanced table column content', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  await page.route('**/advance-table-button-actions', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            uuid: 'button-row-1',
+            name: 'Button row'
+          }
+        ]
+      })
+    });
+  });
+
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [{
+      id: 'button-action-table',
+      type: 'MAdvanceTable',
+      data: {
+        index: false,
+        selection: false,
+        columns: [
+          {
+            columnName: '名称',
+            columnContent: [{
+              id: 'advance-table-button-name',
+              type: 'paragraph',
+              data: {
+                text: '{{name}}'
+              }
+            }]
+          },
+          {
+            columnName: '操作',
+            columnContent: [{
+              id: 'advance-table-open-button',
+              type: 'MButton',
+              data: {
+                label: '打开',
+                variant: 'secondary',
+                align: 'left',
+                action: {
+                  type: 'submit',
+                  uuid: '{{uuid}}'
+                }
+              },
+              events: [{
+                event: 'click',
+                actions: [{
+                  uuid: 'open_row',
+                  action: 'jump_url',
+                  alias: '打开行',
+                  inputs: {
+                    openNew: false,
+                    url: {
+                      template: '/#/pages/{{sourceBlock.data.action.uuid}}'
+                    }
+                  },
+                  nextAction: null
+                }]
+              }]
+            }]
+          }
+        ],
+        ds: {
+          type: 'API',
+          domain: 'mokelay',
+          path: '/advance-table-button-actions',
+          method: 'GET',
+          headerData: [],
+          bodyData: [],
+          queryData: [],
+          schemaSelections: [
+            { label: '列表数据', path: 'items[]', type: 'array' }
+          ],
+          matchingExternalFields: [
+            { label: '列表数据', variable: 'data', matchFieldPath: 'items[]' }
+          ]
+        }
+      }
+    }]
+  });
+
+  await page.getByTestId('preview-button').click();
+  const previewTable = page.getByTestId('preview-block-MAdvanceTable');
+  await expect(previewTable.getByRole('row', { name: /Button row/ })).toBeVisible();
+
+  await previewTable.getByRole('row', { name: /Button row/ }).getByRole('button', { name: '打开' }).click();
+
+  await expect(page).toHaveURL(/#\/pages\/button-row-1$/);
+});
+
 test('configures advanced table columns from property panel fields editor', async ({ page }) => {
   await switchLocaleToChinese(page);
   await page.route('**/api/mokelay/ai-translate', async (route) => {
