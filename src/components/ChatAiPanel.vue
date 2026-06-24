@@ -40,6 +40,11 @@ type ChatTurn = {
   error?: string;
 };
 
+type ConversationHistoryTurn = {
+  requirementDocument: string;
+  response: AiDslGenerationResponse;
+};
+
 type NormalizedGeneratedPage = {
   uuid: string;
   name: string;
@@ -100,13 +105,17 @@ function parseJsonField(field: JsonFieldKey) {
 
 const invalidJsonMarker = Symbol('invalid-json');
 
-function buildConversationHistory() {
-  return turns.value
-    .filter((turn) => turn.status === 'success' && turn.response)
-    .map((turn) => ({
+function buildConversationHistory(): ConversationHistoryTurn[] {
+  return turns.value.flatMap((turn) => {
+    if (turn.status !== 'success' || !turn.response) {
+      return [];
+    }
+
+    return [{
       requirementDocument: turn.requirementDocument,
       response: turn.response
-    }));
+    }];
+  });
 }
 
 function summarizeResponseForPrompt(response: AiDslGenerationResponse) {
