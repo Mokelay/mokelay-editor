@@ -1,5 +1,4 @@
-import { createApp, h, type App as VueApp } from 'vue';
-import MPage from '@/blocks/MPage.vue';
+import { createApp, defineAsyncComponent, h, type App as VueApp } from 'vue';
 import { getPage, getSystemPage } from '@/utils/pagesApi';
 import type { OutputData } from '@editorjs/editorjs';
 
@@ -12,6 +11,8 @@ type DialogRequest = {
 type DialogHandle = {
   close: () => void;
 };
+
+const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
 
 let dialogApp: VueApp<Element> | null = null;
 let dialogContainer: HTMLElement | null = null;

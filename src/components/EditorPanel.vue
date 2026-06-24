@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { OutputData } from '@editorjs/editorjs';
-import { ref } from 'vue';
-import MPage from '@/blocks/MPage.vue';
+import { defineAsyncComponent, ref } from 'vue';
 import { useI18n } from '@/i18n';
 
 type EditorPanelProps = {
@@ -10,6 +9,12 @@ type EditorPanelProps = {
   loading?: boolean;
   error?: string;
 };
+
+type MPageExpose = {
+  saveEditor: () => Promise<OutputData | undefined>;
+};
+
+const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
 
 const props = withDefaults(defineProps<EditorPanelProps>(), {
   blocks: () => [],
@@ -23,7 +28,7 @@ const emit = defineEmits<{
   (event: 'name-change', name: string): void;
 }>();
 
-const pageRef = ref<InstanceType<typeof MPage> | null>(null);
+const pageRef = ref<MPageExpose | null>(null);
 const { t } = useI18n();
 
 async function save() {

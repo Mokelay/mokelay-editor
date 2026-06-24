@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import type { OutputData } from '@editorjs/editorjs';
 import QRCode from 'qrcode';
-import { computed, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
-import MPage from '@/blocks/MPage.vue';
 
 const previewModes = ['pc', 'h5', 'ios', 'android'] as const;
 
@@ -16,6 +15,8 @@ type PreviewPanelProps = {
   error?: string;
   pageUuid?: string | null;
 };
+
+const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
 
 const props = withDefaults(defineProps<PreviewPanelProps>(), {
   blocks: () => [],

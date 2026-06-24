@@ -19,40 +19,11 @@ export default defineConfig(() => ({
           const moduleId = normalizeModuleId(id);
 
           if (!moduleId.includes('node_modules')) {
-            if (
-              moduleId.includes('/src/blocks/MForm.vue') ||
-              moduleId.includes('/src/blocks/MFormItem.vue') ||
-              moduleId.includes('/src/blocks/mFormEditorTool.ts') ||
-              moduleId.includes('/src/blocks/MEditorSelector.vue') ||
-              moduleId.includes('/src/blocks/mEditorSelectorEditorTool.ts')
-            ) {
-              return 'block-form-selector';
-            }
-
-            if (moduleId.includes('/src/blocks/MChart.vue')) {
-              return 'block-chart';
-            }
-
-            // Datasource and advanced table modules statically reference each other
-            // through the datasource editor, fields editor, and column editor.
-            // Keeping them in one chunk avoids production-only ESM TDZ failures.
-            if (
-              moduleId.includes('/src/blocks/MDatasourceEditor.vue') ||
-              moduleId.includes('/src/blocks/MFieldsEditor.vue') ||
-              moduleId.includes('/src/blocks/components/DatasourceApiImportDialog.vue') ||
-              moduleId.includes('/src/blocks/components/DatasourceResponseMockDialog.vue') ||
-              moduleId.includes('/src/blocks/MAdvanceInput.vue') ||
-              moduleId.includes('/src/blocks/MAdvanceTable.vue') ||
-              moduleId.includes('/src/blocks/MAdvanceTableColumnsEditor.vue') ||
-              moduleId.includes('/src/utils/datasource') ||
-              moduleId.includes('/src/utils/datasourceSchema') ||
-              moduleId.includes('/src/utils/advanceTableColumns') ||
-              moduleId.includes('/src/editors/inlineCustomComponents.ts')
-            ) {
-              return 'block-datasource';
-            }
-
             return;
+          }
+
+          if (moduleId.includes('/@vue-flow/')) {
+            return 'vue-flow';
           }
 
           if (
@@ -61,6 +32,10 @@ export default defineConfig(() => ({
             moduleId.includes('@calumk/editorjs-columns')
           ) {
             return 'editorjs';
+          }
+
+          if (moduleId.includes('/qrcode/')) {
+            return 'qrcode';
           }
 
           if (moduleId.includes('/zrender/')) {
