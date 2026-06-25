@@ -5,6 +5,8 @@ export type MokelayPage = {
   uuid: string;
   name: string;
   blocks: OutputData['blocks'];
+  appUuid?: string | null;
+  layoutUuid?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -18,6 +20,11 @@ export type CreatePagePayload = {
 export type UpdatePagePayload = {
   name: string;
   blocks: OutputData['blocks'];
+};
+
+export type UpdatePageLayoutPayload = {
+  appUuid?: string | null;
+  layoutUuid?: string | null;
 };
 
 export type ListPagesParams = {
@@ -101,6 +108,15 @@ export async function getSystemPage(uuid: string) {
 
 export async function updatePage(uuid: string, payload: UpdatePagePayload) {
   const response = await apiClient.post<MokelayApiResponse<PageResponse>>('/api/mokelay/update_page_blocks_by_uuid', payload, {
+    params: {
+      uuid
+    }
+  });
+  return normalizePageResponse(unwrapApiResponse(response.data));
+}
+
+export async function updatePageLayout(uuid: string, payload: UpdatePageLayoutPayload) {
+  const response = await apiClient.post<MokelayApiResponse<PageResponse>>('/api/mokelay/update_page_layout_by_uuid', payload, {
     params: {
       uuid
     }
@@ -204,6 +220,8 @@ function normalizePage(page: unknown): MokelayPage {
     uuid,
     name: typeof record.name === 'string' ? record.name : '',
     blocks: Array.isArray(record.blocks) ? record.blocks as OutputData['blocks'] : [],
+    appUuid: readString(record.appUuid) ?? readString(record.app_uuid) ?? null,
+    layoutUuid: readString(record.layoutUuid) ?? readString(record.layout_uuid) ?? null,
     createdAt: readString(record.createdAt) ?? readString(record.created_at),
     updatedAt: readString(record.updatedAt) ?? readString(record.updated_at)
   };

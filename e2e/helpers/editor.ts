@@ -20,6 +20,8 @@ export type MockMokelayPage = {
   uuid: string;
   name: string;
   blocks: SavedBlock[];
+  appUuid?: string | null;
+  layoutUuid?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -29,6 +31,15 @@ export type MockMokelayApp = {
   uuid: string;
   alias: string;
   description: string;
+  defaultLayoutUuid?: string | null;
+};
+
+export type MockMokelayLayout = {
+  uuid: string;
+  name: string;
+  layoutJson: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type MockDatasourceTableSchema = {
@@ -88,6 +99,8 @@ type MockPagesApiOptions = {
   pages?: MockMokelayPage[];
   systemPages?: MockMokelayPage[];
   apps?: MockMokelayApp[];
+  layouts?: MockMokelayLayout[];
+  loggedInUser?: Record<string, unknown> | null;
   datasources?: MockMokelayDatasource[];
   syncedDatasourceSchemas?: Record<string, MockDatasourceTableSchema[]>;
   datasourceSyncErrors?: string[];
@@ -126,6 +139,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const pages = new Map<string, MockMokelayPage>();
   const systemPages = new Map<string, MockMokelayPage>();
   const apps = new Map<string, MockMokelayApp>();
+  const layouts = new Map<string, MockMokelayLayout>();
   const datasources = new Map<string, MockMokelayDatasource>();
   const apis = new Map<string, MockMokelayApi>();
   const systemApis = new Map<string, MockMokelayApi>();
@@ -133,6 +147,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const apiSnapshots: MockApiSnapshot[] = [];
   const pageCreatePayloads: Record<string, unknown>[] = [];
   const pageUpdatePayloads: Record<string, unknown>[] = [];
+  const pageLayoutUpdatePayloads: Record<string, unknown>[] = [];
   const apiSavePayloads: Record<string, unknown>[] = [];
   const apiDomainRequests: string[] = [];
   const apiListRequests: string[] = [];
@@ -183,6 +198,14 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     apps.set(appRecord.uuid, appRecord);
   }
 
+  for (const layoutRecord of options.layouts ?? []) {
+    layouts.set(layoutRecord.uuid, {
+      createdAt: now,
+      updatedAt: now,
+      ...layoutRecord
+    });
+  }
+
   for (const datasourceRecord of options.datasources ?? []) {
     datasources.set(datasourceRecord.uuid, datasourceRecord);
   }
@@ -220,6 +243,22 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     }
 
     const url = new URL(request.url());
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/me') {
+      const user = options.loggedInUser ?? null;
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            loggedIn: Boolean(user),
+            user
+          }
+        })
+      });
+      return;
+    }
 
     if (method === 'POST' && url.pathname === '/api/mokelay/ai-generate-dsl') {
       const payload = readJsonPayload(request.postDataJSON());
@@ -270,6 +309,40 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       };
       apps.set(appRecord.uuid, appRecord);
       await fulfillApp(route, appRecord, corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/create_layout') {
+      const payload = readJsonPayload(request.postDataJSON());
+      const uuid = readString(payload.uuid).trim();
+      const layoutRecord: MockMokelayLayout = {
+        uuid,
+        name: readString(payload.name).trim(),
+        layoutJson: isRecord(payload.layoutJson) ? payload.layoutJson : {},
+        createdAt: now,
+        updatedAt: now
+      };
+      layouts.set(uuid, layoutRecord);
+      await fulfillLayout(route, layoutRecord, corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/update_layout_by_uuid') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      const existing = layouts.get(uuid);
+      if (!existing) {
+        await fulfillLayout(route, null, corsHeaders);
+        return;
+      }
+      const payload = readJsonPayload(request.postDataJSON());
+      const updated: MockMokelayLayout = {
+        ...existing,
+        name: readString(payload.name).trim(),
+        layoutJson: isRecord(payload.layoutJson) ? payload.layoutJson : existing.layoutJson,
+        updatedAt: now
+      };
+      layouts.set(uuid, updated);
+      await fulfillLayout(route, updated, corsHeaders);
       return;
     }
 
@@ -372,6 +445,36 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'GET' && url.pathname === '/api/mokelay/read_layout_by_uuid') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      await fulfillLayout(route, layouts.get(uuid) ?? null, corsHeaders);
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_layouts') {
+      const pageNumber = Number(url.searchParams.get('page') ?? 1);
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
+      const layoutRecords = Array.from(layouts.values())
+        .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+      const start = Math.max(pageNumber - 1, 0) * pageSize;
+      const pageItems = layoutRecords.slice(start, start + pageSize);
+      await fulfillLayouts(route, pageItems, {
+        page: pageNumber,
+        pageSize,
+        total: layoutRecords.length
+      }, corsHeaders);
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/render_page_bundle') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      const source = url.searchParams.get('source') ?? 'user';
+      const pageRecord = source === 'system' ? systemPages.get(uuid) ?? null : pages.get(uuid) ?? null;
+      const layoutRecord = pageRecord ? resolveMockLayout(pageRecord, apps, layouts) : null;
+      await fulfillPageBundle(route, pageRecord, layoutRecord, corsHeaders);
+      return;
+    }
+
     if (method === 'GET' && url.pathname === '/api/mokelay/read_page_by_uuid') {
       const uuid = url.searchParams.get('uuid') ?? '';
       const pageRecord = pages.get(uuid);
@@ -411,6 +514,8 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
               uuid: pageRecord.uuid,
               name: pageRecord.name,
               blocks: pageRecord.blocks,
+              appUuid: pageRecord.appUuid ?? null,
+              layoutUuid: pageRecord.layoutUuid ?? null,
               createdAt: pageRecord.createdAt,
               updatedAt: pageRecord.updatedAt
             })),
@@ -515,6 +620,29 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'POST' && url.pathname === '/api/mokelay/update_page_layout_by_uuid') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      const existingPage = pages.get(uuid);
+      if (!existingPage) {
+        await fulfillPage(route, null, corsHeaders);
+        return;
+      }
+      const payload = readJsonPayload(request.postDataJSON());
+      pageLayoutUpdatePayloads.push({
+        uuid,
+        ...payload
+      });
+      const pageRecord = {
+        ...existingPage,
+        appUuid: readNullableString(payload.appUuid),
+        layoutUuid: readNullableString(payload.layoutUuid),
+        updatedAt: now
+      };
+      pages.set(uuid, pageRecord);
+      await fulfillPage(route, pageRecord, corsHeaders);
+      return;
+    }
+
     if (method === 'POST' && url.pathname === '/api/mokelay/delete_page_by_uuid') {
       const payload = readJsonPayload(request.postDataJSON());
       const uuid = readString(payload.uuid);
@@ -581,7 +709,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, systemPages, apps, datasources, apis, systemApis, apiDomains, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests, aiGenerateDslRequests };
+  return { pages, systemPages, apps, layouts, datasources, apis, systemApis, apiDomains, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, pageLayoutUpdatePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests, aiGenerateDslRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -740,6 +868,14 @@ function readString(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
 
+function readNullableString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function defaultApiLayout() {
   return {
     version: 1,
@@ -813,6 +949,23 @@ function nextDatasourceId(datasources: Map<string, MockMokelayDatasource>) {
   return Math.max(0, ...Array.from(datasources.values()).map((datasource) => datasource.id)) + 1;
 }
 
+function resolveMockLayout(
+  pageRecord: MockMokelayPage,
+  apps: Map<string, MockMokelayApp>,
+  layouts: Map<string, MockMokelayLayout>
+) {
+  if (pageRecord.layoutUuid && layouts.has(pageRecord.layoutUuid)) {
+    return layouts.get(pageRecord.layoutUuid) ?? null;
+  }
+
+  const app = pageRecord.appUuid ? apps.get(pageRecord.appUuid) : undefined;
+  if (app?.defaultLayoutUuid && layouts.has(app.defaultLayoutUuid)) {
+    return layouts.get(app.defaultLayoutUuid) ?? null;
+  }
+
+  return null;
+}
+
 async function delay(ms = 0) {
   if (ms <= 0) return;
   await new Promise((resolve) => {
@@ -852,6 +1005,51 @@ async function fulfillApps(
       ok: true,
       data: {
         apps: appRecords,
+        pagination: {
+          page: paginationInput.page,
+          pageSize: paginationInput.pageSize,
+          total: paginationInput.total,
+          totalPages,
+          hasPreviousPage: paginationInput.page > 1,
+          hasNextPage: paginationInput.page < totalPages
+        }
+      }
+    })
+  });
+}
+
+async function fulfillLayout(
+  route: Route,
+  layoutRecord: MockMokelayLayout | null,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        layout: layoutRecord ? serializeLayout(layoutRecord) : null
+      }
+    })
+  });
+}
+
+async function fulfillLayouts(
+  route: Route,
+  layoutRecords: MockMokelayLayout[],
+  paginationInput: { page: number; pageSize: number; total: number },
+  headers: Record<string, string>
+) {
+  const totalPages = paginationInput.total > 0 ? Math.ceil(paginationInput.total / paginationInput.pageSize) : 0;
+
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        layouts: layoutRecords.map(serializeLayout),
         pagination: {
           page: paginationInput.page,
           pageSize: paginationInput.pageSize,
@@ -944,6 +1142,8 @@ async function fulfillPages(
           uuid: pageRecord.uuid,
           name: pageRecord.name,
           blocks: pageRecord.blocks,
+          appUuid: pageRecord.appUuid ?? null,
+          layoutUuid: pageRecord.layoutUuid ?? null,
           created_at: pageRecord.createdAt,
           updated_at: pageRecord.updatedAt
         })),
@@ -958,6 +1158,53 @@ async function fulfillPages(
       }
     })
   });
+}
+
+async function fulfillPageBundle(
+  route: Route,
+  pageRecord: MockMokelayPage | null,
+  layoutRecord: MockMokelayLayout | null,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        page: pageRecord ? {
+          uuid: pageRecord.uuid,
+          name: pageRecord.name,
+          blocks: pageRecord.blocks,
+          appUuid: pageRecord.appUuid ?? null,
+          layoutUuid: pageRecord.layoutUuid ?? null,
+          createdAt: pageRecord.createdAt,
+          updatedAt: pageRecord.updatedAt
+        } : null,
+        layout: layoutRecord ? {
+          ...layoutRecord.layoutJson,
+          uuid: layoutRecord.uuid,
+          name: layoutRecord.name,
+          createdAt: layoutRecord.createdAt,
+          updatedAt: layoutRecord.updatedAt
+        } : null
+      }
+    })
+  });
+}
+
+function serializeLayout(layoutRecord: MockMokelayLayout) {
+  return {
+    uuid: layoutRecord.uuid,
+    name: layoutRecord.name,
+    layoutJson: {
+      ...layoutRecord.layoutJson,
+      uuid: layoutRecord.uuid,
+      name: layoutRecord.name
+    },
+    createdAt: layoutRecord.createdAt,
+    updatedAt: layoutRecord.updatedAt
+  };
 }
 
 async function fulfillApi(

@@ -6,12 +6,28 @@ import { useI18n } from '@/i18n';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 import { $message } from '@/utils/globalCalls';
 import { getInitialEditorBlocks } from '@/utils/editorData';
-import { createPage, getPage, getSystemPage, updatePage, type MokelayPage, type PageSource } from '@/utils/pagesApi';
+import {
+  createPage,
+  getPage,
+  getSystemPage,
+  updatePage,
+  updatePageLayout,
+  type MokelayPage,
+  type PageSource
+} from '@/utils/pagesApi';
+import {
+  getPageRenderBundle,
+  listLayouts,
+  type MokelayLayout,
+  type MokelayLayoutRecord
+} from '@/utils/layoutsApi';
 
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
 const PageListPanel = defineAsyncComponent(() => import('@/components/PageListPanel.vue'));
 const AppListPanel = defineAsyncComponent(() => import('@/components/AppListPanel.vue'));
+const LayoutListPanel = defineAsyncComponent(() => import('@/components/LayoutListPanel.vue'));
+const LayoutEditorPanel = defineAsyncComponent(() => import('@/components/LayoutEditorPanel.vue'));
 const DatasourceListPanel = defineAsyncComponent(() => import('@/components/DatasourceListPanel.vue'));
 const ChatAiPanel = defineAsyncComponent(() => import('@/components/ChatAiPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
@@ -56,6 +72,8 @@ type ParsedRoute = {
   datasourceList: boolean;
   aiChat: boolean;
   pageList: boolean;
+  layoutList: boolean;
+  layoutUuid: string | null;
   preview: boolean;
 };
 
@@ -66,11 +84,20 @@ const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
 const currentPageUuid = ref<string | null>(null);
 const currentPageName = ref(formatPageName(new Date()));
 const currentPageSource = ref<PageSource>('user');
+const currentPageAppUuid = ref<string | null>(null);
+const currentPageLayoutUuid = ref<string | null>(null);
 const pageBlocks = ref<OutputData['blocks']>(getInitialEditorBlocks(t));
+const currentLayout = ref<MokelayLayout | null>(null);
+const pageLayoutOptions = ref<MokelayLayoutRecord[]>([]);
 const isLoadingPage = ref(false);
 const isSavingPage = ref(false);
+const isLoadingPageLayouts = ref(false);
+const isSavingPageLayout = ref(false);
 const pageError = ref('');
+const pageLayoutError = ref('');
 let loadRequestId = 0;
+let layoutLoadRequestId = 0;
+let pageLayoutOptionsRequestId = 0;
 
 const parsedRoute = computed(() => parseRouteHash(routeHash.value));
 const routePageUuid = computed(() => parsedRoute.value.pageUuid);
@@ -79,12 +106,16 @@ const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
 const isDatasourceListPage = computed(() => parsedRoute.value.datasourceList);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
 const routeApiSource = computed(() => parsedRoute.value.apiSource);
+const routeLayoutUuid = computed(() => parsedRoute.value.layoutUuid);
 const isAiChatPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.aiChat);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
 const isPageListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.pageList);
+const isLayoutListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.layoutList && !routeLayoutUuid.value);
+const isLayoutEditorPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.layoutList && Boolean(routeLayoutUuid.value));
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && Boolean(routePageUuid.value));
-const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isEditorPage.value && !isPageListPage.value);
+const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isEditorPage.value && !isPageListPage.value && !isLayoutListPage.value && !isLayoutEditorPage.value);
 const isPagesSection = computed(() => isPageListPage.value || isEditorPage.value || isPreviewPage.value);
+const isLayoutsSection = computed(() => isLayoutListPage.value || isLayoutEditorPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 const isSaveReady = computed(() => isEditorReady.value && currentPageSource.value === 'user');
 
@@ -103,6 +134,7 @@ function parseRouteHash(hash: string): ParsedRoute {
   const apiSource = new URLSearchParams(rawQuery).get('source') === 'system' ? 'system' : 'user';
   const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
   const apiMatch = path.match(/^\/apis(?:\/([^/]+))?\/?$/);
+  const layoutMatch = path.match(/^\/layouts(?:\/([^/]+))?\/?$/);
 
   if (apiMatch) {
     return {
@@ -114,6 +146,8 @@ function parseRouteHash(hash: string): ParsedRoute {
       datasourceList: false,
       aiChat: false,
       pageList: false,
+      layoutList: false,
+      layoutUuid: null,
       preview: false
     };
   }
@@ -128,6 +162,8 @@ function parseRouteHash(hash: string): ParsedRoute {
       datasourceList: true,
       aiChat: false,
       pageList: false,
+      layoutList: false,
+      layoutUuid: null,
       preview: false
     };
   }
@@ -142,6 +178,24 @@ function parseRouteHash(hash: string): ParsedRoute {
       datasourceList: false,
       aiChat: true,
       pageList: false,
+      layoutList: false,
+      layoutUuid: null,
+      preview: false
+    };
+  }
+
+  if (layoutMatch) {
+    return {
+      pageUuid: null,
+      pageSource: 'user',
+      apiUuid: null,
+      apiBuilder: false,
+      apiSource: 'user',
+      datasourceList: false,
+      aiChat: false,
+      pageList: false,
+      layoutList: true,
+      layoutUuid: layoutMatch[1] ? safeDecodeURIComponent(layoutMatch[1]) : null,
       preview: false
     };
   }
@@ -156,6 +210,8 @@ function parseRouteHash(hash: string): ParsedRoute {
       datasourceList: false,
       aiChat: false,
       pageList: true,
+      layoutList: false,
+      layoutUuid: null,
       preview: false
     };
   }
@@ -170,6 +226,8 @@ function parseRouteHash(hash: string): ParsedRoute {
       datasourceList: false,
       aiChat: false,
       pageList: false,
+      layoutList: false,
+      layoutUuid: null,
       preview: Boolean(pageMatch[2])
     };
   }
@@ -183,6 +241,8 @@ function parseRouteHash(hash: string): ParsedRoute {
     datasourceList: false,
     aiChat: false,
     pageList: false,
+    layoutList: false,
+    layoutUuid: null,
     preview: path === '/preview'
   };
 }
@@ -211,6 +271,14 @@ function getPreviewHash(uuid: string, source: PageSource = 'user') {
   return `/pages/${encodeURIComponent(uuid)}/preview${sourceQuery(source)}`;
 }
 
+function getLayoutListHash() {
+  return '/layouts';
+}
+
+function getLayoutEditorHash(uuid: string) {
+  return `/layouts/${encodeURIComponent(uuid)}`;
+}
+
 function persistDraftBlocks(blocks: OutputData['blocks']) {
   localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify({ blocks }));
 }
@@ -218,8 +286,11 @@ function persistDraftBlocks(blocks: OutputData['blocks']) {
 function applyPage(page: MokelayPage) {
   currentPageUuid.value = page.uuid;
   currentPageName.value = page.name || formatPageName(new Date());
+  currentPageAppUuid.value = page.appUuid ?? null;
+  currentPageLayoutUuid.value = page.layoutUuid ?? null;
   pageBlocks.value = page.blocks;
   pageError.value = '';
+  pageLayoutError.value = '';
   persistDraftBlocks(page.blocks);
 }
 
@@ -228,9 +299,13 @@ function resetToLocalDraft() {
   currentPageUuid.value = null;
   currentPageSource.value = 'user';
   currentPageName.value = formatPageName(new Date());
+  currentPageAppUuid.value = null;
+  currentPageLayoutUuid.value = null;
   pageError.value = '';
+  pageLayoutError.value = '';
   isLoadingPage.value = false;
   pageBlocks.value = getInitialEditorBlocks(t);
+  currentLayout.value = null;
 }
 
 async function loadPage(uuid: string, source: PageSource) {
@@ -239,6 +314,9 @@ async function loadPage(uuid: string, source: PageSource) {
   isLoadingPage.value = true;
   pageError.value = '';
   currentPageSource.value = source;
+  if (!isPreviewPage.value) {
+    currentLayout.value = null;
+  }
 
   try {
     const page = source === 'system' ? await getSystemPage(uuid) : await getPage(uuid);
@@ -259,6 +337,57 @@ async function loadPage(uuid: string, source: PageSource) {
   } finally {
     if (requestId === loadRequestId) {
       isLoadingPage.value = false;
+    }
+  }
+}
+
+async function loadPreviewLayout(uuid: string, source: PageSource) {
+  const requestId = layoutLoadRequestId + 1;
+  layoutLoadRequestId = requestId;
+
+  try {
+    const bundle = await getPageRenderBundle(uuid, source);
+    if (requestId !== layoutLoadRequestId) return;
+
+    currentLayout.value = bundle.layout;
+
+    if (bundle.page && currentPageUuid.value !== uuid) {
+      applyPage({
+        uuid: bundle.page.uuid,
+        name: bundle.page.name,
+        blocks: bundle.page.blocks,
+        createdAt: bundle.page.createdAt,
+        updatedAt: bundle.page.updatedAt
+      });
+      currentPageSource.value = source;
+    }
+  } catch {
+    if (requestId !== layoutLoadRequestId) return;
+    currentLayout.value = null;
+  }
+}
+
+async function loadPageLayoutOptions() {
+  const requestId = pageLayoutOptionsRequestId + 1;
+  pageLayoutOptionsRequestId = requestId;
+  isLoadingPageLayouts.value = true;
+  pageLayoutError.value = '';
+
+  try {
+    const result = await listLayouts({
+      page: 1,
+      pageSize: 100
+    });
+
+    if (requestId !== pageLayoutOptionsRequestId) return;
+    pageLayoutOptions.value = result.layouts;
+  } catch (error) {
+    if (requestId !== pageLayoutOptionsRequestId) return;
+    pageLayoutOptions.value = [];
+    pageLayoutError.value = toErrorMessage(error) || '布局列表加载失败。';
+  } finally {
+    if (requestId === pageLayoutOptionsRequestId) {
+      isLoadingPageLayouts.value = false;
     }
   }
 }
@@ -308,6 +437,41 @@ watch(
     }
 
     void loadPage(uuid, source);
+  },
+  { immediate: true }
+);
+
+watch(
+  [isPreviewPage, routePageUuid, routePageSource],
+  ([preview, uuid, source]) => {
+    if (!preview) {
+      currentLayout.value = null;
+      layoutLoadRequestId += 1;
+      return;
+    }
+
+    if (!uuid) {
+      currentLayout.value = null;
+      return;
+    }
+
+    void loadPreviewLayout(uuid, source);
+  },
+  { immediate: true }
+);
+
+watch(
+  [isEditorPage, routePageSource],
+  ([editorPage, source]) => {
+    if (!editorPage || source !== 'user') {
+      pageLayoutOptionsRequestId += 1;
+      pageLayoutOptions.value = [];
+      isLoadingPageLayouts.value = false;
+      pageLayoutError.value = '';
+      return;
+    }
+
+    void loadPageLayoutOptions();
   },
   { immediate: true }
 );
@@ -365,6 +529,36 @@ async function saveEditorContent() {
   }
 }
 
+async function handlePageLayoutChange(layoutUuid: string | null) {
+  if (
+    isSavingPageLayout.value ||
+    isLoadingPage.value ||
+    currentPageSource.value !== 'user' ||
+    !currentPageUuid.value ||
+    layoutUuid === currentPageLayoutUuid.value
+  ) {
+    return;
+  }
+
+  isSavingPageLayout.value = true;
+  pageLayoutError.value = '';
+
+  try {
+    const page = await updatePageLayout(currentPageUuid.value, {
+      appUuid: currentPageAppUuid.value,
+      layoutUuid
+    });
+
+    applyPage(page);
+    void $message('success', layoutUuid ? '页面布局已绑定。' : '页面布局已清除。');
+  } catch (error) {
+    pageLayoutError.value = toErrorMessage(error) || '页面布局保存失败。';
+    void $message('error', '页面布局保存失败。');
+  } finally {
+    isSavingPageLayout.value = false;
+  }
+}
+
 async function openPreviewPage() {
   if (isLoadingPage.value || isSavingPage.value) {
     return;
@@ -394,6 +588,14 @@ function handlePageSourceChange(source: PageSource) {
 function handlePageCreated(page: MokelayPage) {
   applyPage(page);
   window.location.hash = getEditorHash(page.uuid);
+}
+
+function openLayoutFromList(uuid: string) {
+  window.location.hash = getLayoutEditorHash(uuid);
+}
+
+function backToLayoutList() {
+  window.location.hash = getLayoutListHash();
 }
 </script>
 
@@ -459,6 +661,13 @@ function handlePageCreated(page: MokelayPage) {
               {{ t('app.pageList') }}
             </a>
             <a
+              href="#/layouts"
+              class="rounded-md px-3 py-1.5 font-medium"
+              :class="isLayoutsSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+            >
+              布局
+            </a>
+            <a
               href="#/ai-chat"
               class="rounded-md px-3 py-1.5 font-medium"
               :class="isAiChatPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
@@ -509,6 +718,8 @@ function handlePageCreated(page: MokelayPage) {
         :loading="isLoadingPage"
         :error="pageError"
         :page-uuid="routePageUuid ?? currentPageUuid"
+        :page-name="currentPageName"
+        :layout="currentLayout"
       />
       <div v-else-if="isEditorPage" class="flex flex-1 flex-col gap-4">
         <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -529,10 +740,17 @@ function handlePageCreated(page: MokelayPage) {
           ref="editorPanelRef"
           :blocks="pageBlocks"
           :page-name="currentPageName"
+          :layout-uuid="currentPageLayoutUuid"
+          :layout-options="pageLayoutOptions"
+          :layout-loading="isLoadingPageLayouts"
+          :layout-saving="isSavingPageLayout"
+          :layout-error="pageLayoutError"
+          :can-edit-layout-binding="currentPageSource === 'user'"
           :loading="isLoadingPage"
           :error="pageError"
           @change="handleEditorChange"
           @name-change="handlePageNameChange"
+          @layout-change="handlePageLayoutChange"
         />
       </div>
       <PageListPanel
@@ -541,6 +759,15 @@ function handlePageCreated(page: MokelayPage) {
         @open-page="openPageFromList"
         @page-created="handlePageCreated"
         @source-change="handlePageSourceChange"
+      />
+      <LayoutListPanel
+        v-else-if="isLayoutListPage"
+        @open-layout="openLayoutFromList"
+      />
+      <LayoutEditorPanel
+        v-else-if="isLayoutEditorPage && routeLayoutUuid"
+        :layout-uuid="routeLayoutUuid"
+        @back="backToLayoutList"
       />
       <DatasourceListPanel v-else-if="isDatasourceListPage" />
       <ChatAiPanel v-else-if="isAiChatPage" />

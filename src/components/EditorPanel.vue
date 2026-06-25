@@ -2,10 +2,17 @@
 import type { OutputData } from '@editorjs/editorjs';
 import { defineAsyncComponent, ref } from 'vue';
 import { useI18n } from '@/i18n';
+import type { MokelayLayoutRecord } from '@/utils/layoutsApi';
 
 type EditorPanelProps = {
   blocks?: OutputData['blocks'];
   pageName?: string;
+  layoutUuid?: string | null;
+  layoutOptions?: MokelayLayoutRecord[];
+  layoutLoading?: boolean;
+  layoutSaving?: boolean;
+  layoutError?: string;
+  canEditLayoutBinding?: boolean;
   loading?: boolean;
   error?: string;
 };
@@ -19,6 +26,12 @@ const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
 const props = withDefaults(defineProps<EditorPanelProps>(), {
   blocks: () => [],
   pageName: '',
+  layoutUuid: null,
+  layoutOptions: () => [],
+  layoutLoading: false,
+  layoutSaving: false,
+  layoutError: '',
+  canEditLayoutBinding: true,
   loading: false,
   error: ''
 });
@@ -26,6 +39,7 @@ const props = withDefaults(defineProps<EditorPanelProps>(), {
 const emit = defineEmits<{
   (event: 'change', blocks: OutputData['blocks']): void;
   (event: 'name-change', name: string): void;
+  (event: 'layout-change', layoutUuid: string | null): void;
 }>();
 
 const pageRef = ref<MPageExpose | null>(null);
@@ -39,6 +53,11 @@ async function save() {
 
 function handlePageChange(blocks: OutputData['blocks']) {
   emit('change', blocks);
+}
+
+function handleLayoutChange(event: Event) {
+  const value = (event.target as HTMLSelectElement).value.trim();
+  emit('layout-change', value || null);
 }
 
 defineExpose({
@@ -67,6 +86,24 @@ defineExpose({
         placeholder="请输入页面标题"
         @input="emit('name-change', ($event.target as HTMLInputElement).value)"
       />
+    </label>
+
+    <label v-if="!loading" class="mb-4 flex flex-col gap-1.5 text-sm">
+      <span class="font-medium text-slate-700 dark:text-slate-200">页面布局</span>
+      <select
+        data-testid="page-layout-select"
+        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-800"
+        :value="layoutUuid || ''"
+        :disabled="layoutLoading || layoutSaving || !canEditLayoutBinding"
+        @change="handleLayoutChange"
+      >
+        <option value="">无布局</option>
+        <option v-for="layout in layoutOptions" :key="layout.uuid" :value="layout.uuid">
+          {{ layout.name || layout.uuid }}
+        </option>
+      </select>
+      <span v-if="layoutSaving" data-testid="page-layout-saving" class="text-xs text-slate-500 dark:text-slate-400">布局绑定保存中...</span>
+      <span v-else-if="layoutError" data-testid="page-layout-error" class="text-xs text-rose-600 dark:text-rose-300">{{ layoutError }}</span>
     </label>
 
     <MPage v-if="!loading" ref="pageRef" :edit="true" :value="blocks" @change="handlePageChange" />

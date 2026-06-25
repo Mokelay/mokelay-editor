@@ -3,6 +3,7 @@ import type { OutputData } from '@editorjs/editorjs';
 import QRCode from 'qrcode';
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
+import type { MokelayLayout, RenderBundlePage } from '@/utils/layoutsApi';
 
 const previewModes = ['pc', 'h5', 'ios', 'android'] as const;
 
@@ -14,15 +15,20 @@ type PreviewPanelProps = {
   loading?: boolean;
   error?: string;
   pageUuid?: string | null;
+  pageName?: string;
+  layout?: MokelayLayout | null;
 };
 
 const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
+const LayoutRenderer = defineAsyncComponent(() => import('@/layouts/LayoutRenderer.vue'));
 
 const props = withDefaults(defineProps<PreviewPanelProps>(), {
   blocks: () => [],
   loading: false,
   error: '',
-  pageUuid: null
+  pageUuid: null,
+  pageName: '',
+  layout: null
 });
 
 const { t } = useI18n();
@@ -68,6 +74,11 @@ const activeQrCodeDescription = computed(() => (
     ? t('preview.iosQrCodeDescription')
     : t('preview.androidQrCodeDescription')
 ));
+const previewPage = computed<RenderBundlePage>(() => ({
+  uuid: props.pageUuid ?? '',
+  name: props.pageName,
+  blocks: props.blocks
+}));
 
 function createTemporaryTicket() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -182,19 +193,21 @@ watch(
       <p v-else-if="error" data-testid="preview-error-state" class="rounded border border-red-300 bg-red-50 p-3 text-red-800 dark:border-red-500/60 dark:bg-red-900/30 dark:text-red-100">
         {{ error }}
       </p>
-      <p v-else-if="!blocks.length" data-testid="preview-empty-state" class="rounded border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100">
+      <p v-else-if="!blocks.length && !layout" data-testid="preview-empty-state" class="rounded border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100">
         {{ t('preview.emptyState') }}
       </p>
 
       <div v-else-if="previewMode === 'pc'" data-testid="preview-pc-canvas" class="min-h-full">
-        <MPage :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" />
+        <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" />
+        <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" />
       </div>
 
       <div v-else-if="previewMode === 'h5'" data-testid="preview-h5-canvas" class="flex min-h-full justify-center overflow-auto bg-slate-100 px-4 py-6 dark:bg-slate-950">
         <div data-testid="preview-phone-shell" class="relative shrink-0 rounded-[52px] border-[10px] border-slate-950 bg-slate-950 p-3 shadow-2xl dark:border-slate-800 dark:bg-slate-800">
           <div class="absolute left-1/2 top-3 z-10 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-slate-950 dark:bg-slate-800"></div>
           <div data-testid="preview-phone-screen" class="h-[844px] w-[390px] overflow-auto rounded-[34px] bg-white p-4 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
-            <MPage :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" />
+            <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" />
+            <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" />
           </div>
         </div>
       </div>
