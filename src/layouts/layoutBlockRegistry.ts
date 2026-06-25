@@ -23,7 +23,7 @@ export type LayoutBlockDefinition = {
   }) => Record<string, unknown>;
 };
 
-const topNavTypes = new Set(['MSiteTopNav', 'MEditorTopNav', 'MBingxTopNav', 'MTopNav']);
+const topNavTypes = new Set(['MSiteTopNav', 'MEditorTopNav', 'MWebTopNav', 'MTopNav']);
 
 const layoutBlockRegistry: Record<string, LayoutBlockDefinition> = {};
 
@@ -39,7 +39,7 @@ registerLayoutBlock({
 
 registerTopNavBlock('MSiteTopNav', markRaw(defineAsyncComponent(() => import('@/layouts/MSiteTopNav.vue'))));
 registerTopNavBlock('MEditorTopNav', markRaw(defineAsyncComponent(() => import('@/layouts/MEditorTopNav.vue'))));
-registerTopNavBlock('MBingxTopNav', markRaw(defineAsyncComponent(() => import('@/layouts/MBingxTopNav.vue'))));
+registerTopNavBlock('MWebTopNav', markRaw(defineAsyncComponent(() => import('@/layouts/MWebTopNav.vue'))));
 registerTopNavBlock('MTopNav', markRaw(defineAsyncComponent(() => import('@/layouts/MTopNav.vue'))));
 
 registerLayoutBlock({
@@ -93,7 +93,7 @@ function registerTopNavBlock(type: string, component: Component) {
 function readDefaultTopNavVariant(type: string) {
   if (!topNavTypes.has(type)) return undefined;
   if (type === 'MEditorTopNav') return 'editor';
-  if (type === 'MBingxTopNav') return 'bingx';
+  if (type === 'MWebTopNav') return 'web';
   if (type === 'MSiteTopNav') return 'site';
   return undefined;
 }

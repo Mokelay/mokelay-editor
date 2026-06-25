@@ -351,7 +351,7 @@ function getMenuItemClass(item: LayoutMenuItem) {
   color: rgb(51 65 85);
 }
 
-.layout-top-nav__action--bingx-primary {
+.layout-top-nav__action--web-primary {
   border-color: rgb(30 101 255);
   background: rgb(30 101 255);
   color: white;

@@ -10,12 +10,12 @@ import {
 } from '@/layouts/topNavRuntime';
 
 defineOptions({
-  name: 'MBingxTopNav'
+  name: 'MWebTopNav'
 });
 
 const props = withDefaults(defineProps<TopNavProps>(), {
-  variant: 'bingx',
-  brand: () => ({ text: 'BingX', href: '#', showMark: false }),
+  variant: 'web',
+  brand: () => ({ text: 'Mokelay', href: '#', showMark: false }),
   homeAction: undefined,
   utilityControls: () => [],
   items: () => [],
@@ -26,12 +26,12 @@ const props = withDefaults(defineProps<TopNavProps>(), {
 });
 
 const visibleActions = computed(() => getVisibleTopNavActions(props));
-const brandText = computed(() => props.brand?.text?.trim() || 'BingX');
+const brandText = computed(() => props.brand?.text?.trim() || 'Mokelay');
 const brandHref = computed(() => normalizeHref(props.brand?.href || '#'));
 </script>
 
 <template>
-  <header data-testid="layout-top-nav" class="layout-top-nav layout-top-nav--bingx">
+  <header data-testid="layout-top-nav" class="layout-top-nav layout-top-nav--web">
     <div class="layout-top-nav__left">
       <a class="layout-top-nav__brand" :href="brandHref">
         <span>{{ brandText }}</span>
@@ -204,14 +204,14 @@ const brandHref = computed(() => normalizeHref(props.brand?.href || '#'));
   gap: 6px;
 }
 
-.layout-top-nav__action--bingx-primary {
+.layout-top-nav__action--web-primary {
   min-width: 58px;
   background: rgb(25 103 255);
   color: white;
   padding: 0 18px;
 }
 
-.layout-top-nav__action--bingx-primary:hover {
+.layout-top-nav__action--web-primary:hover {
   background: rgb(50 123 255);
 }
 

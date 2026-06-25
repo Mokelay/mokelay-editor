@@ -5,7 +5,7 @@ import {
 import type { LayoutBlock, LayoutMenuItem } from '@/utils/layoutsApi';
 import type { TopNavBrand, TopNavControl, TopNavProps } from '@/layouts/topNavTypes';
 
-const actionVariants = new Set(['primary', 'secondary', 'ghost', 'teal', 'success', 'bingx-primary']);
+const actionVariants = new Set(['primary', 'secondary', 'ghost', 'teal', 'success', 'web-primary']);
 const actionShapes = new Set(['default', 'icon', 'avatar']);
 
 export const topNavIconPaths: Record<string, string> = {

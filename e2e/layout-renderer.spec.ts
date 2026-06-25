@@ -314,7 +314,7 @@ test('renders a system page with its declared layout', async ({ page }) => {
   await expect(page.getByTestId('preview-blocks')).toContainText('Built-in page list content.');
 });
 
-test('renders a BingX style static top navigation layout', async ({ page }) => {
+test('renders a web style static top navigation layout', async ({ page }) => {
   const pageUuid = '44444444-4444-4444-8444-444444444444';
 
   await resetEditor(page, {
@@ -322,14 +322,14 @@ test('renders a BingX style static top navigation layout', async ({ page }) => {
     pages: [
       {
         uuid: pageUuid,
-        name: 'BingX Layout Preview',
-        layoutUuid: 'bingx_layout',
+        name: 'Web Layout Preview',
+        layoutUuid: 'web_layout',
         blocks: [
           {
-            id: 'bingx-body',
+            id: 'web-body',
             type: 'paragraph',
             data: {
-              text: 'BingX layout page slot content.'
+              text: 'Web layout page slot content.'
             }
           }
         ]
@@ -337,12 +337,12 @@ test('renders a BingX style static top navigation layout', async ({ page }) => {
     ],
     layouts: [
       {
-        uuid: 'bingx_layout',
-        name: 'BingX顶部布局',
+        uuid: 'web_layout',
+        name: 'Web顶部布局',
         layoutJson: {
           schemaVersion: 1,
-          uuid: 'bingx_layout',
-          name: 'BingX顶部布局',
+          uuid: 'web_layout',
+          name: 'Web顶部布局',
           resources: {
             mainMenu: {
               type: 'static',
@@ -365,13 +365,13 @@ test('renders a BingX style static top navigation layout', async ({ page }) => {
           blocks: [
             {
               id: 'top-nav',
-              type: 'MBingxTopNav',
+              type: 'MWebTopNav',
               data: {
-                brand: { text: 'BingX', href: '#', showMark: false },
+                brand: { text: 'Mokelay', href: '#', showMark: false },
                 items: { template: '{{resources.mainMenu.items}}' },
                 actions: [
                   { id: 'search', type: 'MButton', data: { icon: 'search', shape: 'icon', variant: 'ghost' } },
-                  { id: 'deposit', type: 'MButton', data: { label: '充值', variant: 'bingx-primary' } },
+                  { id: 'deposit', type: 'MButton', data: { label: '充值', variant: 'web-primary' } },
                   { id: 'assets', type: 'MLink', data: { text: '資產', url: '#', variant: 'ghost' } },
                   { id: 'notification', type: 'MButton', data: { icon: 'bell', badge: '9', shape: 'icon', variant: 'ghost' } },
                   { id: 'account', type: 'MButton', data: { icon: 'user', shape: 'icon', variant: 'ghost' } },
@@ -394,14 +394,14 @@ test('renders a BingX style static top navigation layout', async ({ page }) => {
 
   const topNav = page.getByTestId('layout-top-nav');
 
-  await expect(topNav).toContainText('BingX');
+  await expect(topNav).toContainText('Mokelay');
   await expect(topNav).toContainText('合約交易');
   await expect(topNav).toContainText('🔥');
   await expect(topNav).toContainText('充值');
   await expect(topNav).toContainText('資產');
   await expect(topNav.locator('.layout-top-nav__action-icon')).toHaveCount(5);
   await expect(topNav.locator('.layout-top-nav__avatar')).toBeVisible();
-  await expect(page.getByTestId('preview-blocks')).toContainText('BingX layout page slot content.');
+  await expect(page.getByTestId('preview-blocks')).toContainText('Web layout page slot content.');
 
   await expect.poll(async () => topNav.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
@@ -590,14 +590,14 @@ test('keeps legacy MTopNav variants working through the compatibility adapter', 
               }
             },
             {
-              id: 'bingx-top-nav',
+              id: 'web-top-nav',
               type: 'MTopNav',
               data: {
-                variant: 'bingx',
-                brand: { text: 'BingX', href: '#', showMark: false },
+                variant: 'web',
+                brand: { text: 'Mokelay', href: '#', showMark: false },
                 items: { template: '{{resources.mainMenu.items}}' },
                 actions: [
-                  { id: 'deposit', type: 'MButton', data: { label: '充值', variant: 'bingx-primary' } }
+                  { id: 'deposit', type: 'MButton', data: { label: '充值', variant: 'web-primary' } }
                 ]
               }
             },
@@ -615,7 +615,7 @@ test('keeps legacy MTopNav variants working through the compatibility adapter', 
   await expect(page.getByTestId('layout-block-error')).toHaveCount(0);
   await expect(page.getByTestId('layout-top-nav')).toHaveCount(2);
   await expect(page.getByTestId('layout-top-nav').first()).toContainText('Mokelay Editor');
-  await expect(page.getByTestId('layout-top-nav').nth(1)).toContainText('BingX');
+  await expect(page.getByTestId('layout-top-nav').nth(1)).toContainText('Mokelay');
   await expect(page.getByTestId('layout-top-nav').nth(1)).toContainText('充值');
   await expect(page.getByTestId('preview-blocks')).toContainText('Legacy layout content.');
 });

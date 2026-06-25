@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import MBingxTopNav from '@/layouts/MBingxTopNav.vue';
 import MEditorTopNav from '@/layouts/MEditorTopNav.vue';
 import MSiteTopNav from '@/layouts/MSiteTopNav.vue';
+import MWebTopNav from '@/layouts/MWebTopNav.vue';
 import type { TopNavProps } from '@/layouts/topNavTypes';
 
 defineOptions({
@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<TopNavProps>(), {
 
 const targetComponent = computed(() => {
   if (props.variant === 'editor') return MEditorTopNav;
-  if (props.variant === 'bingx') return MBingxTopNav;
+  if (props.variant === 'web') return MWebTopNav;
   return MSiteTopNav;
 });
 </script>
