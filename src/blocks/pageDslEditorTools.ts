@@ -2,7 +2,7 @@ import { i18n } from '@/i18n';
 import type { EditorToolComponentProps, EditorToolPropertyField } from '@/editors/editorToolDefinition';
 
 export type PageDslAlign = 'left' | 'center' | 'right';
-export type PageDslButtonVariant = 'primary' | 'secondary' | 'ghost';
+export type PageDslButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'warning' | 'text';
 
 export type PageDslOption = {
   label: string;
@@ -92,7 +92,8 @@ export function normalizeAlign(value: unknown, fallback: PageDslAlign = 'left') 
 }
 
 export function normalizeButtonVariant(value: unknown, fallback: PageDslButtonVariant = 'primary') {
-  return normalizeSelectValue(value, ['primary', 'secondary', 'ghost'] as const, fallback);
+  if (value === 'default') return 'secondary';
+  return normalizeSelectValue(value, ['primary', 'secondary', 'ghost', 'danger', 'warning', 'text'] as const, fallback);
 }
 
 export function normalizeOptions(value: unknown, fallback: PageDslOption[]) {

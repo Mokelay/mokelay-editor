@@ -1,6 +1,7 @@
 import type { InjectionKey } from 'vue';
 import type { OutputData } from '@editorjs/editorjs';
 import type { BlockEvent } from '@/utils/blockEvents';
+import type { ActionConfig } from '@/actions';
 import { runActionGraph } from '@/actions';
 
 export type PreviewRuntimeBlock = OutputData['blocks'][number] | {
@@ -30,7 +31,10 @@ export type PreviewBlockRuntime = {
   registerBlock: (id: string, handle: BlockRuntimeHandle) => void;
   unregisterBlock: (id: string, instance?: unknown) => void;
   invokeBlockActions: (eventConfig: BlockEvent, sourceBlock: PreviewRuntimeBlock, event: unknown) => void;
+  runActions: (actions: unknown, sourceBlock: PreviewRuntimeBlock, event: unknown) => Promise<void>;
   getBlockDataContext: (excludeBlockId?: string) => Promise<Record<string, Record<string, unknown>>>;
+  notifyBlockDataChange: (blockId: string) => void;
+  subscribeBlockDataChange: (blockId: string, listener: () => void) => () => void;
 };
 
 export const PreviewBlockRuntimeKey: InjectionKey<PreviewBlockRuntime> = Symbol('PreviewBlockRuntime');
@@ -65,6 +69,7 @@ async function resolveBlockData(handle: BlockRuntimeHandle) {
 
 export function createPreviewBlockRuntime(): PreviewBlockRuntime {
   const handles = new Map<string, BlockRuntimeHandle>();
+  const dataChangeListeners = new Map<string, Set<() => void>>();
 
   async function getBlockDataContext(excludeBlockId?: string) {
     const entries = await Promise.all([...handles.values()]
@@ -101,10 +106,35 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
     } satisfies BlockMethodInvocation);
   }
 
+  function notifyBlockDataChange(blockId: string) {
+    if (!blockId) return;
+
+    dataChangeListeners.get(blockId)?.forEach((listener) => {
+      listener();
+    });
+  }
+
+  async function runActions(actions: unknown, sourceBlock: PreviewRuntimeBlock, event: unknown) {
+    await runActionGraph({
+      actions: actions as ActionConfig[],
+      sourceBlock,
+      event,
+      getBlockDataContext,
+      callBlockMethod: (blockId, methodName, actionInvocation) => callBlockMethod(blockId, methodName, {
+        sourceBlock,
+        event,
+        ...(typeof actionInvocation === 'object' && actionInvocation !== null
+          ? actionInvocation as Record<string, unknown>
+          : {})
+      })
+    });
+  }
+
   return {
     registerBlock(id, handle) {
       if (!id) return;
       handles.set(id, handle);
+      notifyBlockDataChange(id);
     },
 
     unregisterBlock(id, instance) {
@@ -116,6 +146,7 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
       }
 
       handles.delete(id);
+      notifyBlockDataChange(id);
     },
 
     invokeBlockActions(eventConfig, sourceBlock, event) {
@@ -142,6 +173,25 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
       });
     },
 
-    getBlockDataContext
+    runActions,
+
+    getBlockDataContext,
+
+    notifyBlockDataChange,
+
+    subscribeBlockDataChange(blockId, listener) {
+      if (!blockId) return () => undefined;
+
+      const listeners = dataChangeListeners.get(blockId) ?? new Set<() => void>();
+      listeners.add(listener);
+      dataChangeListeners.set(blockId, listeners);
+
+      return () => {
+        listeners.delete(listener);
+        if (!listeners.size) {
+          dataChangeListeners.delete(blockId);
+        }
+      };
+    }
   };
 }

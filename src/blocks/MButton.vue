@@ -8,6 +8,7 @@ import {
   normalizeButtonVariant,
   pageDslPropertyTitle,
   stringValue,
+  booleanValue,
   type PageDslAlign,
   type PageDslButtonVariant
 } from '@/blocks/pageDslEditorTools';
@@ -18,6 +19,9 @@ export interface MButtonProps {
   variant?: PageDslButtonVariant | string;
   align?: PageDslAlign | string;
   action?: Record<string, unknown>;
+  disabled?: boolean;
+  testId?: string;
+  bare?: boolean;
 }
 
 const buttonTitle = '按钮';
@@ -25,10 +29,11 @@ const buttonDefaults = {
   label: '提交',
   variant: 'primary',
   align: 'left',
-  action: { type: 'submit' }
+  action: { type: 'submit' },
+  disabled: false
 } as const;
 
-function normalizeButtonProps(props: Partial<MButtonProps>): MButtonProps {
+export function normalizeButtonProps(props: Partial<MButtonProps>): MButtonProps {
   const merged = {
     ...buttonDefaults,
     ...props
@@ -39,7 +44,10 @@ function normalizeButtonProps(props: Partial<MButtonProps>): MButtonProps {
     label: stringValue(merged.label),
     variant: normalizeButtonVariant(merged.variant),
     align: normalizeAlign(merged.align),
-    action: normalizeAction(merged.action)
+    action: normalizeAction(merged.action),
+    disabled: booleanValue(merged.disabled),
+    testId: stringValue(merged.testId),
+    bare: booleanValue(merged.bare)
   };
 }
 
@@ -61,10 +69,14 @@ export const mButtonEditorTool = defineEditorTool<MButtonProps>({
         options: [
           { label: '主要', value: 'primary' },
           { label: '次要', value: 'secondary' },
-          { label: '朴素', value: 'ghost' }
+          { label: '朴素', value: 'ghost' },
+          { label: '危险', value: 'danger' },
+          { label: '警告', value: 'warning' },
+          { label: '文本', value: 'text' }
         ]
       },
       { key: 'align', label: '对齐', type: 'select', options: alignOptions },
+      { key: 'disabled', label: '禁用', type: 'checkbox' },
       { key: 'action', label: '动作 JSON（本阶段仅保存，不执行）', type: 'textarea', valueType: 'json' }
     ]
   },
@@ -79,7 +91,8 @@ export const mButtonEditorTool = defineEditorTool<MButtonProps>({
       label: normalized.label,
       variant: normalized.variant,
       align: normalized.align,
-      action: normalized.action
+      action: normalized.action,
+      ...(normalized.disabled ? { disabled: true } : {})
     };
   }
 });
@@ -96,7 +109,13 @@ const emit = defineEmits<{
 }>();
 
 const buttonClass = computed(() => {
-  const variant = props.variant === 'secondary' ? 'secondary' : props.variant === 'ghost' ? 'ghost' : 'primary';
+  const variant = props.variant === 'secondary' ||
+    props.variant === 'ghost' ||
+    props.variant === 'danger' ||
+    props.variant === 'warning' ||
+    props.variant === 'text'
+    ? props.variant
+    : 'primary';
   return `page-dsl-button page-dsl-button--${variant}`;
 });
 
@@ -107,20 +126,27 @@ const buttonWrapClass = computed(() => {
 });
 
 function handleClick(event: MouseEvent) {
-  if (!props.edit) {
+  if (!props.edit && !props.disabled) {
     emit('click', event);
   }
 }
 </script>
 
 <template>
-  <PageDslBlock block-type="MButton">
+  <PageDslBlock v-if="!bare" block-type="MButton">
     <div :class="buttonWrapClass">
-      <button type="button" :class="buttonClass" @click="handleClick">
+      <button type="button" :class="buttonClass" :disabled="disabled" :data-testid="testId || undefined" @click="handleClick">
         {{ label || '提交' }}
       </button>
     </div>
   </PageDslBlock>
+  <template v-else>
+    <div :class="buttonWrapClass">
+      <button type="button" :class="buttonClass" :disabled="disabled" :data-testid="testId || undefined" @click="handleClick">
+        {{ label || '提交' }}
+      </button>
+    </div>
+  </template>
 </template>
 
 <style scoped>
@@ -145,6 +171,11 @@ function handleClick(event: MouseEvent) {
   cursor: default;
 }
 
+.page-dsl-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .page-dsl-button--primary {
   border: 1px solid rgb(79 70 229);
   background: rgb(79 70 229);
@@ -163,9 +194,45 @@ function handleClick(event: MouseEvent) {
   color: rgb(51 65 85);
 }
 
+.page-dsl-button--danger {
+  border: 1px solid rgb(254 202 202);
+  background: rgb(254 226 226);
+  color: rgb(185 28 28);
+}
+
+.page-dsl-button--warning {
+  border: 1px solid rgb(253 186 116);
+  background: rgb(255 247 237);
+  color: rgb(194 65 12);
+}
+
+.page-dsl-button--text {
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgb(37 99 235);
+}
+
 :global(.dark) .page-dsl-button--secondary {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
+}
+
+:global(.dark) .page-dsl-button--danger {
+  border-color: rgb(127 29 29);
+  background: rgb(127 29 29 / 0.34);
+  color: rgb(254 202 202);
+}
+
+:global(.dark) .page-dsl-button--warning {
+  border-color: rgb(154 52 18);
+  background: rgb(154 52 18 / 0.24);
+  color: rgb(254 215 170);
+}
+
+:global(.dark) .page-dsl-button--text {
+  border-color: transparent;
+  background: transparent;
+  color: rgb(147 197 253);
 }
 </style>

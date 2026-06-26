@@ -1,5 +1,6 @@
 import { defineAsyncComponent, markRaw } from 'vue';
 import MActionEditor, { mActionEditorTool } from '@/blocks/MActionEditor.vue';
+import MActionToolbar, { mActionToolbarEditorTool } from '@/blocks/MActionToolbar.vue';
 import MAdvanceInput, { mAdvanceInputEditorTool } from '@/blocks/MAdvanceInput.vue';
 import MAdvanceTable, { mAdvanceTableEditorTool } from '@/blocks/MAdvanceTable.vue';
 import MChart, { mChartEditorTool } from '@/blocks/MChart.vue';
@@ -69,6 +70,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MActionEditor)]: {
     component: markRaw(MActionEditor),
     ...mActionEditorTool
+  },
+  [getEditorComponentName(MActionToolbar)]: {
+    component: markRaw(MActionToolbar),
+    ...mActionToolbarEditorTool
   },
   [getEditorComponentName(MInput)]: {
     component: markRaw(MInput),

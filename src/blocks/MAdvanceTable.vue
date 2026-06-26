@@ -148,6 +148,16 @@ function normalizeDatasourceConfig(value: unknown): MDatasourceApiObject | undef
   return datasource.type === 'API' ? datasource : undefined;
 }
 
+function getDatasourceConfigSignature(value: MDatasourceApiObject | undefined) {
+  if (!value) return '';
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '';
+  }
+}
+
 </script>
 
 <script setup lang="ts">
@@ -169,6 +179,16 @@ const props = defineProps<MAdvanceTableProps & {
   onChange?: (payload: MAdvanceTableProps) => void;
   onToolChange?: (payload: MAdvanceTableProps) => void;
 }>();
+const emit = defineEmits<{
+  (event: 'havingSelectedRows', payload: {
+    selectedRows: Record<string, unknown>[];
+    selection: ReturnType<typeof getSelectionState>;
+  }): void;
+  (event: 'emptySelectedRow', payload: {
+    selectedRows: Record<string, unknown>[];
+    selection: ReturnType<typeof getSelectionState>;
+  }): void;
+}>();
 
 type PaginationState = {
   page: number;
@@ -189,6 +209,7 @@ const paginationState = ref<PaginationState>({
 const datasourceLoading = ref(false);
 const datasourceError = ref('');
 let datasourceLoadId = 0;
+let lastSelectionEmpty = true;
 
 const normalizedColumns = computed(() => normalizeColumns(props.columns));
 const normalizedDatasource = computed(() => normalizeDatasourceConfig(props.ds));
@@ -298,6 +319,29 @@ function resetRuntimeData() {
   };
 }
 
+function notifyRuntimeDataChange() {
+  if (!props.currentBlockId) return;
+  previewRuntime?.notifyBlockDataChange(props.currentBlockId);
+}
+
+function syncSelectionEvent() {
+  const selection = getSelectionState();
+  if (selection.empty === lastSelectionEmpty) return;
+
+  lastSelectionEmpty = selection.empty;
+  const payload = {
+    selectedRows: selection.rows,
+    selection
+  };
+  emit(selection.empty ? 'emptySelectedRow' : 'havingSelectedRows', payload);
+}
+
+function setSelectedRows(nextSelectedRows: Set<number>) {
+  selectedRows.value = nextSelectedRows;
+  notifyRuntimeDataChange();
+  syncSelectionEvent();
+}
+
 function getVariableConfigBlockId(value: unknown) {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return '';
   const config = value as Partial<VariableValueConfig>;
@@ -329,7 +373,7 @@ function getDatasourceSelfReferenceBlockId(datasource: MDatasourceApiObject) {
 async function loadDatasourceRows() {
   const datasource = normalizedDatasource.value;
   const loadId = ++datasourceLoadId;
-  selectedRows.value = new Set();
+  setSelectedRows(new Set());
   resetRuntimeData();
 
   if (!datasource) {
@@ -370,6 +414,7 @@ async function loadDatasourceRows() {
       pageSize: normalizePositiveIntegerValue(getMatchedRuntimeValue(runtimeData.matchingExternalFieldData, 'pageSize'), 10),
       total: normalizeNonNegativeIntegerValue(getMatchedRuntimeValue(runtimeData.matchingExternalFieldData, 'total'), 0)
     };
+    notifyRuntimeDataChange();
   } catch {
     if (loadId !== datasourceLoadId) return;
     datasourceError.value = t('advanceTable.loadFailed');
@@ -385,13 +430,63 @@ function getData() {
     data: tableData.value,
     page: pagination.value.currentPage,
     pageSize: pagination.value.pageSize,
-    total: pagination.value.total
+    total: pagination.value.total,
+    selectedRows: getSelectedRows(),
+    selection: getSelectionState()
   };
 }
 
 async function refresh() {
   await loadDatasourceRows();
   return getData();
+}
+
+function getSelectedRows() {
+  return displayRows.value.filter((_, index) => selectedRows.value.has(index));
+}
+
+function getSelectedValueField(value: unknown) {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return '';
+
+  const record = value as Record<string, unknown>;
+  const inputs = typeof record.inputs === 'object' && record.inputs !== null && !Array.isArray(record.inputs)
+    ? record.inputs as Record<string, unknown>
+    : {};
+  const args = typeof inputs.args === 'object' && inputs.args !== null && !Array.isArray(inputs.args)
+    ? inputs.args as Record<string, unknown>
+    : {};
+  const field = inputs.field ?? inputs.path ?? args.field ?? args.path;
+
+  return typeof field === 'string' ? field.trim() : '';
+}
+
+function getSelectedValues(fieldOrInvocation: unknown) {
+  const field = getSelectedValueField(fieldOrInvocation);
+  if (!field) return [];
+
+  return getSelectedRows()
+    .map((row) => readRowPath(row, field))
+    .filter((value) => value !== null && value !== undefined && value !== '');
+}
+
+function getSelectionState() {
+  const indexes = [...selectedRows.value].sort((left, right) => left - right);
+  const rows = indexes.flatMap((index) => {
+    const row = displayRows.value[index];
+    return row ? [row] : [];
+  });
+
+  return {
+    empty: rows.length === 0,
+    count: rows.length,
+    indexes,
+    rows
+  };
+}
+
+function clearSelection() {
+  setSelectedRows(new Set());
 }
 
 function stringifyCellValue(value: unknown) {
@@ -582,7 +677,7 @@ function toggleRow(rowIndex: number) {
   } else {
     nextSelectedRows.add(rowIndex);
   }
-  selectedRows.value = nextSelectedRows;
+  setSelectedRows(nextSelectedRows);
 }
 
 function isAllRowsSelected() {
@@ -591,11 +686,11 @@ function isAllRowsSelected() {
 
 function toggleAllRows() {
   if (isAllRowsSelected()) {
-    selectedRows.value = new Set();
+    setSelectedRows(new Set());
     return;
   }
 
-  selectedRows.value = new Set(displayRows.value.map((_, index) => index));
+  setSelectedRows(new Set(displayRows.value.map((_, index) => index)));
 }
 
 function goToPage(page: number) {
@@ -610,16 +705,20 @@ function goToPage(page: number) {
 }
 
 watch(
-  () => props.ds,
+  () => getDatasourceConfigSignature(normalizedDatasource.value),
   () => {
     void loadDatasourceRows();
   },
-  { deep: true, immediate: true }
+  { immediate: true }
 );
 
 defineExpose({
   getData,
-  refresh
+  refresh,
+  getSelectedRows,
+  getSelectedValues,
+  clearSelection,
+  getSelectionState
 });
 </script>
 

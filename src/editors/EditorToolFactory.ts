@@ -9,9 +9,14 @@ import {
   type EditorToolComponentProps
 } from '@/editors/editorComponentRegistry';
 import {
+  PreviewBlockRuntimeKey,
+  type PreviewBlockRuntime
+} from '@/utils/previewBlockRuntime';
+import {
   attachInternalBlockEventsToData,
   cloneBlockEvents,
   getInternalBlockEventsFromData,
+  normalizeBlockEvents,
   removeInternalBlockEventsFromData,
   type BlockEvent
 } from '@/utils/blockEvents';
@@ -74,10 +79,14 @@ export default class EditorToolFactory {
       private eventsDialog: BlockEventsDialogController | null = null;
       private events: BlockEvent[] = [];
       private readonly blockApi?: EditorToolFactoryOptions['block'];
+      private readonly previewRuntime?: PreviewBlockRuntime;
+      private runtimeBlockId = '';
+      private runtimeBlockInstance: unknown;
 
       constructor({ data, config, block }: EditorToolFactoryOptions) {
         // data 是已保存 block.data，config 是工具级固定配置（例如 edit）。
         this.blockApi = block;
+        this.previewRuntime = config?.previewRuntime as PreviewBlockRuntime | undefined;
         const mergedProps: MergedEditorToolProps = {
           ...(config ?? {}),
           ...removeInternalBlockEventsFromData(data),
@@ -164,23 +173,97 @@ export default class EditorToolFactory {
       private mountVueApp() {
         if (!this.contentRoot) return;
 
+        const blockEventListeners = this.createBlockEventListeners();
+        const updateState = (payload: unknown) => {
+          if (typeof payload === 'object' && payload !== null) {
+            Object.assign(this.state, payload);
+          }
+        };
         this.unmountVueApp();
         this.vueApp = createApp(definition.component, {
           ...this.state,
+          ...blockEventListeners,
           // 兼容两种回调命名，统一回写到同一份 state。
-          onToolChange: (payload: EditorToolComponentProps) => {
-            Object.assign(this.state, payload);
-          },
-          onChange: (payload: EditorToolComponentProps) => {
-            Object.assign(this.state, payload);
-          }
+          onToolChange: this.chainHandlers(blockEventListeners.onToolChange, updateState),
+          onChange: this.chainHandlers(blockEventListeners.onChange, updateState)
         });
-        this.vueApp.mount(this.contentRoot);
+        this.provideRuntime(this.vueApp);
+        const instance = this.vueApp.mount(this.contentRoot);
+        this.registerRuntimeBlock(instance);
       }
 
       private unmountVueApp() {
+        this.unregisterRuntimeBlock();
         this.vueApp?.unmount();
         this.vueApp = null;
+      }
+
+      private provideRuntime(app: App<Element>) {
+        if (!this.previewRuntime) return;
+        app.provide(PreviewBlockRuntimeKey, this.previewRuntime);
+      }
+
+      private getCurrentBlockId() {
+        return typeof this.state.currentBlockId === 'string' ? this.state.currentBlockId.trim() : '';
+      }
+
+      private registerRuntimeBlock(instance: unknown) {
+        const id = this.getCurrentBlockId();
+        if (!this.previewRuntime || !id || !instance) return;
+
+        this.previewRuntime.registerBlock(id, {
+          id,
+          type: toolName,
+          instance,
+          data: definition.serialize(this.state)
+        });
+        this.runtimeBlockId = id;
+        this.runtimeBlockInstance = instance;
+      }
+
+      private unregisterRuntimeBlock() {
+        if (!this.previewRuntime || !this.runtimeBlockId) return;
+
+        this.previewRuntime.unregisterBlock(this.runtimeBlockId, this.runtimeBlockInstance);
+        this.runtimeBlockId = '';
+        this.runtimeBlockInstance = undefined;
+      }
+
+      private createSourceBlock() {
+        return {
+          id: this.getCurrentBlockId(),
+          type: toolName,
+          data: definition.serialize(this.state),
+          events: cloneBlockEvents(this.events)
+        };
+      }
+
+      private listenerPropName(eventName: string) {
+        return `on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`;
+      }
+
+      private chainHandlers(
+        previous: ((event: unknown) => void) | undefined,
+        next: (event: unknown) => void
+      ) {
+        return (event: unknown) => {
+          previous?.(event);
+          next(event);
+        };
+      }
+
+      private createBlockEventListeners() {
+        const listeners: Record<string, (event: unknown) => void> = {};
+        normalizeBlockEvents(this.events).forEach((eventConfig) => {
+          if (!eventConfig.event) return;
+          const key = this.listenerPropName(eventConfig.event);
+          const previousListener = listeners[key];
+          listeners[key] = (event: unknown) => {
+            previousListener?.(event);
+            this.previewRuntime?.invokeBlockActions(eventConfig, this.createSourceBlock(), event);
+          };
+        });
+        return listeners;
       }
 
       private createPropertyDialog() {
@@ -419,6 +502,7 @@ export default class EditorToolFactory {
                 this.handlePropertyComponentChange(field, payload);
               }
             });
+            this.provideRuntime(app);
             app.mount(host);
             this.propertyComponentApps.push(app);
           });
@@ -544,7 +628,8 @@ export function createEditorTools(
             ...(sharedConfig.getAvailableBlockDataSources
               ? { getAvailableBlockDataSources: sharedConfig.getAvailableBlockDataSources }
               : {}),
-            ...(sharedConfig.currentBlockId ? { currentBlockId: sharedConfig.currentBlockId } : {})
+            ...(sharedConfig.currentBlockId ? { currentBlockId: sharedConfig.currentBlockId } : {}),
+            ...(sharedConfig.previewRuntime ? { previewRuntime: sharedConfig.previewRuntime } : {})
           }
         }
       ])

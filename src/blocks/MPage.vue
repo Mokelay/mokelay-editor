@@ -219,7 +219,7 @@ function stopEditorSyncListeners() {
 async function mountEditor() {
   if (!holderRef.value || !shouldRenderEditor.value || editor) return;
   const columnTools: Record<string, ToolSettings> = {
-    ...(createEditorTools({ edit: true, getAvailableBlockDataSources }) as Record<string, ToolSettings>),
+    ...(createEditorTools({ edit: true, getAvailableBlockDataSources, previewRuntime }) as Record<string, ToolSettings>),
     table: {
       class: Table as unknown as ToolSettings['class'],
       inlineToolbar: true

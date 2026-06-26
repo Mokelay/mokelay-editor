@@ -1,11 +1,13 @@
 import type { Component } from 'vue';
 import type { BlockDataField, GetAvailableBlockDataSources } from '@/utils/variableValue';
+import type { PreviewBlockRuntime } from '@/utils/previewBlockRuntime';
 
 // 所有编辑器工具组件共享的基础 props。
 export type EditorToolComponentProps = {
   edit: boolean;
   currentBlockId?: string;
   getAvailableBlockDataSources?: GetAvailableBlockDataSources;
+  previewRuntime?: PreviewBlockRuntime;
 };
 
 export type EditorToolPropertyField = {
