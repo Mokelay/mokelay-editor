@@ -312,14 +312,38 @@ export const enMessages = {
       showPageBreak: 'Show pagination',
       columns: 'Columns',
       data: 'Datasource',
-      ds: 'Datasource'
+      ds: 'Datasource',
+      rowKey: 'Row key',
+      size: 'Table size',
+      border: 'Show border',
+      stripe: 'Striped rows',
+      height: 'Height',
+      maxHeight: 'Max height',
+      emptyText: 'Empty text',
+      loadingText: 'Loading text',
+      errorText: 'Error text',
+      pagination: 'Pagination JSON',
+      requestMapping: 'Request mapping JSON',
+      responseMapping: 'Response mapping JSON',
+      sort: 'Sort JSON',
+      filters: 'Filters JSON'
+    },
+    sizes: {
+      small: 'Small',
+      default: 'Default',
+      large: 'Large'
     },
     pagination: {
       label: 'Pagination',
       summary: '{start}-{end} of {total} · Page {page} / {totalPages}',
       previous: 'Previous',
-      next: 'Next'
+      next: 'Next',
+      pageSize: '{size} / page',
+      jumper: 'Page',
+      jump: 'Jump'
     },
+    copy: 'Copy',
+    copyCell: 'Copy cell',
     columnsEditor: {
       settingsDialogTitle: 'Advanced table column settings',
       empty: 'No columns yet. Set fields first.',
@@ -337,6 +361,12 @@ export const enMessages = {
         variable: 'Field variable',
         width: 'Width',
         fixed: 'Fixed',
+        minWidth: 'Min width',
+        align: 'Align',
+        sortable: 'Sortable',
+        copyable: 'Copy',
+        tooltip: 'Tooltip',
+        processors: 'Processors',
         template: 'Text template',
         actions: 'Actions'
       },
@@ -344,6 +374,7 @@ export const enMessages = {
         name: 'Enter column name',
         variable: 'Enter field variable',
         width: 'Auto',
+        minWidth: 'Auto',
         template: 'Example: {{name}}'
       },
       fixed: {
@@ -368,7 +399,13 @@ export const enMessages = {
       data: 'List data',
       page: 'Page',
       pageSize: 'Page size',
-      total: 'Total'
+      total: 'Total',
+      rows: 'Rows',
+      query: 'Query',
+      sort: 'Sort',
+      filters: 'Filters',
+      selectedRows: 'Selected rows',
+      keys: 'Selected keys'
     },
     defaultRows: {
       first: {
@@ -555,6 +592,34 @@ export const enMessages = {
         description: 'Formats date and time values in the browser local time zone.',
         custom: 'Custom',
         fields: { preset: 'Preset', format: 'Format' }
+      },
+      omitEmpty: {
+        title: 'Omit empty values',
+        description: 'Removes empty strings, empty arrays, null, and undefined from objects or arrays.'
+      },
+      paginationResponseMap: {
+        title: 'Map paginated response',
+        description: 'Normalizes API pagination responses into rows, total, pageNo, and pageSize.'
+      },
+      numberPrecision: {
+        title: 'Number precision',
+        description: 'Formats numbers with fixed precision and rounding behavior.'
+      },
+      amountFormat: {
+        title: 'Amount format',
+        description: 'Formats amounts with precision, thousand separators, and optional coin suffix.'
+      },
+      enumLabelMap: {
+        title: 'Enum label map',
+        description: 'Maps enum values to readable labels.'
+      },
+      statusTagMap: {
+        title: 'Status tag map',
+        description: 'Maps status values to tag label, type, and color data.'
+      },
+      timezoneFormat: {
+        title: 'Timezone format',
+        description: 'Converts and formats dates across local, UTC, or IANA time zones.'
       },
       validation: {
         required: 'This field is required.',

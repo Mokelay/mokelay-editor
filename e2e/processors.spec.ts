@@ -130,6 +130,100 @@ test('formats valid dates in browser local time and returns failed conversions u
   expect(result.mismatch).toEqual({ timestamp: Date.UTC(2026, 5, 15, 4, 5, 6) });
 });
 
+test('supports table processors for empty values, pagination mapping, number, enum, status, and timezone formatting', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { applyProcessor } = await import('/src/processors/index.ts');
+    return {
+      omitted: applyProcessor({
+        uid: '',
+        status: 0,
+        enabled: false,
+        coin: null,
+        tags: [],
+        pageNum: 1
+      }, {
+        processor: 'omit_empty',
+        param: { removeEmptyArray: true }
+      }),
+      paginated: applyProcessor({
+        data: {
+          records: [{ id: 1 }, { id: 2 }],
+          total: '36',
+          pageNo: '2',
+          pageSize: '20'
+        }
+      }, {
+        processor: 'pagination_response_map',
+        param: {
+          listPath: 'data.records',
+          totalPath: 'data.total',
+          pageNoPath: 'data.pageNo',
+          pageSizePath: 'data.pageSize'
+        }
+      }),
+      precision: applyProcessor('1234.5678', {
+        processor: 'number_precision',
+        param: { precision: 2, rounding: 'truncate', thousand: true }
+      }),
+      amount: applyProcessor('128888.1234', {
+        processor: 'amount_format',
+        param: { precision: 2, showCoin: true, coin: 'USDT', thousand: true }
+      }),
+      enumLabel: applyProcessor(1, {
+        processor: 'enum_label_map',
+        param: { map: { 1: '已通过' }, fallback: '未知' }
+      }),
+      tag: applyProcessor('high', {
+        processor: 'status_tag_map',
+        param: { map: { high: { label: '高风险', color: 'danger' } } }
+      }),
+      dateObjectParam: applyProcessor(1792886400, {
+        processor: 'date_time_format',
+        param: { format: 'yyyy-MM-dd', inputUnit: 's' }
+      }),
+      timezoneRange: applyProcessor(['2026-06-25', '2026-06-26'], {
+        processor: 'timezone_format',
+        param: {
+          from: 'Australia/Sydney',
+          to: 'UTC',
+          format: 'yyyy-MM-dd HH:mm:ss',
+          range: { startOfDay: true, endOfDay: true }
+        }
+      })
+    };
+  });
+
+  expect(result.omitted).toEqual({
+    status: 0,
+    enabled: false,
+    pageNum: 1
+  });
+  expect(result.paginated).toEqual({
+    rows: [{ id: 1 }, { id: 2 }],
+    total: 36,
+    pageNo: 2,
+    pageSize: 20,
+    raw: {
+      data: {
+        records: [{ id: 1 }, { id: 2 }],
+        total: '36',
+        pageNo: '2',
+        pageSize: '20'
+      }
+    }
+  });
+  expect(result.precision).toBe('1,234.56');
+  expect(result.amount).toBe('128,888.12 USDT');
+  expect(result.enumLabel).toBe('已通过');
+  expect(result.tag).toEqual({
+    value: 'high',
+    label: '高风险',
+    color: 'danger'
+  });
+  expect(result.dateObjectParam).toBe('2026-10-25');
+  expect(result.timezoneRange).toEqual(['2026-06-24 14:00:00', '2026-06-26 13:59:59']);
+});
+
 test('reports invalid and unsupported processor configs with stable error codes', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const { applyProcessor } = await import('/src/processors/index.ts');

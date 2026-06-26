@@ -43,14 +43,21 @@ const selectedFieldValue = computed(() => getAdvanceTableFieldsFromColumns(colum
 const isReadOnly = computed(() => !props.edit);
 
 function cloneColumns(value?: MAdvanceTableColumnConfig[]) {
-  return normalizeAdvanceTableColumns(value).map((column) => ({
+  return normalizeAdvanceTableColumns(value).map(cloneColumn);
+}
+
+function cloneColumn(column: MAdvanceTableColumnConfig): MAdvanceTableColumnConfig {
+  return {
     ...column,
     columnContent: column.columnContent?.map((block) => ({
       ...block,
       data: { ...block.data },
       ...(block.events ? { events: cloneBlockEvents(block.events) } : {})
-    }))
-  }));
+    })),
+    processors: column.processors ? JSON.parse(JSON.stringify(column.processors)) as MAdvanceTableColumnConfig['processors'] : undefined,
+    visibleWhen: column.visibleWhen ? JSON.parse(JSON.stringify(column.visibleWhen)) as MAdvanceTableColumnConfig['visibleWhen'] : undefined,
+    children: column.children?.map(cloneColumn)
+  };
 }
 
 function getColumnVariable(column: MAdvanceTableColumnConfig) {
@@ -61,8 +68,16 @@ function getColumnWidthInputValue(column: MAdvanceTableColumnConfig) {
   return column.width ? String(column.width) : '';
 }
 
+function getColumnMinWidthInputValue(column: MAdvanceTableColumnConfig) {
+  return column.minWidth ? String(column.minWidth) : '';
+}
+
 function getColumnTemplate(column: MAdvanceTableColumnConfig) {
   return getSingleParagraphColumnTemplate(column);
+}
+
+function getColumnProcessorsInputValue(column: MAdvanceTableColumnConfig) {
+  return column.processors?.length ? JSON.stringify(column.processors, null, 2) : '';
 }
 
 function hasCustomColumnContent(column: MAdvanceTableColumnConfig) {
@@ -193,6 +208,17 @@ function updateColumnWidth(index: number, value: string) {
   };
 }
 
+function updateColumnMinWidth(index: number, value: string) {
+  if (isReadOnly.value) return;
+  const column = columnsDraft.value[index];
+  if (!column) return;
+
+  columnsDraft.value[index] = {
+    ...column,
+    minWidth: value.trim() ? normalizeAdvanceTableWidth(Number(value)) : null
+  };
+}
+
 function updateColumnFixed(index: number, value: string) {
   if (isReadOnly.value) return;
   const column = columnsDraft.value[index];
@@ -202,6 +228,58 @@ function updateColumnFixed(index: number, value: string) {
     ...column,
     fixed: normalizeAdvanceTableFixed(value as MAdvanceTableFixed)
   };
+}
+
+function updateColumnAlign(index: number, value: string) {
+  if (isReadOnly.value) return;
+  const column = columnsDraft.value[index];
+  if (!column) return;
+
+  columnsDraft.value[index] = {
+    ...column,
+    align: value === 'center' || value === 'right' || value === 'left' ? value : undefined
+  };
+}
+
+function updateColumnSortable(index: number, value: string) {
+  if (isReadOnly.value) return;
+  const column = columnsDraft.value[index];
+  if (!column) return;
+
+  columnsDraft.value[index] = {
+    ...column,
+    sortable: value === 'custom' ? 'custom' : value === 'true' ? true : undefined
+  };
+}
+
+function updateColumnBoolean(index: number, key: 'copyable' | 'tooltip' | 'filterable', value: boolean) {
+  if (isReadOnly.value) return;
+  const column = columnsDraft.value[index];
+  if (!column) return;
+
+  columnsDraft.value[index] = {
+    ...column,
+    [key]: value || undefined
+  };
+}
+
+function updateColumnProcessors(index: number, value: string) {
+  if (isReadOnly.value) return;
+  const column = columnsDraft.value[index];
+  if (!column) return;
+
+  try {
+    const parsed = value.trim() ? JSON.parse(value) : [];
+    columnsDraft.value[index] = {
+      ...column,
+      processors: Array.isArray(parsed) ? parsed : []
+    };
+  } catch {
+    columnsDraft.value[index] = {
+      ...column,
+      processors: column.processors ?? []
+    };
+  }
 }
 
 function updateColumnTemplate(index: number, value: string) {
@@ -352,7 +430,13 @@ watch(
                   <span>{{ t('advanceTable.columnsEditor.columns.name') }}</span>
                   <span>{{ t('advanceTable.columnsEditor.columns.variable') }}</span>
                   <span>{{ t('advanceTable.columnsEditor.columns.width') }}</span>
+                  <span>{{ t('advanceTable.columnsEditor.columns.minWidth') }}</span>
                   <span>{{ t('advanceTable.columnsEditor.columns.fixed') }}</span>
+                  <span>{{ t('advanceTable.columnsEditor.columns.align') }}</span>
+                  <span>{{ t('advanceTable.columnsEditor.columns.sortable') }}</span>
+                  <span>{{ t('advanceTable.columnsEditor.columns.copyable') }}</span>
+                  <span>{{ t('advanceTable.columnsEditor.columns.tooltip') }}</span>
+                  <span>{{ t('advanceTable.columnsEditor.columns.processors') }}</span>
                   <span>{{ t('advanceTable.columnsEditor.columns.template') }}</span>
                   <span>{{ t('advanceTable.columnsEditor.columns.actions') }}</span>
                 </div>
@@ -395,6 +479,18 @@ watch(
                     @input="updateColumnWidth(index, ($event.target as HTMLInputElement).value)"
                     @keydown.stop
                   />
+                  <input
+                    class="ce-advance-table-columns-editor__input"
+                    :data-testid="`advance-table-column-min-width-${index}`"
+                    type="number"
+                    min="1"
+                    step="1"
+                    :readonly="isReadOnly"
+                    :placeholder="t('advanceTable.columnsEditor.placeholders.minWidth')"
+                    :value="getColumnMinWidthInputValue(column)"
+                    @input="updateColumnMinWidth(index, ($event.target as HTMLInputElement).value)"
+                    @keydown.stop
+                  />
                   <select
                     class="ce-advance-table-columns-editor__input"
                     :data-testid="`advance-table-column-fixed-${index}`"
@@ -406,6 +502,55 @@ watch(
                     <option value="left">{{ t('advanceTable.columnsEditor.fixed.left') }}</option>
                     <option value="right">{{ t('advanceTable.columnsEditor.fixed.right') }}</option>
                   </select>
+                  <select
+                    class="ce-advance-table-columns-editor__input"
+                    :data-testid="`advance-table-column-align-${index}`"
+                    :disabled="isReadOnly"
+                    :value="column.align ?? ''"
+                    @change="updateColumnAlign(index, ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="">{{ t('advanceTable.columnsEditor.fixed.none') }}</option>
+                    <option value="left">left</option>
+                    <option value="center">center</option>
+                    <option value="right">right</option>
+                  </select>
+                  <select
+                    class="ce-advance-table-columns-editor__input"
+                    :data-testid="`advance-table-column-sortable-${index}`"
+                    :disabled="isReadOnly"
+                    :value="column.sortable === 'custom' ? 'custom' : column.sortable === true ? 'true' : ''"
+                    @change="updateColumnSortable(index, ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="">{{ t('advanceTable.columnsEditor.fixed.none') }}</option>
+                    <option value="true">true</option>
+                    <option value="custom">custom</option>
+                  </select>
+                  <label class="ce-advance-table-columns-editor__checkbox-cell">
+                    <input
+                      type="checkbox"
+                      :checked="column.copyable === true"
+                      :disabled="isReadOnly"
+                      @change="updateColumnBoolean(index, 'copyable', ($event.target as HTMLInputElement).checked)"
+                    />
+                  </label>
+                  <label class="ce-advance-table-columns-editor__checkbox-cell">
+                    <input
+                      type="checkbox"
+                      :checked="column.tooltip === true"
+                      :disabled="isReadOnly"
+                      @change="updateColumnBoolean(index, 'tooltip', ($event.target as HTMLInputElement).checked)"
+                    />
+                  </label>
+                  <textarea
+                    class="ce-advance-table-columns-editor__input ce-advance-table-columns-editor__processors"
+                    :data-testid="`advance-table-column-processors-${index}`"
+                    :readonly="isReadOnly"
+                    rows="2"
+                    :value="getColumnProcessorsInputValue(column)"
+                    placeholder="[]"
+                    @input="updateColumnProcessors(index, ($event.target as HTMLTextAreaElement).value)"
+                    @keydown.stop
+                  ></textarea>
 
                   <div class="ce-advance-table-columns-editor__template-cell">
                     <textarea
@@ -649,7 +794,7 @@ watch(
 
 .ce-advance-table-columns-editor__table {
   display: flex;
-  min-width: 980px;
+  min-width: 1480px;
   flex-direction: column;
   gap: 8px;
 }
@@ -657,7 +802,7 @@ watch(
 .ce-advance-table-columns-editor__table-head,
 .ce-advance-table-columns-editor__row {
   display: grid;
-  grid-template-columns: minmax(120px, 0.8fr) minmax(140px, 0.8fr) 90px 120px minmax(220px, 1fr) minmax(260px, 1fr);
+  grid-template-columns: minmax(120px, 0.8fr) minmax(140px, 0.8fr) 88px 88px 110px 110px 110px 64px 64px minmax(180px, 0.9fr) minmax(220px, 1fr) minmax(260px, 1fr);
   gap: 8px;
   align-items: center;
 }
@@ -689,6 +834,20 @@ watch(
 .ce-advance-table-columns-editor__template {
   min-height: 58px;
   resize: vertical;
+}
+
+.ce-advance-table-columns-editor__processors {
+  min-height: 58px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+}
+
+.ce-advance-table-columns-editor__checkbox-cell {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
 }
 
 .ce-advance-table-columns-editor__input:focus {

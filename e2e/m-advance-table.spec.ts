@@ -554,6 +554,191 @@ test('reloads datasource with updated page when pagination buttons are clicked',
   await expect(page.getByTestId('advance-table-pagination').getByRole('button', { name: '上一页' })).toBeEnabled();
 });
 
+test('maps paginated requests and responses, sorts columns, and preserves rowKey selection', async ({ page }) => {
+  await switchLocaleToChinese(page);
+  const requestedUrls: string[] = [];
+  await page.route('**/advance-table-mapped**', async (route) => {
+    const url = new URL(route.request().url());
+    requestedUrls.push(route.request().url());
+    const pageNum = Number(url.searchParams.get('pageNum') || '1');
+    const rowsByPage = {
+      1: [
+        { uid: '1001', name: '第一页-A' },
+        { uid: '1002', name: '第一页-B' }
+      ],
+      2: [
+        { uid: '2001', name: '第二页-A' },
+        { uid: '2002', name: '第二页-B' }
+      ]
+    } as Record<number, Array<Record<string, string>>>;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: {
+          records: rowsByPage[pageNum] ?? rowsByPage[1],
+          total: 4,
+          pageNum,
+          limit: Number(url.searchParams.get('limit') || '2')
+        }
+      })
+    });
+  });
+
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [{
+      id: 'mapped-table',
+      type: 'MAdvanceTable',
+      data: {
+        rowKey: 'uid',
+        selection: {
+          enabled: true,
+          reserveSelection: true,
+          rowKey: 'uid'
+        },
+        showPageBreak: true,
+        pagination: {
+          enabled: true,
+          page: 1,
+          pageSize: 2,
+          pageSizes: [1, 2],
+          layout: ['total', 'sizes', 'prev', 'pager', 'next', 'jumper']
+        },
+        requestMapping: {
+          page: 'pageNum',
+          pageSize: 'limit',
+          sortField: 'orderBy',
+          sortOrder: 'direction'
+        },
+        responseMapping: {
+          rows: 'data.records',
+          total: 'data.total',
+          page: 'data.pageNum',
+          pageSize: 'data.limit'
+        },
+        columns: [
+          {
+            columnName: 'UID',
+            fieldVariable: 'uid',
+            sortable: true,
+            columnContent: [{
+              id: 'uid-cell',
+              type: 'paragraph',
+              data: { text: '{{uid}}' }
+            }]
+          },
+          {
+            columnName: '名称',
+            fieldVariable: 'name',
+            columnContent: [{
+              id: 'name-cell',
+              type: 'paragraph',
+              data: { text: '{{row.name}}' }
+            }]
+          }
+        ],
+        ds: {
+          type: 'API',
+          domain: 'mokelay',
+          path: '/advance-table-mapped',
+          method: 'GET',
+          headerData: [],
+          bodyData: [],
+          queryData: [],
+          schemaSelections: [],
+          matchingExternalFields: []
+        }
+      }
+    }]
+  });
+
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('1001');
+  expect(requestedUrls[0]).toContain('pageNum=1');
+  expect(requestedUrls[0]).toContain('limit=2');
+
+  await page.getByTestId('advance-table-selection-cell-0').locator('input').check();
+  await page.getByTestId('advance-table-pagination').getByRole('button', { name: '下一页' }).click();
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('2001');
+  expect(requestedUrls.some((url) => url.includes('pageNum=2') && url.includes('limit=2'))).toBe(true);
+
+  await page.getByTestId('advance-table-pagination').getByRole('button', { name: '上一页' }).click();
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('1001');
+  await expect(page.getByTestId('advance-table-selection-cell-0').locator('input')).toBeChecked();
+
+  await page.getByTestId('advance-table-header-0').getByRole('button', { name: /UID/ }).click();
+  await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('1001');
+  expect(requestedUrls.some((url) =>
+    url.includes('pageNum=1') &&
+    url.includes('orderBy=uid') &&
+    url.includes('direction=asc')
+  )).toBe(true);
+});
+
+test('emits row-click events with row payload for action templates', async ({ page }) => {
+  await page.route('**/advance-table-row-event', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [{ uid: 'row-1001', name: 'Row event user' }]
+      })
+    });
+  });
+
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [{
+      id: 'row-event-table',
+      type: 'MAdvanceTable',
+      data: {
+        rowKey: 'uid',
+        columns: [{
+          columnName: '名称',
+          fieldVariable: 'name',
+          columnContent: [{
+            id: 'row-event-name',
+            type: 'paragraph',
+            data: { text: '{{name}}' }
+          }]
+        }],
+        ds: {
+          type: 'API',
+          domain: 'mokelay',
+          path: '/advance-table-row-event',
+          method: 'GET',
+          headerData: [],
+          bodyData: [],
+          queryData: [],
+          schemaSelections: [{ label: 'Rows', path: 'items[]', type: 'array' }],
+          matchingExternalFields: [{ label: 'Rows', variable: 'data', matchFieldPath: 'items[]' }]
+        }
+      },
+      events: [{
+        event: 'row-click',
+        actions: [{
+          uuid: 'open_row_url',
+          action: 'jump_url',
+          inputs: {
+            openNew: false,
+            url: {
+              template: '/#/pages/{{event.row.uid}}'
+            }
+          },
+          nextAction: null
+        }]
+      }]
+    }]
+  });
+
+  await page.getByTestId('preview-button').click();
+  await expect(page.getByTestId('preview-block-MAdvanceTable').getByTestId('advance-table-cell-0-0')).toContainText('Row event user');
+  await page.getByTestId('preview-block-MAdvanceTable').getByTestId('advance-table-row-0').click();
+  await expect(page).toHaveURL(/#\/pages\/row-1001$/);
+});
+
 test('runs button action events from advanced table column content', async ({ page }) => {
   await switchLocaleToChinese(page);
   await page.route('**/advance-table-button-actions', async (route) => {

@@ -312,14 +312,38 @@ export const zhMessages = {
       showPageBreak: '显示分页',
       columns: '列配置',
       data: '数据源',
-      ds: '数据源'
+      ds: '数据源',
+      rowKey: '行主键',
+      size: '表格尺寸',
+      border: '显示边框',
+      stripe: '斑马纹',
+      height: '高度',
+      maxHeight: '最大高度',
+      emptyText: '空态文案',
+      loadingText: '加载文案',
+      errorText: '错误文案',
+      pagination: '分页配置 JSON',
+      requestMapping: '请求映射 JSON',
+      responseMapping: '响应映射 JSON',
+      sort: '排序状态 JSON',
+      filters: '筛选条件 JSON'
+    },
+    sizes: {
+      small: '小',
+      default: '默认',
+      large: '大'
     },
     pagination: {
       label: '分页',
       summary: '第 {start}-{end} 条，共 {total} 条 · 第 {page} / {totalPages} 页',
       previous: '上一页',
-      next: '下一页'
+      next: '下一页',
+      pageSize: '{size} 条/页',
+      jumper: '页码',
+      jump: '跳转'
     },
+    copy: '复制',
+    copyCell: '复制单元格',
     columnsEditor: {
       settingsDialogTitle: '高级表格列设置',
       empty: '暂无列，请先设置字段。',
@@ -337,6 +361,12 @@ export const zhMessages = {
         variable: '字段变量',
         width: '宽度',
         fixed: '固定列',
+        minWidth: '最小宽度',
+        align: '对齐',
+        sortable: '排序',
+        copyable: '复制',
+        tooltip: '提示',
+        processors: '处理器',
         template: '文本模板',
         actions: '操作'
       },
@@ -344,6 +374,7 @@ export const zhMessages = {
         name: '请输入列名',
         variable: '请输入字段变量',
         width: '自动',
+        minWidth: '自动',
         template: '例如：{{name}}'
       },
       fixed: {
@@ -368,7 +399,13 @@ export const zhMessages = {
       data: '列表数据',
       page: '当前页',
       pageSize: '每页条数',
-      total: '总数'
+      total: '总数',
+      rows: '列表数据',
+      query: '查询参数',
+      sort: '排序状态',
+      filters: '筛选状态',
+      selectedRows: '选中行',
+      keys: '选中主键'
     },
     defaultRows: {
       first: {
@@ -555,6 +592,34 @@ export const zhMessages = {
         description: '按浏览器本地时区格式化日期时间。',
         custom: '自定义',
         fields: { preset: '预设格式', format: '格式' }
+      },
+      omitEmpty: {
+        title: '删除空值',
+        description: '删除对象或数组中的空字符串、空数组、null 和 undefined。'
+      },
+      paginationResponseMap: {
+        title: '分页响应映射',
+        description: '把不同接口分页响应归一为 rows、total、pageNo 和 pageSize。'
+      },
+      numberPrecision: {
+        title: '数字精度',
+        description: '按指定小数位和舍入方式格式化数字。'
+      },
+      amountFormat: {
+        title: '金额格式化',
+        description: '按金额精度、千分位和币种后缀格式化展示值。'
+      },
+      enumLabelMap: {
+        title: '枚举文案映射',
+        description: '把枚举值映射成可读文案。'
+      },
+      statusTagMap: {
+        title: '状态标签映射',
+        description: '把状态值映射成标签文案、类型和颜色。'
+      },
+      timezoneFormat: {
+        title: '时区格式化',
+        description: '在本地、UTC 或指定 IANA 时区之间转换并格式化时间。'
       },
       validation: {
         required: '此项不能为空。',
