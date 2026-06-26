@@ -13,6 +13,7 @@ const pageDslTools = [
   ['网址字段', 'MLinkField'],
   ['多行文本', 'MTextareaField'],
   ['文件上传', 'MFileUploadField'],
+  ['上传导入', 'MUploadImport'],
   ['下拉选择', 'MSelectField'],
   ['单选题', 'MRadioGroupField'],
   ['多选题', 'MCheckboxGroupField'],

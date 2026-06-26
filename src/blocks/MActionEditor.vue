@@ -90,6 +90,28 @@ const actionDefinitions = [
     outputs: ['returnData']
   },
   {
+    action: 'upload_file',
+    title: '上传文件',
+    alias: '上传文件',
+    inputs: {
+      file: { template: '{{event.file}}' },
+      mode: 'direct',
+      endpoint: '',
+      fileField: 'file'
+    },
+    outputs: ['files', 'urls', 'success', 'rawResponse']
+  },
+  {
+    action: 'download_blob',
+    title: '下载文件',
+    alias: '下载文件',
+    inputs: {
+      url: '',
+      fileName: 'download'
+    },
+    outputs: ['downloaded', 'fileName']
+  },
+  {
     action: 'if_controller',
     title: 'If',
     alias: 'If 控制器',

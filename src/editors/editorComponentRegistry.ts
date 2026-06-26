@@ -32,6 +32,7 @@ import MTag, { mTagEditorTool } from '@/blocks/MTag.vue';
 import MTextField, { mTextFieldEditorTool } from '@/blocks/MTextField.vue';
 import MTextareaField, { mTextareaFieldEditorTool } from '@/blocks/MTextareaField.vue';
 import MThankYouPage, { mThankYouPageEditorTool } from '@/blocks/MThankYouPage.vue';
+import MUploadImport, { mUploadImportEditorTool } from '@/blocks/MUploadImport.vue';
 import { mEditorSelectorEditorTool } from '@/blocks/mEditorSelectorEditorTool';
 import { mPageEditorTool } from '@/blocks/mPageEditorTool';
 import type { EditorToolDefinition } from '@/editors/editorToolDefinition';
@@ -154,6 +155,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MFileUploadField)]: {
     component: markRaw(MFileUploadField),
     ...mFileUploadFieldEditorTool
+  },
+  [getEditorComponentName(MUploadImport)]: {
+    component: markRaw(MUploadImport),
+    ...mUploadImportEditorTool
   },
   [getEditorComponentName(MSelectField)]: {
     component: markRaw(MSelectField),

@@ -57,7 +57,7 @@ function createBaseContext(
 
 export async function runActionGraph(options: RunActionGraphOptions) {
   const actions = normalizeActions(options.actions);
-  if (!actions.length) return;
+  if (!actions.length) return undefined;
 
   const actionMap = new Map(actions.map((action) => [action.uuid, action]));
   const state = createBaseContext(
@@ -106,4 +106,6 @@ export async function runActionGraph(options: RunActionGraphOptions) {
     state.actions[config.uuid].outputs = normalizeOutputs(outputs, config.outputs);
     currentActionUuid = nextActionValue(config.nextAction);
   }
+
+  return state;
 }

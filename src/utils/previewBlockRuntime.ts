@@ -1,7 +1,7 @@
 import type { InjectionKey } from 'vue';
 import type { OutputData } from '@editorjs/editorjs';
 import type { BlockEvent } from '@/utils/blockEvents';
-import type { ActionConfig } from '@/actions';
+import type { ActionConfig, ActionContext } from '@/actions';
 import { runActionGraph } from '@/actions';
 
 export type PreviewRuntimeBlock = OutputData['blocks'][number] | {
@@ -30,8 +30,8 @@ export type BlockMethodInvocation = {
 export type PreviewBlockRuntime = {
   registerBlock: (id: string, handle: BlockRuntimeHandle) => void;
   unregisterBlock: (id: string, instance?: unknown) => void;
-  invokeBlockActions: (eventConfig: BlockEvent, sourceBlock: PreviewRuntimeBlock, event: unknown) => void;
-  runActions: (actions: unknown, sourceBlock: PreviewRuntimeBlock, event: unknown) => Promise<void>;
+  invokeBlockActions: (eventConfig: BlockEvent, sourceBlock: PreviewRuntimeBlock, event: unknown) => Promise<ActionContext | undefined>;
+  runActions: (actions: unknown, sourceBlock: PreviewRuntimeBlock, event: unknown) => Promise<ActionContext | undefined>;
   getBlockDataContext: (excludeBlockId?: string) => Promise<Record<string, Record<string, unknown>>>;
   notifyBlockDataChange: (blockId: string) => void;
   subscribeBlockDataChange: (blockId: string, listener: () => void) => () => void;
@@ -115,7 +115,7 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
   }
 
   async function runActions(actions: unknown, sourceBlock: PreviewRuntimeBlock, event: unknown) {
-    await runActionGraph({
+    return await runActionGraph({
       actions: actions as ActionConfig[],
       sourceBlock,
       event,
@@ -149,28 +149,31 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
       notifyBlockDataChange(id);
     },
 
-    invokeBlockActions(eventConfig, sourceBlock, event) {
+    async invokeBlockActions(eventConfig, sourceBlock, event) {
       if (!eventConfig.event || !eventConfig.actions.length) {
         warnRuntime('Skipped incomplete event action config.', { eventConfig, sourceBlock });
-        return;
+        return undefined;
       }
 
-      void runActionGraph({
-        actions: eventConfig.actions,
-        sourceBlock,
-        event,
-        getBlockDataContext,
-        callBlockMethod: (blockId, methodName, actionInvocation) => callBlockMethod(blockId, methodName, {
+      try {
+        return await runActionGraph({
+          actions: eventConfig.actions,
           sourceBlock,
           event,
-          eventConfig,
-          ...(typeof actionInvocation === 'object' && actionInvocation !== null
-            ? actionInvocation as Record<string, unknown>
-            : {})
-        })
-      }).catch((error) => {
+          getBlockDataContext,
+          callBlockMethod: (blockId, methodName, actionInvocation) => callBlockMethod(blockId, methodName, {
+            sourceBlock,
+            event,
+            eventConfig,
+            ...(typeof actionInvocation === 'object' && actionInvocation !== null
+              ? actionInvocation as Record<string, unknown>
+              : {})
+          })
+        });
+      } catch (error) {
         warnRuntime('Action graph failed.', { eventConfig, sourceBlock, error });
-      });
+        return undefined;
+      }
     },
 
     runActions,

@@ -101,6 +101,9 @@ function resolveProcessorConfig(config: ProcessorConfig, context: ActionContext)
 function applyActionTemplateProcessors(value: unknown, processors: unknown, context: ActionContext) {
   const normalizedProcessors = normalizeProcessors(processors)
     .map((processor) => resolveProcessorConfig(processor, context));
+  if (!normalizedProcessors.length) {
+    return value;
+  }
   return applyProcessors(cloneValue(value), normalizedProcessors);
 }
 

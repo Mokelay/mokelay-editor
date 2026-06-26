@@ -6,7 +6,9 @@ export type CommonActionName =
   | 'confirm'
   | 'open_dialog'
   | 'jump_url'
-  | 'call_block_method';
+  | 'call_block_method'
+  | 'upload_file'
+  | 'download_blob';
 
 export type ControllerActionName = 'if_controller' | 'switch_controller';
 
