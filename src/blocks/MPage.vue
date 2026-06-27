@@ -17,13 +17,35 @@ import {
   PreviewBlockRuntimeKey,
   type BlockRuntimeHandle
 } from '@/utils/previewBlockRuntime';
-import type { BlockDataField, BlockDataSource, VariableValueDataType } from '@/utils/variableValue';
+import {
+  normalizePageDataSources,
+  PageRuntimeContextKey,
+  PageRuntimeDataKey,
+  PageRuntimeVariableContextKey,
+  resolvePageDataSources,
+  type PageDataSourceConfig,
+  type PageRuntimeContext,
+  type PageRuntimeData
+} from '@/utils/pageRuntimeContext';
+import {
+  getRegisteredPageVariableRuntimes,
+  registerPageVariableRuntime,
+  unregisterPageVariableRuntime,
+  type BlockDataField,
+  type BlockDataSource,
+  type PageVariableSource,
+  type VariableValueDataType,
+  type VariableValueResolveContext
+} from '@/utils/variableValue';
 
 // MPage 作为容器块，既支持 EditorJS 编辑态，也支持组件化预览态。
 export interface MPageProps {
   edit?: boolean;
   value?: OutputData['blocks'];
   pageId?: string;
+  dataSources?: PageDataSourceConfig[];
+  runtimeContext?: PageRuntimeContext;
+  context?: PageRuntimeContext;
   onToolChange?: (payload: { edit: boolean; value: OutputData['blocks'] }) => void;
 }
 
@@ -49,10 +71,38 @@ let editorDataCache: OutputData = buildOutput(props.value);
 const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
 const previewBlocks = computed(() => (Array.isArray(props.value) ? props.value : []));
+const pageRuntimeContext = computed<PageRuntimeContext>(() => props.runtimeContext ?? props.context ?? {});
+const normalizedDataSources = computed(() => normalizePageDataSources(props.dataSources));
+const pageRuntimeData = ref<PageRuntimeData>({});
+const pageDataLoading = ref(false);
+const pageDataError = ref('');
 const parentPreviewRuntime = inject(PreviewBlockRuntimeKey, null);
 const previewRuntime = parentPreviewRuntime ?? createPreviewBlockRuntime();
+const pageVariableRuntimeContext = computed<VariableValueResolveContext>(() => {
+  const pageId = getPageRuntimeId();
+  const currentPage = {
+    context: pageRuntimeContext.value,
+    dataSources: pageRuntimeData.value,
+    pageData: pageRuntimeData.value
+  };
+  return {
+    pageId,
+    context: pageRuntimeContext.value,
+    dataSources: pageRuntimeData.value,
+    pageData: pageRuntimeData.value,
+    pages: {
+      ...getRegisteredPageVariableRuntimes(),
+      ...(pageId ? { [pageId]: currentPage } : {})
+    },
+    ...pageRuntimeData.value
+  };
+});
+let pageDataLoadId = 0;
 
 provide(PreviewBlockRuntimeKey, previewRuntime);
+provide(PageRuntimeContextKey, pageRuntimeContext);
+provide(PageRuntimeDataKey, computed(() => pageRuntimeData.value));
+provide(PageRuntimeVariableContextKey, pageVariableRuntimeContext);
 
 type EditorBlock = OutputData['blocks'][number];
 type EditorColumnData = { blocks?: OutputData['blocks'] };
@@ -107,6 +157,82 @@ function getAvailableBlockDataSources(excludeBlockId?: string): BlockDataSource[
       fields
     }];
   });
+}
+
+function getAvailablePageVariableSources(): PageVariableSource[] {
+  const sourcesByPageId = new Map<string, PageVariableSource>();
+  const currentPageId = getPageRuntimeId();
+
+  if (currentPageId) {
+    addPageVariableSource(sourcesByPageId, currentPageId, `${t('variableValue.variable.currentPage')} / ${currentPageId}`);
+  }
+
+  collectPageVariableSources(editorDataCache.blocks, sourcesByPageId);
+  return [...sourcesByPageId.values()];
+}
+
+function addPageVariableSource(
+  sourcesByPageId: Map<string, PageVariableSource>,
+  pageId: string,
+  pageLabel?: string
+) {
+  const normalizedPageId = pageId.trim();
+  if (!normalizedPageId || sourcesByPageId.has(normalizedPageId)) return;
+
+  sourcesByPageId.set(normalizedPageId, {
+    pageId: normalizedPageId,
+    pageLabel: pageLabel?.trim() || normalizedPageId
+  });
+}
+
+function readPageIdReference(value: Record<string, unknown>) {
+  return readStringProp(value, 'pageId') ||
+    readStringProp(value, 'pageUUID') ||
+    readStringProp(value, 'pageUuid') ||
+    readStringProp(value, 'uuid');
+}
+
+function readStringProp(value: Record<string, unknown>, key: string) {
+  const raw = value[key];
+  return typeof raw === 'string' ? raw.trim() : '';
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function collectPageVariableSources(value: unknown, sourcesByPageId: Map<string, PageVariableSource>) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectPageVariableSources(item, sourcesByPageId));
+    return;
+  }
+
+  if (!isRecord(value)) return;
+
+  if (value.type === 'MPage') {
+    const data = isRecord(value.data) ? value.data : value;
+    const pageId = readPageIdReference(data);
+    if (pageId) {
+      addPageVariableSource(sourcesByPageId, pageId, `MPage / ${pageId}`);
+    }
+  }
+
+  if (value.action === 'open_dialog' || value.type === 'open_dialog') {
+    const inputs = isRecord(value.inputs) ? value.inputs : value;
+    const pageId = readPageIdReference(inputs);
+    if (pageId) {
+      addPageVariableSource(sourcesByPageId, pageId, `${t('variableValue.variable.dialogPage')} / ${pageId}`);
+    }
+  }
+
+  if (value.source === 'MPage') {
+    const pageId = readPageIdReference(value);
+    if (pageId) {
+      addPageVariableSource(sourcesByPageId, pageId, `MPage / ${pageId}`);
+    }
+  }
+
+  Object.values(value).forEach((item) => collectPageVariableSources(item, sourcesByPageId));
 }
 
 async function saveEditorJsInstance(instance: EditorJS): Promise<OutputData | undefined> {
@@ -219,7 +345,12 @@ function stopEditorSyncListeners() {
 async function mountEditor() {
   if (!holderRef.value || !shouldRenderEditor.value || editor) return;
   const columnTools: Record<string, ToolSettings> = {
-    ...(createEditorTools({ edit: true, getAvailableBlockDataSources, previewRuntime }) as Record<string, ToolSettings>),
+    ...(createEditorTools({
+      edit: true,
+      getAvailableBlockDataSources,
+      getAvailablePageVariableSources,
+      previewRuntime
+    }) as Record<string, ToolSettings>),
     table: {
       class: Table as unknown as ToolSettings['class'],
       inlineToolbar: true
@@ -297,15 +428,79 @@ function close() {
   emit('close');
 }
 
+async function loadPageDataSources() {
+  const requestId = pageDataLoadId + 1;
+  pageDataLoadId = requestId;
+
+  if (shouldRenderEditor.value || !normalizedDataSources.value.length) {
+    pageRuntimeData.value = {};
+    pageDataLoading.value = false;
+    pageDataError.value = '';
+    return;
+  }
+
+  pageDataLoading.value = true;
+  pageDataError.value = '';
+
+  try {
+    const blocks = await previewRuntime.getBlockDataContext();
+    const nextPageData = await resolvePageDataSources(normalizedDataSources.value, pageRuntimeContext.value, {
+      variableContext: {
+        ...pageVariableRuntimeContext.value,
+        blocks,
+        context: pageRuntimeContext.value,
+        pageData: pageRuntimeData.value,
+        dataSources: pageRuntimeData.value,
+        ...pageRuntimeData.value
+      }
+    });
+    if (requestId !== pageDataLoadId) return;
+    pageRuntimeData.value = nextPageData;
+  } catch (error) {
+    if (requestId !== pageDataLoadId) return;
+    pageRuntimeData.value = {};
+    pageDataError.value = error instanceof Error && error.message
+      ? error.message
+      : '页面数据加载失败。';
+  } finally {
+    if (requestId === pageDataLoadId) {
+      pageDataLoading.value = false;
+    }
+  }
+}
+
 const pageRuntimeInstance = {
   saveEditor,
   getData,
   close
 };
+let registeredPageVariableRuntimeId = '';
 let registeredPageRuntimeId = '';
 
 function getPageRuntimeId() {
   return typeof props.pageId === 'string' ? props.pageId.trim() : '';
+}
+
+function unregisterPageVariableRuntimeRegistration() {
+  if (!registeredPageVariableRuntimeId) return;
+  unregisterPageVariableRuntime(registeredPageVariableRuntimeId);
+  registeredPageVariableRuntimeId = '';
+}
+
+function syncPageVariableRuntimeRegistration() {
+  const nextId = getPageRuntimeId();
+  if (registeredPageVariableRuntimeId && registeredPageVariableRuntimeId !== nextId) {
+    unregisterPageVariableRuntimeRegistration();
+  }
+
+  if (!nextId) return;
+
+  registeredPageVariableRuntimeId = nextId;
+  registerPageVariableRuntime(nextId, {
+    context: pageRuntimeContext.value,
+    dataSources: pageRuntimeData.value,
+    pageData: pageRuntimeData.value
+  });
 }
 
 function createPageRuntimeHandle(id: string): BlockRuntimeHandle {
@@ -352,6 +547,18 @@ watch(
 );
 
 watch(
+  () => ({
+    pageId: props.pageId,
+    context: pageRuntimeContext.value,
+    data: pageRuntimeData.value
+  }),
+  () => {
+    syncPageVariableRuntimeRegistration();
+  },
+  { deep: true, immediate: true }
+);
+
+watch(
   () => props.value,
   async (blocks) => {
     // 本次更新由内部触发时，跳过反向同步，避免重复重建。
@@ -390,7 +597,21 @@ watch(shouldRenderEditor, async (enabled) => {
   await unmountEditor();
 });
 
+watch(
+  () => ({
+    edit: props.edit,
+    dataSources: normalizedDataSources.value,
+    context: pageRuntimeContext.value
+  }),
+  () => {
+    void loadPageDataSources();
+  },
+  { deep: true, immediate: true }
+);
+
 onBeforeUnmount(async () => {
+  pageDataLoadId += 1;
+  unregisterPageVariableRuntimeRegistration();
   unregisterPageRuntime();
   await unmountEditor();
 });
@@ -404,26 +625,35 @@ onBeforeUnmount(async () => {
     class="min-h-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 py-3 pr-3 pl-11 dark:border-slate-700 dark:bg-slate-950"
   ></div>
   <div v-else data-testid="preview-blocks" class="space-y-1">
-    <div v-for="(block, index) in previewBlocks" :key="index" :data-testid="`preview-block-${block.type}`" class="p-0">
-      <EditorPreviewBlock v-if="block.type !== 'columns'" :block="block" />
+    <p v-if="pageDataLoading" data-testid="page-data-loading-state" class="rounded border border-sky-300 bg-sky-50 p-3 text-sm text-sky-800 dark:border-sky-500/60 dark:bg-sky-900/30 dark:text-sky-100">
+      页面数据加载中...
+    </p>
+    <p v-else-if="pageDataError" data-testid="page-data-error-state" class="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/60 dark:bg-red-900/30 dark:text-red-100">
+      {{ pageDataError }}
+    </p>
 
-      <div v-else-if="block.type === 'columns'" data-testid="preview-columns" class="grid gap-3 md:grid-cols-2">
-        <div
-          v-for="(column, columnIndex) in getColumns(block)"
-          :key="`columns-${index}-${columnIndex}`"
-          :data-testid="`preview-column-${columnIndex}`"
-          class="space-y-2 p-2"
-        >
+    <template v-else>
+      <div v-for="(block, index) in previewBlocks" :key="index" :data-testid="`preview-block-${block.type}`" class="p-0">
+        <EditorPreviewBlock v-if="block.type !== 'columns'" :block="block" />
+
+        <div v-else-if="block.type === 'columns'" data-testid="preview-columns" class="grid gap-3 md:grid-cols-2">
           <div
-            v-for="(columnBlock, columnBlockIndex) in getColumnBlocks(column)"
-            :key="`columns-${index}-${columnIndex}-${columnBlockIndex}`"
-            :data-testid="`preview-column-block-${columnBlock.type}`"
-            class="p-2"
+            v-for="(column, columnIndex) in getColumns(block)"
+            :key="`columns-${index}-${columnIndex}`"
+            :data-testid="`preview-column-${columnIndex}`"
+            class="space-y-2 p-2"
           >
-            <EditorPreviewBlock :block="columnBlock" compact-table />
+            <div
+              v-for="(columnBlock, columnBlockIndex) in getColumnBlocks(column)"
+              :key="`columns-${index}-${columnIndex}-${columnBlockIndex}`"
+              :data-testid="`preview-column-block-${columnBlock.type}`"
+              class="p-2"
+            >
+              <EditorPreviewBlock :block="columnBlock" compact-table />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>

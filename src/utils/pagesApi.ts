@@ -1,10 +1,15 @@
 import type { OutputData } from '@editorjs/editorjs';
 import { apiClient } from '@/composables/useApi';
+import {
+  normalizePageDataSources,
+  type PageDataSourceConfig
+} from '@/utils/pageRuntimeContext';
 
 export type MokelayPage = {
   uuid: string;
   name: string;
   blocks: OutputData['blocks'];
+  dataSources?: PageDataSourceConfig[];
   appUuid?: string | null;
   layoutUuid?: string | null;
   createdAt?: string;
@@ -15,11 +20,13 @@ export type CreatePagePayload = {
   uuid?: string;
   name: string;
   blocks: OutputData['blocks'];
+  dataSources?: PageDataSourceConfig[];
 };
 
 export type UpdatePagePayload = {
   name: string;
   blocks: OutputData['blocks'];
+  dataSources?: PageDataSourceConfig[];
 };
 
 export type UpdatePageLayoutPayload = {
@@ -220,6 +227,7 @@ function normalizePage(page: unknown): MokelayPage {
     uuid,
     name: typeof record.name === 'string' ? record.name : '',
     blocks: Array.isArray(record.blocks) ? record.blocks as OutputData['blocks'] : [],
+    dataSources: normalizePageDataSources(record.dataSources ?? record.data_sources),
     appUuid: readString(record.appUuid) ?? readString(record.app_uuid) ?? null,
     layoutUuid: readString(record.layoutUuid) ?? readString(record.layout_uuid) ?? null,
     createdAt: readString(record.createdAt) ?? readString(record.created_at),

@@ -65,6 +65,7 @@ export interface MDatasourceEditorProps {
   edit: boolean;
   currentBlockId?: string;
   getAvailableBlockDataSources?: import('@/utils/variableValue').GetAvailableBlockDataSources;
+  getAvailablePageVariableSources?: import('@/utils/variableValue').GetAvailablePageVariableSources;
   value?: MDatasourceApiObject;
   matchingExternalFields?: MDatasourceExternalField[];
   showPageBreak?: boolean;
@@ -97,6 +98,7 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
     edit: props.edit ?? false,
     currentBlockId: props.currentBlockId,
     getAvailableBlockDataSources: props.getAvailableBlockDataSources,
+    getAvailablePageVariableSources: props.getAvailablePageVariableSources,
     value: normalizeApiDatasource(props.value),
     matchingExternalFields: normalizeDatasourceExternalFields(props.matchingExternalFields),
     showPageBreak: props.showPageBreak === true
@@ -138,12 +140,15 @@ import {
 } from '@/processors';
 import { resolveDatasourceRuntimeData } from '@/utils/datasourceRuntime';
 import { PreviewBlockRuntimeKey } from '@/utils/previewBlockRuntime';
+import { PageRuntimeVariableContextKey } from '@/utils/pageRuntimeContext';
 import {
   isVariableValueConfig,
   stringifyVariableValue,
   type BlockDataSource,
+  type PageVariableSource,
   type VariableOption,
-  type VariableValueConfig
+  type VariableValueConfig,
+  type VariableValueResolveContext
 } from '@/utils/variableValue';
 
 type KeyValueListName = 'headerData' | 'queryData';
@@ -180,6 +185,7 @@ const props = defineProps<MDatasourceEditorProps & {
 
 const { t } = useI18n();
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
+const pageVariableContext = inject(PageRuntimeVariableContextKey, computed<VariableValueResolveContext>(() => ({})));
 const rootRef = ref<HTMLElement | null>(null);
 const normalizedInitialValue = normalizeApiDatasource(props.value);
 const bodyDataTypeOptions = bodyDataTypes;
@@ -239,6 +245,7 @@ const variableOptions = computed<VariableOption[]>(() => {
   return [...variablesByName.values()];
 });
 const blockDataSources = computed<BlockDataSource[]>(() => props.getAvailableBlockDataSources?.() ?? []);
+const pageVariableSources = computed<PageVariableSource[]>(() => props.getAvailablePageVariableSources?.() ?? []);
 const hasMatchingExternalFields = computed(() => configuredMatchingExternalFields.value.length > 0);
 const schemaTree = computed(() => getSchemaTreeNodes(jsonSchemaValue.value));
 const flattenedSchemaNodes = computed(() => flattenSchemaTree(schemaTree.value));
@@ -520,7 +527,10 @@ function normalizeDatasourceEditorRuntimeData(
 async function getData() {
   const blocks = await previewRuntime?.getBlockDataContext(props.currentBlockId);
   const resolvedData = await resolveDatasourceRuntimeData(buildApiDatasource(), {
-    variableContext: blocks ? { blocks } : {}
+    variableContext: {
+      ...pageVariableContext.value,
+      ...(blocks ? { blocks } : {})
+    }
   });
   const normalizedRuntimeData = normalizeDatasourceEditorRuntimeData(
     resolvedData.rawResponse,
@@ -1495,6 +1505,7 @@ watch(
             :model-value="item.value"
             :variables="variableOptions"
             :block-data-sources="blockDataSources"
+            :page-variable-sources="pageVariableSources"
             :current-block-id="currentBlockId"
             value-type="string"
             :readonly="isReadOnly"
@@ -1550,6 +1561,7 @@ watch(
             :model-value="item.value"
             :variables="variableOptions"
             :block-data-sources="blockDataSources"
+            :page-variable-sources="pageVariableSources"
             :current-block-id="currentBlockId"
             value-type="string"
             :readonly="isReadOnly"
@@ -1642,6 +1654,7 @@ watch(
             :model-value="body.value"
             :variables="variableOptions"
             :block-data-sources="blockDataSources"
+            :page-variable-sources="pageVariableSources"
             :current-block-id="currentBlockId"
             :value-type="body.dataType === 'object' || body.dataType === 'array' || body.dataType === 'number' || body.dataType === 'boolean' ? body.dataType : 'string'"
             :readonly="isReadOnly"
@@ -2949,9 +2962,31 @@ watch(
 
 .ce-datasource-tool__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(120px, 0.42fr) minmax(0, 1.58fr) auto;
   gap: 8px;
   align-items: center;
+}
+
+.ce-datasource-tool__row :deep(.variable-value-editor) {
+  gap: 4px;
+}
+
+.ce-datasource-tool__row :deep(.variable-value-editor__modes button) {
+  padding-inline: 7px;
+}
+
+.ce-datasource-tool__row :deep(.variable-value-editor__source) {
+  flex-basis: 88px;
+}
+
+.ce-datasource-tool__row :deep(.variable-value-editor__variable .variable-value-editor__input) {
+  flex-basis: 96px;
+  min-width: 68px;
+}
+
+.ce-datasource-tool__row :deep(.variable-value-editor__processor-button) {
+  min-width: 84px;
+  padding-inline: 8px;
 }
 
 .ce-datasource-tool__body-row {

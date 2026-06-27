@@ -10,6 +10,10 @@ import {
   PreviewBlockRuntimeKey,
   type PreviewRuntimeBlock
 } from '@/utils/previewBlockRuntime';
+import {
+  PageRuntimeVariableContextKey
+} from '@/utils/pageRuntimeContext';
+import { resolveRuntimeValue, type VariableValueResolveContext } from '@/utils/variableValue';
 
 interface EditorPreviewBlockProps {
   block: OutputData['blocks'][number];
@@ -25,9 +29,13 @@ const tableClass = computed(() =>
 );
 
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
+const pageVariableContext = inject(PageRuntimeVariableContextKey, computed<VariableValueResolveContext>(() => ({})));
 const componentInstance = shallowRef<unknown | null>(null);
+const runtimeBlockData = shallowRef<Record<string, Record<string, unknown>>>({});
 let registeredId = '';
 let registeredInstance: unknown;
+let blockDataLoadId = 0;
+let unsubscribeBlockDataChanges: Array<() => void> = [];
 
 const tableCellClass = computed(() =>
   props.compactTable
@@ -59,19 +67,73 @@ function getBlockId(block: OutputData['blocks'][number]) {
   return typeof block.id === 'string' ? block.id : '';
 }
 
+const resolvedBlockData = computed(() => resolveBlockData(props.block.data, props.block.type));
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getVariableResolveContext() {
+  return {
+    ...pageVariableContext.value,
+    blocks: {
+      ...(pageVariableContext.value.blocks ?? {}),
+      ...runtimeBlockData.value
+    }
+  };
+}
+
+function isDatasourceConfig(value: unknown) {
+  return isRecord(value) && (
+    (value.type === 'API' && (
+      Array.isArray(value.headerData) ||
+      Array.isArray(value.queryData) ||
+      Array.isArray(value.bodyData)
+    )) ||
+    (value.type === 'JSON' && Object.prototype.hasOwnProperty.call(value, 'rawData'))
+  );
+}
+
+function shouldKeepDatasourceRuntimeConfig(blockType: string, propName: string, value: unknown) {
+  if (!isDatasourceConfig(value)) return false;
+  return propName === 'ds' || (blockType === 'MDatasourceEditor' && propName === 'value');
+}
+
+function resolveBlockData(data: unknown, blockType: string) {
+  if (isRecord(data)) {
+    return Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [
+        key,
+        shouldKeepDatasourceRuntimeConfig(blockType, key, value)
+          ? value
+          : resolveRuntimeValue(value, getVariableResolveContext())
+      ])
+    );
+  }
+
+  const resolved = resolveRuntimeValue(data, getVariableResolveContext());
+  return isRecord(resolved) ? resolved : {};
+}
+
+function getResolvedBlockData(block: OutputData['blocks'][number]) {
+  if (block === props.block) return resolvedBlockData.value;
+  return resolveBlockData(block.data, block.type);
+}
+
 function getBlockProps(block: OutputData['blocks'][number]) {
   const definition = getEditorComponentDefinition(block.type);
+  const data = getResolvedBlockData(block);
   if (!definition) {
     return {
       edit: false,
-      ...block.data
+      ...data
     };
   }
 
   return {
     ...definition.normalizeProps({
       ...(definition.createInitialProps?.() ?? {}),
-      ...block.data,
+      ...data,
       edit: false,
       currentBlockId: getBlockId(block)
     }),
@@ -95,9 +157,7 @@ function registerCurrentBlock() {
     id,
     type: props.block.type,
     instance,
-    data: typeof props.block.data === 'object' && props.block.data !== null
-      ? props.block.data as Record<string, unknown>
-      : {}
+    data: resolvedBlockData.value
   });
   registeredId = id;
   registeredInstance = instance;
@@ -120,22 +180,88 @@ const blockEventListeners = computed(() => {
     const previousListener = listeners[eventConfig.event];
     listeners[eventConfig.event] = (event: unknown) => {
       previousListener?.(event);
-      previewRuntime?.invokeBlockActions(eventConfig, props.block as PreviewRuntimeBlock, event);
+      previewRuntime?.invokeBlockActions(eventConfig, {
+        ...props.block,
+        data: resolvedBlockData.value
+      } as PreviewRuntimeBlock, event);
     };
   });
 
   return listeners;
 });
 
+async function loadRuntimeBlockData() {
+  const loadId = ++blockDataLoadId;
+  const blocks = await previewRuntime?.getBlockDataContext(getBlockId(props.block)) ?? {};
+  if (loadId !== blockDataLoadId) return;
+  runtimeBlockData.value = blocks;
+}
+
+function collectReferencedBlockIds(value: unknown, result = new Set<string>()) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectReferencedBlockIds(item, result));
+    return result;
+  }
+
+  if (!isRecord(value)) return result;
+
+  if (
+    value.mode === 'variable' &&
+    (value.source === undefined || value.source === 'Block') &&
+    typeof value.blockId === 'string' &&
+    value.blockId.trim()
+  ) {
+    result.add(value.blockId.trim());
+  }
+
+  Object.values(value).forEach((item) => collectReferencedBlockIds(item, result));
+  return result;
+}
+
+function getReferencedBlockIdsSignature() {
+  return [...collectReferencedBlockIds(props.block.data)].sort().join('|');
+}
+
+function resetBlockDataSubscriptions() {
+  unsubscribeBlockDataChanges.forEach((unsubscribe) => unsubscribe());
+  unsubscribeBlockDataChanges = [];
+
+  if (!previewRuntime) return;
+
+  unsubscribeBlockDataChanges = [...collectReferencedBlockIds(props.block.data)]
+    .filter((blockId) => blockId !== getBlockId(props.block))
+    .map((blockId) => previewRuntime.subscribeBlockDataChange(blockId, () => {
+      void loadRuntimeBlockData();
+    }));
+}
+
 watch(
-  () => [props.block.id, props.block.type],
+  () => [props.block.id, props.block.type, resolvedBlockData.value],
   () => {
     unregisterCurrentBlock();
     registerCurrentBlock();
-  }
+  },
+  { deep: true }
+);
+
+watch(
+  () => props.block.data,
+  () => {
+    void loadRuntimeBlockData();
+  },
+  { deep: true, immediate: true }
+);
+
+watch(
+  getReferencedBlockIdsSignature,
+  () => {
+    resetBlockDataSubscriptions();
+  },
+  { immediate: true }
 );
 
 onBeforeUnmount(() => {
+  unsubscribeBlockDataChanges.forEach((unsubscribe) => unsubscribe());
   unregisterCurrentBlock();
 });
 </script>

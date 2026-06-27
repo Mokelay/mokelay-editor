@@ -6,6 +6,7 @@ import type { MokelayLayoutRecord } from '@/utils/layoutsApi';
 
 type EditorPanelProps = {
   blocks?: OutputData['blocks'];
+  pageUuid?: string | null;
   pageName?: string;
   layoutUuid?: string | null;
   layoutOptions?: MokelayLayoutRecord[];
@@ -25,6 +26,7 @@ const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
 
 const props = withDefaults(defineProps<EditorPanelProps>(), {
   blocks: () => [],
+  pageUuid: null,
   pageName: '',
   layoutUuid: null,
   layoutOptions: () => [],
@@ -106,7 +108,14 @@ defineExpose({
       <span v-else-if="layoutError" data-testid="page-layout-error" class="text-xs text-rose-600 dark:text-rose-300">{{ layoutError }}</span>
     </label>
 
-    <MPage v-if="!loading" ref="pageRef" :edit="true" :value="blocks" @change="handlePageChange" />
+    <MPage
+      v-if="!loading"
+      ref="pageRef"
+      :edit="true"
+      :value="blocks"
+      :page-id="pageUuid ?? undefined"
+      @change="handlePageChange"
+    />
   </section>
 </template>
 

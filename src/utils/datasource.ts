@@ -17,7 +17,7 @@ import {
 } from '@/utils/apiDomains';
 import {
   isVariableValueConfig,
-  resolveVariableValueConfig,
+  resolveRuntimeValue,
   stringifyVariableValue,
   type VariableValueConfig,
   type VariableValueDataType,
@@ -351,9 +351,7 @@ export function normalizeDatasource(value: unknown): MDatasourceObject {
 }
 
 function resolveDatasourceVariableValue(value: unknown, context?: VariableValueResolveContext) {
-  return isVariableValueConfig(value)
-    ? resolveVariableValueConfig(value, context ?? {})
-    : value;
+  return resolveRuntimeValue(value, context ?? {});
 }
 
 function stringifyResolvedDatasourceValue(value: unknown, context?: VariableValueResolveContext) {

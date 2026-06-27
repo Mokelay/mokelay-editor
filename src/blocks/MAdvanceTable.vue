@@ -174,6 +174,10 @@ import {
   PreviewBlockRuntimeKey,
   type PreviewRuntimeBlock
 } from '@/utils/previewBlockRuntime';
+import {
+  PageRuntimeVariableContextKey
+} from '@/utils/pageRuntimeContext';
+import { resolveRuntimeValue, type VariableValueResolveContext } from '@/utils/variableValue';
 
 const props = defineProps<MAdvanceTableProps & {
   onChange?: (payload: MAdvanceTableProps) => void;
@@ -198,9 +202,11 @@ type PaginationState = {
 
 const { t } = useI18n();
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
+const pageVariableContext = inject(PageRuntimeVariableContextKey, computed<VariableValueResolveContext>(() => ({})));
 const rootRef = ref<HTMLElement | null>(null);
 const selectedRows = ref(new Set<number>());
 const tableData = shallowRef<Record<string, unknown>[]>([]);
+const runtimeBlockData = shallowRef<Record<string, Record<string, unknown>>>({});
 const paginationState = ref<PaginationState>({
   page: 1,
   pageSize: 10,
@@ -265,6 +271,10 @@ const emptyColumnSpan = computed(() => Math.max(
 const selectionColumnWidth = 44;
 const indexColumnWidth = 56;
 const fallbackFixedColumnWidth = 160;
+type RowPathValue = {
+  found: boolean;
+  value: unknown;
+};
 
 useEditorBlockToolbarAlignment(rootRef);
 
@@ -333,7 +343,12 @@ function syncSelectionEvent() {
     selectedRows: selection.rows,
     selection
   };
-  emit(selection.empty ? 'emptySelectedRow' : 'havingSelectedRows', payload);
+  if (selection.empty) {
+    emit('emptySelectedRow', payload);
+    return;
+  }
+
+  emit('havingSelectedRows', payload);
 }
 
 function setSelectedRows(nextSelectedRows: Set<number>) {
@@ -345,29 +360,44 @@ function setSelectedRows(nextSelectedRows: Set<number>) {
 function getVariableConfigBlockId(value: unknown) {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return '';
   const config = value as Partial<VariableValueConfig>;
+  const source = 'source' in config ? config.source : 'Block';
   return config.mode === 'variable' &&
+    (source === undefined || source === 'Block') &&
     config.blockType === 'MAdvanceTable' &&
     typeof config.blockId === 'string'
     ? config.blockId
     : '';
 }
 
+function collectVariableConfigBlockIds(value: unknown, result = new Set<string>()) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectVariableConfigBlockIds(item, result));
+    return result;
+  }
+
+  if (!isRecord(value)) return result;
+
+  const blockId = getVariableConfigBlockId(value);
+  if (blockId) {
+    result.add(blockId);
+  }
+
+  Object.values(value).forEach((item) => collectVariableConfigBlockIds(item, result));
+  return result;
+}
+
 function getDatasourceSelfReferenceBlockId(datasource: MDatasourceApiObject) {
-  if (props.currentBlockId) return props.currentBlockId;
   const referencedBlockIds = new Set<string>();
   datasource.headerData.forEach((item) => {
-    const blockId = getVariableConfigBlockId(item.value);
-    if (blockId) referencedBlockIds.add(blockId);
+    collectVariableConfigBlockIds(item.value, referencedBlockIds);
   });
   datasource.queryData.forEach((item) => {
-    const blockId = getVariableConfigBlockId(item.value);
-    if (blockId) referencedBlockIds.add(blockId);
+    collectVariableConfigBlockIds(item.value, referencedBlockIds);
   });
   datasource.bodyData.forEach((item: MDatasourceBodyItem) => {
-    const blockId = getVariableConfigBlockId(item.value);
-    if (blockId) referencedBlockIds.add(blockId);
+    collectVariableConfigBlockIds(item.value, referencedBlockIds);
   });
-  return referencedBlockIds.size === 1 ? [...referencedBlockIds][0] : '';
+  return referencedBlockIds.size === 1 ? [...referencedBlockIds][0] : props.currentBlockId ?? '';
 }
 
 async function loadDatasourceRows() {
@@ -391,8 +421,12 @@ async function loadDatasourceRows() {
     if (selfBlockId) {
       blocks[selfBlockId] = getData();
     }
+    runtimeBlockData.value = blocks;
     const runtimeData = await resolveDatasourceRuntimeData(datasource, {
-      variableContext: { blocks }
+      variableContext: {
+        ...pageVariableContext.value,
+        blocks
+      }
     });
     if (loadId !== datasourceLoadId) return;
 
@@ -439,6 +473,14 @@ function getData() {
 async function refresh() {
   await loadDatasourceRows();
   return getData();
+}
+
+async function loadRuntimeBlockData() {
+  const blocks = await previewRuntime?.getBlockDataContext(props.currentBlockId) ?? {};
+  if (props.currentBlockId) {
+    blocks[props.currentBlockId] = getData();
+  }
+  runtimeBlockData.value = blocks;
 }
 
 function getSelectedRows() {
@@ -501,32 +543,54 @@ function stringifyCellValue(value: unknown) {
   }
 }
 
-function interpolateValue(value: string, row: Record<string, unknown>) {
-  return value.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, path: string) => stringifyCellValue(readRowPath(row, path)));
+function interpolateValue(value: string, row: Record<string, unknown>, options: { preserveMissing?: boolean } = {}) {
+  return value.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (match, path: string) => {
+    const result = getRowPathValue(row, path);
+    if (!result.found && options.preserveMissing) return match;
+    return stringifyCellValue(result.value);
+  });
+}
+
+function getRowPathValue(row: Record<string, unknown>, path: string): RowPathValue {
+  let current: unknown = row;
+
+  for (const key of path.split('.')) {
+    if (typeof current !== 'object' || current === null || !(key in current)) {
+      return {
+        found: false,
+        value: ''
+      };
+    }
+
+    current = (current as Record<string, unknown>)[key];
+  }
+
+  return {
+    found: true,
+    value: current
+  };
 }
 
 function readRowPath(row: Record<string, unknown>, path: string) {
-  return path.split('.').reduce<unknown>((current, key) => {
-    if (typeof current !== 'object' || current === null || !(key in current)) {
-      return '';
-    }
-
-    return (current as Record<string, unknown>)[key];
-  }, row);
+  return getRowPathValue(row, path).value;
 }
 
-function interpolateComponentData(value: unknown, row: Record<string, unknown>): unknown {
+function interpolateComponentData(
+  value: unknown,
+  row: Record<string, unknown>,
+  options: { preserveMissing?: boolean } = {}
+): unknown {
   if (typeof value === 'string') {
-    return interpolateValue(value, row);
+    return interpolateValue(value, row, options);
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => interpolateComponentData(item, row));
+    return value.map((item) => interpolateComponentData(item, row, options));
   }
 
   if (typeof value === 'object' && value !== null) {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, interpolateComponentData(item, row)])
+      Object.entries(value).map(([key, item]) => [key, interpolateComponentData(item, row, options)])
     );
   }
 
@@ -540,13 +604,15 @@ function getCellBlocks(row: Record<string, unknown>, column: MAdvanceTableColumn
         ...block,
         data: {
           text: interpolateValue(getParagraphText(block), row)
-        }
+        },
+        events: interpolateComponentData(block.events, row, { preserveMissing: true }) as StoredBlock['events']
       };
     }
 
     return {
       ...block,
-      data: interpolateComponentData(block.data, row) as Record<string, unknown>
+      data: interpolateComponentData(block.data, row) as Record<string, unknown>,
+      events: interpolateComponentData(block.events, row, { preserveMissing: true }) as StoredBlock['events']
     };
   });
 }
@@ -558,11 +624,23 @@ function getPreviewComponent(type: string) {
 function getPreviewProps(block: StoredBlock) {
   const definition = getInlineCustomComponentDefinition(block.type);
   if (!definition) return { edit: false };
+  const data = getBoundCellBlockData(block);
   return definition.normalizeProps({
     ...(definition.createInitialProps?.() ?? {}),
-    ...block.data,
+    ...data,
     edit: false
   });
+}
+
+function getBoundCellBlockData(block: StoredBlock) {
+  const resolved = resolveRuntimeValue(block.data, {
+    ...pageVariableContext.value,
+    blocks: {
+      ...(pageVariableContext.value.blocks ?? {}),
+      ...runtimeBlockData.value
+    }
+  });
+  return isRecord(resolved) ? resolved : {};
 }
 
 function getCellBlockEventListeners(block: StoredBlock) {
@@ -574,7 +652,10 @@ function getCellBlockEventListeners(block: StoredBlock) {
     const previousListener = listeners[eventConfig.event];
     listeners[eventConfig.event] = (event: unknown) => {
       previousListener?.(event);
-      previewRuntime?.invokeBlockActions(eventConfig, block as PreviewRuntimeBlock, event);
+      previewRuntime?.invokeBlockActions(eventConfig, {
+        ...block,
+        data: getBoundCellBlockData(block)
+      } as PreviewRuntimeBlock, event);
     };
   });
 
@@ -708,6 +789,14 @@ watch(
   () => getDatasourceConfigSignature(normalizedDatasource.value),
   () => {
     void loadDatasourceRows();
+  },
+  { immediate: true }
+);
+
+watch(
+  () => props.currentBlockId,
+  () => {
+    void loadRuntimeBlockData();
   },
   { immediate: true }
 );

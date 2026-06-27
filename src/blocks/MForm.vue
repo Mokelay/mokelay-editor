@@ -29,6 +29,7 @@ import {
   cloneFormItemData,
   normalizeMFormItem,
   normalizeMFormItems,
+  normalizeMFormValues,
   type MFormItemData,
   type MFormProps
 } from '@/blocks/mFormEditorTool';
@@ -73,6 +74,7 @@ const emit = defineEmits<{
 const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
 const previewItems = computed(() => normalizeMFormItems(props.items));
+const previewValues = computed(() => normalizeMFormValues(props.values));
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 
 let editor: EditorJS | null = null;
@@ -508,6 +510,22 @@ function getFormItemEventListeners(item: MFormItemData, index: number) {
   return listeners;
 }
 
+function getPreviewFormItemEditor(item: MFormItemData) {
+  const editor = item.editor ? cloneSelectorBlock(item.editor) : undefined;
+  if (!editor || !item.variableName || !Object.prototype.hasOwnProperty.call(previewValues.value, item.variableName)) {
+    return editor;
+  }
+
+  const data = isRecord(editor.data) ? editor.data : {};
+  return {
+    ...editor,
+    data: {
+      ...data,
+      value: previewValues.value[item.variableName]
+    }
+  };
+}
+
 function getItemsFromOutput(output: OutputData) {
   const blocks = Array.isArray(output.blocks) ? output.blocks : [];
 
@@ -523,9 +541,11 @@ function isSameItems(left: MFormItemData[], right: MFormItemData[]) {
 
 function notifyChanges(items: MFormItemData[]) {
   const normalizedItems = normalizeMFormItems(items);
+  const values = normalizeMFormValues(props.values);
   const payload = {
     edit: props.edit,
-    items: normalizedItems.map((item) => cloneFormItemData(item))
+    items: normalizedItems.map((item) => cloneFormItemData(item)),
+    ...(Object.keys(values).length ? { values } : {})
   };
 
   skipNextPropSync = true;
@@ -659,10 +679,11 @@ async function getData() {
   return Object.fromEntries(previewItems.value.map((item) => {
     const editorId = item.editor?.id;
     const runtimeValue = editorId ? blockData[editorId] : undefined;
+    const propValue = item.variableName ? previewValues.value[item.variableName] : undefined;
     const fallbackValue = readEditorValue(item.editor?.data);
     return [
       item.variableName,
-      readEditorValue(runtimeValue) ?? fallbackValue ?? ''
+      readEditorValue(runtimeValue) ?? propValue ?? fallbackValue ?? ''
     ];
   }));
 }
@@ -744,7 +765,7 @@ onBeforeUnmount(async () => {
         :edit="false"
         :label-name="item.labelName"
         :variable-name="item.variableName"
-        :editor="item.editor ? cloneSelectorBlock(item.editor) : undefined"
+        :editor="getPreviewFormItemEditor(item)"
         :layout="item.layout"
         v-on="getFormItemEventListeners(item, index)"
       />

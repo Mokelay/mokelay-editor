@@ -153,8 +153,8 @@ export const enMessages = {
   variableValue: {
     modeLabel: 'Variable editing mode',
     modes: {
-      input: 'Input',
-      variable: 'Single variable',
+      input: 'Constant',
+      variable: 'Variable',
       flow: 'Advanced'
     },
     previous: 'Previous config',
@@ -172,6 +172,9 @@ export const enMessages = {
       fieldPlaceholder: 'Select data',
       emptySources: 'No readable block data',
       missingBlock: 'Missing block {blockId}',
+      missingPage: 'Missing page {pageId}',
+      currentPage: 'Current page',
+      dialogPage: 'Dialog page',
       legacySource: 'Legacy variables',
       variable: 'Variable',
       configureProcessors: 'Configure processors'

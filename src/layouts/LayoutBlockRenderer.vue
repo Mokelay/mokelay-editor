@@ -95,6 +95,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     :edit="false"
     :value="context.page.blocks"
     :page-id="context.page.uuid"
+    :data-sources="context.page.dataSources"
   />
 
   <template v-else-if="blockDefinition?.kind === 'conditional'">

@@ -153,8 +153,8 @@ export const zhMessages = {
   variableValue: {
     modeLabel: '变量编辑模式',
     modes: {
-      input: '直接输入',
-      variable: '单变量',
+      input: '常量',
+      variable: '变量',
       flow: '高级'
     },
     previous: '上一配置',
@@ -172,6 +172,9 @@ export const zhMessages = {
       fieldPlaceholder: '选择数据',
       emptySources: '暂无可读取数据的组件',
       missingBlock: '缺失组件 {blockId}',
+      missingPage: '缺失页面 {pageId}',
+      currentPage: '当前页',
+      dialogPage: '弹窗页',
       legacySource: '旧变量',
       variable: '变量',
       configureProcessors: '配置处理器'

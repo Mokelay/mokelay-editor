@@ -79,6 +79,12 @@ function readRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function optionalRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
 function firstStringPath(value: unknown, paths: string[]) {
   for (const path of paths) {
     const result = readPath(value, path);
@@ -252,7 +258,8 @@ export const openDialogAction: ActionExecutor = async ({ inputs }) => {
   const closeResult = await showActionPageDialog({
     title: stringInput(inputs.title),
     pageUUID: stringInput(inputs.pageUUID ?? inputs.pageUuid),
-    pageSource: inputs.pageSource === 'system' ? 'system' : 'user'
+    pageSource: inputs.pageSource === 'system' ? 'system' : 'user',
+    context: optionalRecord(inputs.context)
   });
   return {
     close_result: closeResult

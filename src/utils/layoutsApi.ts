@@ -1,6 +1,10 @@
 import type { OutputData } from '@editorjs/editorjs';
 import { apiClient } from '@/composables/useApi';
 import type { PageSource } from '@/utils/pagesApi';
+import {
+  normalizePageDataSources,
+  type PageDataSourceConfig
+} from '@/utils/pageRuntimeContext';
 
 export type LayoutMenuItem = {
   label: string;
@@ -94,6 +98,7 @@ export type RenderBundlePage = {
   uuid: string;
   name: string;
   blocks: OutputData['blocks'];
+  dataSources?: PageDataSourceConfig[];
   appUuid?: string | null;
   layoutUuid?: string | null;
   createdAt?: string;
@@ -417,6 +422,7 @@ function normalizeBundlePage(value: unknown): RenderBundlePage | null {
     uuid,
     name: readString(value.name) || '',
     blocks: Array.isArray(value.blocks) ? value.blocks as OutputData['blocks'] : [],
+    dataSources: normalizePageDataSources(value.dataSources ?? value.data_sources),
     appUuid: readString(value.appUuid) ?? readString(value.app_uuid) ?? null,
     layoutUuid: readString(value.layoutUuid) ?? readString(value.layout_uuid) ?? null,
     createdAt: readString(value.createdAt) ?? readString(value.created_at),

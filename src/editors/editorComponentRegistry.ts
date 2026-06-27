@@ -24,6 +24,7 @@ import MLinkField, { mLinkFieldEditorTool } from '@/blocks/MLinkField.vue';
 import MMatrixField, { mMatrixFieldEditorTool } from '@/blocks/MMatrixField.vue';
 import MPhoneField, { mPhoneFieldEditorTool } from '@/blocks/MPhoneField.vue';
 import MRadioGroupField, { mRadioGroupFieldEditorTool } from '@/blocks/MRadioGroupField.vue';
+import MRecordList, { mRecordListEditorTool } from '@/blocks/MRecordList.vue';
 import MRatingField, { mRatingFieldEditorTool } from '@/blocks/MRatingField.vue';
 import MResultPage, { mResultPageEditorTool } from '@/blocks/MResultPage.vue';
 import MRichText, { mRichTextEditorTool } from '@/blocks/MRichText.vue';
@@ -167,6 +168,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MRadioGroupField)]: {
     component: markRaw(MRadioGroupField),
     ...mRadioGroupFieldEditorTool
+  },
+  [getEditorComponentName(MRecordList)]: {
+    component: markRaw(MRecordList),
+    ...mRecordListEditorTool
   },
   [getEditorComponentName(MCheckboxGroupField)]: {
     component: markRaw(MCheckboxGroupField),

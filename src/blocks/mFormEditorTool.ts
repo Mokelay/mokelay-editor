@@ -25,6 +25,7 @@ export interface MFormProps {
   edit: boolean;
   currentBlockId?: string;
   items?: MFormItemData[];
+  values?: Record<string, unknown>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -76,6 +77,14 @@ export function normalizeMFormItems(value: unknown): MFormItemData[] {
     .filter((item): item is MFormItemData => item !== undefined);
 }
 
+export function normalizeMFormValues(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return cloneValue(value);
+}
+
 export const mFormEditorTool = defineEditorTool<MFormProps>({
   toolbox: {
     get title() {
@@ -109,9 +118,19 @@ export const mFormEditorTool = defineEditorTool<MFormProps>({
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
     currentBlockId: props.currentBlockId,
-    items: normalizeMFormItems(props.items)
+    items: normalizeMFormItems(props.items),
+    values: normalizeMFormValues(props.values)
   }),
-  serialize: (props) => ({
-    items: normalizeMFormItems(props.items).map((item) => cloneFormItemData(item))
-  })
+  serialize: (props) => {
+    const values = normalizeMFormValues(props.values);
+    return {
+      items: normalizeMFormItems(props.items).map((item) => cloneFormItemData(item)),
+      ...(Object.keys(values).length ? { values } : {})
+    };
+  }
 });
+
+function cloneValue<T>(value: T): T {
+  if (value === undefined || value === null || typeof value !== 'object') return value;
+  return JSON.parse(JSON.stringify(value)) as T;
+}

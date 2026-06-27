@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, shallowRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import { $confirm, $message } from '@/utils/globalCalls';
 import {
@@ -27,7 +27,7 @@ const emit = defineEmits<{
 const PAGE_SIZE = 10;
 
 const { t, localeValue } = useI18n();
-const pages = ref<MokelayPage[]>([]);
+const pages = shallowRef<MokelayPage[]>([]);
 const isLoadingPages = ref(false);
 const pageListError = ref('');
 const isCreateDialogOpen = ref(false);

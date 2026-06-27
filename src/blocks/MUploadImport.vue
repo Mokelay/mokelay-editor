@@ -87,22 +87,32 @@ function normalizeMode(value: unknown): MUploadImportMode {
   return normalizeSelectValue(value, ['file', 'image', 'excel', 'csv', 'batchText'] as const, 'file');
 }
 
+function normalizeUploadStatus(value: unknown): MUploadImportUploadedFile['status'] {
+  if (value === 'ready' || value === 'uploading' || value === 'success' || value === 'error') {
+    return value;
+  }
+
+  return undefined;
+}
+
 function normalizeUploadedFiles(value: unknown): MUploadImportUploadedFile[] {
   if (!Array.isArray(value)) return [];
 
   return value
     .filter(isRecord)
-    .map((file) => ({
-      name: stringValue(file.name),
-      ...(typeof file.size === 'number' && Number.isFinite(file.size) ? { size: file.size } : {}),
-      ...(stringValue(file.type) ? { type: stringValue(file.type) } : {}),
-      ...(stringValue(file.url) ? { url: stringValue(file.url) } : {}),
-      ...(file.status === 'ready' || file.status === 'uploading' || file.status === 'success' || file.status === 'error'
-        ? { status: file.status }
-        : {}),
-      ...(file.response !== undefined ? { response: normalizeValue(file.response, {}) } : {}),
-      ...(stringValue(file.error) ? { error: stringValue(file.error) } : {})
-    }))
+    .map((file) => {
+      const status = normalizeUploadStatus(file.status);
+
+      return {
+        name: stringValue(file.name),
+        ...(typeof file.size === 'number' && Number.isFinite(file.size) ? { size: file.size } : {}),
+        ...(stringValue(file.type) ? { type: stringValue(file.type) } : {}),
+        ...(stringValue(file.url) ? { url: stringValue(file.url) } : {}),
+        ...(status ? { status } : {}),
+        ...(file.response !== undefined ? { response: normalizeValue(file.response, {}) } : {}),
+        ...(stringValue(file.error) ? { error: stringValue(file.error) } : {})
+      };
+    })
     .filter((file) => file.name);
 }
 
@@ -274,7 +284,7 @@ const normalizedProps = computed(() => normalizeUploadImportProps({
   value: state.files,
   result: state.result
 }));
-const mode = computed(() => normalizedProps.value.mode ?? 'file');
+const mode = computed<MUploadImportMode>(() => normalizeMode(normalizedProps.value.mode));
 const isBatchTextMode = computed(() => mode.value === 'batchText');
 const templateLabel = computed(() => normalizedProps.value.template?.label || '下载导入模板');
 const effectiveAccept = computed(() => normalizedProps.value.accept || getDefaultAccept(mode.value));

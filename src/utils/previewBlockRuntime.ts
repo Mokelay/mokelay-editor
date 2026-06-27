@@ -59,12 +59,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function resolveBlockData(handle: BlockRuntimeHandle) {
   const getData = getCallableMethod(handle.instance, 'getData');
+  let data: Record<string, unknown>;
   if (getData) {
     const value = await getData.call(handle.instance);
-    return isRecord(value) ? value : {};
+    data = isRecord(value) ? value : {};
+  } else {
+    data = handle.data ?? {};
   }
 
-  return handle.data ?? {};
+  Object.defineProperty(data, '_blockType', {
+    value: handle.type,
+    enumerable: false,
+    configurable: true
+  });
+  return data;
 }
 
 export function createPreviewBlockRuntime(): PreviewBlockRuntime {

@@ -39,11 +39,13 @@ export const mAdvanceInputEditorTool = defineEditorTool<MAdvanceInputProps>({
 </script>
 
 <script setup lang="ts">
-import { createApp, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, createApp, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { App } from 'vue';
 import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import { getInlineCustomComponentDefinition, getInlineCustomComponentEntries } from '@/editors/inlineCustomComponents';
 import { useI18n } from '@/i18n';
+import { PageRuntimeVariableContextKey } from '@/utils/pageRuntimeContext';
+import { resolveRuntimeValue, type VariableValueResolveContext } from '@/utils/variableValue';
 
 type EmbeddedRecord = {
   app: App<Element>;
@@ -66,6 +68,7 @@ const props = defineProps<MAdvanceInputProps & {
 }>();
 
 const { t } = useI18n();
+const pageVariableContext = inject(PageRuntimeVariableContextKey, computed<VariableValueResolveContext>(() => ({})));
 const editableRef = ref<HTMLElement | null>(null);
 const embeddedDialogRef = ref<HTMLDialogElement | null>(null);
 const menuVisible = ref(false);
@@ -485,12 +488,17 @@ function getBlockText(block: StoredBlock) {
   return getParagraphText(block);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function getPreviewProps(block: StoredBlock) {
   const definition = getInlineCustomComponentDefinition(block.type);
   if (!definition) return { edit: false };
+  const resolvedData = resolveRuntimeValue(block.data, pageVariableContext.value);
   return definition.normalizeProps({
     ...(definition.createInitialProps?.() ?? {}),
-    ...block.data,
+    ...(isRecord(resolvedData) ? resolvedData : {}),
     edit: false
   });
 }

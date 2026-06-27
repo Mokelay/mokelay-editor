@@ -24,15 +24,26 @@ export type BlockDataSource = {
 
 export type GetAvailableBlockDataSources = (excludeBlockId?: string) => BlockDataSource[];
 
+export type PageVariableSource = {
+  pageId: string;
+  pageLabel: string;
+};
+
+export type GetAvailablePageVariableSources = () => PageVariableSource[];
+
 export type VariableValueInputConfig = {
   mode: 'input';
   value: string;
 };
 
+export type VariableValueSource = 'Block' | 'MPage' | 'Cookie' | 'localStorage' | 'sessionStorage';
+
 export type VariableValueVariableConfig = {
   mode: 'variable';
+  source?: VariableValueSource;
   blockId?: string;
   blockType?: string;
+  pageId?: string;
   variable: string;
   processors?: ProcessorConfig[];
 };
@@ -53,8 +64,10 @@ export type VariableFlowNode =
   | {
       id: string;
       type: 'variable';
+      source?: VariableValueSource;
       blockId?: string;
       blockType?: string;
+      pageId?: string;
       variable: string;
       processors?: ProcessorConfig[];
     }
@@ -116,15 +129,54 @@ export type LegacyVariableValueConfig = {
   parts: LegacyVariableValuePart[];
 };
 
+export type PageVariableRuntimeData = {
+  context?: Record<string, unknown>;
+  dataSources?: Record<string, unknown>;
+  pageData?: Record<string, unknown>;
+};
+
 export type VariableValueResolveContext = Record<string, unknown> & {
   blocks?: Record<string, Record<string, unknown>>;
+  pages?: Record<string, PageVariableRuntimeData>;
+  pageId?: string;
+  context?: Record<string, unknown>;
+  dataSources?: Record<string, unknown>;
+  pageData?: Record<string, unknown>;
 };
 
 const variableDataTypes: VariableValueDataType[] = ['string', 'number', 'boolean', 'object', 'array'];
+const variableValueSources: VariableValueSource[] = ['Block', 'MPage', 'Cookie', 'localStorage', 'sessionStorage'];
 const conditionOperators: VariableFlowConditionOperator[] = ['EQ', 'NEQ', 'GT', 'GE', 'LT', 'LE', 'IN', 'NOTIN'];
+const pageVariableRegistry = new Map<string, PageVariableRuntimeData>();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function registerPageVariableRuntime(pageId: string, data: PageVariableRuntimeData) {
+  const normalizedPageId = normalizeOptionalString(pageId);
+  if (!normalizedPageId) return;
+  pageVariableRegistry.set(normalizedPageId, {
+    context: clonePlainRecord(data.context),
+    dataSources: clonePlainRecord(data.dataSources ?? data.pageData),
+    pageData: clonePlainRecord(data.pageData ?? data.dataSources)
+  });
+}
+
+export function unregisterPageVariableRuntime(pageId: string) {
+  const normalizedPageId = normalizeOptionalString(pageId);
+  if (!normalizedPageId) return;
+  pageVariableRegistry.delete(normalizedPageId);
+}
+
+export function getRegisteredPageVariableRuntimes(): Record<string, PageVariableRuntimeData> {
+  return Object.fromEntries(
+    [...pageVariableRegistry.entries()].map(([pageId, data]) => [pageId, {
+      context: clonePlainRecord(data.context),
+      dataSources: clonePlainRecord(data.dataSources ?? data.pageData),
+      pageData: clonePlainRecord(data.pageData ?? data.dataSources)
+    }])
+  );
 }
 
 export function normalizeVariableDataType(value: unknown, fallback: VariableValueDataType = 'string') {
@@ -207,6 +259,43 @@ export function normalizeBlockDataSources(value: unknown): BlockDataSource[] {
   });
 }
 
+export function normalizePageVariableSources(value: unknown): PageVariableSource[] {
+  if (!Array.isArray(value)) return [];
+  const sourcesByPageId = new Map<string, PageVariableSource>();
+
+  value.forEach((item) => {
+    const source = normalizePageVariableSource(item);
+    if (!source || sourcesByPageId.has(source.pageId)) return;
+    sourcesByPageId.set(source.pageId, source);
+  });
+
+  return [...sourcesByPageId.values()];
+}
+
+function normalizePageVariableSource(value: unknown): PageVariableSource | undefined {
+  if (typeof value === 'string') {
+    const pageId = value.trim();
+    return pageId ? { pageId, pageLabel: pageId } : undefined;
+  }
+
+  if (!isRecord(value)) return undefined;
+  const pageId = typeof value.pageId === 'string'
+    ? value.pageId.trim()
+    : typeof value.uuid === 'string'
+      ? value.uuid.trim()
+      : '';
+  if (!pageId) return undefined;
+
+  return {
+    pageId,
+    pageLabel: typeof value.pageLabel === 'string' && value.pageLabel.trim()
+      ? value.pageLabel.trim()
+      : typeof value.label === 'string' && value.label.trim()
+        ? value.label.trim()
+        : pageId
+  };
+}
+
 export function normalizeVariableValueConfig(value: unknown): VariableValueConfig {
   if (!isRecord(value)) {
     return { mode: 'input', value: stringifyPlainValue(value) };
@@ -223,7 +312,7 @@ export function normalizeVariableValueConfig(value: unknown): VariableValueConfi
     const variable = typeof value.variable === 'string' ? value.variable.trim() : '';
     return {
       mode: 'variable',
-      ...normalizeBlockReference(value),
+      ...normalizeVariableReference(value),
       variable,
       ...normalizeProcessorsProp(value.processors)
     };
@@ -258,7 +347,8 @@ export function stringifyVariableValue(value: unknown) {
   if (config.mode === 'input') return config.value;
   if (config.mode === 'variable') {
     const processors = config.processors?.length ? ` | ${config.processors.map(processorConfigName).join(', ')}` : '';
-    const variablePath = config.blockId ? `${config.blockId}.${config.variable}` : config.variable;
+    const source = normalizeVariableSource(config.source);
+    const variablePath = stringifyVariableReference(source, config);
     return `{{${variablePath}${processors}}}`;
   }
 
@@ -273,6 +363,24 @@ export function resolveVariableValueConfig(value: unknown, context: VariableValu
   }
 
   return resolveVariableFlow(config.flow, context);
+}
+
+export function resolveRuntimeValue(value: unknown, context: VariableValueResolveContext = {}): unknown {
+  if (isStructuredVariableValueConfig(value) || (isRecord(value) && value.type === 'template' && Array.isArray(value.parts))) {
+    return resolveVariableValueConfig(value, context);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveRuntimeValue(item, context));
+  }
+
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, resolveRuntimeValue(item, context)])
+    );
+  }
+
+  return value;
 }
 
 export function createFlowFromInput(value: string): VariableFlowConfig {
@@ -294,13 +402,13 @@ export function createFlowFromInput(value: string): VariableFlowConfig {
 export function createFlowFromVariable(
   variable: string,
   processors: ProcessorConfig[] = [],
-  block?: { blockId?: string; blockType?: string }
+  sourceReference?: { source?: VariableValueSource; blockId?: string; blockType?: string; pageId?: string }
 ): VariableFlowConfig {
   const nodes: VariableFlowNode[] = [
     {
       id: 'variable_1',
       type: 'variable',
-      ...normalizeBlockReference(block ?? {}),
+      ...normalizeVariableReference(sourceReference ?? {}),
       variable
     }
   ];
@@ -358,14 +466,62 @@ function normalizeProcessorsProp(value: unknown) {
   return processors.length ? { processors } : {};
 }
 
-function normalizeBlockReference(value: unknown) {
+function normalizeVariableSource(value: unknown): VariableValueSource {
+  return variableValueSources.includes(value as VariableValueSource)
+    ? value as VariableValueSource
+    : 'Block';
+}
+
+function normalizeVariableReference(value: unknown) {
   if (!isRecord(value)) return {};
+  const source = normalizeVariableSource(value.source);
   const blockId = typeof value.blockId === 'string' ? value.blockId.trim() : '';
   const blockType = typeof value.blockType === 'string' ? value.blockType.trim() : '';
+  const pageId = typeof value.pageId === 'string' ? value.pageId.trim() : '';
+
+  if (source === 'MPage') {
+    return {
+      source,
+      ...(pageId ? { pageId } : {})
+    };
+  }
+
+  if (source === 'Cookie' || source === 'localStorage' || source === 'sessionStorage') {
+    return { source };
+  }
+
   return {
+    source,
     ...(blockId ? { blockId } : {}),
     ...(blockType ? { blockType } : {})
   };
+}
+
+function stringifyVariableReference(
+  source: VariableValueSource,
+  reference: { blockId?: string; blockType?: string; pageId?: string; variable: string }
+) {
+  if (source === 'MPage') {
+    return `${reference.pageId || 'MPage'}.${reference.variable}`;
+  }
+
+  if (source === 'Cookie') {
+    return `Cookie.${reference.variable}`;
+  }
+
+  if (source === 'localStorage' || source === 'sessionStorage') {
+    return `${source}.${reference.variable}`;
+  }
+
+  if (reference.blockId) {
+    return `${reference.blockId}.${reference.variable}`;
+  }
+
+  if (reference.blockType) {
+    return `${reference.blockType}.${reference.variable}`;
+  }
+
+  return `Block.${reference.variable}`;
 }
 
 function normalizeLegacyTemplateConfig(value: LegacyVariableValueConfig): VariableValueConfig {
@@ -384,6 +540,7 @@ function normalizeLegacyTemplateConfig(value: LegacyVariableValueConfig): Variab
   if (!textParts.length && variableParts.length === 1) {
     return {
       mode: 'variable',
+      source: 'Block',
       variable: variableParts[0].variable,
       ...normalizeProcessorsProp(variableParts[0].processors)
     };
@@ -417,7 +574,7 @@ function normalizeFlowNode(value: unknown): VariableFlowNode[] {
     return [{
       id,
       type: 'variable',
-      ...normalizeBlockReference(value),
+      ...normalizeVariableReference(value),
       variable: typeof value.variable === 'string' ? value.variable.trim() : '',
       ...normalizeProcessorsProp(value.processors)
     }];
@@ -545,17 +702,152 @@ function evaluateCondition(condition: VariableFlowCondition, context: VariableVa
 }
 
 function readOperand(operand: VariableFlowConditionOperand, context: VariableValueResolveContext) {
-  return operand.kind === 'variable' ? context[operand.variable] : operand.value;
+  return operand.kind === 'variable' ? readRuntimePath(context, operand.variable) : operand.value;
 }
 
 function readContextVariable(
   context: VariableValueResolveContext,
-  reference: { blockId?: string; variable: string }
+  reference: { source?: VariableValueSource; blockId?: string; blockType?: string; pageId?: string; variable: string }
 ) {
-  if (reference.blockId) {
-    return context.blocks?.[reference.blockId]?.[reference.variable];
+  const source = normalizeVariableSource(reference.source);
+
+  if (source === 'MPage') {
+    return readPageVariable(context, reference);
   }
-  return context[reference.variable];
+
+  if (source === 'Cookie') {
+    return readCookieValue(reference.variable);
+  }
+
+  if (source === 'localStorage' || source === 'sessionStorage') {
+    return readStorageValue(source, reference.variable);
+  }
+
+  return readBlockVariable(context, reference);
+}
+
+function readBlockVariable(
+  context: VariableValueResolveContext,
+  reference: { blockId?: string; blockType?: string; variable: string }
+) {
+  const blocks = context.blocks ?? {};
+  const blockId = normalizeOptionalString(reference.blockId);
+  const blockType = normalizeOptionalString(reference.blockType);
+  const blockData = blockId
+    ? blocks[blockId]
+    : findBlockRuntimeDataByType(blocks, blockType);
+
+  return readRuntimePath(blockData, reference.variable);
+}
+
+function findBlockRuntimeDataByType(
+  blocks: Record<string, Record<string, unknown>>,
+  blockType: string
+) {
+  if (!blockType) return undefined;
+  return Object.values(blocks).find((data) => data?._blockType === blockType);
+}
+
+function readPageVariable(
+  context: VariableValueResolveContext,
+  reference: { pageId?: string; variable: string }
+) {
+  const pageId = normalizeOptionalString(reference.pageId) || normalizeOptionalString(context.pageId);
+  const registryPageData = pageId ? pageVariableRegistry.get(pageId) : undefined;
+  const providedPageData = pageId ? context.pages?.[pageId] : undefined;
+  const currentPageData: PageVariableRuntimeData = {
+    context: context.context,
+    dataSources: context.dataSources ?? context.pageData,
+    pageData: context.pageData ?? context.dataSources
+  };
+  const pageData = providedPageData ?? registryPageData ?? currentPageData;
+  const dataSources = pageData.dataSources ?? pageData.pageData ?? {};
+
+  return readRuntimePath({
+    context: pageData.context ?? {},
+    dataSources,
+    pageData: pageData.pageData ?? dataSources
+  }, reference.variable);
+}
+
+function readCookieValue(name: string) {
+  const normalizedName = normalizeOptionalString(name);
+  if (!normalizedName || typeof document === 'undefined') return undefined;
+
+  return document.cookie
+    .split(';')
+    .map((item) => item.trim())
+    .flatMap((item) => {
+      const equalsIndex = item.indexOf('=');
+      if (equalsIndex < 0) return [];
+      const key = decodeURIComponent(item.slice(0, equalsIndex).trim());
+      if (key !== normalizedName) return [];
+      return [decodeURIComponent(item.slice(equalsIndex + 1))];
+    })[0];
+}
+
+function readStorageValue(source: 'localStorage' | 'sessionStorage', key: string) {
+  const normalizedKey = normalizeOptionalString(key);
+  if (!normalizedKey || typeof window === 'undefined') return undefined;
+
+  try {
+    return window[source].getItem(normalizedKey) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function readRuntimePath(source: unknown, path?: string): unknown {
+  const normalizedPath = normalizeOptionalString(path);
+  if (!normalizedPath) return source;
+
+  return tokenizePath(normalizedPath).reduce<unknown>((cursor, segment) => {
+    if (isRecord(cursor) && Object.prototype.hasOwnProperty.call(cursor, segment)) {
+      return cursor[segment];
+    }
+
+    if (Array.isArray(cursor) && /^\d+$/.test(segment)) {
+      return cursor[Number(segment)];
+    }
+
+    return undefined;
+  }, source);
+}
+
+function tokenizePath(path: string) {
+  const segments: string[] = [];
+  let cursor = '';
+
+  for (let index = 0; index < path.length; index += 1) {
+    const char = path[index];
+    if (char === '.') {
+      if (cursor) segments.push(cursor);
+      cursor = '';
+      continue;
+    }
+
+    if (char === '[') {
+      if (cursor) {
+        segments.push(cursor);
+        cursor = '';
+      }
+      const end = path.indexOf(']', index);
+      if (end === -1) {
+        return [...segments, path.slice(index + 1).trim()].filter(Boolean);
+      }
+      const raw = path.slice(index + 1, end).trim();
+      if (raw) {
+        segments.push(raw.replace(/^['"]|['"]$/g, ''));
+      }
+      index = end;
+      continue;
+    }
+
+    cursor += char;
+  }
+
+  if (cursor) segments.push(cursor);
+  return segments;
 }
 
 function canReachOutput(flow: VariableFlowConfig) {
@@ -587,6 +879,15 @@ function stringifyPlainValue(value: unknown) {
   } catch {
     return String(value);
   }
+}
+
+function normalizeOptionalString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function clonePlainRecord(value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) return {};
+  return cloneValue(value);
 }
 
 function cloneValue<T>(value: T): T {

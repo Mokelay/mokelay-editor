@@ -105,6 +105,9 @@ export default class EditorToolFactory {
           ...(typeof mergedProps.currentBlockId === 'string' ? { currentBlockId: mergedProps.currentBlockId } : {}),
           ...(typeof mergedProps.getAvailableBlockDataSources === 'function'
             ? { getAvailableBlockDataSources: mergedProps.getAvailableBlockDataSources }
+            : {}),
+          ...(typeof mergedProps.getAvailablePageVariableSources === 'function'
+            ? { getAvailablePageVariableSources: mergedProps.getAvailablePageVariableSources }
             : {})
         };
       }
@@ -523,6 +526,7 @@ export default class EditorToolFactory {
           edit,
           currentBlockId: typeof state.currentBlockId === 'string' ? state.currentBlockId : undefined,
           getAvailableBlockDataSources: state.getAvailableBlockDataSources,
+          getAvailablePageVariableSources: state.getAvailablePageVariableSources,
           value,
           ...(field.getComponentProps?.({ value, state, edit }) ?? {})
         };
@@ -627,6 +631,9 @@ export function createEditorTools(
             }),
             ...(sharedConfig.getAvailableBlockDataSources
               ? { getAvailableBlockDataSources: sharedConfig.getAvailableBlockDataSources }
+              : {}),
+            ...(sharedConfig.getAvailablePageVariableSources
+              ? { getAvailablePageVariableSources: sharedConfig.getAvailablePageVariableSources }
               : {}),
             ...(sharedConfig.currentBlockId ? { currentBlockId: sharedConfig.currentBlockId } : {}),
             ...(sharedConfig.previewRuntime ? { previewRuntime: sharedConfig.previewRuntime } : {})

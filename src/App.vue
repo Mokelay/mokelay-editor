@@ -15,6 +15,7 @@ import {
   type MokelayPage,
   type PageSource
 } from '@/utils/pagesApi';
+import type { PageDataSourceConfig } from '@/utils/pageRuntimeContext';
 import {
   getPageRenderBundle,
   listLayouts,
@@ -87,6 +88,7 @@ const currentPageSource = ref<PageSource>('user');
 const currentPageAppUuid = ref<string | null>(null);
 const currentPageLayoutUuid = ref<string | null>(null);
 const pageBlocks = ref<OutputData['blocks']>(getInitialEditorBlocks(t));
+const pageDataSources = ref<PageDataSourceConfig[]>([]);
 const currentLayout = ref<MokelayLayout | null>(null);
 const pageLayoutOptions = ref<MokelayLayoutRecord[]>([]);
 const isLoadingPage = ref(false);
@@ -289,6 +291,7 @@ function applyPage(page: MokelayPage) {
   currentPageAppUuid.value = page.appUuid ?? null;
   currentPageLayoutUuid.value = page.layoutUuid ?? null;
   pageBlocks.value = page.blocks;
+  pageDataSources.value = page.dataSources ?? [];
   pageError.value = '';
   pageLayoutError.value = '';
   persistDraftBlocks(page.blocks);
@@ -305,6 +308,7 @@ function resetToLocalDraft() {
   pageLayoutError.value = '';
   isLoadingPage.value = false;
   pageBlocks.value = getInitialEditorBlocks(t);
+  pageDataSources.value = [];
   currentLayout.value = null;
 }
 
@@ -332,6 +336,7 @@ async function loadPage(uuid: string, source: PageSource) {
     currentPageSource.value = source;
     currentPageName.value = formatPageName(new Date());
     pageBlocks.value = [];
+    pageDataSources.value = [];
     pageError.value = toErrorMessage(error) || t('page.loadFailed');
     void $message('error', t('page.loadFailed'));
   } finally {
@@ -356,6 +361,9 @@ async function loadPreviewLayout(uuid: string, source: PageSource) {
         uuid: bundle.page.uuid,
         name: bundle.page.name,
         blocks: bundle.page.blocks,
+        dataSources: bundle.page.dataSources,
+        appUuid: bundle.page.appUuid,
+        layoutUuid: bundle.page.layoutUuid,
         createdAt: bundle.page.createdAt,
         updatedAt: bundle.page.updatedAt
       });
@@ -601,8 +609,13 @@ function backToLayoutList() {
 
 <template>
   <TooltipProvider>
-    <main data-testid="app-root" class="flex min-h-screen flex-col bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100">
-      <header data-testid="app-header" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <main
+      data-testid="app-root"
+      :class="isPreviewPage
+        ? 'flex min-h-screen flex-col bg-white text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100'
+        : 'flex min-h-screen flex-col bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100'"
+    >
+      <header v-if="!isPreviewPage" data-testid="app-header" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div class="flex flex-wrap items-center gap-3">
           <h1 data-testid="app-title" class="text-xl font-semibold">{{ t('app.title') }}</h1>
           <a
@@ -661,6 +674,12 @@ function backToLayoutList() {
               {{ t('app.pageList') }}
             </a>
             <a
+              href="#/pages/block_component_docs/preview?source=system"
+              class="rounded-md px-3 py-1.5 font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+            >
+              Block 文档
+            </a>
+            <a
               href="#/layouts"
               class="rounded-md px-3 py-1.5 font-medium"
               :class="isLayoutsSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
@@ -715,12 +734,25 @@ function backToLayoutList() {
       <PreviewPanel
         v-else-if="isPreviewPage"
         :blocks="pageBlocks"
+        :data-sources="pageDataSources"
         :loading="isLoadingPage"
         :error="pageError"
         :page-uuid="routePageUuid ?? currentPageUuid"
         :page-name="currentPageName"
         :layout="currentLayout"
-      />
+        :minimal="true"
+        :show-title="false"
+      >
+        <template #toolbarLeading>
+          <button
+            data-testid="back-to-editor-button"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500"
+            @click="backToEditorPage"
+          >
+            {{ t('preview.backToEditor') }}
+          </button>
+        </template>
+      </PreviewPanel>
       <div v-else-if="isEditorPage" class="flex flex-1 flex-col gap-4">
         <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="flex flex-wrap items-center justify-between gap-3">
@@ -739,6 +771,7 @@ function backToLayoutList() {
         <EditorPanel
           ref="editorPanelRef"
           :blocks="pageBlocks"
+          :page-uuid="currentPageUuid"
           :page-name="currentPageName"
           :layout-uuid="currentPageLayoutUuid"
           :layout-options="pageLayoutOptions"

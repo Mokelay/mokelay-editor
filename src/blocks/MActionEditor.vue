@@ -72,7 +72,7 @@ const actionDefinitions = [
     action: 'open_dialog',
     title: '打开对话框',
     alias: '打开对话框',
-    inputs: { title: '', pageUUID: '' },
+    inputs: { title: '', pageUUID: '', pageSource: 'user', context: {} },
     outputs: ['close_result']
   },
   {

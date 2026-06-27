@@ -121,6 +121,11 @@ export async function resolveApiDomainHost(value: string) {
     throw new ApiDomainError('missingApiDomain', 'API domain is required.');
   }
 
+  const directHost = normalizeApiDomainHostSafe(normalizedValue);
+  if (directHost) {
+    return directHost;
+  }
+
   const list = await listApiDomains();
   const matchedByUuid = findApiDomainByUuid(normalizedValue, list);
   if (matchedByUuid) {

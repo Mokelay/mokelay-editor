@@ -11,20 +11,24 @@ import {
   createFlowFromVariable,
   normalizeVariableOptions,
   normalizeBlockDataSources,
+  normalizePageVariableSources,
   normalizeVariableValueConfig,
   serializeVariableValueConfig,
   stringifyVariableValue,
   type BlockDataSource,
+  type PageVariableSource,
   type VariableFlowConfig,
   type VariableOption,
   type VariableValueConfig,
-  type VariableValueDataType
+  type VariableValueDataType,
+  type VariableValueSource
 } from '@/utils/variableValue';
 
 const props = defineProps<{
   modelValue?: unknown;
   variables?: VariableOption[];
   blockDataSources?: BlockDataSource[];
+  pageVariableSources?: PageVariableSource[];
   currentBlockId?: string;
   valueType?: VariableValueDataType;
   readonly?: boolean;
@@ -40,18 +44,37 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const mode = ref<VariableValueConfig['mode']>('input');
 const inputValue = ref('');
+const variableSource = ref<VariableValueSource>('Block');
 const blockId = ref('');
 const blockType = ref('');
+const pageId = ref('');
 const variableName = ref('');
 const variableProcessors = ref<ProcessorConfig[]>([]);
 const flowValue = ref<VariableFlowConfig>(createFlowFromInput(''));
 const processorOpen = ref(false);
 const flowOpen = ref(false);
 const previousSummary = ref('');
+const pageIdListId = `variable-page-id-options-${Math.random().toString(36).slice(2)}`;
 let lastEmittedValue = '';
 const legacySourceBlockId = '__legacy_variables__';
+const variableSourceOptions: Array<{ value: VariableValueSource; label: string }> = [
+  { value: 'Block', label: 'Block' },
+  { value: 'MPage', label: 'MPage' },
+  { value: 'Cookie', label: 'Cookie' },
+  { value: 'localStorage', label: 'localStorage' },
+  { value: 'sessionStorage', label: 'sessionStorage' }
+];
 
 const normalizedVariables = computed(() => normalizeVariableOptions(props.variables));
+const availablePageVariableSources = computed(() => {
+  const sources = normalizePageVariableSources(props.pageVariableSources);
+  if (!pageId.value || sources.some((source) => source.pageId === pageId.value)) return sources;
+
+  return [{
+    pageId: pageId.value,
+    pageLabel: t('variableValue.variable.missingPage').replace('{pageId}', pageId.value)
+  }, ...sources];
+});
 const availableBlockDataSources = computed(() => {
   const sources = normalizeBlockDataSources(props.blockDataSources);
   const hasSelectedSource = blockId.value && sources.some((source) => source.blockId === blockId.value);
@@ -83,6 +106,7 @@ const availableBlockDataSources = computed(() => {
   return [...missingSource, ...sources, ...legacySource];
 });
 const selectedBlock = computed(() => {
+  if (variableSource.value !== 'Block') return undefined;
   if (!blockId.value) {
     return availableBlockDataSources.value.find((source) => source.blockId === legacySourceBlockId);
   }
@@ -90,6 +114,17 @@ const selectedBlock = computed(() => {
 });
 const selectedField = computed(() => selectedBlock.value?.fields.find((field) => field.variable === variableName.value));
 const processorField = computed<DatasourceSchemaSelection | undefined>(() => {
+  if (variableSource.value !== 'Block') {
+    const variable = variableName.value.trim();
+    if (!variable) return undefined;
+    return {
+      path: variable,
+      label: variable,
+      type: props.valueType ?? 'string',
+      processors: variableProcessors.value
+    };
+  }
+
   const field = selectedField.value;
   if (!field) return undefined;
   return {
@@ -106,8 +141,10 @@ function syncFromModelValue() {
   previousSummary.value = stringifyVariableValue(config);
   if (config.mode === 'input') {
     inputValue.value = config.value;
+    variableSource.value = 'Block';
     blockId.value = '';
     blockType.value = '';
+    pageId.value = '';
     variableName.value = '';
     variableProcessors.value = [];
     flowValue.value = createFlowFromInput(config.value);
@@ -115,19 +152,25 @@ function syncFromModelValue() {
   }
   if (config.mode === 'variable') {
     inputValue.value = '';
+    variableSource.value = config.source ?? 'Block';
     blockId.value = config.blockId ?? '';
     blockType.value = config.blockType ?? '';
+    pageId.value = config.pageId ?? '';
     variableName.value = config.variable;
     variableProcessors.value = [...(config.processors ?? [])];
     flowValue.value = createFlowFromVariable(config.variable, variableProcessors.value, {
+      source: config.source ?? 'Block',
       blockId: config.blockId,
-      blockType: config.blockType
+      blockType: config.blockType,
+      pageId: config.pageId
     });
     return;
   }
   inputValue.value = '';
+  variableSource.value = 'Block';
   blockId.value = '';
   blockType.value = '';
+  pageId.value = '';
   variableName.value = '';
   variableProcessors.value = [];
   flowValue.value = config.flow;
@@ -138,6 +181,32 @@ function emitValue(value: unknown) {
   emit('update:modelValue', value);
 }
 
+function buildVariableConfig(): VariableValueConfig {
+  const base = {
+    mode: 'variable' as const,
+    source: variableSource.value,
+    variable: variableName.value,
+    ...(variableProcessors.value.length ? { processors: variableProcessors.value } : {})
+  };
+
+  if (variableSource.value === 'MPage') {
+    return {
+      ...base,
+      ...(pageId.value ? { pageId: pageId.value } : {})
+    };
+  }
+
+  if (variableSource.value === 'Cookie' || variableSource.value === 'localStorage' || variableSource.value === 'sessionStorage') {
+    return base;
+  }
+
+  return {
+    ...base,
+    ...(blockId.value ? { blockId: blockId.value } : {}),
+    ...(blockId.value && blockType.value ? { blockType: blockType.value } : {})
+  };
+}
+
 function emitCurrentMode() {
   if (props.readonly) return;
   if (mode.value === 'input') {
@@ -145,13 +214,7 @@ function emitCurrentMode() {
     return;
   }
   if (mode.value === 'variable') {
-    emitValue({
-      mode: 'variable',
-      ...(blockId.value ? { blockId: blockId.value } : {}),
-      ...(blockId.value && blockType.value ? { blockType: blockType.value } : {}),
-      variable: variableName.value,
-      ...(variableProcessors.value.length ? { processors: variableProcessors.value } : {})
-    });
+    emitValue(buildVariableConfig());
     return;
   }
   emitValue({ mode: 'flow', flow: flowValue.value });
@@ -168,8 +231,10 @@ function switchMode(nextMode: VariableValueConfig['mode']) {
   }
   if (nextMode === 'variable') {
     mode.value = 'variable';
+    variableSource.value = 'Block';
     blockId.value = '';
     blockType.value = '';
+    pageId.value = '';
     variableName.value = '';
     variableProcessors.value = [];
     emitCurrentMode();
@@ -177,8 +242,10 @@ function switchMode(nextMode: VariableValueConfig['mode']) {
   }
   flowValue.value = mode.value === 'variable' && variableName.value
     ? createFlowFromVariable(variableName.value, variableProcessors.value, {
+        source: variableSource.value,
         ...(blockId.value ? { blockId: blockId.value } : {}),
-        ...(blockId.value && blockType.value ? { blockType: blockType.value } : {})
+        ...(blockId.value && blockType.value ? { blockType: blockType.value } : {}),
+        ...(pageId.value ? { pageId: pageId.value } : {})
       })
     : createFlowFromInput(inputValue.value || previousSummary.value);
   mode.value = 'flow';
@@ -189,13 +256,7 @@ function switchMode(nextMode: VariableValueConfig['mode']) {
 function currentConfig(): VariableValueConfig {
   if (mode.value === 'input') return { mode: 'input', value: inputValue.value };
   if (mode.value === 'variable') {
-    return {
-      mode: 'variable',
-      ...(blockId.value ? { blockId: blockId.value } : {}),
-      ...(blockId.value && blockType.value ? { blockType: blockType.value } : {}),
-      variable: variableName.value,
-      ...(variableProcessors.value.length ? { processors: variableProcessors.value } : {})
-    };
+    return buildVariableConfig();
   }
   return { mode: 'flow', flow: flowValue.value };
 }
@@ -207,13 +268,36 @@ function updateInput(value: string) {
   emitCurrentMode();
 }
 
+function updateVariableSource(value: string) {
+  if (props.readonly) return;
+  const nextSource = variableSourceOptions.some((option) => option.value === value)
+    ? value as VariableValueSource
+    : 'Block';
+  if (nextSource === variableSource.value) return;
+
+  variableSource.value = nextSource;
+  blockId.value = '';
+  blockType.value = '';
+  pageId.value = '';
+  variableName.value = '';
+  variableProcessors.value = [];
+  emitCurrentMode();
+}
+
 function updateBlock(value: string) {
   if (props.readonly) return;
+  if (variableSource.value !== 'Block') return;
   const next = availableBlockDataSources.value.find((source) => source.blockId === value);
   blockId.value = next && next.blockId !== legacySourceBlockId ? next.blockId : '';
   blockType.value = next && next.blockId !== legacySourceBlockId ? next.blockType : '';
   variableName.value = next?.fields[0]?.variable ?? '';
   variableProcessors.value = [];
+  emitCurrentMode();
+}
+
+function updatePageId(value: string) {
+  if (props.readonly) return;
+  pageId.value = value.trim();
   emitCurrentMode();
 }
 
@@ -313,11 +397,22 @@ watch(() => props.modelValue, (value) => {
     >
 
     <div v-else-if="mode === 'variable'" class="variable-value-editor__variable" :data-testid="testid">
-      <span v-if="!availableBlockDataSources.length" class="variable-value-editor__empty">
+      <select
+        class="variable-value-editor__input variable-value-editor__source"
+        data-testid="variable-source-select"
+        :disabled="readonly"
+        :value="variableSource"
+        @change="updateVariableSource(($event.target as HTMLSelectElement).value)"
+      >
+        <option v-for="sourceOption in variableSourceOptions" :key="sourceOption.value" :value="sourceOption.value">
+          {{ sourceOption.label }}
+        </option>
+      </select>
+      <span v-if="variableSource === 'Block' && !availableBlockDataSources.length" class="variable-value-editor__empty">
         {{ t('variableValue.variable.emptySources') }}
       </span>
       <select
-        v-else
+        v-else-if="variableSource === 'Block'"
         class="variable-value-editor__input"
         data-testid="variable-block-select"
         :disabled="readonly"
@@ -330,7 +425,7 @@ watch(() => props.modelValue, (value) => {
         </option>
       </select>
       <select
-        v-if="availableBlockDataSources.length"
+        v-if="variableSource === 'Block' && availableBlockDataSources.length"
         class="variable-value-editor__input"
         data-testid="variable-single-select"
         :disabled="readonly || !selectedBlock"
@@ -342,11 +437,40 @@ watch(() => props.modelValue, (value) => {
           {{ field.label }} {{ field.variable }} · {{ field.dataType }}
         </option>
       </select>
+      <input
+        v-if="variableSource === 'MPage'"
+        class="variable-value-editor__input"
+        data-testid="variable-page-id"
+        type="text"
+        :list="availablePageVariableSources.length ? pageIdListId : undefined"
+        :readonly="readonly"
+        placeholder="pageId"
+        :value="pageId"
+        @input="updatePageId(($event.target as HTMLInputElement).value)"
+      >
+      <datalist v-if="variableSource === 'MPage' && availablePageVariableSources.length" :id="pageIdListId">
+        <option
+          v-for="source in availablePageVariableSources"
+          :key="source.pageId"
+          :value="source.pageId"
+          :label="source.pageLabel"
+        ></option>
+      </datalist>
+      <input
+        v-if="variableSource !== 'Block'"
+        class="variable-value-editor__input"
+        data-testid="variable-path-input"
+        type="text"
+        :readonly="readonly"
+        :placeholder="variableSource === 'MPage' ? 'context.items / dataSources.detail.items' : 'key'"
+        :value="variableName"
+        @input="updateVariable(($event.target as HTMLInputElement).value)"
+      >
       <button
         type="button"
         class="variable-value-editor__processor-button"
         data-testid="variable-single-processors"
-        :disabled="readonly || !selectedField"
+        :disabled="readonly || (variableSource === 'Block' ? !selectedField : !variableName.trim())"
         @click="processorOpen = true"
       >
         {{ variableProcessors.length ? t('datasource.processors.count').replace('{count}', String(variableProcessors.length)) : t('datasource.processors.configure') }}
@@ -391,7 +515,8 @@ watch(() => props.modelValue, (value) => {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 8px;
+  flex-wrap: nowrap;
+  gap: 6px;
 }
 
 .variable-value-editor--multiline {
@@ -402,6 +527,7 @@ watch(() => props.modelValue, (value) => {
   display: inline-flex;
   width: fit-content;
   flex: 0 0 auto;
+  align-self: flex-start;
   overflow: hidden;
   border: 1px solid rgb(203 213 225);
   border-radius: 8px;
@@ -417,7 +543,7 @@ watch(() => props.modelValue, (value) => {
   font: inherit;
   font-size: 12px;
   font-weight: 650;
-  padding: 4px 9px;
+  padding: 4px 8px;
   cursor: pointer;
 }
 
@@ -461,8 +587,12 @@ watch(() => props.modelValue, (value) => {
 }
 
 .variable-value-editor__variable .variable-value-editor__input {
-  flex: 1 1 0;
-  min-width: 120px;
+  flex: 1 1 112px;
+  min-width: 72px;
+}
+
+.variable-value-editor__variable .variable-value-editor__source {
+  flex: 0 0 96px;
 }
 
 .variable-value-editor__empty {
@@ -489,6 +619,11 @@ watch(() => props.modelValue, (value) => {
   cursor: pointer;
 }
 
+.variable-value-editor__processor-button {
+  min-width: 88px;
+  white-space: nowrap;
+}
+
 .variable-value-editor__processor-button:disabled,
 .variable-value-editor__flow button:disabled {
   cursor: not-allowed;
@@ -497,12 +632,15 @@ watch(() => props.modelValue, (value) => {
 
 .variable-value-editor__processor {
   flex: 0 0 auto;
+  max-width: 160px;
+  overflow: hidden;
   border-radius: 999px;
   background: rgb(240 253 250);
   color: rgb(15 118 110);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 7px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

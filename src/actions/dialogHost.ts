@@ -1,11 +1,13 @@
 import { createApp, defineAsyncComponent, h, type App as VueApp } from 'vue';
 import { getPage, getSystemPage } from '@/utils/pagesApi';
+import type { PageDataSourceConfig, PageRuntimeContext } from '@/utils/pageRuntimeContext';
 import type { OutputData } from '@editorjs/editorjs';
 
 type DialogRequest = {
   title: string;
   pageUUID: string;
   pageSource?: 'user' | 'system';
+  context?: PageRuntimeContext;
 };
 
 type DialogHandle = {
@@ -60,6 +62,8 @@ export async function showActionPageDialog(request: DialogRequest): Promise<unkn
           title: request.title,
           pageId: page.uuid,
           blocks: page.blocks,
+          dataSources: page.dataSources,
+          runtimeContext: request.context ?? {},
           onClose: close,
           onKeydown: handleKeydown
         });
@@ -79,8 +83,17 @@ const ActionDialogContent = {
       type: Array,
       required: true
     },
+    dataSources: {
+      type: Array,
+      required: false,
+      default: () => []
+    },
     pageId: {
       type: String,
+      required: true
+    },
+    runtimeContext: {
+      type: Object,
       required: true
     },
     onClose: {
@@ -96,6 +109,8 @@ const ActionDialogContent = {
     title: string;
     pageId: string;
     blocks: OutputData['blocks'];
+    dataSources?: PageDataSourceConfig[];
+    runtimeContext: PageRuntimeContext;
     onClose: DialogHandle['close'];
     onKeydown: (event: KeyboardEvent) => void;
   }) {
@@ -133,6 +148,8 @@ const ActionDialogContent = {
             edit: false,
             value: props.blocks,
             pageId: props.pageId,
+            dataSources: props.dataSources,
+            runtimeContext: props.runtimeContext,
             onClose: props.onClose
           })
         ])
