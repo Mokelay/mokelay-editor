@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { OutputData } from '@editorjs/editorjs';
-import { computed, defineAsyncComponent, ref } from 'vue';
+import * as QRCode from 'qrcode';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { MokelayLayout, RenderBundlePage } from '@/utils/layoutsApi';
 import type { PageDataSourceConfig } from '@/utils/pageRuntimeContext';
@@ -19,6 +20,7 @@ type PreviewPanelProps = {
   layout?: MokelayLayout | null;
   minimal?: boolean;
   showTitle?: boolean;
+  showToolbar?: boolean;
 };
 
 const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
@@ -32,17 +34,38 @@ const props = withDefaults(defineProps<PreviewPanelProps>(), {
   pageName: '',
   layout: null,
   minimal: false,
-  showTitle: true
+  showTitle: true,
+  showToolbar: true
 });
 
 const { t } = useI18n();
 const previewMode = ref<PreviewMode>('pc');
+const qrCodeDataUrl = ref('');
+const qrCodeError = ref('');
+const qrCodeLoading = ref(false);
 const previewPage = computed<RenderBundlePage>(() => ({
   uuid: props.pageUuid ?? '',
   name: props.pageName,
   blocks: props.blocks,
   dataSources: props.dataSources
 }));
+const isAppPreviewMode = computed(() => previewMode.value === 'ios' || previewMode.value === 'android');
+const qrCodeValue = computed(() => {
+  if (previewMode.value === 'ios') {
+    return typeof window === 'undefined' ? '' : window.location.href;
+  }
+
+  if (previewMode.value === 'android') {
+    const ticket = props.pageUuid || 'draft';
+    return `mokelay://preview/android?ticket=${encodeURIComponent(ticket)}`;
+  }
+
+  return '';
+});
+const qrCodeTitle = computed(() => previewMode.value === 'ios' ? t('preview.iosQrCode') : t('preview.androidQrCode'));
+const qrCodeDescription = computed(() => previewMode.value === 'ios'
+  ? t('preview.iosQrCodeDescription')
+  : t('preview.androidQrCodeDescription'));
 const panelClass = computed(() => props.minimal
   ? 'flex min-h-screen flex-1 flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100'
   : 'flex min-h-[520px] flex-1 flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900');
@@ -77,6 +100,33 @@ const phoneScreenClass = computed(() => {
 function setPreviewMode(mode: PreviewMode) {
   previewMode.value = mode;
 }
+
+watch(
+  [isAppPreviewMode, qrCodeValue],
+  async ([appPreviewMode, value]) => {
+    qrCodeDataUrl.value = '';
+    qrCodeError.value = '';
+
+    if (!appPreviewMode || !value) {
+      qrCodeLoading.value = false;
+      return;
+    }
+
+    qrCodeLoading.value = true;
+
+    try {
+      qrCodeDataUrl.value = await QRCode.toDataURL(value, {
+        margin: 1,
+        width: 220
+      });
+    } catch {
+      qrCodeError.value = t('preview.qrCodeFailed');
+    } finally {
+      qrCodeLoading.value = false;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -84,7 +134,7 @@ function setPreviewMode(mode: PreviewMode) {
     data-testid="preview-panel"
     :class="panelClass"
   >
-    <div :class="toolbarClass">
+    <div v-if="showToolbar" :class="toolbarClass">
       <div class="flex min-w-0 items-center gap-3">
         <slot name="toolbarLeading"></slot>
         <h2 v-if="showTitle" class="text-base font-semibold text-slate-950 dark:text-white">{{ t('preview.title') }}</h2>
@@ -115,6 +165,37 @@ function setPreviewMode(mode: PreviewMode) {
       <p v-else-if="!blocks.length && !layout" data-testid="preview-empty-state" class="rounded border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100">
         {{ t('preview.emptyState') }}
       </p>
+
+      <div
+        v-else-if="isAppPreviewMode"
+        data-testid="preview-app-qrcode"
+        class="flex min-h-full items-center justify-center bg-slate-50 px-4 py-10 dark:bg-slate-950"
+      >
+        <div class="w-full max-w-sm text-center">
+          <h3 data-testid="preview-qrcode-platform" class="text-lg font-semibold text-slate-950 dark:text-white">
+            {{ qrCodeTitle }}
+          </h3>
+          <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+            {{ qrCodeDescription }}
+          </p>
+          <div class="mt-6 inline-flex min-h-[244px] min-w-[244px] items-center justify-center rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <p v-if="qrCodeLoading" data-testid="preview-qrcode-loading" class="text-sm text-slate-500 dark:text-slate-400">
+              {{ t('preview.qrCodeLoading') }}
+            </p>
+            <p v-else-if="qrCodeError" data-testid="preview-qrcode-error" class="text-sm text-red-600 dark:text-red-300">
+              {{ qrCodeError }}
+            </p>
+            <img
+              v-else-if="qrCodeDataUrl"
+              data-testid="preview-qrcode-image"
+              :src="qrCodeDataUrl"
+              :alt="t('preview.qrCodeAlt')"
+              :data-qr-value="qrCodeValue"
+              class="h-[220px] w-[220px]"
+            />
+          </div>
+        </div>
+      </div>
 
       <div v-else-if="previewMode === 'pc'" data-testid="preview-pc-canvas" class="min-h-full">
         <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" />

@@ -143,6 +143,11 @@ export const enMessages = {
     iosQrCodeDescription: 'Scan with the Mokelay iOS app to open the current preview page.',
     androidQrCodeDescription: 'This is a temporary QR code and will be replaced when Android preview is live.'
   },
+  notFound: {
+    title: 'Page not found',
+    description: 'No renderable Mokelay page DSL was found. Check the URL or return home.',
+    home: 'Back home'
+  },
   globalCalls: {
     ok: 'OK',
     cancel: 'Cancel',

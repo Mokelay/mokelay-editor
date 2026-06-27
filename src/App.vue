@@ -20,7 +20,8 @@ import {
   getPageRenderBundle,
   listLayouts,
   type MokelayLayout,
-  type MokelayLayoutRecord
+  type MokelayLayoutRecord,
+  type RenderBundlePage
 } from '@/utils/layoutsApi';
 
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
@@ -32,8 +33,10 @@ const LayoutEditorPanel = defineAsyncComponent(() => import('@/components/Layout
 const DatasourceListPanel = defineAsyncComponent(() => import('@/components/DatasourceListPanel.vue'));
 const ChatAiPanel = defineAsyncComponent(() => import('@/components/ChatAiPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
+const NotFoundPage = defineAsyncComponent(() => import('@/components/NotFoundPage.vue'));
 
 const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
+const runtimePageUuidPattern = /^[A-Za-z0-9_-]{1,128}$/;
 
 function getCookieValue(name: string): string | null {
   const entries = document.cookie ? document.cookie.split('; ') : [];
@@ -76,10 +79,16 @@ type ParsedRoute = {
   layoutList: boolean;
   layoutUuid: string | null;
   preview: boolean;
+  runtimePage: boolean;
+  notFound: boolean;
+};
+
+type RouteLocation = {
+  rawPath: string;
 };
 
 const isDark = ref(getInitialThemeMode());
-const routeHash = ref(window.location.hash || '#/');
+const routeLocation = ref(readRouteLocation());
 const { t, localeValue, setLocale } = useI18n();
 const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
 const currentPageUuid = ref<string | null>(null);
@@ -97,11 +106,13 @@ const isLoadingPageLayouts = ref(false);
 const isSavingPageLayout = ref(false);
 const pageError = ref('');
 const pageLayoutError = ref('');
+const runtimePageLoadFailed = ref(false);
 let loadRequestId = 0;
 let layoutLoadRequestId = 0;
 let pageLayoutOptionsRequestId = 0;
+let runtimePageLoadRequestId = 0;
 
-const parsedRoute = computed(() => parseRouteHash(routeHash.value));
+const parsedRoute = computed(() => parseRouteLocation(routeLocation.value));
 const routePageUuid = computed(() => parsedRoute.value.pageUuid);
 const routePageSource = computed(() => parsedRoute.value.pageSource);
 const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
@@ -111,13 +122,16 @@ const routeApiSource = computed(() => parsedRoute.value.apiSource);
 const routeLayoutUuid = computed(() => parsedRoute.value.layoutUuid);
 const isAiChatPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.aiChat);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
+const isRuntimePage = computed(() => !isApiBuilderPage.value && parsedRoute.value.runtimePage);
+const isNotFoundPage = computed(() => !isApiBuilderPage.value && (parsedRoute.value.notFound || runtimePageLoadFailed.value));
 const isPageListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.pageList);
 const isLayoutListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.layoutList && !routeLayoutUuid.value);
 const isLayoutEditorPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.layoutList && Boolean(routeLayoutUuid.value));
-const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && Boolean(routePageUuid.value));
-const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isEditorPage.value && !isPageListPage.value && !isLayoutListPage.value && !isLayoutEditorPage.value);
+const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && Boolean(routePageUuid.value));
+const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && !isEditorPage.value && !isPageListPage.value && !isLayoutListPage.value && !isLayoutEditorPage.value);
 const isPagesSection = computed(() => isPageListPage.value || isEditorPage.value || isPreviewPage.value);
 const isLayoutsSection = computed(() => isLayoutListPage.value || isLayoutEditorPage.value);
+const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 const isSaveReady = computed(() => isEditorReady.value && currentPageSource.value === 'user');
 
@@ -126,114 +140,26 @@ function applyTheme(dark: boolean) {
 }
 
 function syncRoute() {
-  routeHash.value = window.location.hash || '#/';
+  routeLocation.value = readRouteLocation();
 }
 
-function parseRouteHash(hash: string): ParsedRoute {
-  const rawPath = hash.replace(/^#/, '') || '/';
-  const normalizedPath = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
-  const [path, rawQuery = ''] = normalizedPath.split('?', 2);
-  const apiSource = new URLSearchParams(rawQuery).get('source') === 'system' ? 'system' : 'user';
-  const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
-  const apiMatch = path.match(/^\/apis(?:\/([^/]+))?\/?$/);
-  const layoutMatch = path.match(/^\/layouts(?:\/([^/]+))?\/?$/);
+function readRouteLocation(): RouteLocation {
+  const hash = window.location.hash || '';
 
-  if (apiMatch) {
+  if (hash) {
     return {
-      pageUuid: null,
-      pageSource: 'user',
-      apiUuid: apiMatch[1] ? safeDecodeURIComponent(apiMatch[1]) : null,
-      apiBuilder: true,
-      apiSource,
-      datasourceList: false,
-      aiChat: false,
-      pageList: false,
-      layoutList: false,
-      layoutUuid: null,
-      preview: false
+      rawPath: hash.replace(/^#/, '') || '/'
     };
   }
 
-  if (path === '/datasources') {
-    return {
-      pageUuid: null,
-      pageSource: 'user',
-      apiUuid: null,
-      apiBuilder: false,
-      apiSource: 'user',
-      datasourceList: true,
-      aiChat: false,
-      pageList: false,
-      layoutList: false,
-      layoutUuid: null,
-      preview: false
-    };
-  }
+  const pathname = window.location.pathname === '/index.html' ? '/' : window.location.pathname;
 
-  if (path === '/ai-chat') {
-    return {
-      pageUuid: null,
-      pageSource: 'user',
-      apiUuid: null,
-      apiBuilder: false,
-      apiSource: 'user',
-      datasourceList: false,
-      aiChat: true,
-      pageList: false,
-      layoutList: false,
-      layoutUuid: null,
-      preview: false
-    };
-  }
+  return {
+    rawPath: `${pathname || '/'}${window.location.search || ''}`
+  };
+}
 
-  if (layoutMatch) {
-    return {
-      pageUuid: null,
-      pageSource: 'user',
-      apiUuid: null,
-      apiBuilder: false,
-      apiSource: 'user',
-      datasourceList: false,
-      aiChat: false,
-      pageList: false,
-      layoutList: true,
-      layoutUuid: layoutMatch[1] ? safeDecodeURIComponent(layoutMatch[1]) : null,
-      preview: false
-    };
-  }
-
-  if (path === '/pages') {
-    return {
-      pageUuid: null,
-      pageSource: apiSource,
-      apiUuid: null,
-      apiBuilder: false,
-      apiSource: 'user',
-      datasourceList: false,
-      aiChat: false,
-      pageList: true,
-      layoutList: false,
-      layoutUuid: null,
-      preview: false
-    };
-  }
-
-  if (pageMatch) {
-    return {
-      pageUuid: safeDecodeURIComponent(pageMatch[1]),
-      pageSource: apiSource,
-      apiUuid: null,
-      apiBuilder: false,
-      apiSource: 'user',
-      datasourceList: false,
-      aiChat: false,
-      pageList: false,
-      layoutList: false,
-      layoutUuid: null,
-      preview: Boolean(pageMatch[2])
-    };
-  }
-
+function createParsedRoute(overrides: Partial<ParsedRoute> = {}): ParsedRoute {
   return {
     pageUuid: null,
     pageSource: 'user',
@@ -245,8 +171,80 @@ function parseRouteHash(hash: string): ParsedRoute {
     pageList: false,
     layoutList: false,
     layoutUuid: null,
-    preview: path === '/preview'
+    preview: false,
+    runtimePage: false,
+    notFound: false,
+    ...overrides
   };
+}
+
+function parseRouteLocation(location: RouteLocation): ParsedRoute {
+  const rawPath = location.rawPath || '/';
+  const normalizedPath = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+  const [path, rawQuery = ''] = normalizedPath.split('?', 2);
+  const apiSource = new URLSearchParams(rawQuery).get('source') === 'system' ? 'system' : 'user';
+  const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
+  const apiMatch = path.match(/^\/apis(?:\/([^/]+))?\/?$/);
+  const layoutMatch = path.match(/^\/layouts(?:\/([^/]+))?\/?$/);
+
+  if (apiMatch) {
+    return createParsedRoute({
+      apiUuid: apiMatch[1] ? safeDecodeURIComponent(apiMatch[1]) : null,
+      apiBuilder: true,
+      apiSource
+    });
+  }
+
+  if (path === '/datasources') {
+    return createParsedRoute({ datasourceList: true });
+  }
+
+  if (path === '/ai-chat') {
+    return createParsedRoute({ aiChat: true });
+  }
+
+  if (layoutMatch) {
+    return createParsedRoute({
+      layoutList: true,
+      layoutUuid: layoutMatch[1] ? safeDecodeURIComponent(layoutMatch[1]) : null
+    });
+  }
+
+  if (path === '/pages') {
+    return createParsedRoute({
+      pageSource: apiSource,
+      pageList: true
+    });
+  }
+
+  if (pageMatch) {
+    return createParsedRoute({
+      pageUuid: safeDecodeURIComponent(pageMatch[1]),
+      pageSource: apiSource,
+      preview: Boolean(pageMatch[2])
+    });
+  }
+
+  if (path === '/preview') {
+    return createParsedRoute({ preview: true });
+  }
+
+  if (path === '/') {
+    return createParsedRoute();
+  }
+
+  const runtimePageMatch = path.match(/^\/([^/]+)\/?$/);
+  const runtimePageUuid = runtimePageMatch ? safeDecodeURIComponent(runtimePageMatch[1]) : '';
+
+  if (runtimePageUuidPattern.test(runtimePageUuid)) {
+    return createParsedRoute({
+      pageUuid: runtimePageUuid,
+      pageSource: 'system',
+      runtimePage: true
+    });
+  }
+
+  return createParsedRoute({ notFound: true });
 }
 
 function safeDecodeURIComponent(value: string) {
@@ -297,6 +295,19 @@ function applyPage(page: MokelayPage) {
   persistDraftBlocks(page.blocks);
 }
 
+function applyRuntimePage(page: RenderBundlePage, layout: MokelayLayout | null) {
+  currentPageUuid.value = page.uuid;
+  currentPageName.value = page.name || formatPageName(new Date());
+  currentPageSource.value = 'system';
+  currentPageAppUuid.value = page.appUuid ?? null;
+  currentPageLayoutUuid.value = page.layoutUuid ?? null;
+  pageBlocks.value = page.blocks;
+  pageDataSources.value = page.dataSources ?? [];
+  currentLayout.value = layout;
+  pageError.value = '';
+  pageLayoutError.value = '';
+}
+
 function resetToLocalDraft() {
   loadRequestId += 1;
   currentPageUuid.value = null;
@@ -310,6 +321,19 @@ function resetToLocalDraft() {
   pageBlocks.value = getInitialEditorBlocks(t);
   pageDataSources.value = [];
   currentLayout.value = null;
+}
+
+function resetRuntimePageState(uuid: string | null) {
+  currentPageUuid.value = uuid;
+  currentPageSource.value = 'system';
+  currentPageName.value = uuid || t('notFound.title');
+  currentPageAppUuid.value = null;
+  currentPageLayoutUuid.value = null;
+  pageBlocks.value = [];
+  pageDataSources.value = [];
+  currentLayout.value = null;
+  pageError.value = '';
+  pageLayoutError.value = '';
 }
 
 async function loadPage(uuid: string, source: PageSource) {
@@ -375,6 +399,34 @@ async function loadPreviewLayout(uuid: string, source: PageSource) {
   }
 }
 
+async function loadRuntimePage(uuid: string) {
+  const requestId = runtimePageLoadRequestId + 1;
+  runtimePageLoadRequestId = requestId;
+  isLoadingPage.value = true;
+  runtimePageLoadFailed.value = false;
+  resetRuntimePageState(uuid);
+
+  try {
+    const bundle = await getPageRenderBundle(uuid, 'system');
+    if (requestId !== runtimePageLoadRequestId) return;
+
+    if (!bundle.page) {
+      runtimePageLoadFailed.value = true;
+      return;
+    }
+
+    applyRuntimePage(bundle.page, bundle.layout);
+  } catch {
+    if (requestId !== runtimePageLoadRequestId) return;
+    runtimePageLoadFailed.value = true;
+    resetRuntimePageState(uuid);
+  } finally {
+    if (requestId === runtimePageLoadRequestId) {
+      isLoadingPage.value = false;
+    }
+  }
+}
+
 async function loadPageLayoutOptions() {
   const requestId = pageLayoutOptionsRequestId + 1;
   pageLayoutOptionsRequestId = requestId;
@@ -417,10 +469,12 @@ function formatPageName(date: Date) {
 onMounted(() => {
   applyTheme(isDark.value);
   window.addEventListener('hashchange', syncRoute);
+  window.addEventListener('popstate', syncRoute);
 });
 
 onUnmounted(() => {
   window.removeEventListener('hashchange', syncRoute);
+  window.removeEventListener('popstate', syncRoute);
 });
 
 watch(isDark, (dark) => {
@@ -429,9 +483,10 @@ watch(isDark, (dark) => {
 });
 
 watch(
-  [routePageUuid, routePageSource, isApiBuilderPage, isAiChatPage],
-  ([uuid, source, apiBuilder, aiChat]) => {
-    if (apiBuilder || aiChat) {
+  [routePageUuid, routePageSource, isApiBuilderPage, isAiChatPage, isRuntimePage, isNotFoundPage],
+  ([uuid, source, apiBuilder, aiChat, runtimePage, notFound]) => {
+    if (apiBuilder || aiChat || runtimePage || notFound) {
+      loadRequestId += 1;
       return;
     }
 
@@ -445,6 +500,26 @@ watch(
     }
 
     void loadPage(uuid, source);
+  },
+  { immediate: true }
+);
+
+watch(
+  [isRuntimePage, routePageUuid],
+  ([runtimePage, uuid]) => {
+    runtimePageLoadFailed.value = false;
+
+    if (!runtimePage) {
+      runtimePageLoadRequestId += 1;
+      return;
+    }
+
+    if (!uuid) {
+      runtimePageLoadFailed.value = true;
+      return;
+    }
+
+    void loadRuntimePage(uuid);
   },
   { immediate: true }
 );
@@ -611,11 +686,11 @@ function backToLayoutList() {
   <TooltipProvider>
     <main
       data-testid="app-root"
-      :class="isPreviewPage
+      :class="isStandalonePage
         ? 'flex min-h-screen flex-col bg-white text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100'
         : 'flex min-h-screen flex-col bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100'"
     >
-      <header v-if="!isPreviewPage" data-testid="app-header" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+      <header v-if="!isStandalonePage" data-testid="app-header" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div class="flex flex-wrap items-center gap-3">
           <h1 data-testid="app-title" class="text-xl font-semibold">{{ t('app.title') }}</h1>
           <a
@@ -730,6 +805,19 @@ function backToLayoutList() {
         v-if="isApiBuilderPage"
         :route-uuid="routeApiUuid"
         :route-source="routeApiSource"
+      />
+      <NotFoundPage v-else-if="isNotFoundPage" />
+      <PreviewPanel
+        v-else-if="isRuntimePage"
+        :blocks="pageBlocks"
+        :data-sources="pageDataSources"
+        :loading="isLoadingPage"
+        :page-uuid="routePageUuid ?? currentPageUuid"
+        :page-name="currentPageName"
+        :layout="currentLayout"
+        :minimal="true"
+        :show-title="false"
+        :show-toolbar="false"
       />
       <PreviewPanel
         v-else-if="isPreviewPage"

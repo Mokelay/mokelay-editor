@@ -143,6 +143,11 @@ export const zhMessages = {
     iosQrCodeDescription: '使用 Mokelay iOS App 扫码打开当前预览页。',
     androidQrCodeDescription: '当前为临时二维码，Android 端上线后将替换为真实入口。'
   },
+  notFound: {
+    title: '页面不存在',
+    description: '没有找到可渲染的 Mokelay 页面 DSL，请检查地址或返回首页。',
+    home: '返回首页'
+  },
   globalCalls: {
     ok: '确定',
     cancel: '取消',
