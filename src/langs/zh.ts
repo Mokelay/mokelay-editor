@@ -255,6 +255,28 @@ export const zhMessages = {
       invalidJson: '请输入有效 JSON。'
     }
   },
+  tabs: {
+    toolboxTitle: '页签',
+    propertyPanelTitle: '页签属性',
+    properties: {
+      tabs: '页签配置',
+      activeTabId: '激活页签 ID'
+    },
+    dataFields: {
+      activeTabId: '激活页签 ID',
+      activeTab: '激活页签',
+      tabs: '页签列表'
+    },
+    states: {
+      empty: '请先配置页签。',
+      loading: '页面加载中...',
+      loadFailed: '页面加载失败。',
+      emptyPage: '当前页签没有页面内容。'
+    },
+    validation: {
+      invalidTabsJson: '请输入有效页签 JSON。'
+    }
+  },
   editorSelector: {
     toolboxTitle: '组件选择器',
     placeholder: '选择组件'

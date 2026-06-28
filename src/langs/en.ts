@@ -255,6 +255,28 @@ export const enMessages = {
       invalidJson: 'Enter valid JSON.'
     }
   },
+  tabs: {
+    toolboxTitle: 'Tabs',
+    propertyPanelTitle: 'Tabs Properties',
+    properties: {
+      tabs: 'Tabs config',
+      activeTabId: 'Active tab ID'
+    },
+    dataFields: {
+      activeTabId: 'Active tab ID',
+      activeTab: 'Active tab',
+      tabs: 'Tabs'
+    },
+    states: {
+      empty: 'Configure tabs first.',
+      loading: 'Loading page...',
+      loadFailed: 'Failed to load page.',
+      emptyPage: 'The active tab has no page content.'
+    },
+    validation: {
+      invalidTabsJson: 'Enter valid tabs JSON.'
+    }
+  },
   editorSelector: {
     toolboxTitle: 'Component Selector',
     placeholder: 'Select a component'
