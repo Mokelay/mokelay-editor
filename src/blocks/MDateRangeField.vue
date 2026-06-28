@@ -89,7 +89,7 @@ import type { PageDslCallbacks } from '@/blocks/pageDslEditorTools';
 
 const props = defineProps<MDateRangeFieldProps & PageDslCallbacks<MDateRangeFieldProps>>();
 
-type DateRangePickerValue = [Date | null, Date | null] | null;
+type DateRangePickerValue = Date[] | null;
 
 const localPickerId = createPageDslFieldId();
 const pickerFieldId = computed(() => props.id ? `${props.id}-range` : localPickerId);
@@ -180,7 +180,7 @@ function toPickerValue(value: MDateRangeFieldValue): DateRangePickerValue {
   const start = parseDateRangePart(value.start, 'start');
   const end = parseDateRangePart(value.end, 'end');
 
-  if (!start && !end) {
+  if (!start || !end) {
     return null;
   }
 
