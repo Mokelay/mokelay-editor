@@ -86,6 +86,8 @@ test('renders an app default layout around a page preview', async ({ page }) => 
   await expect(page.getByTestId('layout-top-nav')).toContainText('Docs');
   await expect(page.getByTestId('layout-top-nav')).toContainText('Ada Lovelace');
   await expect(page.getByTestId('preview-blocks')).toContainText('Rendered inside the page slot.');
+  await expect(page.getByTestId('layout-page-slot-panel')).toHaveCount(0);
+  await expect(page.locator('[data-layout-page-slot-surface="plain"]')).toBeVisible();
 });
 
 test('renders guest actions without resolving logged-in user templates', async ({ page }) => {
@@ -300,7 +302,7 @@ test('renders a system page with its declared layout', async ({ page }) => {
             {
               id: 'page-slot',
               type: 'MPageSlot',
-              data: { name: 'default' }
+              data: { name: 'default', surface: 'panel' }
             }
           ]
         }
@@ -312,6 +314,8 @@ test('renders a system page with its declared layout', async ({ page }) => {
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
   await expect(page.getByTestId('layout-top-nav')).toContainText('页面列表');
   await expect(page.getByTestId('preview-blocks')).toContainText('Built-in page list content.');
+  await expect(page.getByTestId('layout-page-slot-panel')).toBeVisible();
+  await expect(page.getByTestId('layout-page-slot-panel')).toHaveAttribute('data-layout-page-slot-surface', 'panel');
 
   const topNavBox = await page.getByTestId('layout-top-nav').boundingBox();
   const pageSlotBox = await page.locator('[data-layout-block-type="MPageSlot"]').boundingBox();

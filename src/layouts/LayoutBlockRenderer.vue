@@ -52,6 +52,8 @@ const resolvedDataResult = computed(() => {
 
 const resolvedData = computed(() => resolvedDataResult.value.data);
 const resolvedError = computed(() => resolvedDataResult.value.error);
+const pageSlotSurface = computed(() => resolvedData.value.surface === 'panel' ? 'panel' : 'plain');
+const isPageSlotPanel = computed(() => pageSlotSurface.value === 'panel');
 const conditionMatched = computed(() => Boolean(resolvedData.value.condition));
 const ifBlocks = computed(() => normalizeLayoutBlocks(conditionMatched.value
   ? resolvedData.value.thenBlocks ?? resolvedData.value.blocks
@@ -90,13 +92,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 <template>
   <pre v-if="resolvedError" data-testid="layout-block-error" class="layout-block-error">{{ resolvedError }}</pre>
 
-  <MPage
+  <div
     v-else-if="blockDefinition?.kind === 'pageSlot'"
-    :edit="false"
-    :value="context.page.blocks"
-    :page-id="context.page.uuid"
-    :data-sources="context.page.dataSources"
-  />
+    :class="['layout-page-slot', { 'layout-page-slot--panel': isPageSlotPanel }]"
+    :data-testid="isPageSlotPanel ? 'layout-page-slot-panel' : undefined"
+    :data-layout-page-slot-surface="pageSlotSurface"
+  >
+    <MPage
+      :edit="false"
+      :value="context.page.blocks"
+      :page-id="context.page.uuid"
+      :data-sources="context.page.dataSources"
+    />
+  </div>
 
   <template v-else-if="blockDefinition?.kind === 'conditional'">
     <LayoutBlockRenderer
@@ -136,9 +144,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   padding: 10px;
 }
 
+.layout-page-slot {
+  min-width: 0;
+}
+
+.layout-page-slot--panel {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 12px;
+  background: rgb(255 255 255);
+  padding: 16px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+}
+
 :global(.dark) .layout-block-error {
   border-color: rgb(127 29 29);
   background: rgb(127 29 29 / 0.24);
   color: rgb(254 202 202);
+}
+
+:global(.dark) .layout-page-slot--panel {
+  border-color: rgb(51 65 85);
+  background: rgb(15 23 42);
 }
 </style>
