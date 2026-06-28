@@ -26,7 +26,6 @@ import {
 
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
-const PageListPanel = defineAsyncComponent(() => import('@/components/PageListPanel.vue'));
 const AppListPanel = defineAsyncComponent(() => import('@/components/AppListPanel.vue'));
 const LayoutListPanel = defineAsyncComponent(() => import('@/components/LayoutListPanel.vue'));
 const LayoutEditorPanel = defineAsyncComponent(() => import('@/components/LayoutEditorPanel.vue'));
@@ -75,7 +74,6 @@ type ParsedRoute = {
   apiSource: 'user' | 'system';
   datasourceList: boolean;
   aiChat: boolean;
-  pageList: boolean;
   layoutList: boolean;
   layoutUuid: string | null;
   preview: boolean;
@@ -124,12 +122,11 @@ const isAiChatPage = computed(() => !isApiBuilderPage.value && parsedRoute.value
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
 const isRuntimePage = computed(() => !isApiBuilderPage.value && parsedRoute.value.runtimePage);
 const isNotFoundPage = computed(() => !isApiBuilderPage.value && (parsedRoute.value.notFound || runtimePageLoadFailed.value));
-const isPageListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.pageList);
 const isLayoutListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.layoutList && !routeLayoutUuid.value);
 const isLayoutEditorPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.layoutList && Boolean(routeLayoutUuid.value));
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && Boolean(routePageUuid.value));
-const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && !isEditorPage.value && !isPageListPage.value && !isLayoutListPage.value && !isLayoutEditorPage.value);
-const isPagesSection = computed(() => isPageListPage.value || isEditorPage.value || isPreviewPage.value);
+const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && !isEditorPage.value && !isLayoutListPage.value && !isLayoutEditorPage.value);
+const isPagesSection = computed(() => isEditorPage.value || isPreviewPage.value);
 const isLayoutsSection = computed(() => isLayoutListPage.value || isLayoutEditorPage.value);
 const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
@@ -168,7 +165,6 @@ function createParsedRoute(overrides: Partial<ParsedRoute> = {}): ParsedRoute {
     apiSource: 'user',
     datasourceList: false,
     aiChat: false,
-    pageList: false,
     layoutList: false,
     layoutUuid: null,
     preview: false,
@@ -207,13 +203,6 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
     return createParsedRoute({
       layoutList: true,
       layoutUuid: layoutMatch[1] ? safeDecodeURIComponent(layoutMatch[1]) : null
-    });
-  }
-
-  if (path === '/pages') {
-    return createParsedRoute({
-      pageSource: apiSource,
-      pageList: true
     });
   }
 
@@ -257,10 +246,6 @@ function safeDecodeURIComponent(value: string) {
 
 function sourceQuery(source: PageSource) {
   return source === 'system' ? '?source=system' : '';
-}
-
-function getPageListHash(source: PageSource) {
-  return `/pages${sourceQuery(source)}`;
 }
 
 function getEditorHash(uuid: string, source: PageSource = 'user') {
@@ -656,21 +641,8 @@ function backToEditorPage() {
   window.location.hash = uuid ? getEditorHash(uuid, currentPageSource.value) : '/';
 }
 
-function backToPageList() {
-  window.location.hash = getPageListHash(currentPageSource.value);
-}
-
-function openPageFromList(uuid: string, source: PageSource) {
-  window.location.hash = getEditorHash(uuid, source);
-}
-
-function handlePageSourceChange(source: PageSource) {
-  window.location.hash = getPageListHash(source);
-}
-
-function handlePageCreated(page: MokelayPage) {
-  applyPage(page);
-  window.location.hash = getEditorHash(page.uuid);
+function backToPagesPage() {
+  window.location.hash = '/pages';
 }
 
 function openLayoutFromList(uuid: string) {
@@ -845,11 +817,11 @@ function backToLayoutList() {
         <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <button data-testid="back-to-page-list-button" class="mb-2 text-sm font-medium text-teal-700 hover:text-teal-500 dark:text-teal-300" @click="backToPageList">
-                {{ t('pageList.backToList') }}
+              <button data-testid="back-to-page-list-button" class="mb-2 text-sm font-medium text-teal-700 hover:text-teal-500 dark:text-teal-300" @click="backToPagesPage">
+                {{ t('page.backToPages') }}
               </button>
               <div class="flex flex-wrap items-center gap-3">
-                <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ currentPageName || t('pageList.unnamedPage') }}</h2>
+                <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ currentPageName || t('page.unnamedPage') }}</h2>
                 <code v-if="currentPageUuid" class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ currentPageUuid }}</code>
               </div>
             </div>
@@ -874,13 +846,6 @@ function backToLayoutList() {
           @layout-change="handlePageLayoutChange"
         />
       </div>
-      <PageListPanel
-        v-else-if="isPageListPage"
-        :source="routePageSource"
-        @open-page="openPageFromList"
-        @page-created="handlePageCreated"
-        @source-change="handlePageSourceChange"
-      />
       <LayoutListPanel
         v-else-if="isLayoutListPage"
         @open-layout="openLayoutFromList"

@@ -800,6 +800,8 @@ export const zhMessages = {
   },
   page: {
     toolboxTitle: '页面',
+    backToPages: '返回页面管理',
+    unnamedPage: '未命名页面',
     loading: '正在读取页面...',
     loadFailed: '页面读取失败，请稍后重试。'
   },
@@ -894,49 +896,6 @@ export const zhMessages = {
       name: '字段名',
       type: '字段类型',
       dataType: '数据类型'
-    }
-  },
-  pageList: {
-    title: '页面列表',
-    total: '共 {count} 个页面',
-    createPage: '创建页面',
-    loading: '正在加载页面列表...',
-    empty: '暂无页面，可以先创建一个页面。',
-    loadFailed: '页面列表加载失败，请稍后重试。',
-    createFailed: '页面创建失败，请稍后重试。',
-    source: {
-      label: '页面来源',
-      user: '用户创建',
-      system: '系统内置'
-    },
-    createDialogTitle: '创建页面',
-    pageName: '页面名称',
-    creating: '创建中...',
-    saveAndOpen: '保存并打开',
-    open: '打开',
-    delete: '删除',
-    deleting: '删除中...',
-    deleteDialogTitle: '删除页面',
-    deleteDialogContent: '确定删除页面「{name}」？此操作不可恢复。',
-    deleteSuccess: '页面已删除。',
-    deleteFailed: '页面删除失败，请稍后重试。',
-    deleteNotFound: '页面不存在或已被删除。',
-    pageRange: '第 {start}-{end} 条，共 {total} 条',
-    pageRangeEmpty: '暂无分页数据',
-    currentPage: '第 {page} / {totalPages} 页',
-    previousPage: '上一页',
-    nextPage: '下一页',
-    backToList: '返回页面列表',
-    unnamedPage: '未命名页面',
-    nameRequired: '页面名称不能为空。',
-    nameTooLong: '页面名称不能超过 120 个字符。',
-    columns: {
-      name: '名称',
-      uuid: 'UUID',
-      blocks: 'Block 数',
-      createdAt: '创建时间',
-      updatedAt: '最近编辑',
-      actions: '操作'
     }
   },
 } as const;

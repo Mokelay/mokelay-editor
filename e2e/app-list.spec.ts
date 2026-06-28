@@ -18,7 +18,6 @@ test('renders the app list on the editor home route', async ({ page }) => {
   await expect(page.getByTestId('app-list-panel')).toBeVisible();
   await expect(page.getByRole('row', { name: /Console/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /Internal tools/ })).toBeVisible();
-  await expect(page.getByTestId('page-list-panel')).toHaveCount(0);
 });
 
 test('creates an app from the app list', async ({ page }) => {
@@ -95,14 +94,21 @@ test('requires an app UUID with at most eight characters', async ({ page }) => {
   await expect(uuidInput).toHaveCSS('border-top-width', '1px');
 });
 
-test('opens the page list from the top navigation', async ({ page }) => {
+test('opens the pages DSL runtime from the top navigation', async ({ page }) => {
   await resetEditor(page, {
     initialRoute: '/',
-    pages: [
+    systemPages: [
       {
-        uuid: 'page-list-nav',
-        name: 'Page from nav',
-        blocks: []
+        uuid: 'pages',
+        name: 'Pages DSL',
+        blocks: [
+          {
+            type: 'paragraph',
+            data: {
+              text: 'Pages DSL route'
+            }
+          }
+        ]
       }
     ]
   });
@@ -110,6 +116,6 @@ test('opens the page list from the top navigation', async ({ page }) => {
   await page.getByRole('link', { name: /页面列表|Pages/ }).click();
 
   await expect(page).toHaveURL(/#\/pages$/);
-  await expect(page.getByTestId('page-list-panel')).toBeVisible();
-  await expect(page.getByRole('row', { name: /Page from nav/ })).toBeVisible();
+  await expect(page.getByTestId('preview-panel')).toBeVisible();
+  await expect(page.getByTestId('preview-block-paragraph')).toContainText('Pages DSL route');
 });

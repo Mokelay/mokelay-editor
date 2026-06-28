@@ -26,41 +26,6 @@ test('renders editor panel with expected controls', async ({ page }) => {
   await expect(page.getByTestId('preview-button')).toBeVisible();
 });
 
-test('creates a new page through the pages API without showing the JSON dialog', async ({ page }) => {
-  await resetEditor(page, {
-    initialRoute: '/#/pages'
-  });
-
-  const createRequestPromise = page.waitForRequest((request) =>
-    request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_page'
-  );
-
-  await page.getByTestId('create-page-button').click();
-  await page.getByTestId('create-page-name').fill('My first DSL page');
-  await page.getByTestId('create-page-submit').click();
-  const createRequest = await createRequestPromise;
-  const payload = createRequest.postDataJSON() as {
-    name?: string;
-    blocks?: Array<{ type?: string; data?: { text?: string } }>;
-  };
-
-  expect(payload.name).toBe('My first DSL page');
-  expect(Array.isArray(payload.blocks)).toBeTruthy();
-  expect(payload.blocks).toHaveLength(0);
-  await expect(page.getByTestId('config-dialog')).toHaveCount(0);
-  await expect(page).toHaveURL(new RegExp(`#\\/pages\\/${defaultPageUuid}$`));
-
-  const storedConfig = await page.evaluate((key) => localStorage.getItem(key), storageKey);
-  expect(storedConfig).not.toBeNull();
-
-  const parsed = JSON.parse(storedConfig ?? '{}') as {
-    blocks?: Array<{ type?: string; data?: { text?: string } }>;
-  };
-
-  expect(Array.isArray(parsed.blocks)).toBeTruthy();
-  expect(parsed.blocks).toHaveLength(0);
-});
-
 test('restores API-backed content after reload', async ({ page }) => {
   await page.getByTestId('save-button').click();
   await expect(page).toHaveURL(new RegExp(`#\\/pages\\/${defaultPageUuid}$`));
@@ -120,22 +85,6 @@ test('loads an existing page from the UUID route and updates name and blocks', a
   expect(payload.name).toBe('Renamed existing page');
   expect(Array.isArray(payload.blocks)).toBeTruthy();
   expect(payload.blocks?.[0]?.data?.text).toBe('Loaded page content');
-});
-
-test('shows backend error message when creating a page fails through the API envelope', async ({ page }) => {
-  await resetEditor(page, {
-    initialRoute: '/#/pages'
-  });
-
-  await page.route('**/api/mokelay/create_page', async (route) => {
-    await fulfillPageApiFailure(route, 'PAGE_CREATE_FAILED', 'Cannot create page.');
-  });
-
-  await page.getByTestId('create-page-button').click();
-  await page.getByTestId('create-page-submit').click();
-
-  await expect(page.getByTestId('create-page-error')).toContainText('Cannot create page.');
-  await expect(page).not.toHaveURL(new RegExp('#\\/pages\\/'));
 });
 
 test('shows backend error message when loading a page fails through the API envelope', async ({ page }) => {
