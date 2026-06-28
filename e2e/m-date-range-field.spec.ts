@@ -48,6 +48,11 @@ async function fillDateTimeRange(
 }
 
 test('adds and serializes date time range field values as ISO timestamps', async ({ page }) => {
+  const consoleMessages: string[] = [];
+  page.on('console', (message) => {
+    consoleMessages.push(message.text());
+  });
+
   await switchLocaleToChinese(page);
   await addEditorTool(page, /^日期范围$/);
 
@@ -73,6 +78,7 @@ test('adds and serializes date time range field values as ISO timestamps', async
     start: expectedStart,
     end: expectedEnd
   });
+  expect(consoleMessages.join('\n')).not.toContain('Invalid prop: type check failed for prop "id"');
 });
 
 test('clears date time range field values', async ({ page }) => {

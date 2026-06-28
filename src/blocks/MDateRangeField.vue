@@ -93,6 +93,10 @@ type DateRangePickerValue = [Date | null, Date | null] | null;
 
 const localPickerId = createPageDslFieldId();
 const pickerFieldId = computed(() => props.id ? `${props.id}-range` : localPickerId);
+const pickerInputIds = computed<[string, string]>(() => [
+  `${pickerFieldId.value}-start`,
+  `${pickerFieldId.value}-end`
+]);
 const rangeValue = computed(() => normalizeDateRangeValue(props.value));
 const currentValue = ref<MDateRangeFieldValue>({ ...dateRangeFieldDefaults.value });
 const pickerDefaultTime: [Date, Date] = [
@@ -226,7 +230,7 @@ defineExpose({
   <PageDslBlock block-type="MDateRangeField">
     <div class="page-dsl-date-range" data-testid="date-range-picker">
       <ElDatePicker
-        :id="pickerFieldId"
+        :id="pickerInputIds"
         v-model="pickerValue"
         class="page-dsl-date-range__picker"
         type="datetimerange"
