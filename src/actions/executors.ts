@@ -284,9 +284,11 @@ export const jumpUrlAction: ActionExecutor = ({ inputs }) => {
 export const callBlockMethodAction: ActionExecutor = async ({ config, inputs, callBlockMethod }) => {
   const blockId = stringInput(inputs.blockId);
   const method = stringInput(inputs.method);
+  const hasArgs = Object.prototype.hasOwnProperty.call(inputs, 'args');
   const returnData = await callBlockMethod(blockId, method, {
     actionConfig: config,
-    inputs
+    inputs,
+    ...(hasArgs ? { args: inputs.args } : {})
   });
   return { returnData };
 };

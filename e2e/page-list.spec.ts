@@ -216,6 +216,72 @@ test('built-in page list opens the create page dialog and submits the form value
   await expect(page.getByTestId('preview-panel')).toContainText('测试页面');
 });
 
+test('built-in page list only applies search form values after search is submitted', async ({ page }) => {
+  const listPage = readSystemPageAsset('mokelay_list_page');
+  const targetPages = Array.from({ length: 11 }, (_, index) => ({
+    uuid: `target-page-${String(index + 1).padStart(3, '0')}`,
+    name: 'Target Page',
+    blocks: [],
+    createdAt: '2026-05-05T00:00:00.000Z',
+    updatedAt: `2026-05-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`
+  }));
+  const otherPages = Array.from({ length: 11 }, (_, index) => ({
+    uuid: `other-page-${String(index + 1).padStart(3, '0')}`,
+    name: 'Other Page',
+    blocks: [],
+    createdAt: '2026-05-05T00:00:00.000Z',
+    updatedAt: `2026-04-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`
+  }));
+
+  await resetEditor(page, {
+    initialRoute: '/#/pages/mokelay_list_page?source=system',
+    systemPages: [listPage],
+    pages: [...targetPages, ...otherPages]
+  });
+
+  await page.getByTestId('preview-button').click();
+  const preview = page.getByTestId('preview-panel');
+  const nextButton = preview.getByRole('button', { name: /下一页|Next/ });
+  await expect(preview.getByPlaceholder('请输入页面名称')).toBeVisible();
+  await expect(nextButton).toBeEnabled();
+
+  await preview.getByPlaceholder('请输入页面名称').fill('Target Page');
+  const nextWithoutSearchRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'GET' &&
+      url.pathname === '/api/mokelay/list_pages' &&
+      url.searchParams.get('page') === '2';
+  });
+  await nextButton.click();
+  const nextWithoutSearch = await nextWithoutSearchRequest;
+  expect(new URL(nextWithoutSearch.url()).searchParams.get('name')).toBe('');
+
+  const searchRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'GET' &&
+      url.pathname === '/api/mokelay/list_pages' &&
+      url.searchParams.get('page') === '1' &&
+      url.searchParams.get('name') === 'Target Page';
+  });
+  await preview.getByRole('button', { name: '搜索' }).click();
+  await searchRequest;
+
+  await preview.getByPlaceholder('请输入页面名称').fill('Draft Value');
+  await expect(nextButton).toBeEnabled();
+  const nextSubmittedSearchRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'GET' &&
+      url.pathname === '/api/mokelay/list_pages' &&
+      url.searchParams.get('page') === '2';
+  });
+  await nextButton.click();
+  const nextSubmittedSearch = await nextSubmittedSearchRequest;
+  const nextSubmittedSearchParams = new URL(nextSubmittedSearch.url()).searchParams;
+
+  expect(nextSubmittedSearchParams.get('name')).toBe('Target Page');
+  expect(nextSubmittedSearchParams.get('name')).not.toBe('Draft Value');
+});
+
 test('built-in page list operation column opens and deletes pages from DSL actions', async ({ page }) => {
   const listPage = readSystemPageAsset('mokelay_list_page');
   const openUuid = 'open-page-1111';

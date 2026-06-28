@@ -264,7 +264,69 @@ export const zhMessages = {
     propertyPanelTitle: '表单属性',
     placeholder: '添加表单项',
     properties: {
-      items: '表单项配置'
+      layout: '布局方式',
+      items: '表单项配置',
+      actionBar: '操作栏配置'
+    },
+    layouts: {
+      vertical: '垂直',
+      horizontal: '水平'
+    },
+    actionBarEditor: {
+      settingsDialogTitle: '动作工具栏设置',
+      empty: '暂无按钮，请先添加按钮。',
+      summary: {
+        savedCount: '已设置 {count} 个按钮',
+        draftCount: '当前 {count} 个按钮'
+      },
+      sections: {
+        layout: '工具栏布局',
+        buttons: '按钮配置'
+      },
+      help: {
+        layout: '配置工具栏按钮排列、尺寸和展示模式。'
+      },
+      fields: {
+        align: '对齐',
+        size: '尺寸',
+        mode: '模式',
+        id: '按钮 ID',
+        label: '按钮文案',
+        variant: '样式',
+        disabled: '禁用'
+      },
+      align: {
+        left: '左对齐',
+        right: '右对齐',
+        spaceBetween: '两端对齐'
+      },
+      size: {
+        small: '小',
+        medium: '中',
+        large: '大'
+      },
+      mode: {
+        inline: '行内',
+        grouped: '分组',
+        dropdown: '下拉'
+      },
+      variant: {
+        primary: '主要',
+        secondary: '次要',
+        ghost: '朴素',
+        danger: '危险',
+        warning: '警告',
+        text: '文本'
+      },
+      actions: {
+        settings: '设置工具栏',
+        add: '添加按钮',
+        save: '保存',
+        cancel: '取消',
+        moveUp: '上移',
+        moveDown: '下移',
+        remove: '删除'
+      }
     },
     itemsEditor: {
       settingsDialogTitle: '表单项设置',
@@ -376,7 +438,8 @@ export const zhMessages = {
       data: '列表数据',
       page: '当前页',
       pageSize: '每页条数',
-      total: '总数'
+      total: '总数',
+      search: '搜索条件'
     },
     defaultRows: {
       first: {

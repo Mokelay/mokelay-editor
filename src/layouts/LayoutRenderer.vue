@@ -36,6 +36,16 @@ const runtimeContext = computed<LayoutRuntimeContext>(() => ({
   route: getCurrentLayoutRoute()
 }));
 
+const topNavBlockTypes = new Set(['MSiteTopNav', 'MEditorTopNav', 'MWebTopNav', 'MTopNav']);
+
+function getBlockClass(block: MokelayLayout['blocks'][number]) {
+  return [
+    'layout-renderer__block',
+    topNavBlockTypes.has(block.type) ? 'layout-renderer__block--top-nav' : '',
+    block.type === 'MPageSlot' ? 'layout-renderer__block--page-slot' : ''
+  ];
+}
+
 async function loadRuntimeContext() {
   const requestId = loadRequestId + 1;
   loadRequestId = requestId;
@@ -79,20 +89,43 @@ onBeforeUnmount(() => {
   <section data-testid="layout-renderer" class="layout-renderer">
     <p v-if="runtimeError" data-testid="layout-runtime-error" class="layout-renderer__error">{{ runtimeError }}</p>
 
-    <LayoutBlockRenderer
+    <div
       v-for="(block, index) in layout.blocks"
       :key="block.id || `${block.type}-${index}`"
-      :block="block"
-      :context="runtimeContext"
-    />
+      :class="getBlockClass(block)"
+      :data-layout-block-type="block.type"
+    >
+      <LayoutBlockRenderer
+        :block="block"
+        :context="runtimeContext"
+      />
+    </div>
   </section>
 </template>
 
 <style scoped>
 .layout-renderer {
+  display: flex;
+  box-sizing: border-box;
   min-height: 100%;
-  background: rgb(255 255 255);
+  flex-direction: column;
+  gap: 16px;
+  background: rgb(241 245 249);
   color: rgb(15 23 42);
+  padding: 12px;
+}
+
+.layout-renderer__block {
+  min-width: 0;
+}
+
+.layout-renderer__block--top-nav {
+  position: relative;
+  z-index: 20;
+}
+
+.layout-renderer__block--page-slot {
+  min-width: 0;
 }
 
 .layout-renderer__error {
@@ -105,7 +138,7 @@ onBeforeUnmount(() => {
 }
 
 :global(.dark) .layout-renderer {
-  background: rgb(15 23 42);
+  background: rgb(2 6 23);
   color: rgb(241 245 249);
 }
 
@@ -113,5 +146,12 @@ onBeforeUnmount(() => {
   border-color: rgb(127 29 29);
   background: rgb(127 29 29 / 0.24);
   color: rgb(254 202 202);
+}
+
+@media (max-width: 720px) {
+  .layout-renderer {
+    gap: 12px;
+    padding: 8px;
+  }
 }
 </style>

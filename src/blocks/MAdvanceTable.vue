@@ -56,6 +56,11 @@ function getAdvanceTableDataFields(): BlockDataField[] {
       label: i18n.t('advanceTable.datasourceFields.total'),
       variable: 'total',
       dataType: 'number'
+    },
+    {
+      label: i18n.t('advanceTable.datasourceFields.search'),
+      variable: 'search',
+      dataType: 'object'
     }
   ];
 }
@@ -207,6 +212,7 @@ const rootRef = ref<HTMLElement | null>(null);
 const selectedRows = ref(new Set<number>());
 const tableData = shallowRef<Record<string, unknown>[]>([]);
 const runtimeBlockData = shallowRef<Record<string, Record<string, unknown>>>({});
+const submittedSearch = shallowRef<Record<string, unknown>>({});
 const paginationState = ref<PaginationState>({
   page: 1,
   pageSize: 10,
@@ -304,6 +310,34 @@ function normalizeNonNegativeIntegerValue(value: unknown, fallback: number) {
       : fallback;
   const normalized = Math.trunc(parsed);
   return Number.isFinite(normalized) && normalized >= 0 ? normalized : fallback;
+}
+
+function clonePlainRecord(value: Record<string, unknown>) {
+  try {
+    return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+  } catch {
+    return { ...value };
+  }
+}
+
+function getInvocationArgs(value: unknown) {
+  if (!isRecord(value)) return value;
+
+  if (Object.prototype.hasOwnProperty.call(value, 'args')) {
+    return value.args;
+  }
+
+  const inputs = isRecord(value.inputs) ? value.inputs : undefined;
+  if (inputs && Object.prototype.hasOwnProperty.call(inputs, 'args')) {
+    return inputs.args;
+  }
+
+  return value;
+}
+
+function normalizeSearchObject(value: unknown) {
+  const rawValue = getInvocationArgs(value);
+  return isRecord(rawValue) ? clonePlainRecord(rawValue) : {};
 }
 
 function getMatchedRuntimeField(
@@ -465,12 +499,23 @@ function getData() {
     page: pagination.value.currentPage,
     pageSize: pagination.value.pageSize,
     total: pagination.value.total,
+    search: clonePlainRecord(submittedSearch.value),
     selectedRows: getSelectedRows(),
     selection: getSelectionState()
   };
 }
 
 async function refresh() {
+  await loadDatasourceRows();
+  return getData();
+}
+
+async function search(searchObject: unknown = {}) {
+  submittedSearch.value = normalizeSearchObject(searchObject);
+  paginationState.value = {
+    ...paginationState.value,
+    page: 1
+  };
   await loadDatasourceRows();
   return getData();
 }
@@ -804,6 +849,7 @@ watch(
 defineExpose({
   getData,
   refresh,
+  search,
   getSelectedRows,
   getSelectedValues,
   clearSelection,

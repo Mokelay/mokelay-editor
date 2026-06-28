@@ -489,7 +489,15 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     if (method === 'GET' && url.pathname === '/api/mokelay/list_pages') {
       const pageNumber = Number(url.searchParams.get('page') ?? 1);
       const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
+      const uuid = (url.searchParams.get('uuid') ?? '').trim();
+      const name = (url.searchParams.get('name') ?? '').trim();
+      const createdAtBegin = (url.searchParams.get('created_at_begin') ?? '').trim();
+      const createdAtEnd = (url.searchParams.get('created_at_end') ?? '').trim();
       const pageRecords = Array.from(pages.values())
+        .filter((pageRecord) => !uuid || pageRecord.uuid === uuid)
+        .filter((pageRecord) => !name || pageRecord.name === name)
+        .filter((pageRecord) => !createdAtBegin || (pageRecord.createdAt ?? '') >= createdAtBegin)
+        .filter((pageRecord) => !createdAtEnd || (pageRecord.createdAt ?? '') <= createdAtEnd)
         .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
       const start = Math.max(pageNumber - 1, 0) * pageSize;
       const pageItems = pageRecords.slice(start, start + pageSize);

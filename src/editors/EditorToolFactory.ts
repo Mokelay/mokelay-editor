@@ -350,6 +350,15 @@ export default class EditorToolFactory {
         this.blockApi?.dispatchChange();
       }
 
+      private updateProperties(patch: Record<string, unknown>) {
+        Object.entries(patch).forEach(([key, value]) => {
+          (this.state as Record<string, unknown>)[key] = value;
+        });
+        // 属性变化后重新挂载组件，确保视图与状态同步。
+        this.mountVueApp();
+        this.blockApi?.dispatchChange();
+      }
+
       private getPropertyFieldValue(key: string) {
         return (this.state as Record<string, unknown>)[key];
       }
@@ -533,6 +542,18 @@ export default class EditorToolFactory {
       }
 
       private handlePropertyComponentChange(field: EditorToolPropertyField, payload: unknown) {
+        if (
+          typeof payload === 'object' &&
+          payload !== null &&
+          'patch' in payload &&
+          typeof (payload as { patch?: unknown }).patch === 'object' &&
+          (payload as { patch?: unknown }).patch !== null &&
+          !Array.isArray((payload as { patch?: unknown }).patch)
+        ) {
+          this.updateProperties((payload as { patch: Record<string, unknown> }).patch);
+          return;
+        }
+
         if (typeof payload === 'object' && payload !== null && 'value' in payload) {
           this.updateProperty(field.key, (payload as { value?: unknown }).value);
           return;

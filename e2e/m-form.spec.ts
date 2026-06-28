@@ -161,6 +161,8 @@ test('configures form items from the form property panel', async ({ page }) => {
   await addEditorTool(page, /^表单$/);
 
   const propertyDialog = await openOuterFormPropertyPanel(page);
+  await expect(propertyDialog.getByTestId('tool-property-input-layout')).toHaveValue('Vertical');
+  await propertyDialog.getByTestId('tool-property-input-layout').selectOption('Horizontal');
   await expect(propertyDialog.getByTestId('tool-property-component-items')).toBeVisible();
   await propertyDialog.getByTestId('form-items-settings-open').click();
 
@@ -192,6 +194,18 @@ test('configures form items from the form property panel', async ({ page }) => {
   await itemsDialog.getByTestId('form-item-editor-type-1').selectOption('MEmailField');
   await itemsDialog.getByTestId('form-items-save').click();
   await expect(itemsDialog).not.toBeVisible();
+  await expect(propertyDialog.getByTestId('tool-property-component-actionBar')).toBeVisible();
+  await propertyDialog.getByTestId('form-action-bar-settings-open').click();
+  const actionBarDialog = page.locator('[data-testid="form-action-bar-dialog"][open]').last();
+  await expect(actionBarDialog).toBeVisible();
+  await actionBarDialog.getByTestId('form-action-bar-align').selectOption('right');
+  await actionBarDialog.getByTestId('form-action-bar-size').selectOption('small');
+  await actionBarDialog.getByTestId('form-action-bar-add-button').click();
+  await actionBarDialog.getByTestId('form-action-bar-button-id-0').fill('submit');
+  await actionBarDialog.getByTestId('form-action-bar-button-label-0').fill('提交');
+  await actionBarDialog.getByTestId('form-action-bar-button-variant-0').selectOption('primary');
+  await actionBarDialog.getByTestId('form-action-bar-save').click();
+  await expect(actionBarDialog).not.toBeVisible();
   await propertyDialog.getByTestId('tool-property-close').click();
 
   const form = page.getByTestId('editor-form-tool');
@@ -212,6 +226,22 @@ test('configures form items from the form property panel', async ({ page }) => {
     editor?: { type?: string };
   }> | undefined;
 
+  expect(formBlock?.data?.layout).toBe('Horizontal');
+  expect(formBlock?.data?.actionBar).toEqual({
+    align: 'right',
+    size: 'small',
+    mode: 'inline',
+    buttons: [
+      {
+        id: 'submit',
+        label: '提交',
+        variant: 'primary',
+        align: 'left',
+        events: []
+      }
+    ]
+  });
+  expect(formBlock?.data).not.toHaveProperty('toolbar');
   expect(items).toHaveLength(2);
   expect(items?.[0]).toEqual(expect.objectContaining({
     labelName: '用户名',
@@ -230,6 +260,9 @@ test('configures form items from the form property panel', async ({ page }) => {
 
   await page.getByTestId('preview-button').click();
   const previewBlock = page.getByTestId('preview-block-MForm');
+  await expect(previewBlock.getByTestId('editor-form-tool')).toHaveClass(/ce-form-tool--horizontal/);
+  await expect(previewBlock.getByTestId('form-action-bar')).toBeVisible();
+  await expect(previewBlock.getByTestId('m-action-toolbar-action-submit')).toContainText('提交');
   await expect(previewBlock.getByTestId('preview-form-item-label').nth(0)).toHaveText('用户名');
   await expect(previewBlock.getByTestId('preview-form-item-label').nth(1)).toHaveText('联系邮箱');
 });

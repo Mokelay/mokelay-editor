@@ -1,4 +1,5 @@
 <script lang="ts">
+import { defineAsyncComponent } from 'vue';
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import type { EditorToolComponentProps } from '@/editors/editorToolDefinition';
 import { cloneActions } from '@/actions';
@@ -36,6 +37,7 @@ export interface MActionToolbarProps extends EditorToolComponentProps {
 
 const toolbarTitle = '动作工具栏';
 const toolbarIcon = '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h10M4 12h16M4 17h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 6l3 3-3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const MActionToolBarEditor = defineAsyncComponent(() => import('@/blocks/MActionToolBarEditor.vue'));
 
 const alignValues = ['left', 'right', 'space-between'] as const;
 const sizeValues = ['small', 'medium', 'large'] as const;
@@ -181,41 +183,15 @@ export const mActionToolbarEditorTool = defineEditorTool<MActionToolbarProps>({
     },
     fields: [
       {
-        key: 'align',
-        label: '对齐',
-        type: 'select',
-        options: [
-          { label: '左对齐', value: 'left' },
-          { label: '右对齐', value: 'right' },
-          { label: '两端对齐', value: 'space-between' }
-        ]
-      },
-      {
-        key: 'size',
-        label: '尺寸',
-        type: 'select',
-        options: [
-          { label: '小', value: 'small' },
-          { label: '中', value: 'medium' },
-          { label: '大', value: 'large' }
-        ]
-      },
-      {
-        key: 'mode',
-        label: '模式',
-        type: 'select',
-        options: [
-          { label: '行内', value: 'inline' },
-          { label: '分组', value: 'grouped' },
-          { label: '下拉', value: 'dropdown' }
-        ]
-      },
-      {
-        key: 'buttons',
-        label: '按钮 JSON',
-        type: 'textarea',
-        valueType: 'json',
-        validationMessage: '请输入有效按钮 JSON。'
+        key: 'toolbar',
+        label: '工具栏配置',
+        type: 'component',
+        component: MActionToolBarEditor,
+        getComponentProps: ({ state }) => ({
+          value: serializeMActionToolbarProps(state as Partial<MActionToolbarProps>),
+          allowEmpty: true,
+          outputMode: 'patch'
+        })
       }
     ]
   },

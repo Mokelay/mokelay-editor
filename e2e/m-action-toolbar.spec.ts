@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
   await resetEditor(page);
 });
 
-test('adds an action toolbar, saves normalized JSON config, and renders in preview', async ({ page }) => {
+test('adds an action toolbar, saves structured toolbar config, and renders in preview', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '动作工具栏');
 
@@ -25,25 +25,24 @@ test('adds an action toolbar, saves normalized JSON config, and renders in previ
   await expectToolToolbarBeside(page, 'm-action-toolbar');
 
   const propertyDialog = await openToolPropertyPanel(page, 'm-action-toolbar');
-  await propertyDialog.getByTestId('tool-property-input-align').selectOption('right');
-  await propertyDialog.getByTestId('tool-property-input-size').selectOption('small');
-  await propertyDialog.getByTestId('tool-property-input-mode').selectOption('inline');
+  await expect(propertyDialog.getByTestId('tool-property-component-toolbar')).toBeVisible();
+  await propertyDialog.getByTestId('form-action-bar-settings-open').click();
+  const toolbarDialog = page.locator('[data-testid="form-action-bar-dialog"][open]').last();
+  await expect(toolbarDialog).toBeVisible();
+  await toolbarDialog.getByTestId('form-action-bar-align').selectOption('right');
+  await toolbarDialog.getByTestId('form-action-bar-size').selectOption('small');
+  await toolbarDialog.getByTestId('form-action-bar-mode').selectOption('inline');
   await expect(propertyDialog.getByTestId('tool-property-input-contextBlocks')).toHaveCount(0);
   await expect(propertyDialog.getByTestId('tool-property-input-actions')).toHaveCount(0);
-  await propertyDialog.getByTestId('tool-property-input-buttons').fill(JSON.stringify([
-    {
-      id: 'create',
-      label: '新增',
-      variant: 'primary',
-      events: []
-    },
-    {
-      id: 'reject',
-      label: '拒绝',
-      variant: 'danger',
-      action: []
-    }
-  ], null, 2));
+  await expect(propertyDialog.getByTestId('tool-property-input-buttons')).toHaveCount(0);
+  await toolbarDialog.getByTestId('form-action-bar-button-id-0').fill('create');
+  await toolbarDialog.getByTestId('form-action-bar-button-label-0').fill('新增');
+  await toolbarDialog.getByTestId('form-action-bar-button-variant-0').selectOption('primary');
+  await toolbarDialog.getByTestId('form-action-bar-button-id-1').fill('reject');
+  await toolbarDialog.getByTestId('form-action-bar-button-label-1').fill('拒绝');
+  await toolbarDialog.getByTestId('form-action-bar-button-variant-1').selectOption('danger');
+  await toolbarDialog.getByTestId('form-action-bar-save').click();
+  await expect(toolbarDialog).not.toBeVisible();
   await propertyDialog.getByTestId('tool-property-close').click();
 
   await page.getByTestId('save-button').click();

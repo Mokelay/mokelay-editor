@@ -25,6 +25,7 @@ export type BlockMethodInvocation = {
   eventConfig?: BlockEvent;
   actionConfig?: unknown;
   inputs?: Record<string, unknown>;
+  args?: unknown;
 };
 
 export type PreviewBlockRuntime = {

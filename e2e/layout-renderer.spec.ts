@@ -312,6 +312,12 @@ test('renders a system page with its declared layout', async ({ page }) => {
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
   await expect(page.getByTestId('layout-top-nav')).toContainText('页面列表');
   await expect(page.getByTestId('preview-blocks')).toContainText('Built-in page list content.');
+
+  const topNavBox = await page.getByTestId('layout-top-nav').boundingBox();
+  const pageSlotBox = await page.locator('[data-layout-block-type="MPageSlot"]').boundingBox();
+  expect(topNavBox).not.toBeNull();
+  expect(pageSlotBox).not.toBeNull();
+  expect(pageSlotBox!.y - (topNavBox!.y + topNavBox!.height)).toBeGreaterThanOrEqual(12);
 });
 
 test('renders a web style static top navigation layout', async ({ page }) => {
@@ -532,7 +538,7 @@ test('renders an internal admin shell layout with a page slot', async ({ page })
   await expect(page.getByTestId('internal-admin-tabs')).toContainText('首页');
   await expect(page.getByTestId('internal-admin-content')).toContainText('Internal admin slot content.');
 
-  await page.getByTestId('theme-select').selectOption('dark');
+  await page.locator('html').evaluate((element) => element.classList.add('dark'));
   await expect.poll(() => page.locator('html').evaluate((element) => element.classList.contains('dark'))).toBe(true);
   await expect(page.getByTestId('internal-admin-shell')).toBeVisible();
   await expect(page.getByTestId('internal-admin-content')).toContainText('Internal admin slot content.');

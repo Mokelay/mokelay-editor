@@ -4,6 +4,7 @@ import MActionToolbar, { mActionToolbarEditorTool } from '@/blocks/MActionToolba
 import MAdvanceInput, { mAdvanceInputEditorTool } from '@/blocks/MAdvanceInput.vue';
 import MAdvanceTable, { mAdvanceTableEditorTool } from '@/blocks/MAdvanceTable.vue';
 import MChart, { mChartEditorTool } from '@/blocks/MChart.vue';
+import MDateRangeField, { mDateRangeFieldEditorTool } from '@/blocks/MDateRangeField.vue';
 import MDatasourceEditor, { mDatasourceEditorTool } from '@/blocks/MDatasourceEditor.vue';
 import MDividerLine, { mDividerLineEditorTool } from '@/blocks/MDividerLine.vue';
 import { mFormEditorTool } from '@/blocks/mFormEditorTool';
@@ -96,6 +97,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MChart)]: {
     component: markRaw(MChart),
     ...mChartEditorTool
+  },
+  [getEditorComponentName(MDateRangeField)]: {
+    component: markRaw(MDateRangeField),
+    ...mDateRangeFieldEditorTool
   },
   [getEditorComponentName(MDatasourceEditor)]: {
     component: markRaw(MDatasourceEditor),

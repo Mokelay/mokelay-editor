@@ -264,7 +264,69 @@ export const enMessages = {
     propertyPanelTitle: 'Form Properties',
     placeholder: 'Add a form item',
     properties: {
-      items: 'Form item settings'
+      layout: 'Layout',
+      items: 'Form item settings',
+      actionBar: 'Action bar settings'
+    },
+    layouts: {
+      vertical: 'Vertical',
+      horizontal: 'Horizontal'
+    },
+    actionBarEditor: {
+      settingsDialogTitle: 'Action toolbar settings',
+      empty: 'No buttons yet. Add a button first.',
+      summary: {
+        savedCount: '{count} buttons configured',
+        draftCount: '{count} buttons now'
+      },
+      sections: {
+        layout: 'Toolbar layout',
+        buttons: 'Button settings'
+      },
+      help: {
+        layout: 'Configure toolbar button alignment, size, and display mode.'
+      },
+      fields: {
+        align: 'Align',
+        size: 'Size',
+        mode: 'Mode',
+        id: 'Button ID',
+        label: 'Button label',
+        variant: 'Variant',
+        disabled: 'Disabled'
+      },
+      align: {
+        left: 'Left',
+        right: 'Right',
+        spaceBetween: 'Space between'
+      },
+      size: {
+        small: 'Small',
+        medium: 'Medium',
+        large: 'Large'
+      },
+      mode: {
+        inline: 'Inline',
+        grouped: 'Grouped',
+        dropdown: 'Dropdown'
+      },
+      variant: {
+        primary: 'Primary',
+        secondary: 'Secondary',
+        ghost: 'Ghost',
+        danger: 'Danger',
+        warning: 'Warning',
+        text: 'Text'
+      },
+      actions: {
+        settings: 'Set toolbar',
+        add: 'Add button',
+        save: 'Save',
+        cancel: 'Cancel',
+        moveUp: 'Move up',
+        moveDown: 'Move down',
+        remove: 'Remove'
+      }
     },
     itemsEditor: {
       settingsDialogTitle: 'Form item settings',
@@ -376,7 +438,8 @@ export const enMessages = {
       data: 'List data',
       page: 'Page',
       pageSize: 'Page size',
-      total: 'Total'
+      total: 'Total',
+      search: 'Search'
     },
     defaultRows: {
       first: {

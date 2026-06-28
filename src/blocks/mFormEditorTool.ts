@@ -1,6 +1,11 @@
 import { defineAsyncComponent } from 'vue';
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
+import {
+  normalizeMActionToolbarProps,
+  serializeMActionToolbarProps,
+  type MActionToolbarProps
+} from '@/blocks/MActionToolbar.vue';
 import { cloneSelectorBlock, type StoredBlock } from '@/blocks/mEditorSelectorEditorTool';
 import { cloneBlockEvents, type BlockEvent } from '@/utils/blockEvents';
 import { normalizeVariableDataType } from '@/utils/variableValue';
@@ -11,6 +16,7 @@ import {
 } from '@/blocks/MFormItem.vue';
 
 const MFormItemsEditor = defineAsyncComponent(() => import('@/blocks/MFormItemsEditor.vue'));
+const MActionToolBarEditor = defineAsyncComponent(() => import('@/blocks/MActionToolBarEditor.vue'));
 
 export interface MFormItemData {
   labelName: string;
@@ -24,9 +30,15 @@ export interface MFormItemData {
 export interface MFormProps {
   edit: boolean;
   currentBlockId?: string;
+  layout?: MFormLayout;
   items?: MFormItemData[];
+  actionBar?: MFormActionBarData;
+  toolbar?: MFormActionBarData;
   values?: Record<string, unknown>;
 }
+
+export type MFormLayout = 'Vertical' | 'Horizontal';
+export type MFormActionBarData = Pick<MActionToolbarProps, 'align' | 'size' | 'mode' | 'buttons'>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -85,6 +97,28 @@ export function normalizeMFormValues(value: unknown): Record<string, unknown> {
   return cloneValue(value);
 }
 
+export function normalizeMFormLayout(value: unknown): MFormLayout {
+  return value === 'Horizontal' ? 'Horizontal' : 'Vertical';
+}
+
+export function normalizeMFormActionBar(value: unknown): MFormActionBarData | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const normalized = normalizeMActionToolbarProps({
+    ...value,
+    edit: false,
+    buttons: Array.isArray(value.buttons) ? value.buttons : []
+  });
+
+  if (!normalized.buttons?.length) {
+    return undefined;
+  }
+
+  return serializeMActionToolbarProps(normalized);
+}
+
 export const mFormEditorTool = defineEditorTool<MFormProps>({
   toolbox: {
     get title() {
@@ -99,15 +133,31 @@ export const mFormEditorTool = defineEditorTool<MFormProps>({
     get fields() {
       return [
         {
+          key: 'layout',
+          label: i18n.t('form.properties.layout'),
+          type: 'select' as const,
+          options: [
+            { label: i18n.t('form.layouts.vertical'), value: 'Vertical' },
+            { label: i18n.t('form.layouts.horizontal'), value: 'Horizontal' }
+          ]
+        },
+        {
           key: 'items',
           label: i18n.t('form.properties.items'),
           type: 'component' as const,
           component: MFormItemsEditor
+        },
+        {
+          key: 'actionBar',
+          label: i18n.t('form.properties.actionBar'),
+          type: 'component' as const,
+          component: MActionToolBarEditor
         }
       ];
     }
   },
   createInitialProps: () => ({
+    layout: 'Vertical',
     items: []
   }),
   getDataFields: (context) => normalizeMFormItems(context.data.items).map((item) => ({
@@ -118,13 +168,19 @@ export const mFormEditorTool = defineEditorTool<MFormProps>({
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
     currentBlockId: props.currentBlockId,
+    layout: normalizeMFormLayout(props.layout),
     items: normalizeMFormItems(props.items),
+    actionBar: normalizeMFormActionBar(props.actionBar ?? props.toolbar),
     values: normalizeMFormValues(props.values)
   }),
   serialize: (props) => {
+    const layout = normalizeMFormLayout(props.layout);
+    const actionBar = normalizeMFormActionBar(props.actionBar ?? props.toolbar);
     const values = normalizeMFormValues(props.values);
     return {
+      ...(layout === 'Horizontal' ? { layout } : {}),
       items: normalizeMFormItems(props.items).map((item) => cloneFormItemData(item)),
+      ...(actionBar ? { actionBar } : {}),
       ...(Object.keys(values).length ? { values } : {})
     };
   }

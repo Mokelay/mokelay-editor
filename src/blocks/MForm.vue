@@ -29,6 +29,8 @@ import {
   cloneFormItemData,
   normalizeMFormItem,
   normalizeMFormItems,
+  normalizeMFormLayout,
+  normalizeMFormActionBar,
   normalizeMFormValues,
   type MFormItemData,
   type MFormProps
@@ -41,6 +43,7 @@ import {
   PreviewBlockRuntimeKey,
   type PreviewRuntimeBlock
 } from '@/utils/previewBlockRuntime';
+import MActionToolbar from '@/blocks/MActionToolbar.vue';
 
 type FormItemToolOptions = {
   data?: Record<string, unknown>;
@@ -75,6 +78,8 @@ const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
 const previewItems = computed(() => normalizeMFormItems(props.items));
 const previewValues = computed(() => normalizeMFormValues(props.values));
+const formLayout = computed(() => normalizeMFormLayout(props.layout));
+const formActionBar = computed(() => normalizeMFormActionBar(props.actionBar ?? props.toolbar));
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 
 let editor: EditorJS | null = null;
@@ -542,9 +547,12 @@ function isSameItems(left: MFormItemData[], right: MFormItemData[]) {
 function notifyChanges(items: MFormItemData[]) {
   const normalizedItems = normalizeMFormItems(items);
   const values = normalizeMFormValues(props.values);
+  const actionBar = normalizeMFormActionBar(props.actionBar ?? props.toolbar);
   const payload = {
     edit: props.edit,
+    layout: normalizeMFormLayout(props.layout),
     items: normalizedItems.map((item) => cloneFormItemData(item)),
+    ...(actionBar ? { actionBar } : {}),
     ...(Object.keys(values).length ? { values } : {})
   };
 
@@ -747,16 +755,30 @@ onBeforeUnmount(async () => {
 <template>
   <div
     class="ce-form-tool"
-    :class="{ 'ce-form-tool--edit': edit }"
+    :class="{
+      'ce-form-tool--edit': edit,
+      'ce-form-tool--horizontal': formLayout === 'Horizontal'
+    }"
     data-testid="editor-form-tool"
   >
-    <div
-      v-if="edit"
-      class="ce-form-tool__editor-shell"
-      data-testid="form-editor-shell"
-    >
-      <div ref="holderRef" class="ce-form-tool__editor" data-testid="form-editor-surface"></div>
-    </div>
+    <template v-if="edit">
+      <div
+        class="ce-form-tool__editor-shell"
+        data-testid="form-editor-shell"
+      >
+        <div ref="holderRef" class="ce-form-tool__editor" data-testid="form-editor-surface"></div>
+      </div>
+      <div
+        v-if="formActionBar"
+        class="ce-form-tool__actions"
+        data-testid="form-action-bar"
+      >
+        <MActionToolbar
+          v-bind="formActionBar"
+          :edit="true"
+        />
+      </div>
+    </template>
 
     <div v-else class="ce-form-tool__preview" data-testid="preview-form-items">
       <MFormItem
@@ -769,6 +791,16 @@ onBeforeUnmount(async () => {
         :layout="item.layout"
         v-on="getFormItemEventListeners(item, index)"
       />
+      <div
+        v-if="formActionBar"
+        class="ce-form-tool__actions"
+        data-testid="form-action-bar"
+      >
+        <MActionToolbar
+          v-bind="formActionBar"
+          :edit="false"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -799,6 +831,29 @@ onBeforeUnmount(async () => {
   gap: 12px;
 }
 
+.ce-form-tool__actions {
+  width: 100%;
+}
+
+.ce-form-tool__editor-shell + .ce-form-tool__actions {
+  margin-top: 12px;
+}
+
+.ce-form-tool--horizontal .ce-form-tool__preview {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.ce-form-tool--horizontal .ce-form-tool__preview > :deep(.ce-form-item-tool) {
+  flex: 1 1 260px;
+  min-width: min(100%, 240px);
+}
+
+.ce-form-tool--horizontal .ce-form-tool__actions {
+  flex: 0 0 100%;
+}
+
 .ce-form-tool :deep(.codex-editor) {
   min-height: 0;
 }
@@ -814,6 +869,21 @@ onBeforeUnmount(async () => {
 
 .ce-form-tool :deep(.ce-block + .ce-block) {
   margin-top: 10px;
+}
+
+.ce-form-tool--horizontal :deep(.codex-editor__redactor) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ce-form-tool--horizontal :deep(.ce-block) {
+  flex: 1 1 260px;
+  min-width: min(100%, 240px);
+}
+
+.ce-form-tool--horizontal :deep(.ce-block + .ce-block) {
+  margin-top: 0;
 }
 
 .ce-form-tool :deep(.ce-block__content),
