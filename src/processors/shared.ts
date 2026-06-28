@@ -73,15 +73,112 @@ export function deepStrictEqual(left: unknown, right: unknown): boolean {
     leftKeys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && deepStrictEqual(left[key], right[key]));
 }
 
+export function parseProcessorPath(path: string): string[] {
+  return path.trim().split('.').map((segment) => segment.trim()).filter(Boolean);
+}
+
+function isArrayIndex(segment: string) {
+  return /^(0|[1-9]\d*)$/.test(segment);
+}
+
 export function readPath(value: unknown, path: string) {
   if (!path.trim()) return value;
 
   let current = value;
-  for (const segment of path.split('.').filter(Boolean)) {
-    if (!isRecord(current) && !Array.isArray(current)) return undefined;
-    current = current[segment as keyof typeof current];
+  for (const segment of parseProcessorPath(path)) {
+    if (Array.isArray(current)) {
+      if (!isArrayIndex(segment)) return undefined;
+      const index = Number(segment);
+      if (index < 0 || index >= current.length) return undefined;
+      current = current[index];
+      continue;
+    }
+
+    if (!isRecord(current) || !Object.prototype.hasOwnProperty.call(current, segment)) {
+      return undefined;
+    }
+    current = current[segment];
   }
   return current;
+}
+
+export function hasPath(value: unknown, path: string) {
+  if (!path.trim()) return true;
+
+  let current = value;
+  for (const segment of parseProcessorPath(path)) {
+    if (Array.isArray(current)) {
+      if (!isArrayIndex(segment)) return false;
+      const index = Number(segment);
+      if (index < 0 || index >= current.length) return false;
+      current = current[index];
+      continue;
+    }
+
+    if (!isRecord(current) || !Object.prototype.hasOwnProperty.call(current, segment)) {
+      return false;
+    }
+    current = current[segment];
+  }
+
+  return true;
+}
+
+export function writePath(value: unknown, path: string, nextValue: unknown) {
+  const segments = parseProcessorPath(path);
+  if (!segments.length) return cloneProcessorValue(nextValue);
+
+  const root = Array.isArray(value)
+    ? [...value]
+    : isRecord(value)
+      ? { ...value }
+      : isArrayIndex(segments[0])
+        ? []
+        : {};
+  let current: unknown = root;
+
+  segments.forEach((segment, index) => {
+    const last = index === segments.length - 1;
+    if (Array.isArray(current)) {
+      if (!isArrayIndex(segment)) return;
+      const arrayIndex = Number(segment);
+      if (last) {
+        current[arrayIndex] = cloneProcessorValue(nextValue);
+        return;
+      }
+      const existing = current[arrayIndex];
+      const nextSegment = segments[index + 1];
+      const child = Array.isArray(existing)
+        ? [...existing]
+        : isRecord(existing)
+          ? { ...existing }
+          : isArrayIndex(nextSegment)
+            ? []
+            : {};
+      current[arrayIndex] = child;
+      current = child;
+      return;
+    }
+
+    if (!isRecord(current)) return;
+    if (last) {
+      current[segment] = cloneProcessorValue(nextValue);
+      return;
+    }
+    const existing = current[segment];
+    const nextSegment = segments[index + 1];
+    const child = Array.isArray(existing)
+      ? [...existing]
+      : isRecord(existing)
+        ? { ...existing }
+        : isArrayIndex(nextSegment)
+          ? []
+          : {};
+    current[segment] = child;
+    current = child;
+  });
+
+  return root;
 }
 
 const filterConditionTypes = new Set(['eq', 'gt', 'lt', 'is_empty', 'is_not_empty']);

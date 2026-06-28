@@ -619,6 +619,14 @@ export const zhMessages = {
         title: '去除首尾空格',
         description: '字符串会去除首尾空格，其他数据类型保持原值。'
       },
+      defaultValue: {
+        title: '默认值',
+        description: '当前值为 undefined、null 或空字符串时使用配置的默认值。'
+      },
+      generic: {
+        help: '请输入标准 JSON 值，保存前会执行该处理器的参数校验。',
+        fields: { param: '参数（JSON）' }
+      },
       mergeData: {
         title: '合并数据',
         description: '为对象或列表项浅合并字段。',
@@ -651,7 +659,8 @@ export const zhMessages = {
       },
       validation: {
         required: '此项不能为空。',
-        jsonObject: '请输入有效的 JSON 对象。'
+        jsonObject: '请输入有效的 JSON 对象。',
+        jsonValue: '请输入有效的 JSON 参数。'
       }
     },
     validation: {

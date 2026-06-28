@@ -619,6 +619,14 @@ export const enMessages = {
         title: 'Trim whitespace',
         description: 'Trims leading and trailing whitespace from strings and leaves other values unchanged.'
       },
+      defaultValue: {
+        title: 'Default value',
+        description: 'Uses the configured fallback when the current value is undefined, null, or an empty string.'
+      },
+      generic: {
+        help: 'Enter a valid JSON value. The processor parameter validator runs before saving.',
+        fields: { param: 'Parameter (JSON)' }
+      },
       mergeData: {
         title: 'Merge data',
         description: 'Shallow-merges fields into an object or each list item.',
@@ -651,7 +659,8 @@ export const enMessages = {
       },
       validation: {
         required: 'This field is required.',
-        jsonObject: 'Enter a valid JSON object.'
+        jsonObject: 'Enter a valid JSON object.',
+        jsonValue: 'Enter a valid JSON parameter.'
       }
     },
     validation: {

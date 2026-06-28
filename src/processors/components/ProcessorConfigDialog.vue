@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import DateTimeFormatProcessorEditor from '@/processors/components/DateTimeFormatProcessorEditor.vue';
 import FilterProcessorEditor from '@/processors/components/FilterProcessorEditor.vue';
+import JsonProcessorParamEditor from '@/processors/components/JsonProcessorParamEditor.vue';
 import MergeDataProcessorEditor from '@/processors/components/MergeDataProcessorEditor.vue';
 import TrimProcessorEditor from '@/processors/components/TrimProcessorEditor.vue';
 import {
@@ -87,6 +88,7 @@ function editorComponent(config: ProcessorConfig) {
   if (name === 'merge_data') return MergeDataProcessorEditor;
   if (name === 'filter') return FilterProcessorEditor;
   if (name === 'date_time_format') return DateTimeFormatProcessorEditor;
+  if (getProcessorDefinition(name)) return JsonProcessorParamEditor;
   return undefined;
 }
 

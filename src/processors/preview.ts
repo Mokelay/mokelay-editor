@@ -63,7 +63,7 @@ function readSegment(value: JsonValue, key: string): { found: boolean; value: Js
 }
 
 function applyPreviewProcessors(value: JsonValue, processors: ProcessorConfig[], path: string): JsonValue {
-  const result = applyProcessors(cloneJsonValue(value), processors);
+  const result = applyProcessors(cloneJsonValue(value), processors, { phase: 'preview' });
   if (!isJsonValue(result)) {
     throw new SchemaSelectionPreviewError(
       'FIELD_PREVIEW_INVALID_RESULT',

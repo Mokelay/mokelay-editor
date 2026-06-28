@@ -3,8 +3,11 @@ export type {
   FilterConditionType,
   FilterParam,
   ProcessorConfig,
+  ProcessorContext,
   ProcessorDefinition,
-  ProcessorErrorCode
+  ProcessorErrorCode,
+  ProcessorErrorMeta,
+  ProcessorPhase
 } from '@/processors/types';
 export { ProcessorError } from '@/processors/errors';
 export {
@@ -22,10 +25,18 @@ export {
   processorDefinitions,
   processorRegistry
 } from '@/processors/registry';
-export { processorName } from '@/processors/shared';
+export {
+  hasPath,
+  parseProcessorPath,
+  processorName,
+  readPath,
+  writePath
+} from '@/processors/shared';
 export {
   applyProcessor,
+  applyProcessorAsync,
   applyProcessors,
+  applyProcessorsAsync,
   normalizeProcessors,
   validateProcessorConfig,
   validateProcessors

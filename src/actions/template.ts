@@ -104,7 +104,7 @@ function applyActionTemplateProcessors(value: unknown, processors: unknown, cont
   if (!normalizedProcessors.length) {
     return value;
   }
-  return applyProcessors(cloneValue(value), normalizedProcessors);
+  return applyProcessors(cloneValue(value), normalizedProcessors, { phase: 'action' });
 }
 
 export function resolveActionTemplates(value: unknown, context: ActionContext): unknown {

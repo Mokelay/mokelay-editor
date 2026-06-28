@@ -42,9 +42,20 @@ test('normalizes configs and executes processors in order without mutating input
 test('supports trim, merge_data, filter conditions, and type mismatches', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const { applyProcessor } = await import('/src/processors/index.ts');
+    const fallback = { nested: { value: 1 } };
+    const defaultObject = applyProcessor('', {
+      processor: 'default_value',
+      param: fallback
+    }) as { nested: { value: number } };
+    defaultObject.nested.value = 2;
+
     return {
       trim: applyProcessor('  hello  ', 'trim'),
       trimMismatch: applyProcessor(12, 'trim'),
+      defaultValue: applyProcessor(null, { processor: 'default_value', param: 'empty' }),
+      defaultValueKeepsZero: applyProcessor(0, { processor: 'default_value', param: 12 }),
+      defaultValueKeepsFalse: applyProcessor(false, { processor: 'default_value', param: true }),
+      defaultValueClonesFallback: fallback,
       mergeObject: applyProcessor({ id: 1, state: 'old' }, {
         processor: 'merge_data',
         param: { state: 'new', active: true }
@@ -78,6 +89,10 @@ test('supports trim, merge_data, filter conditions, and type mismatches', async 
   expect(result).toEqual({
     trim: 'hello',
     trimMismatch: 12,
+    defaultValue: 'empty',
+    defaultValueKeepsZero: 0,
+    defaultValueKeepsFalse: false,
+    defaultValueClonesFallback: { nested: { value: 1 } },
     mergeObject: { id: 1, state: 'new', active: true },
     mergeArray: [{ id: 1, active: true }, 'unchanged'],
     mergeMismatch: 'value',
@@ -88,6 +103,67 @@ test('supports trim, merge_data, filter conditions, and type mismatches', async 
     ],
     filterMismatch: { id: 1 }
   });
+});
+
+test('supports processor context, async runners, and shared path helpers', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const processors = await import('/src/processors/index.ts');
+    const registry = processors.processorRegistry as Record<string, any>;
+    registry.async_probe = {
+      name: 'async_probe',
+      titleKey: 'async_probe',
+      descriptionKey: 'async_probe',
+      supportedTypes: ['string'],
+      async: true,
+      createDefault: () => 'async_probe',
+      execute: async (value: unknown) => `${value}:async`
+    };
+    registry.context_probe = {
+      name: 'context_probe',
+      titleKey: 'context_probe',
+      descriptionKey: 'context_probe',
+      supportedTypes: ['string'],
+      requiresContext: ['services.hasPermission'],
+      createDefault: () => 'context_probe',
+      execute: (_value: unknown, _param: unknown, context: any) =>
+        context.services?.hasPermission?.('processor:test') ?? false
+    };
+
+    const readError = async (callback: () => unknown | Promise<unknown>) => {
+      try {
+        await callback();
+        return null;
+      } catch (error) {
+        return {
+          code: (error as { code?: string }).code,
+          message: error instanceof Error ? error.message : String(error)
+        };
+      }
+    };
+
+    return {
+      asyncSyncError: await readError(() => processors.applyProcessor('value', 'async_probe')),
+      asyncValue: await processors.applyProcessorAsync('value', 'async_probe'),
+      contextMissing: await readError(() => processors.applyProcessor('value', 'context_probe')),
+      contextValue: processors.applyProcessor('value', 'context_probe', {
+        phase: 'display',
+        services: { hasPermission: (permission: string) => permission === 'processor:test' }
+      }),
+      readPath: processors.readPath({ query: { range: ['start', 'end'] } }, 'query.range.1'),
+      hasPath: processors.hasPath({ query: { range: ['start', 'end'] } }, 'query.range.0'),
+      missingPath: processors.hasPath({ query: { range: ['start', 'end'] } }, 'query.range.3'),
+      writePath: processors.writePath({ query: {} }, 'query.startTime', '2026-06-25')
+    };
+  });
+
+  expect(result.asyncSyncError?.code).toBe('PROCESSOR_ASYNC_REQUIRED');
+  expect(result.asyncValue).toBe('value:async');
+  expect(result.contextMissing?.code).toBe('PROCESSOR_CONTEXT_MISSING');
+  expect(result.contextValue).toBe(true);
+  expect(result.readPath).toBe('end');
+  expect(result.hasPath).toBe(true);
+  expect(result.missingPath).toBe(false);
+  expect(result.writePath).toEqual({ query: { startTime: '2026-06-25' } });
 });
 
 test('formats valid dates in browser local time and returns failed conversions unchanged', async ({ page }) => {
