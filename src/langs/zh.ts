@@ -843,61 +843,6 @@ export const zhMessages = {
       actions: '操作'
     }
   },
-  datasourceList: {
-    title: '数据源列表',
-    total: '共 {count} 个数据源',
-    createDatasource: '创建数据源',
-    loading: '正在加载数据源列表...',
-    empty: '暂无数据源，可以先创建一个数据源。',
-    loadFailed: '数据源列表加载失败，请稍后重试。',
-    createFailed: '数据源创建失败，请稍后重试。',
-    createSuccess: '数据源已创建。',
-    updateFailed: '数据源修改失败，请稍后重试。',
-    updateSuccess: '数据源已修改。',
-    syncFailed: 'Schema 同步失败，请检查数据库连接配置。',
-    syncSuccess: 'Schema 已同步。',
-    createDialogTitle: '创建数据源',
-    editDialogTitle: '编辑数据源',
-    datasourceUuid: 'UUID',
-    uuidHint: '必填，最多 8 位；字母或下划线开头，只能包含字母、数字和下划线。',
-    datasourceAlias: '数据源名称',
-    datasourceDescription: '描述',
-    saving: '保存中...',
-    save: '保存',
-    edit: '编辑',
-    schemaDetails: 'Schema详情',
-    schemaDetailsTitle: '{alias} Schema详情',
-    schemaDetailsSummary: '{tables} 张表 · {columns} 个字段',
-    schemaFields: '{count} 个字段',
-    schemaEmpty: '暂无 Schema 数据，请先同步 Schema。',
-    syncSchema: '同步 Schema',
-    syncing: '同步中...',
-    schemaNotSynced: '未同步',
-    schemaTables: '{count} 张表',
-    pageRange: '第 {start}-{end} 条，共 {total} 条',
-    pageRangeEmpty: '暂无分页数据',
-    currentPage: '第 {page} / {totalPages} 页',
-    previousPage: '上一页',
-    nextPage: '下一页',
-    aliasRequired: '数据源名称不能为空。',
-    aliasTooLong: '数据源名称不能超过 120 个字符。',
-    uuidRequired: 'UUID 不能为空。',
-    uuidTooLong: 'UUID 不能超过 8 个字符。',
-    uuidInvalid: 'UUID 必须以字母或下划线开头，且只能包含字母、数字和下划线。',
-    columns: {
-      id: 'ID',
-      uuid: 'UUID',
-      alias: '名称',
-      description: '描述',
-      schema: 'Schema',
-      actions: '操作'
-    },
-    schemaColumns: {
-      name: '字段名',
-      type: '字段类型',
-      dataType: '数据类型'
-    }
-  },
 } as const;
 
 export const zhEditorJsMessages = {

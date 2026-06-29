@@ -69,12 +69,13 @@ export const mTextareaFieldEditorTool = defineEditorTool<MTextareaFieldProps>({
 </script>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import PageDslBlock from '@/blocks/PageDslBlock.vue';
 import type { PageDslCallbacks } from '@/blocks/pageDslEditorTools';
 
 const props = defineProps<MTextareaFieldProps & PageDslCallbacks<MTextareaFieldProps>>();
 
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const localFieldId = createPageDslFieldId();
 const fieldId = computed(() => props.id || localFieldId);
 const fieldPlaceholder = computed(() => props.placeholder || '');
@@ -101,13 +102,30 @@ function emitChange(payload: Partial<MTextareaFieldProps>) {
   props.onToolChange?.(nextPayload);
   props.onChange?.(nextPayload);
 }
+
+function focus() {
+  textareaRef.value?.focus();
+}
+
+function getData() {
+  return {
+    value: textareaRef.value?.value ?? stringInputValue.value
+  };
+}
+
+defineExpose({
+  focus,
+  getData
+});
 </script>
 
 <template>
   <PageDslBlock block-type="MTextareaField">
     <div class="page-dsl-field">
       <textarea
+        ref="textareaRef"
         :id="fieldId"
+        data-testid="editor-textarea-control"
         class="page-dsl-control"
         :rows="textareaRows"
         :placeholder="fieldPlaceholder"

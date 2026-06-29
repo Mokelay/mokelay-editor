@@ -843,61 +843,6 @@ export const enMessages = {
       actions: 'Actions'
     }
   },
-  datasourceList: {
-    title: 'Datasources',
-    total: '{count} datasources',
-    createDatasource: 'Create datasource',
-    loading: 'Loading datasources...',
-    empty: 'No datasources yet. Create one to get started.',
-    loadFailed: 'Failed to load datasources. Please try again.',
-    createFailed: 'Failed to create datasource. Please try again.',
-    createSuccess: 'Datasource created.',
-    updateFailed: 'Failed to update datasource. Please try again.',
-    updateSuccess: 'Datasource updated.',
-    syncFailed: 'Failed to sync schema. Check the database connection configuration.',
-    syncSuccess: 'Schema synced.',
-    createDialogTitle: 'Create datasource',
-    editDialogTitle: 'Edit datasource',
-    datasourceUuid: 'UUID',
-    uuidHint: 'Required, up to 8 characters. Start with a letter or underscore; use letters, numbers, and underscores only.',
-    datasourceAlias: 'Datasource name',
-    datasourceDescription: 'Description',
-    saving: 'Saving...',
-    save: 'Save',
-    edit: 'Edit',
-    schemaDetails: 'Schema details',
-    schemaDetailsTitle: '{alias} Schema details',
-    schemaDetailsSummary: '{tables} tables · {columns} columns',
-    schemaFields: '{count} columns',
-    schemaEmpty: 'No schema data yet. Sync schema first.',
-    syncSchema: 'Sync schema',
-    syncing: 'Syncing...',
-    schemaNotSynced: 'Not synced',
-    schemaTables: '{count} tables',
-    pageRange: '{start}-{end} of {total}',
-    pageRangeEmpty: 'No paginated data',
-    currentPage: 'Page {page} / {totalPages}',
-    previousPage: 'Previous',
-    nextPage: 'Next',
-    aliasRequired: 'Datasource name is required.',
-    aliasTooLong: 'Datasource name cannot exceed 120 characters.',
-    uuidRequired: 'UUID is required.',
-    uuidTooLong: 'UUID cannot exceed 8 characters.',
-    uuidInvalid: 'UUID must start with a letter or underscore and contain only letters, numbers, and underscores.',
-    columns: {
-      id: 'ID',
-      uuid: 'UUID',
-      alias: 'Name',
-      description: 'Description',
-      schema: 'Schema',
-      actions: 'Actions'
-    },
-    schemaColumns: {
-      name: 'Field',
-      type: 'Column type',
-      dataType: 'Data type'
-    }
-  },
 } as const;
 
 export const enEditorJsMessages = {} as const;

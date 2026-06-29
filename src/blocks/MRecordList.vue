@@ -119,7 +119,23 @@ import type { PageDslCallbacks } from '@/blocks/pageDslEditorTools';
 type RecordListField = {
   key: string;
   label: string;
-  value: string;
+  value: RecordListFieldValue;
+};
+
+type RecordListFieldValue =
+  | {
+      kind: 'text';
+      text: string;
+    }
+  | {
+      kind: 'records';
+      records: NestedRecordListItem[];
+    };
+
+type NestedRecordListItem = {
+  id: string;
+  title: string;
+  details: RecordListField[];
 };
 
 type RecordListItem = {
@@ -197,6 +213,16 @@ function formatValue(value: unknown): string {
   }
 }
 
+function formatFieldValue(value: unknown): RecordListFieldValue | undefined {
+  if (Array.isArray(value) && value.every(isRecord)) {
+    const records = value.map((item, index) => buildNestedListItem(item, index));
+    return records.length ? { kind: 'records', records } : undefined;
+  }
+
+  const text = formatValue(value);
+  return text ? { kind: 'text', text } : undefined;
+}
+
 function getFieldKeys(item: Record<string, unknown>) {
   const fieldOrder = normalizedProps.value.fieldOrder ?? [];
   const orderedKeys = fieldOrder.filter((key) => Object.prototype.hasOwnProperty.call(item, key));
@@ -217,11 +243,54 @@ function getItemTitle(item: unknown, index: number) {
   return `#${index + 1}`;
 }
 
+function getNestedTitleKey(item: Record<string, unknown>) {
+  const titleKeys = normalizedProps.value.titleFields ?? [];
+  return titleKeys.find((key) => formatValue(item[key]))
+    ?? ['name', 'key', 'label', 'id'].find((key) => formatValue(item[key]))
+    ?? '';
+}
+
+function getRecordFieldLabel(key: string) {
+  const fieldLabels = normalizedProps.value.fieldLabels ?? {};
+  const defaultLabels: Record<string, string> = {
+    name: '名称',
+    type: '类型',
+    dataType: '数据类型'
+  };
+  return fieldLabels[key] ?? defaultLabels[key] ?? key;
+}
+
+function buildNestedListItem(item: Record<string, unknown>, index: number): NestedRecordListItem {
+  const titleKey = getNestedTitleKey(item);
+  const title = titleKey ? formatValue(item[titleKey]) : '';
+  const detailKeys = Object.keys(item).filter((key) => {
+    if (key === titleKey) return false;
+    if (key === 'dataType' && formatValue(item.dataType) === formatValue(item.type)) return false;
+    return true;
+  });
+  const details = detailKeys.flatMap((key) => {
+    const value = formatFieldValue(item[key]);
+    return value
+      ? [{
+          key,
+          label: getRecordFieldLabel(key),
+          value
+        }]
+      : [];
+  });
+
+  return {
+    id: `nested-record-${index}`,
+    title: title || `#${index + 1}`,
+    details
+  };
+}
+
 function buildListItem(item: unknown, index: number): RecordListItem {
   const fieldLabels = normalizedProps.value.fieldLabels ?? {};
   const fields = isRecord(item)
     ? getFieldKeys(item).flatMap((key) => {
-      const value = formatValue(item[key]);
+      const value = formatFieldValue(item[key]);
       return value
         ? [{
             key,
@@ -233,7 +302,7 @@ function buildListItem(item: unknown, index: number): RecordListItem {
     : [{
         key: 'value',
         label: fieldLabels.value ?? '值',
-        value: formatValue(item)
+        value: { kind: 'text', text: formatValue(item) }
       }];
 
   return {
@@ -260,7 +329,27 @@ function buildListItem(item: unknown, index: number): RecordListItem {
           <dl class="record-list__fields">
             <div v-for="field in item.fields" :key="`${item.id}-${field.key}`" class="record-list__field">
               <dt>{{ field.label }}</dt>
-              <dd>{{ field.value }}</dd>
+              <dd>
+                <template v-if="field.value.kind === 'records'">
+                  <ul class="record-list__nested-items" data-testid="record-list-nested-items">
+                    <li v-for="record in field.value.records" :key="record.id" class="record-list__nested-item">
+                      <div class="record-list__nested-title">{{ record.title }}</div>
+                      <dl v-if="record.details.length" class="record-list__nested-fields">
+                        <div v-for="detail in record.details" :key="`${record.id}-${detail.key}`" class="record-list__nested-field">
+                          <dt>{{ detail.label }}</dt>
+                          <dd>
+                            <template v-if="detail.value.kind === 'records'">
+                              <span>{{ detail.value.records.map((nestedRecord) => nestedRecord.title).join(', ') }}</span>
+                            </template>
+                            <template v-else>{{ detail.value.text }}</template>
+                          </dd>
+                        </div>
+                      </dl>
+                    </li>
+                  </ul>
+                </template>
+                <template v-else>{{ field.value.text }}</template>
+              </dd>
             </div>
           </dl>
         </li>
@@ -359,6 +448,65 @@ function buildListItem(item: unknown, index: number): RecordListItem {
   white-space: pre-wrap;
 }
 
+.record-list__nested-items {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record-list__nested-item {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgb(255 255 255);
+}
+
+.record-list__nested-title {
+  overflow-wrap: anywhere;
+  color: rgb(15 23 42);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.record-list__nested-fields {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.record-list__nested-field {
+  display: grid;
+  grid-template-columns: minmax(54px, max-content) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.record-list__nested-field dt,
+.record-list__nested-field dd {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: rgb(71 85 105);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.record-list__nested-field dt {
+  font-family: inherit;
+  font-weight: 700;
+}
+
+.record-list__nested-field dd {
+  overflow-wrap: anywhere;
+}
+
 :global(.dark) .record-list__context,
 :global(.dark) .record-list__field dt {
   color: rgb(148 163 184);
@@ -381,6 +529,20 @@ function buildListItem(item: unknown, index: number): RecordListItem {
 
 :global(.dark) .record-list__field dd {
   background: rgb(30 41 59);
+}
+
+:global(.dark) .record-list__nested-item {
+  border-color: rgb(51 65 85);
+  background: rgb(15 23 42);
+}
+
+:global(.dark) .record-list__nested-title {
+  color: rgb(241 245 249);
+}
+
+:global(.dark) .record-list__nested-field dt,
+:global(.dark) .record-list__nested-field dd {
+  color: rgb(203 213 225);
 }
 
 @media (max-width: 640px) {

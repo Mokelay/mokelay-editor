@@ -27,7 +27,6 @@ import {
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
 const AppListPanel = defineAsyncComponent(() => import('@/components/AppListPanel.vue'));
-const DatasourceListPanel = defineAsyncComponent(() => import('@/components/DatasourceListPanel.vue'));
 const ChatAiPanel = defineAsyncComponent(() => import('@/components/ChatAiPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 const NotFoundPage = defineAsyncComponent(() => import('@/components/NotFoundPage.vue'));
@@ -70,7 +69,6 @@ type ParsedRoute = {
   apiUuid: string | null;
   apiBuilder: boolean;
   apiSource: 'user' | 'system';
-  datasourceList: boolean;
   aiChat: boolean;
   preview: boolean;
   runtimePage: boolean;
@@ -110,7 +108,6 @@ const parsedRoute = computed(() => parseRouteLocation(routeLocation.value));
 const routePageUuid = computed(() => parsedRoute.value.pageUuid);
 const routePageSource = computed(() => parsedRoute.value.pageSource);
 const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
-const isDatasourceListPage = computed(() => parsedRoute.value.datasourceList);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
 const routeApiSource = computed(() => parsedRoute.value.apiSource);
 const isAiChatPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.aiChat);
@@ -118,8 +115,9 @@ const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.valu
 const isRuntimePage = computed(() => !isApiBuilderPage.value && parsedRoute.value.runtimePage);
 const isNotFoundPage = computed(() => !isApiBuilderPage.value && (parsedRoute.value.notFound || runtimePageLoadFailed.value));
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && Boolean(routePageUuid.value));
-const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && !isEditorPage.value);
+const isAppListPage = computed(() => !isApiBuilderPage.value && !isAiChatPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && !isEditorPage.value);
 const isPagesSection = computed(() => isEditorPage.value || isPreviewPage.value);
+const isDatasourcesSection = computed(() => isRuntimePage.value && routePageUuid.value === 'datasources');
 const isLayoutsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'layouts');
 const isDocsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'block_component_docs');
 const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
@@ -167,7 +165,6 @@ function createParsedRoute(overrides: Partial<ParsedRoute> = {}): ParsedRoute {
     apiUuid: null,
     apiBuilder: false,
     apiSource: 'user',
-    datasourceList: false,
     aiChat: false,
     preview: false,
     runtimePage: false,
@@ -190,10 +187,6 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
       apiBuilder: true,
       apiSource
     });
-  }
-
-  if (path === '/datasources') {
-    return createParsedRoute({ datasourceList: true });
   }
 
   if (path === '/ai-chat') {
@@ -688,7 +681,7 @@ function backToPagesPage() {
             <a
               href="#/datasources"
               class="rounded-md px-3 py-1.5 font-medium"
-              :class="isDatasourceListPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+              :class="isDatasourcesSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
             >
               {{ t('app.datasources') }}
             </a>
@@ -826,7 +819,6 @@ function backToPagesPage() {
           @layout-change="handlePageLayoutChange"
         />
       </div>
-      <DatasourceListPanel v-else-if="isDatasourceListPage" />
       <ChatAiPanel v-else-if="isAiChatPage" />
       <AppListPanel v-else />
     </main>
