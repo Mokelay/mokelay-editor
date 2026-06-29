@@ -121,6 +121,7 @@ const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.va
 const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && !isEditorPage.value);
 const isPagesSection = computed(() => isEditorPage.value || isPreviewPage.value);
 const isLayoutsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'layouts');
+const isDocsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'block_component_docs');
 const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 const isSaveReady = computed(() => isEditorReady.value && currentPageSource.value === 'user');
@@ -699,17 +700,18 @@ function backToPagesPage() {
               {{ t('app.pageList') }}
             </a>
             <a
-              href="#/pages/block_component_docs/preview?source=system"
-              class="rounded-md px-3 py-1.5 font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-            >
-              Block 文档
-            </a>
-            <a
               href="#/layouts"
               class="rounded-md px-3 py-1.5 font-medium"
               :class="isLayoutsSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
             >
               布局
+            </a>
+            <a
+              href="#/block_component_docs"
+              class="rounded-md px-3 py-1.5 font-medium"
+              :class="isDocsSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+            >
+              文档
             </a>
             <a
               href="#/ai-chat"
