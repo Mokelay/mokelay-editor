@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import TopNavAction from '@/layouts/TopNavAction.vue';
+import type { LayoutMenuItem } from '@/utils/layoutsApi';
 import type { TopNavProps } from '@/layouts/topNavTypes';
 import {
   controlLabel,
@@ -32,6 +33,46 @@ const visibleActions = computed(() => getVisibleTopNavActions(props));
 const brandText = computed(() => props.brand?.text?.trim() || 'Mokelay Editor');
 const brandHref = computed(() => normalizeHref(props.brand?.href || '#/'));
 const showBrandMark = computed(() => props.brand?.showMark === true);
+const currentHash = ref(readCurrentHash());
+
+function readCurrentHash() {
+  if (typeof window === 'undefined') return '#/';
+  return normalizeHashPath(window.location.hash || '#/');
+}
+
+function syncCurrentHash() {
+  currentHash.value = readCurrentHash();
+}
+
+function normalizeHashPath(value: string) {
+  const [path] = value.split('?', 1);
+  const normalized = path.replace(/\/+$/, '');
+  return normalized || '#/';
+}
+
+function normalizeItemHash(item: LayoutMenuItem) {
+  const href = normalizeHref(item.href);
+  if (!href.startsWith('#/')) return '';
+  return normalizeHashPath(href);
+}
+
+function isActiveItem(item: LayoutMenuItem) {
+  const itemHash = normalizeItemHash(item);
+  if (!itemHash) return item.active === true;
+  const activeHash = currentHash.value;
+  if (itemHash === '#/') return activeHash === '#/';
+  return activeHash === itemHash || activeHash.startsWith(`${itemHash}/`);
+}
+
+onMounted(() => {
+  window.addEventListener('hashchange', syncCurrentHash);
+  window.addEventListener('popstate', syncCurrentHash);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', syncCurrentHash);
+  window.removeEventListener('popstate', syncCurrentHash);
+});
 </script>
 
 <template>
@@ -76,7 +117,7 @@ const showBrandMark = computed(() => props.brand?.showMark === true);
           v-for="item in items"
           :key="`${item.label}-${item.href}`"
           class="layout-top-nav__link"
-          :class="{ 'layout-top-nav__link--active': item.active }"
+          :class="{ 'layout-top-nav__link--active': isActiveItem(item) }"
           :href="normalizeHref(item.href)"
         >
           <span class="layout-top-nav__link-text">{{ item.label }}</span>

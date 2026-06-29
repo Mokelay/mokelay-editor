@@ -19,6 +19,8 @@ import MHeading, { mHeadingEditorTool } from '@/blocks/MHeading.vue';
 import MImage, { mImageEditorTool } from '@/blocks/MImage.vue';
 import MImageChoiceField, { mImageChoiceFieldEditorTool } from '@/blocks/MImageChoiceField.vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
+import MJsonEditor, { mJsonEditorTool } from '@/blocks/MJsonEditor.vue';
+import MLayoutPreview, { mLayoutPreviewTool } from '@/blocks/MLayoutPreview.vue';
 import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
 import MLinearScaleField, { mLinearScaleFieldEditorTool } from '@/blocks/MLinearScaleField.vue';
 import MLinkField, { mLinkFieldEditorTool } from '@/blocks/MLinkField.vue';
@@ -82,6 +84,14 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MInput)]: {
     component: markRaw(MInput),
     ...mInputEditorTool
+  },
+  [getEditorComponentName(MJsonEditor)]: {
+    component: markRaw(MJsonEditor),
+    ...mJsonEditorTool
+  },
+  [getEditorComponentName(MLayoutPreview)]: {
+    component: markRaw(MLayoutPreview),
+    ...mLayoutPreviewTool
   },
   [getEditorComponentName(MLink)]: {
     component: markRaw(MLink),

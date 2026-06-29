@@ -100,6 +100,7 @@ type MockPagesApiOptions = {
   systemPages?: MockMokelayPage[];
   apps?: MockMokelayApp[];
   layouts?: MockMokelayLayout[];
+  systemLayouts?: MockMokelayLayout[];
   loggedInUser?: Record<string, unknown> | null;
   datasources?: MockMokelayDatasource[];
   syncedDatasourceSchemas?: Record<string, MockDatasourceTableSchema[]>;
@@ -140,6 +141,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const systemPages = new Map<string, MockMokelayPage>();
   const apps = new Map<string, MockMokelayApp>();
   const layouts = new Map<string, MockMokelayLayout>();
+  const systemLayouts = new Map<string, MockMokelayLayout>();
   const datasources = new Map<string, MockMokelayDatasource>();
   const apis = new Map<string, MockMokelayApi>();
   const systemApis = new Map<string, MockMokelayApi>();
@@ -148,6 +150,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const pageCreatePayloads: Record<string, unknown>[] = [];
   const pageUpdatePayloads: Record<string, unknown>[] = [];
   const pageLayoutUpdatePayloads: Record<string, unknown>[] = [];
+  const layoutDeletePayloads: Record<string, unknown>[] = [];
   const apiSavePayloads: Record<string, unknown>[] = [];
   const apiDomainRequests: string[] = [];
   const apiListRequests: string[] = [];
@@ -200,6 +203,14 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 
   for (const layoutRecord of options.layouts ?? []) {
     layouts.set(layoutRecord.uuid, {
+      createdAt: now,
+      updatedAt: now,
+      ...layoutRecord
+    });
+  }
+
+  for (const layoutRecord of options.systemLayouts ?? []) {
+    systemLayouts.set(layoutRecord.uuid, {
       createdAt: now,
       updatedAt: now,
       ...layoutRecord
@@ -346,6 +357,15 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'POST' && url.pathname === '/api/mokelay/delete_layout_by_uuid') {
+      const payload = readJsonPayload(request.postDataJSON());
+      layoutDeletePayloads.push(payload);
+      const uuid = readString(payload.uuid);
+      const affected = layouts.delete(uuid) ? 1 : 0;
+      await fulfillDeleteLayout(route, affected, corsHeaders);
+      return;
+    }
+
     if (method === 'POST' && url.pathname === '/api/mokelay/update_app_by_uuid') {
       const uuid = url.searchParams.get('uuid') ?? '';
       const existing = apps.get(uuid);
@@ -470,7 +490,10 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       const uuid = url.searchParams.get('uuid') ?? '';
       const source = url.searchParams.get('source') ?? 'user';
       const pageRecord = source === 'system' ? systemPages.get(uuid) ?? null : pages.get(uuid) ?? null;
-      const layoutRecord = pageRecord ? resolveMockLayout(pageRecord, apps, layouts) : null;
+      const availableLayouts = source === 'system'
+        ? new Map([...layouts.entries(), ...systemLayouts.entries()])
+        : layouts;
+      const layoutRecord = pageRecord ? resolveMockLayout(pageRecord, apps, availableLayouts) : null;
       await fulfillPageBundle(route, pageRecord, layoutRecord, corsHeaders);
       return;
     }
@@ -528,6 +551,23 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
               updatedAt: pageRecord.updatedAt
             })),
             count: pageRecords.length
+          }
+        })
+      });
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_mokelay_layout_jsons') {
+      const layoutRecords = Array.from(systemLayouts.values())
+        .sort((a, b) => a.uuid.localeCompare(b.uuid));
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            layouts: layoutRecords.map(serializeLayout),
+            count: layoutRecords.length
           }
         })
       });
@@ -602,6 +642,12 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     if (method === 'GET' && url.pathname === '/api/mokelay/read_mokelay_page_json') {
       const uuid = url.searchParams.get('uuid') ?? '';
       await fulfillPage(route, systemPages.get(uuid) ?? null, corsHeaders);
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/read_mokelay_layout_json') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      await fulfillLayout(route, systemLayouts.get(uuid) ?? null, corsHeaders);
       return;
     }
 
@@ -717,7 +763,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, systemPages, apps, layouts, datasources, apis, systemApis, apiDomains, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, pageLayoutUpdatePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests, aiGenerateDslRequests };
+  return { pages, systemPages, apps, layouts, systemLayouts, datasources, apis, systemApis, apiDomains, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, pageLayoutUpdatePayloads, layoutDeletePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests, aiGenerateDslRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -1210,8 +1256,15 @@ function serializeLayout(layoutRecord: MockMokelayLayout) {
       uuid: layoutRecord.uuid,
       name: layoutRecord.name
     },
+    layout_json: {
+      ...layoutRecord.layoutJson,
+      uuid: layoutRecord.uuid,
+      name: layoutRecord.name
+    },
     createdAt: layoutRecord.createdAt,
-    updatedAt: layoutRecord.updatedAt
+    updatedAt: layoutRecord.updatedAt,
+    created_at: layoutRecord.createdAt,
+    updated_at: layoutRecord.updatedAt
   };
 }
 
@@ -1309,6 +1362,24 @@ async function fulfillDeleteApi(
       data: {
         affected,
         message: affected > 0 ? 'API deleted.' : 'API not found.'
+      }
+    })
+  });
+}
+
+async function fulfillDeleteLayout(
+  route: Route,
+  affected: number,
+  headers: Record<string, string>
+) {
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        affected,
+        message: affected > 0 ? 'Layout deleted.' : 'Layout not found.'
       }
     })
   });

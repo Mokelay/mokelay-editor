@@ -27,8 +27,6 @@ import {
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
 const AppListPanel = defineAsyncComponent(() => import('@/components/AppListPanel.vue'));
-const LayoutListPanel = defineAsyncComponent(() => import('@/components/LayoutListPanel.vue'));
-const LayoutEditorPanel = defineAsyncComponent(() => import('@/components/LayoutEditorPanel.vue'));
 const DatasourceListPanel = defineAsyncComponent(() => import('@/components/DatasourceListPanel.vue'));
 const ChatAiPanel = defineAsyncComponent(() => import('@/components/ChatAiPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
@@ -74,8 +72,6 @@ type ParsedRoute = {
   apiSource: 'user' | 'system';
   datasourceList: boolean;
   aiChat: boolean;
-  layoutList: boolean;
-  layoutUuid: string | null;
   preview: boolean;
   runtimePage: boolean;
   notFound: boolean;
@@ -117,17 +113,14 @@ const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
 const isDatasourceListPage = computed(() => parsedRoute.value.datasourceList);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
 const routeApiSource = computed(() => parsedRoute.value.apiSource);
-const routeLayoutUuid = computed(() => parsedRoute.value.layoutUuid);
 const isAiChatPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.aiChat);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
 const isRuntimePage = computed(() => !isApiBuilderPage.value && parsedRoute.value.runtimePage);
 const isNotFoundPage = computed(() => !isApiBuilderPage.value && (parsedRoute.value.notFound || runtimePageLoadFailed.value));
-const isLayoutListPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.layoutList && !routeLayoutUuid.value);
-const isLayoutEditorPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.layoutList && Boolean(routeLayoutUuid.value));
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && Boolean(routePageUuid.value));
-const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && !isEditorPage.value && !isLayoutListPage.value && !isLayoutEditorPage.value);
+const isAppListPage = computed(() => !isApiBuilderPage.value && !isDatasourceListPage.value && !isAiChatPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && !isEditorPage.value);
 const isPagesSection = computed(() => isEditorPage.value || isPreviewPage.value);
-const isLayoutsSection = computed(() => isLayoutListPage.value || isLayoutEditorPage.value);
+const isLayoutsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'layouts');
 const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 const isSaveReady = computed(() => isEditorReady.value && currentPageSource.value === 'user');
@@ -175,8 +168,6 @@ function createParsedRoute(overrides: Partial<ParsedRoute> = {}): ParsedRoute {
     apiSource: 'user',
     datasourceList: false,
     aiChat: false,
-    layoutList: false,
-    layoutUuid: null,
     preview: false,
     runtimePage: false,
     notFound: false,
@@ -191,7 +182,6 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
   const apiSource = new URLSearchParams(rawQuery).get('source') === 'system' ? 'system' : 'user';
   const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
   const apiMatch = path.match(/^\/apis(?:\/([^/]+))?\/?$/);
-  const layoutMatch = path.match(/^\/layouts(?:\/([^/]+))?\/?$/);
 
   if (apiMatch) {
     return createParsedRoute({
@@ -207,13 +197,6 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
 
   if (path === '/ai-chat') {
     return createParsedRoute({ aiChat: true });
-  }
-
-  if (layoutMatch) {
-    return createParsedRoute({
-      layoutList: true,
-      layoutUuid: layoutMatch[1] ? safeDecodeURIComponent(layoutMatch[1]) : null
-    });
   }
 
   if (pageMatch) {
@@ -264,14 +247,6 @@ function getEditorHash(uuid: string, source: PageSource = 'user') {
 
 function getPreviewHash(uuid: string, source: PageSource = 'user') {
   return `/pages/${encodeURIComponent(uuid)}/preview${sourceQuery(source)}`;
-}
-
-function getLayoutListHash() {
-  return '/layouts';
-}
-
-function getLayoutEditorHash(uuid: string) {
-  return `/layouts/${encodeURIComponent(uuid)}`;
 }
 
 function persistDraftBlocks(blocks: OutputData['blocks']) {
@@ -655,13 +630,6 @@ function backToPagesPage() {
   window.location.hash = '/pages';
 }
 
-function openLayoutFromList(uuid: string) {
-  window.location.hash = getLayoutEditorHash(uuid);
-}
-
-function backToLayoutList() {
-  window.location.hash = getLayoutListHash();
-}
 </script>
 
 <template>
@@ -856,15 +824,6 @@ function backToLayoutList() {
           @layout-change="handlePageLayoutChange"
         />
       </div>
-      <LayoutListPanel
-        v-else-if="isLayoutListPage"
-        @open-layout="openLayoutFromList"
-      />
-      <LayoutEditorPanel
-        v-else-if="isLayoutEditorPage && routeLayoutUuid"
-        :layout-uuid="routeLayoutUuid"
-        @back="backToLayoutList"
-      />
       <DatasourceListPanel v-else-if="isDatasourceListPage" />
       <ChatAiPanel v-else-if="isAiChatPage" />
       <AppListPanel v-else />
