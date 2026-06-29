@@ -149,11 +149,21 @@ function readRouteLocation(): RouteLocation {
     };
   }
 
-  const pathname = window.location.pathname === '/index.html' ? '/' : window.location.pathname;
+  const pathname = normalizeEntrypointPathname(window.location.pathname);
 
   return {
     rawPath: `${pathname || '/'}${window.location.search || ''}`
   };
+}
+
+function normalizeEntrypointPathname(pathname: string) {
+  const filename = pathname.split('/').pop();
+
+  if (filename === 'index.html' || filename === 'editor.html') {
+    return '/';
+  }
+
+  return pathname;
 }
 
 function createParsedRoute(overrides: Partial<ParsedRoute> = {}): ParsedRoute {

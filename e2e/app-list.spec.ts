@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { resetEditor } from './helpers/editor';
+import { mockPagesApi, resetEditor } from './helpers/editor';
 
 test('renders the app list on the editor home route', async ({ page }) => {
   await resetEditor(page, {
@@ -18,6 +18,25 @@ test('renders the app list on the editor home route', async ({ page }) => {
   await expect(page.getByTestId('app-list-panel')).toBeVisible();
   await expect(page.getByRole('row', { name: /Console/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /Internal tools/ })).toBeVisible();
+});
+
+test('renders the app list from the deployed editor html entrypoint', async ({ page }) => {
+  await mockPagesApi(page, {
+    apps: [
+      {
+        id: 1,
+        uuid: 'console',
+        alias: 'Console',
+        description: 'Internal tools'
+      }
+    ]
+  });
+
+  await page.goto('/static/editor.html');
+
+  await expect(page.getByTestId('not-found-page')).toHaveCount(0);
+  await expect(page.getByTestId('app-list-panel')).toBeVisible();
+  await expect(page.getByRole('row', { name: /Console/ })).toBeVisible();
 });
 
 test('creates an app from the app list', async ({ page }) => {
