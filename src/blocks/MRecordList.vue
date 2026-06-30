@@ -288,7 +288,7 @@ function buildNestedListItem(item: Record<string, unknown>, index: number): Nest
 
 function buildListItem(item: unknown, index: number): RecordListItem {
   const fieldLabels = normalizedProps.value.fieldLabels ?? {};
-  const fields = isRecord(item)
+  const fields: RecordListField[] = isRecord(item)
     ? getFieldKeys(item).flatMap((key) => {
       const value = formatFieldValue(item[key]);
       return value
