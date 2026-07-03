@@ -26,7 +26,6 @@ import {
 
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
-const AppListPanel = defineAsyncComponent(() => import('@/components/AppListPanel.vue'));
 const ChatAiPanel = defineAsyncComponent(() => import('@/components/ChatAiPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 const NotFoundPage = defineAsyncComponent(() => import('@/components/NotFoundPage.vue'));
@@ -115,7 +114,7 @@ const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.valu
 const isRuntimePage = computed(() => !isApiBuilderPage.value && parsedRoute.value.runtimePage);
 const isNotFoundPage = computed(() => !isApiBuilderPage.value && (parsedRoute.value.notFound || runtimePageLoadFailed.value));
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && Boolean(routePageUuid.value));
-const isAppListPage = computed(() => !isApiBuilderPage.value && !isAiChatPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && !isEditorPage.value);
+const isAppsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'home');
 const isPagesSection = computed(() => isEditorPage.value || isPreviewPage.value);
 const isDatasourcesSection = computed(() => isRuntimePage.value && routePageUuid.value === 'datasources');
 const isLayoutsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'layouts');
@@ -205,12 +204,10 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
     return createParsedRoute({ preview: true });
   }
 
-  if (path === '/') {
-    return createParsedRoute();
-  }
-
   const runtimePageMatch = path.match(/^\/([^/]+)\/?$/);
-  const runtimePageUuid = runtimePageMatch ? safeDecodeURIComponent(runtimePageMatch[1]) : '';
+  const runtimePageUuid = path === '/'
+    ? 'home'
+    : runtimePageMatch ? safeDecodeURIComponent(runtimePageMatch[1]) : '';
 
   if (runtimePageUuidPattern.test(runtimePageUuid)) {
     return createParsedRoute({
@@ -674,7 +671,7 @@ function backToPagesPage() {
             <a
               href="#/"
               class="rounded-md px-3 py-1.5 font-medium"
-              :class="isAppListPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
+              :class="isAppsSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
             >
               {{ t('app.apps') }}
             </a>
@@ -820,7 +817,6 @@ function backToPagesPage() {
         />
       </div>
       <ChatAiPanel v-else-if="isAiChatPage" />
-      <AppListPanel v-else />
     </main>
   </TooltipProvider>
 </template>

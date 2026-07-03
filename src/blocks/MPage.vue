@@ -56,7 +56,7 @@ const props = withDefaults(defineProps<MPageProps>(), {
 
 const emit = defineEmits<{
   (event: 'change', blocks: OutputData['blocks']): void;
-  (event: 'close'): void;
+  (event: 'close', result?: unknown): void;
 }>();
 
 const shouldRenderEditor = computed(() => props.edit);
@@ -424,8 +424,39 @@ function getData() {
   };
 }
 
-function close() {
-  emit('close');
+function getCloseResult(value: unknown) {
+  if (!isRecord(value)) return undefined;
+
+  if (Object.prototype.hasOwnProperty.call(value, 'args')) {
+    return value.args;
+  }
+
+  const inputs = isRecord(value.inputs) ? value.inputs : {};
+  if (Object.prototype.hasOwnProperty.call(inputs, 'closeResult')) {
+    return inputs.closeResult;
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(inputs, 'reason') ||
+    Object.prototype.hasOwnProperty.call(inputs, 'result')
+  ) {
+    return {
+      reason: typeof inputs.reason === 'string' && inputs.reason.trim() ? inputs.reason.trim() : 'success',
+      ...(Object.prototype.hasOwnProperty.call(inputs, 'result') ? { result: inputs.result } : {})
+    };
+  }
+
+  return undefined;
+}
+
+function close(invocation?: unknown) {
+  const closeResult = getCloseResult(invocation);
+  emit('close', closeResult);
+
+  return {
+    closed: true,
+    ...(closeResult !== undefined ? { closeResult } : {})
+  };
 }
 
 async function loadPageDataSources() {

@@ -15,12 +15,12 @@ import {
 
 export interface MButtonProps {
   edit: boolean;
+  currentBlockId?: string;
   label?: string;
   variant?: PageDslButtonVariant | string;
   align?: PageDslAlign | string;
   action?: Record<string, unknown>;
   disabled?: boolean;
-  testId?: string;
   bare?: boolean;
 }
 
@@ -41,12 +41,12 @@ export function normalizeButtonProps(props: Partial<MButtonProps>): MButtonProps
 
   return {
     edit: props.edit ?? false,
+    currentBlockId: stringValue(merged.currentBlockId),
     label: stringValue(merged.label),
     variant: normalizeButtonVariant(merged.variant),
     align: normalizeAlign(merged.align),
     action: normalizeAction(merged.action),
     disabled: booleanValue(merged.disabled),
-    testId: stringValue(merged.testId),
     bare: booleanValue(merged.bare)
   };
 }
@@ -125,6 +125,8 @@ const buttonWrapClass = computed(() => {
   return 'page-dsl-button-wrap';
 });
 
+const buttonTestId = computed(() => props.currentBlockId || undefined);
+
 function handleClick(event: MouseEvent) {
   if (!props.edit && !props.disabled) {
     emit('click', event);
@@ -135,14 +137,14 @@ function handleClick(event: MouseEvent) {
 <template>
   <PageDslBlock v-if="!bare" block-type="MButton">
     <div :class="buttonWrapClass">
-      <button type="button" :class="buttonClass" :disabled="disabled" :data-testid="testId || undefined" @click="handleClick">
+      <button type="button" :class="buttonClass" :disabled="disabled" :data-testid="buttonTestId" @click="handleClick">
         {{ label || '提交' }}
       </button>
     </div>
   </PageDslBlock>
   <template v-else>
     <div :class="buttonWrapClass">
-      <button type="button" :class="buttonClass" :disabled="disabled" :data-testid="testId || undefined" @click="handleClick">
+      <button type="button" :class="buttonClass" :disabled="disabled" :data-testid="buttonTestId" @click="handleClick">
         {{ label || '提交' }}
       </button>
     </div>

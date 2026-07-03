@@ -496,11 +496,15 @@ function getPreviewProps(block: StoredBlock) {
   const definition = getInlineCustomComponentDefinition(block.type);
   if (!definition) return { edit: false };
   const resolvedData = resolveRuntimeValue(block.data, pageVariableContext.value);
-  return definition.normalizeProps({
-    ...(definition.createInitialProps?.() ?? {}),
-    ...(isRecord(resolvedData) ? resolvedData : {}),
-    edit: false
-  });
+  return {
+    ...definition.normalizeProps({
+      ...(definition.createInitialProps?.() ?? {}),
+      ...(isRecord(resolvedData) ? resolvedData : {}),
+      edit: false,
+      currentBlockId: block.id
+    }),
+    currentBlockId: block.id
+  };
 }
 
 onMounted(() => {

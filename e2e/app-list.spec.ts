@@ -15,7 +15,8 @@ test('renders the app list on the editor home route', async ({ page }) => {
   });
 
   await expect(page).toHaveURL(/#\/$/);
-  await expect(page.getByTestId('app-list-panel')).toBeVisible();
+  await expect(page.getByTestId('preview-panel')).toBeVisible();
+  await expect(page.getByTestId('layout-page-slot-panel')).toBeVisible();
   await expect(page.getByRole('row', { name: /Console/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /Internal tools/ })).toBeVisible();
 });
@@ -35,7 +36,8 @@ test('renders the app list from the deployed editor html entrypoint', async ({ p
   await page.goto('/static/editor.html');
 
   await expect(page.getByTestId('not-found-page')).toHaveCount(0);
-  await expect(page.getByTestId('app-list-panel')).toBeVisible();
+  await expect(page.getByTestId('preview-panel')).toBeVisible();
+  await expect(page.getByTestId('layout-page-slot-panel')).toBeVisible();
   await expect(page.getByRole('row', { name: /Console/ })).toBeVisible();
 });
 

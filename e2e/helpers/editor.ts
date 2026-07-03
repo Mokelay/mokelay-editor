@@ -1,5 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Locator, Page, Route } from '@playwright/test';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 export const storageKey = 'mokelay-editor-config';
 export const defaultPageUuid = '00000000-0000-4000-8000-000000000000';
@@ -172,7 +174,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   }
 
-  for (const pageRecord of options.systemPages ?? []) {
+  for (const pageRecord of getSeedSystemPages(options.systemPages)) {
     systemPages.set(pageRecord.uuid, {
       createdAt: now,
       updatedAt: now,
@@ -209,7 +211,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   }
 
-  for (const layoutRecord of options.systemLayouts ?? []) {
+  for (const layoutRecord of getSeedSystemLayouts(options.systemLayouts)) {
     systemLayouts.set(layoutRecord.uuid, {
       createdAt: now,
       updatedAt: now,
@@ -943,6 +945,71 @@ function defaultApiDomain(): MockApiDomain {
     alias: 'Mokelay 域名',
     host: 'https://api.mokelay.com'
   };
+}
+
+function getSeedSystemPages(overrides: MockMokelayPage[] = []) {
+  return mergeByUuid(
+    [
+      readSystemPageAsset('home'),
+      readSystemPageAsset('mokelay_app_create_page'),
+      readSystemPageAsset('mokelay_app_edit_page')
+    ],
+    overrides
+  );
+}
+
+function getSeedSystemLayouts(overrides: MockMokelayLayout[] = []) {
+  return mergeByUuid(
+    [
+      readSystemLayoutAsset('mokelay_layout')
+    ],
+    overrides
+  );
+}
+
+function mergeByUuid<TRecord extends { uuid: string }>(defaults: TRecord[], overrides: TRecord[]) {
+  const records = new Map<string, TRecord>();
+  defaults.forEach((record) => records.set(record.uuid, record));
+  overrides.forEach((record) => records.set(record.uuid, record));
+  return [...records.values()];
+}
+
+function readSystemPageAsset(uuid: string): MockMokelayPage {
+  const value = readServerAssetJson('mokelay-pages', `${uuid}.json`);
+  return {
+    uuid: readString(value.uuid),
+    name: readString(value.name),
+    blocks: Array.isArray(value.blocks) ? value.blocks as SavedBlock[] : [],
+    appUuid: readNullableString(value.appUuid ?? value.app_uuid),
+    layoutUuid: readNullableString(value.layoutUuid ?? value.layout_uuid),
+    createdAt: readString(value.createdAt ?? value.created_at),
+    updatedAt: readString(value.updatedAt ?? value.updated_at)
+  };
+}
+
+function readSystemLayoutAsset(uuid: string): MockMokelayLayout {
+  const value = readServerAssetJson('mokelay-layouts', `${uuid}.json`);
+  return {
+    uuid: readString(value.uuid),
+    name: readString(value.name),
+    layoutJson: value,
+    createdAt: readString(value.createdAt ?? value.created_at),
+    updatedAt: readString(value.updatedAt ?? value.updated_at)
+  };
+}
+
+function readServerAssetJson(assetDir: 'mokelay-pages' | 'mokelay-layouts', fileName: string) {
+  const candidates = [
+    resolve(process.cwd(), '../mokelay-server/server/assets', assetDir, fileName),
+    resolve(process.cwd(), 'submodule/mokelay-server/server/assets', assetDir, fileName)
+  ];
+  const assetPath = candidates.find((candidate) => existsSync(candidate));
+
+  if (!assetPath) {
+    throw new Error(`Missing Mokelay server asset: ${assetDir}/${fileName}`);
+  }
+
+  return readJsonPayload(JSON.parse(readFileSync(assetPath, 'utf8')));
 }
 
 function defaultAiGenerateDslResponse() {

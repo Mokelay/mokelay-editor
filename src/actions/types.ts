@@ -5,6 +5,7 @@ export type CommonActionName =
   | 'execute_ds'
   | 'confirm'
   | 'open_dialog'
+  | 'close_dialog'
   | 'jump_url'
   | 'call_block_method'
   | 'upload_file'

@@ -13,10 +13,14 @@ import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MTextareaFieldProps {
   edit: boolean;
+  currentBlockId?: string;
   id?: string;
   placeholder?: string;
   value?: unknown;
   rows?: number;
+  required?: boolean;
+  maxLength?: number;
+  disabled?: boolean;
 }
 
 const textareaFieldTitle = '多行文本';
@@ -31,13 +35,18 @@ function normalizeTextareaFieldProps(props: Partial<MTextareaFieldProps>): MText
     ...textareaFieldDefaults,
     ...props
   };
+  const maxLength = numberValue(merged.maxLength, 0);
 
   return {
     edit: props.edit ?? false,
+    currentBlockId: stringValue(merged.currentBlockId),
     id: stringValue(merged.id),
     placeholder: stringValue(merged.placeholder),
     value: normalizeValue(merged.value, textareaFieldDefaults.value),
-    rows: numberValue(merged.rows, textareaFieldDefaults.rows)
+    rows: numberValue(merged.rows, textareaFieldDefaults.rows),
+    required: merged.required === true,
+    maxLength: maxLength > 0 ? maxLength : undefined,
+    disabled: merged.disabled === true
   };
 }
 
@@ -60,9 +69,13 @@ export const mTextareaFieldEditorTool = defineEditorTool<MTextareaFieldProps>({
   serialize: (props) => {
     const normalized = normalizeTextareaFieldProps(props);
     return {
+      ...(normalized.id ? { id: normalized.id } : {}),
       placeholder: normalized.placeholder,
       value: normalized.value,
-      rows: normalized.rows
+      rows: normalized.rows,
+      ...(normalized.required ? { required: true } : {}),
+      ...(normalized.maxLength ? { maxLength: normalized.maxLength } : {}),
+      ...(normalized.disabled ? { disabled: true } : {})
     };
   }
 });
@@ -77,7 +90,7 @@ const props = defineProps<MTextareaFieldProps & PageDslCallbacks<MTextareaFieldP
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const localFieldId = createPageDslFieldId();
-const fieldId = computed(() => props.id || localFieldId);
+const fieldId = computed(() => props.id || props.currentBlockId || localFieldId);
 const fieldPlaceholder = computed(() => props.placeholder || '');
 const textareaRows = computed(() => {
   const rows = Number(props.rows);
@@ -93,10 +106,14 @@ const stringInputValue = computed(() => {
 function emitChange(payload: Partial<MTextareaFieldProps>) {
   const nextPayload = normalizeTextareaFieldProps({
     edit: props.edit,
+    currentBlockId: props.currentBlockId,
     id: props.id,
     placeholder: props.placeholder,
     value: props.value,
     rows: props.rows,
+    required: props.required,
+    maxLength: props.maxLength,
+    disabled: props.disabled,
     ...payload
   });
   props.onToolChange?.(nextPayload);
@@ -125,11 +142,14 @@ defineExpose({
       <textarea
         ref="textareaRef"
         :id="fieldId"
-        data-testid="editor-textarea-control"
+        :data-testid="fieldId"
         class="page-dsl-control"
         :rows="textareaRows"
         :placeholder="fieldPlaceholder"
         :value="stringInputValue"
+        :required="required"
+        :maxlength="maxLength"
+        :disabled="disabled"
         @input="emitChange({ value: ($event.target as HTMLTextAreaElement).value })"
       ></textarea>
     </div>
@@ -159,9 +179,20 @@ defineExpose({
   box-shadow: 0 0 0 2px rgb(99 102 241 / 0.14);
 }
 
+.page-dsl-control:disabled {
+  cursor: not-allowed;
+  background: rgb(241 245 249);
+  color: rgb(100 116 139);
+}
+
 :global(.dark) .page-dsl-control {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
+}
+
+:global(.dark) .page-dsl-control:disabled {
+  background: rgb(30 41 59);
+  color: rgb(148 163 184);
 }
 </style>

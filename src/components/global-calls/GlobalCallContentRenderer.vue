@@ -28,11 +28,15 @@ function getPreviewProps(block: StoredBlock) {
   const definition = getInlineCustomComponentDefinition(block.type);
   if (!definition) return { edit: false };
 
-  return definition.normalizeProps({
-    ...(definition.createInitialProps?.() ?? {}),
-    ...block.data,
-    edit: false
-  });
+  return {
+    ...definition.normalizeProps({
+      ...(definition.createInitialProps?.() ?? {}),
+      ...block.data,
+      edit: false,
+      currentBlockId: block.id
+    }),
+    currentBlockId: block.id
+  };
 }
 </script>
 

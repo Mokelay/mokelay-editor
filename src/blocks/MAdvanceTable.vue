@@ -647,6 +647,7 @@ function getCellBlocks(row: Record<string, unknown>, column: MAdvanceTableColumn
     if (block.type === 'paragraph') {
       return {
         ...block,
+        id: interpolateValue(block.id, row, { preserveMissing: true }),
         data: {
           text: interpolateValue(getParagraphText(block), row)
         },
@@ -656,6 +657,7 @@ function getCellBlocks(row: Record<string, unknown>, column: MAdvanceTableColumn
 
     return {
       ...block,
+      id: interpolateValue(block.id, row, { preserveMissing: true }),
       data: interpolateComponentData(block.data, row) as Record<string, unknown>,
       events: interpolateComponentData(block.events, row, { preserveMissing: true }) as StoredBlock['events']
     };
@@ -670,11 +672,15 @@ function getPreviewProps(block: StoredBlock) {
   const definition = getInlineCustomComponentDefinition(block.type);
   if (!definition) return { edit: false };
   const data = getBoundCellBlockData(block);
-  return definition.normalizeProps({
-    ...(definition.createInitialProps?.() ?? {}),
-    ...data,
-    edit: false
-  });
+  return {
+    ...definition.normalizeProps({
+      ...(definition.createInitialProps?.() ?? {}),
+      ...data,
+      edit: false,
+      currentBlockId: block.id
+    }),
+    currentBlockId: block.id
+  };
 }
 
 function getBoundCellBlockData(block: StoredBlock) {

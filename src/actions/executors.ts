@@ -85,6 +85,14 @@ function optionalRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+function hasOwn(value: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function findCurrentPageBlockId(blocks: Record<string, Record<string, unknown>>) {
+  return Object.entries(blocks).find(([, data]) => data?._blockType === 'MPage')?.[0] ?? '';
+}
+
 function firstStringPath(value: unknown, paths: string[]) {
   for (const path of paths) {
     const result = readPath(value, path);
@@ -293,6 +301,56 @@ export const callBlockMethodAction: ActionExecutor = async ({ config, inputs, ca
   return { returnData };
 };
 
+export const closeDialogAction: ActionExecutor = async ({ inputs, state, callBlockMethod }) => {
+  const reason = stringInput(inputs.reason) || 'success';
+  const blockId = stringInput(
+    inputs.blockId ??
+    inputs.pageUUID ??
+    inputs.pageUuid ??
+    inputs.pageId ??
+    inputs.dialogId
+  ) || findCurrentPageBlockId(state.blocks);
+  const result = hasOwn(inputs, 'result') ? inputs.result : undefined;
+  const closeResult = {
+    reason,
+    ...(result !== undefined ? { result } : {})
+  };
+
+  if (booleanInput(inputs.confirmBeforeClose)) {
+    const confirmed = await $confirm({
+      title: stringInput(inputs.confirmTitle) || '关闭弹窗',
+      content: stringInput(inputs.confirmContent) || '确认关闭当前弹窗？'
+    });
+    if (!confirmed) {
+      return {
+        closed: false,
+        reason,
+        ...(result !== undefined ? { result } : {})
+      };
+    }
+  }
+
+  if (!blockId) {
+    return {
+      closed: false,
+      reason,
+      ...(result !== undefined ? { result } : {})
+    };
+  }
+
+  await callBlockMethod(blockId, 'close', {
+    inputs: {
+      closeResult
+    }
+  });
+
+  return {
+    closed: true,
+    reason,
+    ...(result !== undefined ? { result } : {})
+  };
+};
+
 export const uploadFileAction: ActionExecutor = async ({ inputs, state }) => {
   const files = fileInputs(inputs.files ?? inputs.file);
   if (!files.length) {
@@ -387,6 +445,7 @@ export const actionExecutors: Record<string, ActionExecutor> = {
   execute_ds: executeDatasourceAction,
   confirm: confirmAction,
   open_dialog: openDialogAction,
+  close_dialog: closeDialogAction,
   jump_url: jumpUrlAction,
   call_block_method: callBlockMethodAction,
   upload_file: uploadFileAction,

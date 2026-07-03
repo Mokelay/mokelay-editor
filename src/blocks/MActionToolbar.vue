@@ -21,7 +21,7 @@ export type MActionToolbarAlign = 'left' | 'right' | 'space-between';
 export type MActionToolbarSize = 'small' | 'medium' | 'large';
 export type MActionToolbarMode = 'inline' | 'grouped' | 'dropdown';
 
-export type ToolbarButton = Omit<MButtonProps, 'edit' | 'testId' | 'bare'> & {
+export type ToolbarButton = Omit<MButtonProps, 'edit' | 'currentBlockId' | 'bare'> & {
   id: string;
   events?: BlockEvent[];
   children?: ToolbarButton[];
@@ -396,9 +396,9 @@ function getRenderedButtonProps(button: ToolbarButton) {
   return {
     ...data,
     edit: props.edit,
+    currentBlockId: `m-action-toolbar-action-${button.id}`,
     disabled: isButtonDisabled(button),
     label: isButtonLoading(button) ? '执行中...' : data.label,
-    testId: `m-action-toolbar-action-${button.id}`,
     bare: true
   };
 }

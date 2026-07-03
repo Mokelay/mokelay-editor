@@ -11,7 +11,7 @@ type DialogRequest = {
 };
 
 type DialogHandle = {
-  close: () => void;
+  close: (result?: unknown) => void;
 };
 
 const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
@@ -38,11 +38,11 @@ export async function showActionPageDialog(request: DialogRequest): Promise<unkn
 
   return await new Promise((resolve) => {
     let closed = false;
-    const close = () => {
+    const close = (result?: unknown) => {
       if (closed) return;
       closed = true;
       clearDialogHost();
-      resolve(null);
+      resolve(result ?? null);
     };
 
     dialogContainer = document.createElement('div');
@@ -137,7 +137,7 @@ const ActionDialogContent = {
             type: 'button',
             class: 'action-dialog-close',
             'data-testid': 'action-dialog-close',
-            onClick: props.onClose
+            onClick: () => props.onClose()
           }, 'Close')
         ]),
         h('div', {
