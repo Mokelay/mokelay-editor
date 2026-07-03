@@ -298,38 +298,38 @@ defineExpose({
   line-height: 18px;
 }
 
-:global(.dark) :deep(.mokelay-editor-tool__property-panel) {
+:global(.dark .mokelay-editor-tool__property-panel) {
   background: rgb(15 23 42);
 }
 
-:global(.dark) :deep(.mokelay-editor-tool__property-title) {
+:global(.dark .mokelay-editor-tool__property-title) {
   color: rgb(241 245 249);
 }
 
-:global(.dark) :deep(.mokelay-editor-tool__property-close) {
+:global(.dark .mokelay-editor-tool__property-close) {
   background: rgb(51 65 85);
   color: rgb(241 245 249);
 }
 
-:global(.dark) :deep(.mokelay-editor-tool__property-label) {
+:global(.dark .mokelay-editor-tool__property-label) {
   color: rgb(203 213 225);
 }
 
-:global(.dark) :deep(.mokelay-editor-tool__property-input) {
+:global(.dark .mokelay-editor-tool__property-input) {
   background: rgb(15 23 42);
   color: rgb(226 232 240);
   border-color: rgb(71 85 105 / 0.9);
 }
 
-:global(.dark) :deep(.mokelay-editor-tool__events-empty) {
+:global(.dark .mokelay-editor-tool__events-empty) {
   color: rgb(148 163 184);
 }
 
-:global(.dark) :deep(.mokelay-editor-tool__event-row) {
+:global(.dark .mokelay-editor-tool__event-row) {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) :deep(.mokelay-editor-tool__event-remove) {
+:global(.dark .mokelay-editor-tool__event-remove) {
   background: rgb(127 29 29 / 0.45);
   color: rgb(254 202 202);
 }

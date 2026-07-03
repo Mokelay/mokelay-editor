@@ -856,31 +856,31 @@ function cloneValue<T>(value: T): T {
   font-size: 13px;
 }
 
-:global(.dark) .m-action-editor__dialog,
-:global(.dark) .m-action-editor__flow-node,
-:global(.dark) .m-action-editor__open,
-:global(.dark) .m-action-editor__close,
-:global(.dark) .m-action-editor__palette-button,
-:global(.dark) .m-action-editor__inspector button,
-:global(.dark) .m-action-editor__nodes-header button {
+.dark .m-action-editor__dialog,
+.dark .m-action-editor__flow-node,
+.dark .m-action-editor__open,
+.dark .m-action-editor__close,
+.dark .m-action-editor__palette-button,
+.dark .m-action-editor__inspector button,
+.dark .m-action-editor__nodes-header button {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .m-action-editor__canvas {
+.dark .m-action-editor__canvas {
   background: rgb(2 6 23);
 }
 
-:global(.dark) .m-action-editor__header,
-:global(.dark) .m-action-editor__palette,
-:global(.dark) .m-action-editor__inspector {
+.dark .m-action-editor__header,
+.dark .m-action-editor__palette,
+.dark .m-action-editor__inspector {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .m-action-editor__inspector input,
-:global(.dark) .m-action-editor__inspector textarea,
-:global(.dark) .m-action-editor__inspector select {
+.dark .m-action-editor__inspector input,
+.dark .m-action-editor__inspector textarea,
+.dark .m-action-editor__inspector select {
   border-color: rgb(51 65 85);
   background: rgb(2 6 23);
   color: rgb(226 232 240);

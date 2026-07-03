@@ -185,13 +185,13 @@ defineExpose({
   color: rgb(100 116 139);
 }
 
-:global(.dark) .ce-input-tool__control {
+.dark .ce-input-tool__control {
   background-color: rgb(15 23 42);
   color: rgb(226 232 240);
   border-color: rgb(71 85 105 / 0.9);
 }
 
-:global(.dark) .ce-input-tool__control:disabled {
+.dark .ce-input-tool__control:disabled {
   background-color: rgb(30 41 59);
   color: rgb(148 163 184);
 }

@@ -3056,215 +3056,215 @@ watch(
   }
 }
 
-:global(.dark) .ce-datasource-tool {
+.dark .ce-datasource-tool {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-datasource-tool__schema-panel {
+.dark .ce-datasource-tool__schema-panel {
   border-top-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-datasource-tool__response-example-card {
+.dark .ce-datasource-tool__response-example-card {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-datasource-tool__response-example-preview {
+.dark .ce-datasource-tool__response-example-preview {
   border-color: rgb(71 85 105);
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-datasource-tool__response-example-preview-state {
+.dark .ce-datasource-tool__response-example-preview-state {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-datasource-tool__response-example-preview-state--error {
+.dark .ce-datasource-tool__response-example-preview-state--error {
   color: rgb(248 113 113);
 }
 
-:global(.dark) .ce-datasource-tool__config-section {
+.dark .ce-datasource-tool__config-section {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-datasource-tool__config-section-header {
+.dark .ce-datasource-tool__config-section-header {
   border-color: rgb(51 65 85);
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-datasource-tool__config-section-title {
+.dark .ce-datasource-tool__config-section-title {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .ce-datasource-tool__settings-button {
+.dark .ce-datasource-tool__settings-button {
   border-color: rgb(45 212 191 / 0.55);
   background: rgb(15 118 110);
   color: rgb(240 253 250);
 }
 
-:global(.dark) .ce-datasource-tool__settings-button:hover {
+.dark .ce-datasource-tool__settings-button:hover {
   background: rgb(13 148 136);
 }
 
-:global(.dark) .ce-datasource-tool__summary-item {
+.dark .ce-datasource-tool__summary-item {
   border-color: rgb(51 65 85);
   background: rgb(30 41 59);
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-datasource-tool__summary-item--type {
+.dark .ce-datasource-tool__summary-item--type {
   border-color: rgb(96 165 250 / 0.55);
   background: rgb(30 64 175 / 0.32);
   color: rgb(191 219 254);
 }
 
-:global(.dark) .ce-datasource-tool__summary-label {
+.dark .ce-datasource-tool__summary-label {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-datasource-tool__summary-value {
+.dark .ce-datasource-tool__summary-value {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .ce-datasource-tool__settings-dialog-panel {
+.dark .ce-datasource-tool__settings-dialog-panel {
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-datasource-tool__section-title,
-:global(.dark) .ce-datasource-tool__schema-node-name {
+.dark .ce-datasource-tool__section-title,
+.dark .ce-datasource-tool__schema-node-name {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .ce-datasource-tool__section-copy,
-:global(.dark) .ce-datasource-tool__schema-summary,
-:global(.dark) .ce-datasource-tool__schema-path {
+.dark .ce-datasource-tool__section-copy,
+.dark .ce-datasource-tool__schema-summary,
+.dark .ce-datasource-tool__schema-path {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-datasource-tool__label,
-:global(.dark) .ce-datasource-tool__list-title,
-:global(.dark) .ce-datasource-tool__field-list-summary {
+.dark .ce-datasource-tool__label,
+.dark .ce-datasource-tool__list-title,
+.dark .ce-datasource-tool__field-list-summary {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-datasource-tool__import-source-button {
+.dark .ce-datasource-tool__import-source-button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(191 219 254);
 }
 
-:global(.dark) .ce-datasource-tool__import-source-button:hover {
+.dark .ce-datasource-tool__import-source-button:hover {
   border-color: rgb(96 165 250 / 0.7);
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-datasource-tool__import-source-icon {
+.dark .ce-datasource-tool__import-source-icon {
   background: rgb(30 64 175 / 0.45);
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-panel {
+.dark .ce-datasource-tool__import-dialog-panel {
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-header,
-:global(.dark) .ce-datasource-tool__import-dialog-actions {
+.dark .ce-datasource-tool__import-dialog-header,
+.dark .ce-datasource-tool__import-dialog-actions {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-title {
+.dark .ce-datasource-tool__import-dialog-title {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-close {
+.dark .ce-datasource-tool__import-dialog-close {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-close:hover {
+.dark .ce-datasource-tool__import-dialog-close:hover {
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-datasource-tool__input,
-:global(.dark) .ce-datasource-tool__textarea {
+.dark .ce-datasource-tool__input,
+.dark .ce-datasource-tool__textarea {
   border-color: rgb(71 85 105 / 0.9);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-datasource-tool__input:read-only,
-:global(.dark) .ce-datasource-tool__textarea:read-only,
-:global(.dark) .ce-datasource-tool__input:disabled {
+.dark .ce-datasource-tool__input:read-only,
+.dark .ce-datasource-tool__textarea:read-only,
+.dark .ce-datasource-tool__input:disabled {
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-datasource-tool__action,
-:global(.dark) .ce-datasource-tool__remove,
-:global(.dark) .ce-datasource-tool__schema-button,
-:global(.dark) .ce-datasource-tool__full-schema-button {
+.dark .ce-datasource-tool__action,
+.dark .ce-datasource-tool__remove,
+.dark .ce-datasource-tool__schema-button,
+.dark .ce-datasource-tool__full-schema-button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-datasource-tool__action:hover,
-:global(.dark) .ce-datasource-tool__remove:hover,
-:global(.dark) .ce-datasource-tool__schema-button:hover,
-:global(.dark) .ce-datasource-tool__full-schema-button:hover {
+.dark .ce-datasource-tool__action:hover,
+.dark .ce-datasource-tool__remove:hover,
+.dark .ce-datasource-tool__schema-button:hover,
+.dark .ce-datasource-tool__full-schema-button:hover {
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-datasource-tool__empty {
+.dark .ce-datasource-tool__empty {
   border-color: rgb(71 85 105);
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-datasource-tool__schema-field,
-:global(.dark) .ce-datasource-tool__schema-tree {
+.dark .ce-datasource-tool__schema-field,
+.dark .ce-datasource-tool__schema-tree {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-datasource-tool__selected-fields {
+.dark .ce-datasource-tool__selected-fields {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-datasource-tool__selected-fields .ce-datasource-tool__schema-badges {
+.dark .ce-datasource-tool__selected-fields .ce-datasource-tool__schema-badges {
   border-top-color: rgb(30 41 59);
 }
 
-:global(.dark) .ce-datasource-tool__field-action {
+.dark .ce-datasource-tool__field-action {
   border-color: rgb(30 64 175);
   background: rgb(30 64 175 / 0.25);
   color: rgb(191 219 254);
 }
 
-:global(.dark) .ce-datasource-tool__field-action--remove {
+.dark .ce-datasource-tool__field-action--remove {
   border-color: rgb(153 27 27);
   background: rgb(127 29 29 / 0.25);
   color: rgb(254 202 202);
 }
 
-:global(.dark) .ce-datasource-tool__schema-field-label {
+.dark .ce-datasource-tool__schema-field-label {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-datasource-tool__schema-badge {
+.dark .ce-datasource-tool__schema-badge {
   background: rgb(30 64 175 / 0.34);
   color: rgb(191 219 254);
 }
 
-:global(.dark) .ce-datasource-tool__processor-tag,
-:global(.dark) .ce-datasource-tool__schema-badge--processor {
+.dark .ce-datasource-tool__processor-tag,
+.dark .ce-datasource-tool__schema-badge--processor {
   background: rgb(13 148 136 / 0.25);
   color: rgb(153 246 228);
 }
 
-:global(.dark) .ce-datasource-tool__schema-badge--warning {
+.dark .ce-datasource-tool__schema-badge--warning {
   background: rgb(120 53 15 / 0.35);
   color: rgb(253 230 138);
 }
 
-:global(.dark) .ce-datasource-tool__error,
-:global(.dark) .ce-datasource-tool__body-error {
+.dark .ce-datasource-tool__error,
+.dark .ce-datasource-tool__body-error {
   color: rgb(248 113 113);
 }
 </style>

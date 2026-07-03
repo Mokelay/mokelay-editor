@@ -301,19 +301,19 @@ watch(
   }
 }
 
-:global(.dark) .ce-form-item-tool {
+.dark .ce-form-item-tool {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-form-item-tool__edit-shell {
+.dark .ce-form-item-tool__edit-shell {
   border-color: rgb(71 85 105 / 0.9);
 }
 
-:global(.dark) .ce-form-item-tool__label {
+.dark .ce-form-item-tool__label {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-form-item-tool__empty {
+.dark .ce-form-item-tool__empty {
   color: rgb(148 163 184);
 }
 </style>

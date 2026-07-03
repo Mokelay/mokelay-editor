@@ -340,23 +340,23 @@ watch(() => validExampleIndexes.value.join(','), () => {
   color: rgb(185 28 28);
 }
 
-:global(.dark) .processor-preview-panel,
-:global(.dark) .processor-preview-header button,
-:global(.dark) .processor-preview-example-field select,
-:global(.dark) .processor-preview-tree {
+.dark .processor-preview-panel,
+.dark .processor-preview-header button,
+.dark .processor-preview-example-field select,
+.dark .processor-preview-tree {
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .processor-preview-header,
-:global(.dark) .processor-preview-result,
-:global(.dark) .processor-preview-tree,
-:global(.dark) .processor-preview-header button,
-:global(.dark) .processor-preview-example-field select {
+.dark .processor-preview-header,
+.dark .processor-preview-result,
+.dark .processor-preview-tree,
+.dark .processor-preview-header button,
+.dark .processor-preview-example-field select {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .processor-preview-result--final {
+.dark .processor-preview-result--final {
   background: rgb(30 58 138 / 0.15);
 }
 

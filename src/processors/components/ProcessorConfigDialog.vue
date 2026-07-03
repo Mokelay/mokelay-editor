@@ -404,22 +404,22 @@ watch(() => [props.open, props.field?.path], () => {
   color: rgb(161 98 7);
 }
 
-:global(.dark) .processor-dialog-panel {
+.dark .processor-dialog-panel {
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .processor-dialog-header,
-:global(.dark) .processor-dialog-footer,
-:global(.dark) .processor-dialog-item {
+.dark .processor-dialog-header,
+.dark .processor-dialog-footer,
+.dark .processor-dialog-item {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .processor-dialog-add-row select,
-:global(.dark) .processor-dialog-header button,
-:global(.dark) .processor-dialog-footer button,
-:global(.dark) .processor-dialog-item-actions button,
-:global(.dark) .processor-dialog-add-row button {
+.dark .processor-dialog-add-row select,
+.dark .processor-dialog-header button,
+.dark .processor-dialog-footer button,
+.dark .processor-dialog-item-actions button,
+.dark .processor-dialog-add-row button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(191 219 254);

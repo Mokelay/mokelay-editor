@@ -101,7 +101,7 @@ defineProps<MEmbedProps & PageDslCallbacks<MEmbedProps>>();
   word-break: break-all;
 }
 
-:global(.dark) .page-dsl-embed {
+.dark .page-dsl-embed {
   border-color: rgb(51 65 85);
 }
 </style>

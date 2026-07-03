@@ -194,11 +194,11 @@ function toggleArrayValue(value: string, checked: boolean) {
   font-size: 13px;
 }
 
-:global(.dark) .page-dsl-image-option {
+.dark .page-dsl-image-option {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .page-dsl-image-option__placeholder {
+.dark .page-dsl-image-option__placeholder {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(148 163 184);

@@ -71,7 +71,7 @@ defineProps<MRichTextProps & PageDslCallbacks<MRichTextProps>>();
   line-height: 1.75;
 }
 
-:global(.dark) .page-dsl-rich-text {
+.dark .page-dsl-rich-text {
   color: rgb(203 213 225);
 }
 </style>

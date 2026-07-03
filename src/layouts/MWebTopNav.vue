@@ -243,7 +243,7 @@ const brandHref = computed(() => normalizeHref(props.brand?.href || '#'));
   height: 26px;
 }
 
-:global(.dark) .layout-top-nav {
+.dark .layout-top-nav {
   border-bottom-color: rgb(255 255 255 / 0.08);
   background: rgb(0 0 0 / 0.92);
 }

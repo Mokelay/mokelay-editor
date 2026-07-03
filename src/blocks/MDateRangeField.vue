@@ -266,7 +266,7 @@ defineExpose({
   flex: 0 0 auto;
 }
 
-:global(.dark) .page-dsl-date-range {
+.dark .page-dsl-date-range {
   --el-fill-color-blank: rgb(15 23 42);
   --el-border-color: rgb(71 85 105);
   --el-text-color-regular: rgb(226 232 240);

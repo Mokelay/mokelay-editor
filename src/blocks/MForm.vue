@@ -909,16 +909,16 @@ onBeforeUnmount(async () => {
   line-height: 20px;
 }
 
-:global(.dark) .ce-form-tool {
+.dark .ce-form-tool {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-form-tool__editor-shell {
+.dark .ce-form-tool__editor-shell {
   border-color: rgb(71 85 105 / 0.9);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-form-tool :deep(.ce-paragraph) {
+.dark .ce-form-tool :deep(.ce-paragraph) {
   color: rgb(148 163 184);
 }
 </style>

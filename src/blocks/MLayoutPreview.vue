@@ -161,21 +161,21 @@ function normalizeLayout(value: unknown): MokelayLayout | null {
   padding: 10px 12px;
 }
 
-:global(.dark) .m-layout-preview {
+.dark .m-layout-preview {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .m-layout-preview__header {
+.dark .m-layout-preview__header {
   border-color: rgb(71 85 105);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .m-layout-preview__body {
+.dark .m-layout-preview__body {
   background: rgb(2 6 23);
 }
 
-:global(.dark) .m-layout-preview__state {
+.dark .m-layout-preview__state {
   border-color: rgb(180 83 9 / 0.72);
   background: rgb(146 64 14 / 0.22);
   color: rgb(254 215 170);

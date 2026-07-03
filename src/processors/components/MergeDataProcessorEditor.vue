@@ -95,11 +95,11 @@ watch(() => props.modelValue, syncFromProps, { immediate: true, deep: true });
   font-size: 13px;
 }
 
-:global(.dark) .processor-editor-field {
+.dark .processor-editor-field {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .processor-editor-textarea {
+.dark .processor-editor-textarea {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);

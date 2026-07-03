@@ -187,8 +187,8 @@ function isMatrixSelected(rowValue: string, optionValue: string) {
   text-align: left;
 }
 
-:global(.dark) .page-dsl-matrix th,
-:global(.dark) .page-dsl-matrix td {
+.dark .page-dsl-matrix th,
+.dark .page-dsl-matrix td {
   border-color: rgb(51 65 85);
 }
 </style>

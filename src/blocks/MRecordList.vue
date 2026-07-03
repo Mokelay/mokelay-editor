@@ -507,41 +507,41 @@ function buildListItem(item: unknown, index: number): RecordListItem {
   overflow-wrap: anywhere;
 }
 
-:global(.dark) .record-list__context,
-:global(.dark) .record-list__field dt {
+.dark .record-list__context,
+.dark .record-list__field dt {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .record-list__count {
+.dark .record-list__count {
   color: rgb(94 234 212);
 }
 
-:global(.dark) .record-list__empty,
-:global(.dark) .record-list__item {
+.dark .record-list__empty,
+.dark .record-list__item {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .record-list__item h3,
-:global(.dark) .record-list__field dd {
+.dark .record-list__item h3,
+.dark .record-list__field dd {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .record-list__field dd {
+.dark .record-list__field dd {
   background: rgb(30 41 59);
 }
 
-:global(.dark) .record-list__nested-item {
+.dark .record-list__nested-item {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .record-list__nested-title {
+.dark .record-list__nested-title {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .record-list__nested-field dt,
-:global(.dark) .record-list__nested-field dd {
+.dark .record-list__nested-field dt,
+.dark .record-list__nested-field dd {
   color: rgb(203 213 225);
 }
 

@@ -287,15 +287,15 @@ watch(() => props.modelValue, (value) => {
   color: rgb(185 28 28);
 }
 
-:global(.dark) .processor-filter-condition {
+.dark .processor-filter-condition {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .processor-filter-field {
+.dark .processor-filter-field {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .processor-filter-input {
+.dark .processor-filter-input {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);

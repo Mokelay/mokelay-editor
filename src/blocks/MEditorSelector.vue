@@ -452,8 +452,8 @@ onBeforeUnmount(async () => {
   display: none;
 }
 
-:global(.dark) .ce-editor-selector-tool__editor-shell,
-:global(.dark) .ce-editor-selector-tool__preview {
+.dark .ce-editor-selector-tool__editor-shell,
+.dark .ce-editor-selector-tool__preview {
   border-color: rgb(71 85 105 / 0.9);
   background: rgb(15 23 42);
 }

@@ -98,11 +98,11 @@ function updatePreset(event: Event) {
   font-size: 13px;
 }
 
-:global(.dark) .processor-date-field {
+.dark .processor-date-field {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .processor-date-input {
+.dark .processor-date-input {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);

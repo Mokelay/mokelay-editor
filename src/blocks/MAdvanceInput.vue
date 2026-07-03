@@ -837,48 +837,48 @@ watch(
   box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
 }
 
-:global(.dark) .ce-advance-input-tool__editor-shell,
-:global(.dark) .ce-advance-input-tool__preview {
+.dark .ce-advance-input-tool__editor-shell,
+.dark .ce-advance-input-tool__preview {
   background: rgb(15 23 42);
   border-color: rgb(71 85 105 / 0.9);
 }
 
-:global(.dark) .ce-advance-input-tool__editor,
-:global(.dark) .ce-advance-input-tool__preview {
+.dark .ce-advance-input-tool__editor,
+.dark .ce-advance-input-tool__preview {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-advance-input-tool__menu {
+.dark .ce-advance-input-tool__menu {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-advance-input-tool__menu-item {
+.dark .ce-advance-input-tool__menu-item {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-advance-input-tool__menu-item:hover {
+.dark .ce-advance-input-tool__menu-item:hover {
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-advance-input-tool__dialog-panel {
+.dark .ce-advance-input-tool__dialog-panel {
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-advance-input-tool__dialog-title {
+.dark .ce-advance-input-tool__dialog-title {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .ce-advance-input-tool__dialog-close {
+.dark .ce-advance-input-tool__dialog-close {
   background: rgb(51 65 85);
   color: rgb(241 245 249);
 }
 
-:global(.dark) .ce-advance-input-tool__dialog-label {
+.dark .ce-advance-input-tool__dialog-label {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-advance-input-tool__dialog-input {
+.dark .ce-advance-input-tool__dialog-input {
   background: rgb(15 23 42);
   color: rgb(226 232 240);
   border-color: rgb(71 85 105 / 0.9);

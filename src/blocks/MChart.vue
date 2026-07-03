@@ -427,7 +427,7 @@ onBeforeUnmount(() => {
   min-height: 240px;
 }
 
-:global(.dark) .ce-chart-tool {
+.dark .ce-chart-tool {
   color: rgb(226 232 240);
 }
 </style>

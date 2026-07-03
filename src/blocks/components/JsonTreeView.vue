@@ -133,35 +133,35 @@ const primitiveText = computed(() => {
   font-style: italic;
 }
 
-:global(.dark) .json-tree-view {
+.dark .json-tree-view {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .json-tree-view__children,
-:global(.dark) .json-tree-view__empty {
+.dark .json-tree-view__children,
+.dark .json-tree-view__empty {
   border-left-color: rgb(51 65 85);
 }
 
-:global(.dark) .json-tree-view__key {
+.dark .json-tree-view__key {
   color: rgb(125 211 252);
 }
 
-:global(.dark) .json-tree-view__separator,
-:global(.dark) .json-tree-view__branch-summary,
-:global(.dark) .json-tree-view__empty,
-:global(.dark) .json-tree-view__summary::marker {
+.dark .json-tree-view__separator,
+.dark .json-tree-view__branch-summary,
+.dark .json-tree-view__empty,
+.dark .json-tree-view__summary::marker {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .json-tree-view__value--string {
+.dark .json-tree-view__value--string {
   color: rgb(134 239 172);
 }
 
-:global(.dark) .json-tree-view__value--number {
+.dark .json-tree-view__value--number {
   color: rgb(216 180 254);
 }
 
-:global(.dark) .json-tree-view__value--boolean {
+.dark .json-tree-view__value--boolean {
   color: rgb(253 186 116);
 }
 </style>

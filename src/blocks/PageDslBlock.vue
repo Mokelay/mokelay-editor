@@ -67,7 +67,7 @@ onBeforeUnmount(() => {
   color: rgb(15 23 42);
 }
 
-:global(.dark) .page-dsl-block {
+.dark .page-dsl-block {
   color: rgb(241 245 249);
 }
 </style>

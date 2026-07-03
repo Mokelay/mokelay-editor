@@ -656,8 +656,8 @@ watch(() => props.modelValue, (value) => {
   font-weight: 650;
 }
 
-:global(.dark) .variable-value-editor__input,
-:global(.dark) .variable-value-editor__flow {
+.dark .variable-value-editor__input,
+.dark .variable-value-editor__flow {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);

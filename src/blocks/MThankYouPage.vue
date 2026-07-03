@@ -104,17 +104,17 @@ defineProps<MThankYouPageProps & PageDslCallbacks<MThankYouPageProps>>();
   background: rgb(236 253 245);
 }
 
-:global(.dark) .page-dsl-flow {
+.dark .page-dsl-flow {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(148 163 184);
 }
 
-:global(.dark) .page-dsl-flow strong {
+.dark .page-dsl-flow strong {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .page-dsl-flow p {
+.dark .page-dsl-flow p {
   color: rgb(203 213 225);
 }
 </style>

@@ -1129,14 +1129,14 @@ defineExpose({
   font-weight: 700;
 }
 
-:global(.dark) .m-upload-import {
+.dark .m-upload-import {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .m-upload-import__dropzone,
-:global(.dark) .m-upload-import__batch,
-:global(.dark) .m-upload-import__button--secondary,
-:global(.dark) .m-upload-import__file {
+.dark .m-upload-import__dropzone,
+.dark .m-upload-import__batch,
+.dark .m-upload-import__button--secondary,
+.dark .m-upload-import__file {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);

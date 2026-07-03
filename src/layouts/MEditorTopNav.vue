@@ -381,43 +381,43 @@ onUnmounted(() => {
   color: rgb(51 65 85);
 }
 
-:global(.dark) .layout-top-nav {
+.dark .layout-top-nav {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .layout-top-nav__brand {
+.dark .layout-top-nav__brand {
   color: rgb(248 250 252);
 }
 
-:global(.dark) .layout-top-nav__home,
-:global(.dark) .layout-top-nav__select {
+.dark .layout-top-nav__home,
+.dark .layout-top-nav__select {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .layout-top-nav__links {
+.dark .layout-top-nav__links {
   background: rgb(30 41 59);
 }
 
-:global(.dark) .layout-top-nav__link {
+.dark .layout-top-nav__link {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .layout-top-nav__link--active,
-:global(.dark) .layout-top-nav__link:hover {
+.dark .layout-top-nav__link--active,
+.dark .layout-top-nav__link:hover {
   background: rgb(15 23 42);
   color: rgb(248 250 252);
 }
 
-:global(.dark) .layout-top-nav__action--secondary {
+.dark .layout-top-nav__action--secondary {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .layout-top-nav__action--ghost {
+.dark .layout-top-nav__action--ghost {
   color: rgb(203 213 225);
 }
 

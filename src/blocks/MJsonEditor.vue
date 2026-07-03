@@ -326,22 +326,22 @@ watch(
   padding: 8px 10px;
 }
 
-:global(.dark) .m-json-editor__title {
+.dark .m-json-editor__title {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .m-json-editor__control {
+.dark .m-json-editor__control {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .m-json-editor__control:read-only {
+.dark .m-json-editor__control:read-only {
   background: rgb(15 23 42 / 0.7);
   color: rgb(148 163 184);
 }
 
-:global(.dark) .m-json-editor__error {
+.dark .m-json-editor__error {
   border-color: rgb(180 83 9 / 0.72);
   background: rgb(146 64 14 / 0.22);
   color: rgb(254 215 170);

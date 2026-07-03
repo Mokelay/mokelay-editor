@@ -214,25 +214,25 @@ function handleClick(event: MouseEvent) {
   color: rgb(37 99 235);
 }
 
-:global(.dark) .page-dsl-button--secondary {
+.dark .page-dsl-button--secondary {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .page-dsl-button--danger {
+.dark .page-dsl-button--danger {
   border-color: rgb(127 29 29);
   background: rgb(127 29 29 / 0.34);
   color: rgb(254 202 202);
 }
 
-:global(.dark) .page-dsl-button--warning {
+.dark .page-dsl-button--warning {
   border-color: rgb(154 52 18);
   background: rgb(154 52 18 / 0.24);
   color: rgb(254 215 170);
 }
 
-:global(.dark) .page-dsl-button--text {
+.dark .page-dsl-button--text {
   border-color: transparent;
   background: transparent;
   color: rgb(147 197 253);

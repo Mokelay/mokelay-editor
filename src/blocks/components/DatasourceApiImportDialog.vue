@@ -560,44 +560,44 @@ watch(
   font-weight: 650;
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-panel {
+.dark .ce-datasource-tool__import-dialog-panel {
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-header,
-:global(.dark) .ce-datasource-tool__import-dialog-actions {
+.dark .ce-datasource-tool__import-dialog-header,
+.dark .ce-datasource-tool__import-dialog-actions {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-title {
+.dark .ce-datasource-tool__import-dialog-title {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-datasource-tool__label {
+.dark .ce-datasource-tool__label {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-datasource-tool__input {
+.dark .ce-datasource-tool__input {
   border-color: rgb(71 85 105);
   background: rgb(2 6 23);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-datasource-tool__input:read-only,
-:global(.dark) .ce-datasource-tool__input:disabled {
+.dark .ce-datasource-tool__input:read-only,
+.dark .ce-datasource-tool__input:disabled {
   background: rgb(30 41 59);
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-close,
-:global(.dark) .ce-datasource-tool__action {
+.dark .ce-datasource-tool__import-dialog-close,
+.dark .ce-datasource-tool__action {
   border-color: rgb(71 85 105);
   background: rgb(30 41 59);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-datasource-tool__import-dialog-close:hover,
-:global(.dark) .ce-datasource-tool__action:hover {
+.dark .ce-datasource-tool__import-dialog-close:hover,
+.dark .ce-datasource-tool__action:hover {
   background: rgb(51 65 85);
 }
 </style>

@@ -25,7 +25,7 @@ const { t } = useI18n();
   font-size: 13px;
 }
 
-:global(.dark) .processor-editor-copy {
+.dark .processor-editor-copy {
   color: rgb(148 163 184);
 }
 </style>

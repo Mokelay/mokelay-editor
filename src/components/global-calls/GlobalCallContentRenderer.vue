@@ -91,7 +91,7 @@ function getPreviewProps(block: StoredBlock) {
   vertical-align: middle;
 }
 
-:global(.dark) .global-call-content__unknown {
+.dark .global-call-content__unknown {
   background: rgb(30 41 59);
   color: rgb(203 213 225);
 }

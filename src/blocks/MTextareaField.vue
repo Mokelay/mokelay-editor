@@ -185,13 +185,13 @@ defineExpose({
   color: rgb(100 116 139);
 }
 
-:global(.dark) .page-dsl-control {
+.dark .page-dsl-control {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .page-dsl-control:disabled {
+.dark .page-dsl-control:disabled {
   background: rgb(30 41 59);
   color: rgb(148 163 184);
 }

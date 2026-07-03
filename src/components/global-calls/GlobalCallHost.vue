@@ -378,34 +378,34 @@ defineExpose({
   color: rgb(153 27 27);
 }
 
-:global(.dark) .global-call-dialog {
+.dark .global-call-dialog {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .global-call-dialog__title {
+.dark .global-call-dialog__title {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .global-call-dialog__body {
+.dark .global-call-dialog__body {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .global-call-dialog__actions {
+.dark .global-call-dialog__actions {
   border-top-color: rgb(51 65 85);
 }
 
-:global(.dark) .global-call-dialog__button--secondary {
+.dark .global-call-dialog__button--secondary {
   background: rgb(51 65 85);
   color: rgb(241 245 249);
 }
 
-:global(.dark) .global-call-dialog__button--secondary:hover {
+.dark .global-call-dialog__button--secondary:hover {
   background: rgb(71 85 105);
 }
 
-:global(.dark) .global-call-message {
+.dark .global-call-message {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
   color: rgb(226 232 240);

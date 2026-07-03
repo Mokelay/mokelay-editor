@@ -156,13 +156,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
 }
 
-:global(.dark) .layout-block-error {
+.dark .layout-block-error {
   border-color: rgb(127 29 29);
   background: rgb(127 29 29 / 0.24);
   color: rgb(254 202 202);
 }
 
-:global(.dark) .layout-page-slot--panel {
+.dark .layout-page-slot--panel {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }

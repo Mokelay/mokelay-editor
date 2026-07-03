@@ -150,7 +150,7 @@ function emitFileValue(event: Event) {
   box-shadow: 0 0 0 2px rgb(99 102 241 / 0.14);
 }
 
-:global(.dark) .page-dsl-control {
+.dark .page-dsl-control {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);

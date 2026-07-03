@@ -599,22 +599,22 @@ defineExpose({
   justify-content: flex-start;
 }
 
-:global(.dark) .m-action-toolbar {
+.dark .m-action-toolbar {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .m-action-toolbar__menu-trigger {
+.dark .m-action-toolbar__menu-trigger {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .m-action-toolbar__menu-trigger:hover {
+.dark .m-action-toolbar__menu-trigger:hover {
   border-color: rgb(100 116 139);
   background: rgb(30 41 59);
 }
 
-:global(.dark) .m-action-toolbar__menu {
+.dark .m-action-toolbar__menu {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
   box-shadow: 0 18px 48px rgb(0 0 0 / 0.32);

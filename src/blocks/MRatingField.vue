@@ -152,7 +152,7 @@ function emitChange(payload: Partial<MRatingFieldProps>) {
   font-size: 12px;
 }
 
-:global(.dark) .page-dsl-rating button {
+.dark .page-dsl-rating button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);

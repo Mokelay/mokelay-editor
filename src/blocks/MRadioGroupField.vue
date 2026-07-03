@@ -163,7 +163,7 @@ function emitChange(payload: Partial<MRadioGroupFieldProps>) {
   font-size: 12px;
 }
 
-:global(.dark) .page-dsl-option {
+.dark .page-dsl-option {
   border-color: rgb(51 65 85);
 }
 </style>

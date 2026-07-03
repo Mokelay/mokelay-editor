@@ -424,29 +424,29 @@ onBeforeUnmount(() => {
   color: rgb(185 28 28);
 }
 
-:global(.dark) .m-tabs__bar {
+.dark .m-tabs__bar {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .m-tabs__tab {
+.dark .m-tabs__tab {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .m-tabs__tab--active {
+.dark .m-tabs__tab--active {
   border-color: rgb(71 85 105);
   background: rgb(30 41 59);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.28);
   color: rgb(248 250 252);
 }
 
-:global(.dark) .m-tabs__state {
+.dark .m-tabs__state {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(203 213 225);
 }
 
-:global(.dark) .m-tabs__state--error {
+.dark .m-tabs__state--error {
   border-color: rgb(127 29 29);
   background: rgb(127 29 29 / 0.24);
   color: rgb(254 202 202);

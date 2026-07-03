@@ -699,51 +699,51 @@ watch(
   font-size: 13px;
 }
 
-:global(.dark) .ce-form-action-bar-editor {
+.dark .ce-form-action-bar-editor {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-form-action-bar-editor__summary,
-:global(.dark) .ce-form-action-bar-editor__section-header {
+.dark .ce-form-action-bar-editor__summary,
+.dark .ce-form-action-bar-editor__section-header {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-form-action-bar-editor__dialog-panel,
-:global(.dark) .ce-form-action-bar-editor__section,
-:global(.dark) .ce-form-action-bar-editor__button-card {
+.dark .ce-form-action-bar-editor__dialog-panel,
+.dark .ce-form-action-bar-editor__section,
+.dark .ce-form-action-bar-editor__button-card {
   border-color: rgb(51 65 85);
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-form-action-bar-editor__dialog-header,
-:global(.dark) .ce-form-action-bar-editor__dialog-actions {
+.dark .ce-form-action-bar-editor__dialog-header,
+.dark .ce-form-action-bar-editor__dialog-actions {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-form-action-bar-editor__dialog-title,
-:global(.dark) .ce-form-action-bar-editor__section-title {
+.dark .ce-form-action-bar-editor__dialog-title,
+.dark .ce-form-action-bar-editor__section-title {
   color: rgb(248 250 252);
 }
 
-:global(.dark) .ce-form-action-bar-editor__section-copy,
-:global(.dark) .ce-form-action-bar-editor__empty,
-:global(.dark) .ce-form-action-bar-editor label {
+.dark .ce-form-action-bar-editor__section-copy,
+.dark .ce-form-action-bar-editor__empty,
+.dark .ce-form-action-bar-editor label {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-form-action-bar-editor__input,
-:global(.dark) .ce-form-action-bar-editor__secondary-button,
-:global(.dark) .ce-form-action-bar-editor__icon-button,
-:global(.dark) .ce-form-action-bar-editor__danger-button {
+.dark .ce-form-action-bar-editor__input,
+.dark .ce-form-action-bar-editor__secondary-button,
+.dark .ce-form-action-bar-editor__icon-button,
+.dark .ce-form-action-bar-editor__danger-button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-form-action-bar-editor__input:read-only,
-:global(.dark) .ce-form-action-bar-editor__input:disabled {
+.dark .ce-form-action-bar-editor__input:read-only,
+.dark .ce-form-action-bar-editor__input:disabled {
   background: rgb(30 41 59);
   color: rgb(148 163 184);
 }

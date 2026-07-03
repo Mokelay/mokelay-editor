@@ -55,7 +55,7 @@ defineProps<MDividerLineProps & {
   background-color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-divider-line-tool__line {
+.dark .ce-divider-line-tool__line {
   background-color: rgb(71 85 105);
 }
 </style>

@@ -678,51 +678,51 @@ watch(
   opacity: 0.55;
 }
 
-:global(.dark) .ce-form-items-editor {
+.dark .ce-form-items-editor {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-form-items-editor__summary,
-:global(.dark) .ce-form-items-editor__section-header {
+.dark .ce-form-items-editor__summary,
+.dark .ce-form-items-editor__section-header {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-form-items-editor__dialog-panel,
-:global(.dark) .ce-form-items-editor__section,
-:global(.dark) .ce-form-items-editor__row {
+.dark .ce-form-items-editor__dialog-panel,
+.dark .ce-form-items-editor__section,
+.dark .ce-form-items-editor__row {
   border-color: rgb(51 65 85);
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-form-items-editor__dialog-header,
-:global(.dark) .ce-form-items-editor__dialog-actions {
+.dark .ce-form-items-editor__dialog-header,
+.dark .ce-form-items-editor__dialog-actions {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-form-items-editor__dialog-title,
-:global(.dark) .ce-form-items-editor__section-title {
+.dark .ce-form-items-editor__dialog-title,
+.dark .ce-form-items-editor__section-title {
   color: rgb(248 250 252);
 }
 
-:global(.dark) .ce-form-items-editor__section-copy,
-:global(.dark) .ce-form-items-editor__empty,
-:global(.dark) .ce-form-items-editor__table-head {
+.dark .ce-form-items-editor__section-copy,
+.dark .ce-form-items-editor__empty,
+.dark .ce-form-items-editor__table-head {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-form-items-editor__input,
-:global(.dark) .ce-form-items-editor__secondary-button,
-:global(.dark) .ce-form-items-editor__icon-button,
-:global(.dark) .ce-form-items-editor__danger-button {
+.dark .ce-form-items-editor__input,
+.dark .ce-form-items-editor__secondary-button,
+.dark .ce-form-items-editor__icon-button,
+.dark .ce-form-items-editor__danger-button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-form-items-editor__input:read-only,
-:global(.dark) .ce-form-items-editor__input:disabled {
+.dark .ce-form-items-editor__input:read-only,
+.dark .ce-form-items-editor__input:disabled {
   background: rgb(30 41 59);
   color: rgb(148 163 184);
 }

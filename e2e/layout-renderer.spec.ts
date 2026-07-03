@@ -1,5 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { resetEditor } from './helpers/editor';
+
+async function expectBackgroundColor(locator: Locator, color: string) {
+  await expect.poll(() => locator.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(color);
+}
 
 test('renders an app default layout around a page preview', async ({ page }) => {
   const pageUuid = '11111111-1111-4111-8111-111111111111';
@@ -352,6 +356,31 @@ test('binds editor top nav utility controls to global settings', async ({ page }
             data: {
               text: 'Global settings content.'
             }
+          },
+          {
+            id: 'settings-table',
+            type: 'MAdvanceTable',
+            data: {
+              index: false,
+              selection: false,
+              showPageBreak: true,
+              columns: [
+                {
+                  columnName: '名称',
+                  width: 180,
+                  fixed: null,
+                  columnContent: [
+                    {
+                      id: 'settings-table-name',
+                      type: 'paragraph',
+                      data: {
+                        text: '{{name}}'
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
           }
         ]
       }
@@ -400,7 +429,7 @@ test('binds editor top nav utility controls to global settings', async ({ page }
             {
               id: 'page-slot',
               type: 'MPageSlot',
-              data: { name: 'default' }
+              data: { name: 'default', surface: 'panel' }
             }
           ]
         }
@@ -422,6 +451,15 @@ test('binds editor top nav utility controls to global settings', async ({ page }
   await expect.poll(() => page.evaluate(() => window.$mokelaySettings?.getTheme() ?? '')).toBe('dark');
   await expect.poll(() => page.locator('html').evaluate((element) => element.classList.contains('dark'))).toBe(true);
   await expect.poll(() => page.evaluate(() => document.cookie.includes('mokelay-editor-theme-mode=dark'))).toBe(true);
+  await expect(page.getByTestId('layout-page-slot-panel')).toBeVisible();
+  await expect(page.getByTestId('advance-table-header-0')).toBeVisible();
+  await expect(page.getByTestId('advance-table-pagination')).toBeVisible();
+  await expectBackgroundColor(page.getByTestId('layout-renderer'), 'rgb(2, 6, 23)');
+  await expectBackgroundColor(page.getByTestId('layout-top-nav'), 'rgb(15, 23, 42)');
+  await expectBackgroundColor(page.getByTestId('layout-page-slot-panel'), 'rgb(15, 23, 42)');
+  await expectBackgroundColor(page.getByTestId('advance-table-header-0'), 'rgb(30, 41, 59)');
+  await expectBackgroundColor(page.locator('.ce-advance-table-tool__empty'), 'rgb(15, 23, 42)');
+  await expectBackgroundColor(page.getByTestId('advance-table-pagination'), 'rgb(30, 41, 59)');
 
   await languageSelect.selectOption('en');
 

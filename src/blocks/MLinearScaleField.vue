@@ -172,7 +172,7 @@ function emitChange(payload: Partial<MLinearScaleFieldProps>) {
   font-size: 12px;
 }
 
-:global(.dark) .page-dsl-scale button {
+.dark .page-dsl-scale button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);

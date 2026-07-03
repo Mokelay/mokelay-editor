@@ -109,7 +109,7 @@ defineProps<MImageProps & PageDslCallbacks<MImageProps>>();
   text-align: center;
 }
 
-:global(.dark) .page-dsl-image__empty {
+.dark .page-dsl-image__empty {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(148 163 184);

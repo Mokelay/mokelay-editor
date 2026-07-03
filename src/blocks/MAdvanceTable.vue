@@ -1153,57 +1153,57 @@ defineExpose({
   text-align: center;
 }
 
-:global(.dark) .ce-advance-table-tool {
+.dark .ce-advance-table-tool {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-advance-table-tool__scroller {
+.dark .ce-advance-table-tool__scroller {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-advance-table-tool__cell {
+.dark .ce-advance-table-tool__cell {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-advance-table-tool__cell--header {
+.dark .ce-advance-table-tool__cell--header {
   background: rgb(30 41 59);
   color: rgb(241 245 249);
 }
 
-:global(.dark) .ce-advance-table-tool__cell--fixed-left {
+.dark .ce-advance-table-tool__cell--fixed-left {
   box-shadow: 1px 0 0 rgb(51 65 85);
 }
 
-:global(.dark) .ce-advance-table-tool__cell--fixed-right {
+.dark .ce-advance-table-tool__cell--fixed-right {
   box-shadow: -1px 0 0 rgb(51 65 85);
 }
 
-:global(.dark) .ce-advance-table-tool__row--selected .ce-advance-table-tool__cell {
+.dark .ce-advance-table-tool__row--selected .ce-advance-table-tool__cell {
   background: rgb(30 58 138 / 0.35);
 }
 
-:global(.dark) .ce-advance-table-tool__empty {
+.dark .ce-advance-table-tool__empty {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-advance-table-tool__pagination {
+.dark .ce-advance-table-tool__pagination {
   border-color: rgb(51 65 85);
   background: rgb(30 41 59);
 }
 
-:global(.dark) .ce-advance-table-tool__pagination p {
+.dark .ce-advance-table-tool__pagination p {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-advance-table-tool__pagination button {
+.dark .ce-advance-table-tool__pagination button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-advance-table-tool__pagination button:disabled {
+.dark .ce-advance-table-tool__pagination button:disabled {
   color: rgb(100 116 139);
   background: rgb(2 6 23);
 }

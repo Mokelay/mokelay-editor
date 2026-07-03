@@ -137,12 +137,12 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-:global(.dark) .layout-renderer {
+.dark .layout-renderer {
   background: rgb(2 6 23);
   color: rgb(241 245 249);
 }
 
-:global(.dark) .layout-renderer__error {
+.dark .layout-renderer__error {
   border-color: rgb(127 29 29);
   background: rgb(127 29 29 / 0.24);
   color: rgb(254 202 202);

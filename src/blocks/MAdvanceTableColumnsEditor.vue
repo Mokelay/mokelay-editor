@@ -764,52 +764,52 @@ watch(
   opacity: 0.55;
 }
 
-:global(.dark) .ce-advance-table-columns-editor {
+.dark .ce-advance-table-columns-editor {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-advance-table-columns-editor__summary,
-:global(.dark) .ce-advance-table-columns-editor__section-header,
-:global(.dark) .ce-advance-table-columns-editor__custom-content {
+.dark .ce-advance-table-columns-editor__summary,
+.dark .ce-advance-table-columns-editor__section-header,
+.dark .ce-advance-table-columns-editor__custom-content {
   border-color: rgb(51 65 85);
   background: rgb(30 41 59);
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-advance-table-columns-editor__dialog-panel,
-:global(.dark) .ce-advance-table-columns-editor__section,
-:global(.dark) .ce-advance-table-columns-editor__row {
+.dark .ce-advance-table-columns-editor__dialog-panel,
+.dark .ce-advance-table-columns-editor__section,
+.dark .ce-advance-table-columns-editor__row {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-advance-table-columns-editor__dialog-header,
-:global(.dark) .ce-advance-table-columns-editor__dialog-actions {
+.dark .ce-advance-table-columns-editor__dialog-header,
+.dark .ce-advance-table-columns-editor__dialog-actions {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-advance-table-columns-editor__dialog-title,
-:global(.dark) .ce-advance-table-columns-editor__section-title {
+.dark .ce-advance-table-columns-editor__dialog-title,
+.dark .ce-advance-table-columns-editor__section-title {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .ce-advance-table-columns-editor__section-copy,
-:global(.dark) .ce-advance-table-columns-editor__empty,
-:global(.dark) .ce-advance-table-columns-editor__table-head {
+.dark .ce-advance-table-columns-editor__section-copy,
+.dark .ce-advance-table-columns-editor__empty,
+.dark .ce-advance-table-columns-editor__table-head {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-advance-table-columns-editor__input,
-:global(.dark) .ce-advance-table-columns-editor__secondary-button,
-:global(.dark) .ce-advance-table-columns-editor__icon-button,
-:global(.dark) .ce-advance-table-columns-editor__danger-button {
+.dark .ce-advance-table-columns-editor__input,
+.dark .ce-advance-table-columns-editor__secondary-button,
+.dark .ce-advance-table-columns-editor__icon-button,
+.dark .ce-advance-table-columns-editor__danger-button {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-advance-table-columns-editor__input:read-only,
-:global(.dark) .ce-advance-table-columns-editor__input:disabled {
+.dark .ce-advance-table-columns-editor__input:read-only,
+.dark .ce-advance-table-columns-editor__input:disabled {
   background: rgb(30 41 59);
   color: rgb(148 163 184);
 }

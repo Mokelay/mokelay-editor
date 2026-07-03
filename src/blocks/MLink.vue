@@ -210,11 +210,11 @@ onBeforeUnmount(() => {
   border-radius: 4px;
 }
 
-:global(.dark) .ce-link-tool__anchor {
+.dark .ce-link-tool__anchor {
   color: rgb(96 165 250);
 }
 
-:global(.dark) .ce-link-tool__anchor:hover {
+.dark .ce-link-tool__anchor:hover {
   color: rgb(147 197 253);
 }
 </style>

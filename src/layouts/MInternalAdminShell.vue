@@ -889,95 +889,95 @@ function readTextValue(value: unknown) {
   padding: 22px;
 }
 
-:global(.dark) .internal-admin-shell {
+.dark .internal-admin-shell {
   border-color: rgb(51 65 85);
   background: rgb(2 6 23);
   color: rgb(241 245 249);
 }
 
-:global(.dark) .internal-admin-shell__sidebar,
-:global(.dark) .internal-admin-shell__header,
-:global(.dark) .internal-admin-shell__quick-menu,
-:global(.dark) .internal-admin-shell__content {
+.dark .internal-admin-shell__sidebar,
+.dark .internal-admin-shell__header,
+.dark .internal-admin-shell__quick-menu,
+.dark .internal-admin-shell__content {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .internal-admin-shell__environment {
+.dark .internal-admin-shell__environment {
   background: rgb(20 184 166);
   color: rgb(4 47 46);
 }
 
-:global(.dark) .internal-admin-shell__search-input,
-:global(.dark) .internal-admin-shell__section-title,
-:global(.dark) .internal-admin-shell__tabs,
-:global(.dark) .internal-admin-shell__tab {
+.dark .internal-admin-shell__search-input,
+.dark .internal-admin-shell__section-title,
+.dark .internal-admin-shell__tabs,
+.dark .internal-admin-shell__tab {
   border-color: rgb(51 65 85);
   background: rgb(30 41 59);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .internal-admin-shell__search-input::placeholder,
-:global(.dark) .internal-admin-shell__search-icon,
-:global(.dark) .internal-admin-shell__section-count,
-:global(.dark) .internal-admin-shell__breadcrumb,
-:global(.dark) .internal-admin-shell__menu-chevron,
-:global(.dark) .internal-admin-shell__avatar {
+.dark .internal-admin-shell__search-input::placeholder,
+.dark .internal-admin-shell__search-icon,
+.dark .internal-admin-shell__section-count,
+.dark .internal-admin-shell__breadcrumb,
+.dark .internal-admin-shell__menu-chevron,
+.dark .internal-admin-shell__avatar {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .internal-admin-shell__favorite-link,
-:global(.dark) .internal-admin-shell__menu-row,
-:global(.dark) .internal-admin-shell__submenu-link,
-:global(.dark) .internal-admin-shell__icon-button,
-:global(.dark) .internal-admin-shell__tool {
+.dark .internal-admin-shell__favorite-link,
+.dark .internal-admin-shell__menu-row,
+.dark .internal-admin-shell__submenu-link,
+.dark .internal-admin-shell__icon-button,
+.dark .internal-admin-shell__tool {
   color: rgb(203 213 225);
 }
 
-:global(.dark) .internal-admin-shell__favorite-link:hover,
-:global(.dark) .internal-admin-shell__menu-row:hover,
-:global(.dark) .internal-admin-shell__submenu-link:hover,
-:global(.dark) .internal-admin-shell__icon-button:hover,
-:global(.dark) .internal-admin-shell__tool:hover {
+.dark .internal-admin-shell__favorite-link:hover,
+.dark .internal-admin-shell__menu-row:hover,
+.dark .internal-admin-shell__submenu-link:hover,
+.dark .internal-admin-shell__icon-button:hover,
+.dark .internal-admin-shell__tool:hover {
   background: rgb(30 41 59);
   color: rgb(248 250 252);
 }
 
-:global(.dark) .internal-admin-shell__menu-toggle:hover {
+.dark .internal-admin-shell__menu-toggle:hover {
   background: rgb(51 65 85 / 0.72);
 }
 
-:global(.dark) .internal-admin-shell__menu-row--active,
-:global(.dark) .internal-admin-shell__submenu-link--active {
+.dark .internal-admin-shell__menu-row--active,
+.dark .internal-admin-shell__submenu-link--active {
   background: rgb(20 184 166 / 0.14);
   color: rgb(94 234 212);
 }
 
-:global(.dark) .internal-admin-shell__submenu {
+.dark .internal-admin-shell__submenu {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .internal-admin-shell__quick-label {
+.dark .internal-admin-shell__quick-label {
   color: rgb(241 245 249);
 }
 
-:global(.dark) .internal-admin-shell__quick-link {
+.dark .internal-admin-shell__quick-link {
   border-color: rgb(14 116 144 / 0.7);
   background: rgb(8 47 73 / 0.5);
   color: rgb(125 211 252);
 }
 
-:global(.dark) .internal-admin-shell__quick-count {
+.dark .internal-admin-shell__quick-count {
   color: rgb(186 230 253);
 }
 
-:global(.dark) .internal-admin-shell__tab--active {
+.dark .internal-admin-shell__tab--active {
   border-color: rgb(45 212 191);
   background: rgb(13 148 136);
   color: white;
 }
 
-:global(.dark) .internal-admin-shell__avatar-icon {
+.dark .internal-admin-shell__avatar-icon {
   background: rgb(51 65 85);
   color: rgb(241 245 249);
 }

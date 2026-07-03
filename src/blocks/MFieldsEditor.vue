@@ -1343,81 +1343,81 @@ watch(
   }
 }
 
-:global(.dark) .ce-fields-editor {
+.dark .ce-fields-editor {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-fields-editor__summary,
-:global(.dark) .ce-fields-editor__section-header {
+.dark .ce-fields-editor__summary,
+.dark .ce-fields-editor__section-header {
   border-color: rgb(51 65 85);
   background: rgb(30 41 59);
   color: rgb(203 213 225);
 }
 
-:global(.dark) .ce-fields-editor__dialog-panel,
-:global(.dark) .ce-fields-editor__section,
-:global(.dark) .ce-fields-editor__available-field,
-:global(.dark) .ce-fields-editor__row {
+.dark .ce-fields-editor__dialog-panel,
+.dark .ce-fields-editor__section,
+.dark .ce-fields-editor__available-field,
+.dark .ce-fields-editor__row {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
 }
 
-:global(.dark) .ce-fields-editor__dialog-header,
-:global(.dark) .ce-fields-editor__dialog-actions {
+.dark .ce-fields-editor__dialog-header,
+.dark .ce-fields-editor__dialog-actions {
   border-color: rgb(51 65 85);
 }
 
-:global(.dark) .ce-fields-editor__dialog-title,
-:global(.dark) .ce-fields-editor__section-title {
+.dark .ce-fields-editor__dialog-title,
+.dark .ce-fields-editor__section-title {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-fields-editor__section-copy,
-:global(.dark) .ce-fields-editor__label,
-:global(.dark) .ce-fields-editor__available-variable,
-:global(.dark) .ce-fields-editor__table-head,
-:global(.dark) .ce-fields-editor__empty {
+.dark .ce-fields-editor__section-copy,
+.dark .ce-fields-editor__label,
+.dark .ce-fields-editor__available-variable,
+.dark .ce-fields-editor__table-head,
+.dark .ce-fields-editor__empty {
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-fields-editor__available-label {
+.dark .ce-fields-editor__available-label {
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-fields-editor__badge {
+.dark .ce-fields-editor__badge {
   background: rgb(30 58 138 / 0.45);
   color: rgb(191 219 254);
 }
 
-:global(.dark) .ce-fields-editor__input {
+.dark .ce-fields-editor__input {
   border-color: rgb(71 85 105);
   background: rgb(2 6 23);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-fields-editor__input:read-only,
-:global(.dark) .ce-fields-editor__input:disabled {
+.dark .ce-fields-editor__input:read-only,
+.dark .ce-fields-editor__input:disabled {
   background: rgb(30 41 59);
   color: rgb(148 163 184);
 }
 
-:global(.dark) .ce-fields-editor__import-button,
-:global(.dark) .ce-fields-editor__secondary-button,
-:global(.dark) .ce-fields-editor__danger-button,
-:global(.dark) .ce-fields-editor__field-action {
+.dark .ce-fields-editor__import-button,
+.dark .ce-fields-editor__secondary-button,
+.dark .ce-fields-editor__danger-button,
+.dark .ce-fields-editor__field-action {
   border-color: rgb(71 85 105);
   background: rgb(30 41 59);
   color: rgb(226 232 240);
 }
 
-:global(.dark) .ce-fields-editor__danger-button {
+.dark .ce-fields-editor__danger-button {
   color: rgb(252 165 165);
 }
 
-:global(.dark) .ce-fields-editor__import-button:hover,
-:global(.dark) .ce-fields-editor__secondary-button:hover,
-:global(.dark) .ce-fields-editor__danger-button:hover,
-:global(.dark) .ce-fields-editor__field-action:hover {
+.dark .ce-fields-editor__import-button:hover,
+.dark .ce-fields-editor__secondary-button:hover,
+.dark .ce-fields-editor__danger-button:hover,
+.dark .ce-fields-editor__field-action:hover {
   background: rgb(51 65 85);
 }
 </style>

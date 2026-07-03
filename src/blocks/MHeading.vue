@@ -133,7 +133,7 @@ const headingClass = computed(() => {
   text-align: right;
 }
 
-:global(.dark) .page-dsl-heading {
+.dark .page-dsl-heading {
   color: rgb(241 245 249);
 }
 </style>
