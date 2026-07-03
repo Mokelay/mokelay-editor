@@ -1,7 +1,7 @@
 import { computed, readonly, ref } from 'vue';
 import { editorJsLocaleMessages, localeMessages } from '@/langs';
 
-type Locale = 'zh' | 'en';
+export type Locale = 'zh' | 'en';
 
 const LOCALE_COOKIE_KEY = 'mokelay-editor-locale';
 

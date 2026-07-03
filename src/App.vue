@@ -5,6 +5,7 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } fr
 import { useI18n } from '@/i18n';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 import { $message } from '@/utils/globalCalls';
+import { useGlobalSettings } from '@/utils/globalSettings';
 import { getInitialEditorBlocks } from '@/utils/editorData';
 import {
   createPage,
@@ -30,37 +31,7 @@ const ChatAiPanel = defineAsyncComponent(() => import('@/components/ChatAiPanel.
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 const NotFoundPage = defineAsyncComponent(() => import('@/components/NotFoundPage.vue'));
 
-const THEME_MODE_COOKIE_KEY = 'mokelay-editor-theme-mode';
 const runtimePageUuidPattern = /^[A-Za-z0-9_-]{1,128}$/;
-
-function getCookieValue(name: string): string | null {
-  const entries = document.cookie ? document.cookie.split('; ') : [];
-  const entry = entries.find((item) => item.startsWith(`${name}=`));
-
-  if (!entry) {
-    return null;
-  }
-
-  return decodeURIComponent(entry.slice(name.length + 1));
-}
-
-function setCookieValue(name: string, value: string) {
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; samesite=lax`;
-}
-
-function getInitialThemeMode() {
-  const savedThemeMode = getCookieValue(THEME_MODE_COOKIE_KEY);
-
-  if (savedThemeMode === 'dark') {
-    return true;
-  }
-
-  if (savedThemeMode === 'light') {
-    return false;
-  }
-
-  return false;
-}
 
 type ParsedRoute = {
   pageUuid: string | null;
@@ -78,9 +49,9 @@ type RouteLocation = {
   rawPath: string;
 };
 
-const isDark = ref(getInitialThemeMode());
 const routeLocation = ref(readRouteLocation());
-const { t, localeValue, setLocale } = useI18n();
+const { t } = useI18n();
+const { themeValue, languageValue, setTheme, setLanguage } = useGlobalSettings();
 const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
 const currentPageUuid = ref<string | null>(null);
 const currentPageName = ref(formatPageName(new Date()));
@@ -122,10 +93,6 @@ const isDocsSection = computed(() => isRuntimePage.value && routePageUuid.value 
 const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 const isSaveReady = computed(() => isEditorReady.value && currentPageSource.value === 'user');
-
-function applyTheme(dark: boolean) {
-  document.documentElement.classList.toggle('dark', dark);
-}
 
 function syncRoute() {
   routeLocation.value = readRouteLocation();
@@ -428,7 +395,6 @@ function formatPageName(date: Date) {
 }
 
 onMounted(() => {
-  applyTheme(isDark.value);
   window.addEventListener('hashchange', syncRoute);
   window.addEventListener('popstate', syncRoute);
 });
@@ -436,11 +402,6 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('hashchange', syncRoute);
   window.removeEventListener('popstate', syncRoute);
-});
-
-watch(isDark, (dark) => {
-  applyTheme(dark);
-  setCookieValue(THEME_MODE_COOKIE_KEY, dark ? 'dark' : 'light');
 });
 
 watch(
@@ -521,7 +482,7 @@ watch(
 );
 
 function handleThemeModeChange(value: string) {
-  isDark.value = value === 'dark';
+  setTheme(value === 'dark' ? 'dark' : 'light');
 }
 
 function handleEditorChange(blocks: OutputData['blocks']) {
@@ -646,7 +607,7 @@ function backToPagesPage() {
           <label class="flex items-center gap-2 text-sm">
             <select
               data-testid="theme-select"
-              :value="isDark ? 'dark' : 'light'"
+              :value="themeValue"
               class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
               @change="handleThemeModeChange(($event.target as HTMLSelectElement).value)"
             >
@@ -658,9 +619,9 @@ function backToPagesPage() {
           <label class="flex items-center gap-2 text-sm">
             <select
               data-testid="locale-select"
-              :value="localeValue"
+              :value="languageValue"
               class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-              @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en')"
+              @change="setLanguage(($event.target as HTMLSelectElement).value as 'zh' | 'en')"
             >
               <option value="zh">{{ t('app.chinese') }}</option>
               <option value="en">{{ t('app.english') }}</option>

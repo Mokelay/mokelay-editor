@@ -292,11 +292,7 @@ test('renders a system page with its declared layout', async ({ page }) => {
               data: {
                 brand: { text: 'Mokelay Editor', href: '#/', showMark: false },
                 homeAction: { id: 'home', type: 'MLink', data: { text: '首页', url: '#/' } },
-                items: { template: '{{resources.mainMenu.items}}' },
-                actions: [
-                  { id: 'save', type: 'MButton', data: { label: '保存', variant: 'teal' } },
-                  { id: 'preview', type: 'MButton', data: { label: '预览', variant: 'success' } }
-                ]
+                items: { template: '{{resources.mainMenu.items}}' }
               }
             },
             {
@@ -313,6 +309,8 @@ test('renders a system page with its declared layout', async ({ page }) => {
   await expect(page.getByTestId('layout-renderer')).toBeVisible();
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
   await expect(page.getByTestId('layout-top-nav')).toContainText('页面列表');
+  await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: 'Apps' })).not.toHaveClass(/layout-top-nav__link--active/);
+  await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: '页面列表' })).toHaveClass(/layout-top-nav__link--active/);
   await expect(page.getByTestId('preview-blocks')).toContainText('Built-in page list content.');
   await expect(page.getByTestId('layout-page-slot-panel')).toBeVisible();
   await expect(page.getByTestId('layout-page-slot-panel')).toHaveAttribute('data-layout-page-slot-surface', 'panel');
@@ -322,6 +320,114 @@ test('renders a system page with its declared layout', async ({ page }) => {
   expect(topNavBox).not.toBeNull();
   expect(pageSlotBox).not.toBeNull();
   expect(pageSlotBox!.y - (topNavBox!.y + topNavBox!.height)).toBeGreaterThanOrEqual(12);
+});
+
+test('binds editor top nav utility controls to global settings', async ({ page }) => {
+  const pageUuid = '77777777-7777-4777-8777-777777777777';
+
+  await page.context().addCookies([
+    {
+      name: 'mokelay-editor-theme-mode',
+      value: 'light',
+      url: 'http://127.0.0.1:4173'
+    },
+    {
+      name: 'mokelay-editor-locale',
+      value: 'zh',
+      url: 'http://127.0.0.1:4173'
+    }
+  ]);
+
+  await resetEditor(page, {
+    initialRoute: `/#/pages/${pageUuid}/preview`,
+    pages: [
+      {
+        uuid: pageUuid,
+        name: 'Settings Layout Preview',
+        layoutUuid: 'settings_layout',
+        blocks: [
+          {
+            id: 'settings-copy',
+            type: 'paragraph',
+            data: {
+              text: 'Global settings content.'
+            }
+          }
+        ]
+      }
+    ],
+    layouts: [
+      {
+        uuid: 'settings_layout',
+        name: 'Settings Layout',
+        layoutJson: {
+          schemaVersion: 1,
+          uuid: 'settings_layout',
+          name: 'Settings Layout',
+          auth: {
+            enabled: false
+          },
+          blocks: [
+            {
+              id: 'editor-top-nav',
+              type: 'MEditorTopNav',
+              data: {
+                brand: { text: 'Mokelay Editor', href: '#/', showMark: false },
+                utilityControls: [
+                  {
+                    id: 'theme',
+                    type: 'select',
+                    label: '主题',
+                    binding: { source: 'globalSetting', key: 'theme' },
+                    options: [
+                      { label: '浅色', value: 'light' },
+                      { label: '深色', value: 'dark' }
+                    ]
+                  },
+                  {
+                    id: 'language',
+                    type: 'select',
+                    label: '语言',
+                    binding: { source: 'globalSetting', key: 'language' },
+                    options: [
+                      { label: '中文', value: 'zh' },
+                      { label: 'English', value: 'en' }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              id: 'page-slot',
+              type: 'MPageSlot',
+              data: { name: 'default' }
+            }
+          ]
+        }
+      }
+    ]
+  });
+
+  const themeSelect = page.getByTestId('layout-top-nav-control-theme');
+  const languageSelect = page.getByTestId('layout-top-nav-control-language');
+
+  await expect(themeSelect).toHaveValue('light');
+  await expect(languageSelect).toHaveValue('zh');
+  await expect.poll(() => page.evaluate(() => window.$mokelaySettings?.getTheme() ?? '')).toBe('light');
+  await expect.poll(() => page.evaluate(() => window.$mokelaySettings?.getLanguage() ?? '')).toBe('zh');
+
+  await themeSelect.selectOption('dark');
+
+  await expect(themeSelect).toHaveValue('dark');
+  await expect.poll(() => page.evaluate(() => window.$mokelaySettings?.getTheme() ?? '')).toBe('dark');
+  await expect.poll(() => page.locator('html').evaluate((element) => element.classList.contains('dark'))).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.cookie.includes('mokelay-editor-theme-mode=dark'))).toBe(true);
+
+  await languageSelect.selectOption('en');
+
+  await expect(languageSelect).toHaveValue('en');
+  await expect.poll(() => page.evaluate(() => window.$mokelaySettings?.getLanguage() ?? '')).toBe('en');
+  await expect.poll(() => page.evaluate(() => document.cookie.includes('mokelay-editor-locale=en'))).toBe(true);
 });
 
 test('renders a web style static top navigation layout', async ({ page }) => {

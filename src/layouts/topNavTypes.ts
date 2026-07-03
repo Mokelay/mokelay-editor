@@ -12,6 +12,10 @@ export type TopNavControl = {
   type?: string;
   label?: string;
   value?: string;
+  binding?: {
+    source?: string;
+    key?: string;
+  };
   options?: Array<{
     label: string;
     value: string;

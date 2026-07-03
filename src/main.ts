@@ -3,12 +3,14 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import App from './App.vue';
 import './style.css';
 import { globalCallsPlugin } from './utils/globalCalls';
+import { globalSettingsPlugin } from './utils/globalSettings';
 
 const app = createApp(App);
 const queryClient = new QueryClient();
 
 app.use(VueQueryPlugin, { queryClient });
 app.use(globalCallsPlugin);
+app.use(globalSettingsPlugin);
 app.mount('#app');
 
 function setupPwaAutoUpdate() {

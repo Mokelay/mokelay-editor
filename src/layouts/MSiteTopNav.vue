@@ -11,6 +11,7 @@ import {
   getMenuItemBadge,
   getMenuItemTone,
   getVisibleTopNavActions,
+  handleControlChange,
   normalizeHref
 } from '@/layouts/topNavRuntime';
 
@@ -74,7 +75,13 @@ function getMenuItemClass(item: LayoutMenuItem) {
           class="layout-top-nav__control"
         >
           <span class="layout-top-nav__control-label">{{ controlLabel(control) }}</span>
-          <select class="layout-top-nav__select" :value="controlValue(control)" :aria-label="controlLabel(control)">
+          <select
+            class="layout-top-nav__select"
+            :value="controlValue(control)"
+            :aria-label="controlLabel(control)"
+            :data-testid="control.id ? `layout-top-nav-control-${control.id}` : undefined"
+            @change="handleControlChange(control, ($event.target as HTMLSelectElement).value)"
+          >
             <option
               v-for="option in control.options"
               :key="option.value"

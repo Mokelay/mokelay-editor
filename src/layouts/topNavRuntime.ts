@@ -2,6 +2,10 @@ import {
   resolveLayoutTemplates,
   type LayoutRuntimeContext
 } from '@/utils/layoutRuntime';
+import {
+  getGlobalSettingValue,
+  setGlobalSettingValue
+} from '@/utils/globalSettings';
 import type { LayoutBlock, LayoutMenuItem } from '@/utils/layoutsApi';
 import type { TopNavBrand, TopNavControl, TopNavProps } from '@/layouts/topNavTypes';
 
@@ -83,11 +87,21 @@ export function getVisibleTopNavActions(props: Pick<TopNavProps, 'actions' | 'gu
 }
 
 export function controlValue(control: TopNavControl) {
+  const globalSettingValue = readGlobalSettingControlValue(control);
+  if (globalSettingValue) return globalSettingValue;
+
   return control.value || control.options?.[0]?.value || '';
 }
 
 export function controlLabel(control: TopNavControl) {
   return control.label || control.id || 'Navigation option';
+}
+
+export function handleControlChange(control: TopNavControl, value: string) {
+  const key = readGlobalSettingControlKey(control);
+  if (key) {
+    setGlobalSettingValue(key, value);
+  }
 }
 
 export function resolveTopNavBlockData(data: unknown, context: LayoutRuntimeContext) {
@@ -172,6 +186,7 @@ function normalizeTopNavControls(value: unknown): TopNavControl[] {
       type: readString(control.type) || 'select',
       label: readString(control.label) || undefined,
       value: readString(control.value) || undefined,
+      binding: normalizeTopNavControlBinding(control.binding),
       options: Array.isArray(control.options)
         ? control.options
             .filter((option): option is Record<string, unknown> => isRecord(option))
@@ -182,6 +197,31 @@ function normalizeTopNavControls(value: unknown): TopNavControl[] {
             .filter((option) => option.label && option.value)
         : []
     }));
+}
+
+function readGlobalSettingControlValue(control: TopNavControl) {
+  return getGlobalSettingValue(readGlobalSettingControlKey(control));
+}
+
+function readGlobalSettingControlKey(control: TopNavControl) {
+  if (control.binding?.source !== 'globalSetting') return '';
+
+  const key = control.binding.key;
+  return key === 'theme' || key === 'language' ? key : '';
+}
+
+function normalizeTopNavControlBinding(value: unknown): TopNavControl['binding'] {
+  if (!isRecord(value)) return undefined;
+
+  const source = readString(value.source);
+  const key = readString(value.key);
+
+  if (!source || !key) return undefined;
+
+  return {
+    source,
+    key
+  };
 }
 
 function normalizeLayoutBlockSlots(value: unknown): Record<string, LayoutBlock[]> | undefined {
