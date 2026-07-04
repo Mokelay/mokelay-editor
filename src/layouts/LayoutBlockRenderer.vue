@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent, useSlots } from 'vue';
 import type { OutputData } from '@editorjs/editorjs';
 import {
   type LayoutRuntimeContext
@@ -22,7 +22,9 @@ const props = defineProps<{
   context: LayoutRuntimeContext;
 }>();
 
+const slots = useSlots();
 const blockDefinition = computed(() => getLayoutBlockDefinition(props.block.type));
+const hasPageSlot = computed(() => Boolean(slots.pageSlot));
 
 const resolvedDataResult = computed(() => {
   try {
@@ -98,7 +100,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     :data-testid="isPageSlotPanel ? 'layout-page-slot-panel' : undefined"
     :data-layout-page-slot-surface="pageSlotSurface"
   >
+    <slot v-if="hasPageSlot" name="pageSlot"></slot>
     <MPage
+      v-else
       :edit="false"
       :value="context.page.blocks"
       :page-id="context.page.uuid"
@@ -112,7 +116,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
       :key="childBlock.id || `${childBlock.type}-${index}`"
       :block="childBlock"
       :context="context"
-    />
+    >
+      <template v-if="hasPageSlot" #pageSlot>
+        <slot name="pageSlot"></slot>
+      </template>
+    </LayoutBlockRenderer>
   </template>
 
   <component
@@ -125,7 +133,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
       :key="slotBlock.id || `${slotBlock.type}-${index}`"
       :block="slotBlock"
       :context="context"
-    />
+    >
+      <template v-if="hasPageSlot" #pageSlot>
+        <slot name="pageSlot"></slot>
+      </template>
+    </LayoutBlockRenderer>
   </component>
 
   <pre v-else data-testid="layout-block-error" class="layout-block-error">{{ previewBlock }}</pre>

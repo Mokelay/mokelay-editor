@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, provide, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, provide, ref, useSlots, watch } from 'vue';
 import {
   createPreviewBlockRuntime,
   PreviewBlockRuntimeKey
@@ -20,6 +20,7 @@ const props = defineProps<{
   page: RenderBundlePage;
 }>();
 
+const slots = useSlots();
 const previewRuntime = createPreviewBlockRuntime();
 const resources = ref<LayoutRuntimeContext['resources']>({});
 const auth = ref<LayoutAuthState>(createEmptyAuthState());
@@ -37,6 +38,7 @@ const runtimeContext = computed<LayoutRuntimeContext>(() => ({
 }));
 
 const topNavBlockTypes = new Set(['MSiteTopNav', 'MEditorTopNav', 'MWebTopNav', 'MTopNav']);
+const hasPageSlot = computed(() => Boolean(slots.pageSlot));
 
 function getBlockClass(block: MokelayLayout['blocks'][number]) {
   return [
@@ -98,7 +100,11 @@ onBeforeUnmount(() => {
       <LayoutBlockRenderer
         :block="block"
         :context="runtimeContext"
-      />
+      >
+        <template v-if="hasPageSlot" #pageSlot>
+          <slot name="pageSlot"></slot>
+        </template>
+      </LayoutBlockRenderer>
     </div>
   </section>
 </template>

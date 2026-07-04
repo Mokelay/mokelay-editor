@@ -815,7 +815,9 @@ export async function waitForSaveToFinish(page: Page) {
 }
 
 export async function switchLocaleToChinese(page: Page) {
-  await page.getByTestId('locale-select').selectOption('zh');
+  const languageSelect = page.getByTestId('layout-top-nav-control-language');
+  await expect(languageSelect).toBeVisible();
+  await languageSelect.selectOption('zh');
 }
 
 export async function openAddMenu(page: Page) {

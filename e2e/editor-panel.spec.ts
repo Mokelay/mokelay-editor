@@ -14,14 +14,14 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('renders editor panel with expected controls', async ({ page }) => {
-  await expect(page.getByTestId('app-title')).toHaveText('Mokelay Editor');
+  await expect(page.getByTestId('app-header')).toHaveCount(0);
+  await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
+  await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: '页面列表' })).toHaveClass(/layout-top-nav__link--active/);
+  await expect(page.getByTestId('layout-top-nav-control-theme')).toBeVisible();
+  await expect(page.getByTestId('layout-top-nav-control-language')).toBeVisible();
   await expect(page.getByTestId('editor-panel')).toBeVisible();
   await expect(page.getByTestId('editor-surface')).toBeVisible();
   await expect(page.getByTestId('page-name-input')).toBeVisible();
-  await expect(page.getByTestId('home-link')).toBeVisible();
-  await expect(page.getByTestId('home-link')).toHaveAttribute('href', 'https://www.mokelay.com/');
-  await expect(page.getByTestId('theme-select')).toBeVisible();
-  await expect(page.getByTestId('locale-select')).toBeVisible();
   await expect(page.getByTestId('save-button')).toBeVisible();
   await expect(page.getByTestId('preview-button')).toBeVisible();
 });

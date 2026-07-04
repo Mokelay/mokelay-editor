@@ -5,8 +5,8 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } fr
 import { useI18n } from '@/i18n';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 import { $message } from '@/utils/globalCalls';
-import { useGlobalSettings } from '@/utils/globalSettings';
 import { getInitialEditorBlocks } from '@/utils/editorData';
+import SourceLayoutShell from '@/layouts/SourceLayoutShell.vue';
 import {
   createPage,
   getPage,
@@ -19,6 +19,7 @@ import {
 import type { PageDataSourceConfig } from '@/utils/pageRuntimeContext';
 import {
   getPageRenderBundle,
+  getSystemLayout,
   listLayouts,
   type MokelayLayout,
   type MokelayLayoutRecord,
@@ -51,7 +52,6 @@ type RouteLocation = {
 
 const routeLocation = ref(readRouteLocation());
 const { t } = useI18n();
-const { themeValue, languageValue, setTheme, setLanguage } = useGlobalSettings();
 const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
 const currentPageUuid = ref<string | null>(null);
 const currentPageName = ref(formatPageName(new Date()));
@@ -61,18 +61,22 @@ const currentPageLayoutUuid = ref<string | null>(null);
 const pageBlocks = ref<OutputData['blocks']>(getInitialEditorBlocks(t));
 const pageDataSources = ref<PageDataSourceConfig[]>([]);
 const currentLayout = ref<MokelayLayout | null>(null);
+const sourceLayout = ref<MokelayLayout | null>(null);
 const pageLayoutOptions = ref<MokelayLayoutRecord[]>([]);
 const isLoadingPage = ref(false);
 const isSavingPage = ref(false);
 const isLoadingPageLayouts = ref(false);
 const isSavingPageLayout = ref(false);
+const isLoadingSourceLayout = ref(false);
 const pageError = ref('');
 const pageLayoutError = ref('');
+const sourceLayoutError = ref('');
 const runtimePageLoadFailed = ref(false);
 let loadRequestId = 0;
 let layoutLoadRequestId = 0;
 let pageLayoutOptionsRequestId = 0;
 let runtimePageLoadRequestId = 0;
+let sourceLayoutLoadRequestId = 0;
 
 const parsedRoute = computed(() => parseRouteLocation(routeLocation.value));
 const routePageUuid = computed(() => parsedRoute.value.pageUuid);
@@ -85,14 +89,18 @@ const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.valu
 const isRuntimePage = computed(() => !isApiBuilderPage.value && parsedRoute.value.runtimePage);
 const isNotFoundPage = computed(() => !isApiBuilderPage.value && (parsedRoute.value.notFound || runtimePageLoadFailed.value));
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && Boolean(routePageUuid.value));
-const isAppsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'home');
-const isPagesSection = computed(() => isEditorPage.value || isPreviewPage.value);
-const isDatasourcesSection = computed(() => isRuntimePage.value && routePageUuid.value === 'datasources');
-const isLayoutsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'layouts');
-const isDocsSection = computed(() => isRuntimePage.value && routePageUuid.value === 'block_component_docs');
+const usesSourceLayout = computed(() => isApiBuilderPage.value || isAiChatPage.value || isEditorPage.value);
 const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
+const isLayoutFramedPage = computed(() => isStandalonePage.value || usesSourceLayout.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 const isSaveReady = computed(() => isEditorReady.value && currentPageSource.value === 'user');
+const sourceLayoutPage = computed<RenderBundlePage>(() => ({
+  uuid: getSourceLayoutPageUuid(),
+  name: getSourceLayoutPageName(),
+  blocks: [],
+  dataSources: [],
+  layoutUuid: 'mokelay_layout'
+}));
 
 function syncRoute() {
   routeLocation.value = readRouteLocation();
@@ -355,6 +363,33 @@ async function loadRuntimePage(uuid: string) {
   }
 }
 
+async function loadSourceLayout() {
+  if (sourceLayout.value?.uuid === 'mokelay_layout') {
+    sourceLayoutError.value = '';
+    isLoadingSourceLayout.value = false;
+    return;
+  }
+
+  const requestId = sourceLayoutLoadRequestId + 1;
+  sourceLayoutLoadRequestId = requestId;
+  isLoadingSourceLayout.value = true;
+  sourceLayoutError.value = '';
+
+  try {
+    const layout = await getSystemLayout('mokelay_layout');
+    if (requestId !== sourceLayoutLoadRequestId) return;
+    sourceLayout.value = layout;
+  } catch (error) {
+    if (requestId !== sourceLayoutLoadRequestId) return;
+    sourceLayout.value = null;
+    sourceLayoutError.value = toErrorMessage(error) || '源码页面布局加载失败。';
+  } finally {
+    if (requestId === sourceLayoutLoadRequestId) {
+      isLoadingSourceLayout.value = false;
+    }
+  }
+}
+
 async function loadPageLayoutOptions() {
   const requestId = pageLayoutOptionsRequestId + 1;
   pageLayoutOptionsRequestId = requestId;
@@ -392,6 +427,38 @@ function formatPageName(date: Date) {
     pad(date.getMonth() + 1),
     pad(date.getDate())
   ].join('-') + ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function getSourceLayoutPageUuid() {
+  if (isApiBuilderPage.value) {
+    return routeApiUuid.value ? `apis/${routeApiUuid.value}` : 'apis';
+  }
+
+  if (isAiChatPage.value) {
+    return 'ai-chat';
+  }
+
+  if (isEditorPage.value) {
+    return currentPageUuid.value ? `pages/${currentPageUuid.value}` : 'page-editor';
+  }
+
+  return 'source-page';
+}
+
+function getSourceLayoutPageName() {
+  if (isApiBuilderPage.value) {
+    return 'API Builder';
+  }
+
+  if (isAiChatPage.value) {
+    return t('app.aiChat');
+  }
+
+  if (isEditorPage.value) {
+    return currentPageName.value || t('page.unnamedPage');
+  }
+
+  return t('app.title');
 }
 
 onMounted(() => {
@@ -481,9 +548,20 @@ watch(
   { immediate: true }
 );
 
-function handleThemeModeChange(value: string) {
-  setTheme(value === 'dark' ? 'dark' : 'light');
-}
+watch(
+  usesSourceLayout,
+  (enabled) => {
+    if (!enabled) {
+      sourceLayoutLoadRequestId += 1;
+      isLoadingSourceLayout.value = false;
+      sourceLayoutError.value = '';
+      return;
+    }
+
+    void loadSourceLayout();
+  },
+  { immediate: true }
+);
 
 function handleEditorChange(blocks: OutputData['blocks']) {
   pageBlocks.value = blocks;
@@ -588,127 +666,81 @@ function backToPagesPage() {
   <TooltipProvider>
     <main
       data-testid="app-root"
-      :class="isStandalonePage
+      :class="isLayoutFramedPage
         ? 'flex min-h-screen flex-col bg-white text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100'
         : 'flex min-h-screen flex-col bg-slate-100 p-4 text-slate-900 transition-colors dark:bg-slate-950 dark:text-slate-100'"
     >
-      <header v-if="!isStandalonePage" data-testid="app-header" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div class="flex flex-wrap items-center gap-3">
-          <h1 data-testid="app-title" class="text-xl font-semibold">{{ t('app.title') }}</h1>
-          <a
-            data-testid="home-link"
-            href="https://www.mokelay.com/"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500 dark:hover:text-white"
-          >
-            {{ t('app.home') }}
-          </a>
+      <SourceLayoutShell
+        v-if="usesSourceLayout && (sourceLayout || sourceLayoutError)"
+        :layout="sourceLayout"
+        :page="sourceLayoutPage"
+        :error="sourceLayoutError"
+      >
+        <ApiBuilderShell
+          v-if="isApiBuilderPage"
+          :route-uuid="routeApiUuid"
+          :route-source="routeApiSource"
+        />
+        <ChatAiPanel v-else-if="isAiChatPage" />
+        <div v-else-if="isEditorPage" class="flex flex-1 flex-col gap-4">
+          <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <button data-testid="back-to-page-list-button" class="mb-2 text-sm font-medium text-teal-700 hover:text-teal-500 dark:text-teal-300" @click="backToPagesPage">
+                  {{ t('page.backToPages') }}
+                </button>
+                <div class="flex flex-wrap items-center gap-3">
+                  <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ currentPageName || t('page.unnamedPage') }}</h2>
+                  <code v-if="currentPageUuid" class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ currentPageUuid }}</code>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  data-testid="save-button"
+                  class="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="!isSaveReady"
+                  @click="saveEditorContent"
+                >
+                  {{ isSavingPage ? t('editor.saving') : t('editor.saveContent') }}
+                </button>
+                <button
+                  data-testid="preview-button"
+                  class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="!isEditorReady"
+                  @click="openPreviewPage"
+                >
+                  {{ t('editor.previewPage') }}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <EditorPanel
+            ref="editorPanelRef"
+            :blocks="pageBlocks"
+            :page-uuid="currentPageUuid"
+            :page-name="currentPageName"
+            :layout-uuid="currentPageLayoutUuid"
+            :layout-options="pageLayoutOptions"
+            :layout-loading="isLoadingPageLayouts"
+            :layout-saving="isSavingPageLayout"
+            :layout-error="pageLayoutError"
+            :can-edit-layout-binding="currentPageSource === 'user'"
+            :loading="isLoadingPage"
+            :error="pageError"
+            @change="handleEditorChange"
+            @name-change="handlePageNameChange"
+            @layout-change="handlePageLayoutChange"
+          />
         </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <label class="flex items-center gap-2 text-sm">
-            <select
-              data-testid="theme-select"
-              :value="themeValue"
-              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-              @change="handleThemeModeChange(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="dark">{{ t('app.dark') }}</option>
-              <option value="light">{{ t('app.light') }}</option>
-            </select>
-          </label>
-
-          <label class="flex items-center gap-2 text-sm">
-            <select
-              data-testid="locale-select"
-              :value="languageValue"
-              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
-              @change="setLanguage(($event.target as HTMLSelectElement).value as 'zh' | 'en')"
-            >
-              <option value="zh">{{ t('app.chinese') }}</option>
-              <option value="en">{{ t('app.english') }}</option>
-            </select>
-          </label>
-
-          <nav class="flex items-center gap-2 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
-            <a
-              href="#/"
-              class="rounded-md px-3 py-1.5 font-medium"
-              :class="isAppsSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
-            >
-              {{ t('app.apps') }}
-            </a>
-            <a
-              href="#/datasources"
-              class="rounded-md px-3 py-1.5 font-medium"
-              :class="isDatasourcesSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
-            >
-              {{ t('app.datasources') }}
-            </a>
-            <a
-              href="#/pages"
-              class="rounded-md px-3 py-1.5 font-medium"
-              :class="isPagesSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
-            >
-              {{ t('app.pageList') }}
-            </a>
-            <a
-              href="#/layouts"
-              class="rounded-md px-3 py-1.5 font-medium"
-              :class="isLayoutsSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
-            >
-              布局
-            </a>
-            <a
-              href="#/block_component_docs"
-              class="rounded-md px-3 py-1.5 font-medium"
-              :class="isDocsSection ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
-            >
-              文档
-            </a>
-            <a
-              href="#/ai-chat"
-              class="rounded-md px-3 py-1.5 font-medium"
-              :class="isAiChatPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
-            >
-              {{ t('app.aiChat') }}
-            </a>
-            <a
-              href="#/apis"
-              class="rounded-md px-3 py-1.5 font-medium"
-              :class="isApiBuilderPage ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
-            >
-              API Builder
-            </a>
-          </nav>
-
-          <template v-if="isEditorPage">
-            <button
-              data-testid="save-button"
-              class="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="!isSaveReady"
-              @click="saveEditorContent"
-            >
-              {{ isSavingPage ? t('editor.saving') : t('editor.saveContent') }}
-            </button>
-            <button
-              data-testid="preview-button"
-              class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="!isEditorReady"
-              @click="openPreviewPage"
-            >
-              {{ t('editor.previewPage') }}
-            </button>
-          </template>
-          <button v-else-if="isPreviewPage" data-testid="back-to-editor-button" class="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600" @click="backToEditorPage">
-            {{ t('preview.backToEditor') }}
-          </button>
-        </div>
-      </header>
-
-      <ApiBuilderShell
-        v-if="isApiBuilderPage"
-        :route-uuid="routeApiUuid"
-        :route-source="routeApiSource"
-      />
+      </SourceLayoutShell>
+      <section
+        v-else-if="usesSourceLayout && isLoadingSourceLayout"
+        class="flex min-h-screen flex-1 items-center justify-center bg-slate-100 text-sm text-slate-500 dark:bg-slate-950 dark:text-slate-400"
+        data-testid="source-layout-loading"
+      >
+        {{ t('page.loading') }}
+      </section>
       <NotFoundPage v-else-if="isNotFoundPage" />
       <PreviewPanel
         v-else-if="isRuntimePage"
@@ -744,40 +776,6 @@ function backToPagesPage() {
           </button>
         </template>
       </PreviewPanel>
-      <div v-else-if="isEditorPage" class="flex flex-1 flex-col gap-4">
-        <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <button data-testid="back-to-page-list-button" class="mb-2 text-sm font-medium text-teal-700 hover:text-teal-500 dark:text-teal-300" @click="backToPagesPage">
-                {{ t('page.backToPages') }}
-              </button>
-              <div class="flex flex-wrap items-center gap-3">
-                <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ currentPageName || t('page.unnamedPage') }}</h2>
-                <code v-if="currentPageUuid" class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ currentPageUuid }}</code>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <EditorPanel
-          ref="editorPanelRef"
-          :blocks="pageBlocks"
-          :page-uuid="currentPageUuid"
-          :page-name="currentPageName"
-          :layout-uuid="currentPageLayoutUuid"
-          :layout-options="pageLayoutOptions"
-          :layout-loading="isLoadingPageLayouts"
-          :layout-saving="isSavingPageLayout"
-          :layout-error="pageLayoutError"
-          :can-edit-layout-binding="currentPageSource === 'user'"
-          :loading="isLoadingPage"
-          :error="pageError"
-          @change="handleEditorChange"
-          @name-change="handlePageNameChange"
-          @layout-change="handlePageLayoutChange"
-        />
-      </div>
-      <ChatAiPanel v-else-if="isAiChatPage" />
     </main>
   </TooltipProvider>
 </template>

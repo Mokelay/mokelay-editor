@@ -216,6 +216,19 @@ export async function getLayout(uuid: string) {
   return normalizeLayoutResponse(unwrapApiResponse(response.data));
 }
 
+export async function getSystemLayout(uuid: string) {
+  const response = await apiClient.get<MokelayApiResponse<LayoutResponse>>('/api/mokelay/read_mokelay_layout_json', {
+    params: { uuid }
+  });
+  const data = unwrapApiResponse(response.data);
+
+  if (data.layout === null || data.layout === undefined) {
+    throw new Error('Layout not found.');
+  }
+
+  return normalizeSystemLayout(data.layout);
+}
+
 export async function listLayouts(params: ListLayoutsParams) {
   const response = await apiClient.get<MokelayApiResponse<LayoutsResponse>>('/api/mokelay/list_layouts', {
     params
@@ -264,6 +277,14 @@ function normalizeLayoutResponse(value: LayoutResponse): MokelayLayoutRecord {
   return normalizeLayoutRecord(value.layout);
 }
 
+function normalizeSystemLayout(value: unknown): MokelayLayout {
+  if (isRecord(value) && (isRecord(value.layoutJson) || isRecord(value.layout_json))) {
+    return normalizeLayoutRecord(value).layoutJson;
+  }
+
+  return normalizeLayoutJson(value);
+}
+
 function normalizeLayoutsResponse(value: LayoutsResponse): ListLayoutsResult {
   const layouts = Array.isArray(value.layouts) ? value.layouts.map((layout) => normalizeLayoutRecord(layout)) : [];
 
@@ -302,7 +323,7 @@ function normalizeLayoutRecord(value: unknown): MokelayLayoutRecord {
   };
 }
 
-function normalizeLayoutJson(value: unknown, fallbackUuid = '', fallbackName = ''): MokelayLayout {
+export function normalizeLayoutJson(value: unknown, fallbackUuid = '', fallbackName = ''): MokelayLayout {
   const source = isRecord(value) ? value : {};
   const uuid = readString(source.uuid) || fallbackUuid;
   const name = readString(source.name) || fallbackName;

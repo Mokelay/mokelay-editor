@@ -82,8 +82,8 @@ test('renders layouts as Page DSL and manages user/system layout tabs', async ({
   await page.getByTestId('m-action-toolbar-action-create').click();
   const createDialog = page.getByTestId('action-dialog');
   await expect(createDialog).toContainText('创建布局');
-  await createDialog.getByTestId('editor-input-control').nth(0).fill('created_layout');
-  await createDialog.getByTestId('editor-input-control').nth(1).fill('创建布局');
+  await createDialog.getByTestId('mokelay-layout-create-uuid-input').fill('created_layout');
+  await createDialog.getByTestId('mokelay-layout-create-name-input').fill('创建布局');
   await createDialog.getByRole('button', { name: '保存布局' }).click();
   await expect(createDialog).toHaveCount(0);
   await expect(page.getByRole('cell', { name: '创建布局' })).toBeVisible();
@@ -92,7 +92,7 @@ test('renders layouts as Page DSL and manages user/system layout tabs', async ({
   await page.getByRole('row', { name: /用户布局/ }).getByRole('button', { name: '打开' }).click();
   const editDialog = page.getByTestId('action-dialog');
   await expect(editDialog).toContainText('编辑布局');
-  await editDialog.getByTestId('editor-input-control').fill('用户布局已更新');
+  await editDialog.getByTestId('mokelay-layout-edit-name-input').fill('用户布局已更新');
   await editDialog.getByRole('button', { name: '保存布局' }).click();
   await expect(editDialog).toHaveCount(0);
   await expect(page.getByRole('cell', { name: '用户布局已更新' })).toBeVisible();

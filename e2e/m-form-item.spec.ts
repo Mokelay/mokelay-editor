@@ -46,7 +46,7 @@ async function openFormItemPropertyPanel(page: Page) {
 test('adds form item, edits fields, selects editor, saves and previews', async ({ page }) => {
   await switchLocaleToChinese(page);
   await addEditorTool(page, '表单项');
-  await page.getByTestId('app-title').click();
+  await page.getByTestId('page-editor-header').click();
   await expect(page.locator('.ce-popover--opened')).toHaveCount(0);
 
   const formItem = page.getByTestId('editor-form-item-tool');

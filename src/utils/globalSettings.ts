@@ -90,16 +90,6 @@ export function setGlobalSettingValue(key: string | undefined, value: string) {
   return false;
 }
 
-export function useGlobalSettings() {
-  return {
-    themeValue,
-    languageValue,
-    settings: mokelaySettings,
-    setTheme,
-    setLanguage
-  };
-}
-
 export function registerWindowGlobalSettings() {
   if (typeof window === 'undefined') {
     return;

@@ -25,6 +25,9 @@ test.beforeEach(async ({ page }) => {
 test('renders API builder list and creates a blank API draft', async ({ page }) => {
   await page.goto('/#/apis');
 
+  await expect(page.getByTestId('app-header')).toHaveCount(0);
+  await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
+  await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: 'API Builder' })).toHaveClass(/layout-top-nav__link--active/);
   await expect(page.getByTestId('api-builder-shell')).toBeVisible();
   await expect(page.getByText('可视化搭建内部数据 API')).toBeVisible();
   await expect(page.getByText('从模板创建')).toBeVisible();

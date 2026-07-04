@@ -80,9 +80,9 @@ test('creates and edits a datasource through DSL actions', async ({ page }) => {
   await page.getByTestId('m-action-toolbar-action-create').click();
   const createDialog = page.getByTestId('action-dialog');
   await expect(createDialog).toContainText('创建数据源');
-  await createDialog.getByTestId('editor-input-control').nth(0).fill('analytic');
-  await createDialog.getByTestId('editor-input-control').nth(1).fill('  Analytics  ');
-  await createDialog.getByTestId('editor-textarea-control').fill('  Reporting database  ');
+  await createDialog.getByTestId('mokelay-datasource-create-uuid-input').fill('analytic');
+  await createDialog.getByTestId('mokelay-datasource-create-alias-input').fill('  Analytics  ');
+  await createDialog.getByTestId('mokelay-datasource-create-description-input').fill('  Reporting database  ');
   await createDialog.getByRole('button', { name: '保存数据源' }).click();
 
   expect((await createRequestPromise).postDataJSON()).toEqual({
@@ -100,9 +100,9 @@ test('creates and edits a datasource through DSL actions', async ({ page }) => {
   await page.getByRole('row', { name: /Analytics/ }).getByRole('button', { name: '编辑' }).click();
   const editDialog = page.getByTestId('action-dialog');
   await expect(editDialog).toContainText('编辑数据源');
-  await expect(editDialog.getByTestId('editor-input-control')).toHaveValue('Analytics');
-  await editDialog.getByTestId('editor-input-control').fill('Analytics Primary');
-  await editDialog.getByTestId('editor-textarea-control').fill('Primary reporting database');
+  await expect(editDialog.getByTestId('mokelay-datasource-edit-alias-input')).toHaveValue('Analytics');
+  await editDialog.getByTestId('mokelay-datasource-edit-alias-input').fill('Analytics Primary');
+  await editDialog.getByTestId('mokelay-datasource-edit-description-input').fill('Primary reporting database');
   await editDialog.getByRole('button', { name: '保存数据源' }).click();
 
   const updateRequest = await updateRequestPromise;

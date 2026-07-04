@@ -114,6 +114,9 @@ test('opens Chat AI from the top navigation', async ({ page }) => {
   await page.getByRole('link', { name: 'AI Chat' }).click();
 
   await expect(page).toHaveURL(/#\/ai-chat$/);
+  await expect(page.getByTestId('app-header')).toHaveCount(0);
+  await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
+  await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: 'AI Chat' })).toHaveClass(/layout-top-nav__link--active/);
   await expect(page.getByTestId('ai-chat-panel')).toBeVisible();
   await expect(page.getByTestId('ai-chat-empty')).toBeVisible();
 });
