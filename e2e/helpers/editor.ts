@@ -84,6 +84,18 @@ export type MockApiSnapshot = {
   createdAt: string;
 };
 
+export type MockApiBuilderSample = {
+  uuid: string;
+  title: string;
+  description: string;
+  method: string;
+  apiJson: Record<string, unknown>;
+  status?: string;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type MockAiGenerateDslResponse =
   | {
       type?: 'success';
@@ -110,6 +122,7 @@ type MockPagesApiOptions = {
   apis?: MockMokelayApi[];
   systemApis?: MockMokelayApi[];
   apiDomains?: MockApiDomain[];
+  apiBuilderSamples?: MockApiBuilderSample[];
   aiGenerateDslResponses?: MockAiGenerateDslResponse[];
   seedDefaultPage?: boolean;
   apiDelays?: {
@@ -148,6 +161,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const apis = new Map<string, MockMokelayApi>();
   const systemApis = new Map<string, MockMokelayApi>();
   const apiDomains = new Map<string, MockApiDomain>();
+  const apiBuilderSamples = new Map<string, MockApiBuilderSample>();
   const apiSnapshots: MockApiSnapshot[] = [];
   const pageCreatePayloads: Record<string, unknown>[] = [];
   const pageUpdatePayloads: Record<string, unknown>[] = [];
@@ -156,6 +170,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const apiSavePayloads: Record<string, unknown>[] = [];
   const apiDomainRequests: string[] = [];
   const apiListRequests: string[] = [];
+  const apiBuilderSampleRequests: string[] = [];
   const systemApiReadRequests: string[] = [];
   const aiGenerateDslRequests: Record<string, unknown>[] = [];
   let aiGenerateDslResponseIndex = 0;
@@ -240,6 +255,16 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     systemApis.set(apiRecord.uuid, {
       ...apiRecord,
       source: 'system'
+    });
+  }
+
+  for (const sampleRecord of options.apiBuilderSamples ?? []) {
+    apiBuilderSamples.set(sampleRecord.uuid, {
+      status: 'active',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+      ...sampleRecord
     });
   }
 
@@ -582,6 +607,27 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_api_builder_samples') {
+      apiBuilderSampleRequests.push(request.url());
+      const pageNumber = Number(url.searchParams.get('page') ?? 1);
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 100);
+      const sampleRecords = Array.from(apiBuilderSamples.values())
+        .filter((sampleRecord) => (sampleRecord.status ?? 'active') === 'active')
+        .sort((a, b) => (
+          (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+          || (a.createdAt ?? '').localeCompare(b.createdAt ?? '')
+          || a.uuid.localeCompare(b.uuid)
+        ));
+      const start = Math.max(pageNumber - 1, 0) * pageSize;
+      const pageItems = sampleRecords.slice(start, start + pageSize);
+      await fulfillApiBuilderSamples(route, pageItems, {
+        page: pageNumber,
+        pageSize,
+        total: sampleRecords.length
+      }, corsHeaders);
+      return;
+    }
+
     if (method === 'GET' && url.pathname === '/api/mokelay/list_apis') {
       apiListRequests.push(request.url());
       const pageNumber = Number(url.searchParams.get('page') ?? 1);
@@ -765,7 +811,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, systemPages, apps, layouts, systemLayouts, datasources, apis, systemApis, apiDomains, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, pageLayoutUpdatePayloads, layoutDeletePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, systemApiReadRequests, aiGenerateDslRequests };
+  return { pages, systemPages, apps, layouts, systemLayouts, datasources, apis, systemApis, apiDomains, apiBuilderSamples, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, pageLayoutUpdatePayloads, layoutDeletePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, apiBuilderSampleRequests, systemApiReadRequests, aiGenerateDslRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -1382,6 +1428,34 @@ async function fulfillApis(
   });
 }
 
+async function fulfillApiBuilderSamples(
+  route: Route,
+  sampleRecords: MockApiBuilderSample[],
+  paginationInput: { page: number; pageSize: number; total: number },
+  headers: Record<string, string>
+) {
+  const totalPages = paginationInput.total > 0 ? Math.ceil(paginationInput.total / paginationInput.pageSize) : 0;
+
+  await route.fulfill({
+    status: 200,
+    headers,
+    body: JSON.stringify({
+      ok: true,
+      data: {
+        samples: sampleRecords.map(serializeApiBuilderSample),
+        pagination: {
+          page: paginationInput.page,
+          pageSize: paginationInput.pageSize,
+          total: paginationInput.total,
+          totalPages,
+          hasPreviousPage: paginationInput.page > 1,
+          hasNextPage: paginationInput.page < totalPages
+        }
+      }
+    })
+  });
+}
+
 async function fulfillApiDomains(
   route: Route,
   domainRecords: MockApiDomain[],
@@ -1503,5 +1577,19 @@ function serializeApi(apiRecord: MockMokelayApi, includeApiJson: boolean) {
     ...(includeApiJson || source === 'system' ? { apiJson: apiRecord.apiJson } : {}),
     ...(includeApiJson && source === 'user' ? { layout: normalizeMockApiLayout(apiRecord.layout) } : {}),
     ...(source === 'user' ? { createdAt: apiRecord.createdAt, updatedAt: apiRecord.updatedAt } : {})
+  };
+}
+
+function serializeApiBuilderSample(sampleRecord: MockApiBuilderSample) {
+  return {
+    uuid: sampleRecord.uuid,
+    title: sampleRecord.title,
+    description: sampleRecord.description,
+    method: sampleRecord.method,
+    api_json: sampleRecord.apiJson,
+    status: sampleRecord.status ?? 'active',
+    sort_order: sampleRecord.sortOrder ?? 0,
+    created_at: sampleRecord.createdAt,
+    updated_at: sampleRecord.updatedAt
   };
 }

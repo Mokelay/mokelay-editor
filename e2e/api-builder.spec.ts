@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { resetEditor } from './helpers/editor';
+import { resetEditor, type MockApiBuilderSample } from './helpers/editor';
 
 type TestApiBlock = Record<string, unknown> & { uuid: string; nextBlock?: string | null };
 
@@ -18,6 +18,96 @@ function linearBlocks(blocks: TestApiBlock[]) {
   ];
 }
 
+function loginApiBuilderSample(): MockApiBuilderSample {
+  return {
+    uuid: 'login-sample',
+    title: '登录接口',
+    description: '读取用户、校验密码、写入 Session。',
+    method: 'POST',
+    sortOrder: 1,
+    apiJson: {
+      uuid: 'login_users',
+      alias: 'users 登录接口',
+      method: 'POST',
+      request: { body: ['email', 'password'] },
+      blocks: [
+        {
+          uuid: 'starter',
+          nextBlock: 'read_user'
+        },
+        {
+          uuid: 'read_user',
+          alias: '按邮箱读取用户',
+          functionName: 'read',
+          inputs: {
+            datasource: 'Mokelay',
+            table: 'users',
+            fields: ['id', 'email', 'password_hash'],
+            conditions: [
+              {
+                group: false,
+                fieldName: 'email',
+                fieldValue: { template: '{{request.body.email}}' },
+                conditionType: 'EQ'
+              }
+            ]
+          },
+          outputs: ['data'],
+          nextBlock: 'check_user_password'
+        },
+        {
+          uuid: 'check_user_password',
+          alias: '校验密码',
+          functionName: 'if_controller',
+          type: 'controller',
+          inputs: {
+            value: true
+          },
+          nodes: [
+            {
+              uuid: 'password_true_node',
+              alias: '校验通过',
+              value: true,
+              nextBlock: 'set_user_session'
+            },
+            {
+              uuid: 'password_false_node',
+              alias: '校验失败',
+              value: false,
+              nextBlock: null
+            }
+          ]
+        },
+        {
+          uuid: 'set_user_session',
+          alias: '写入用户 Session',
+          functionName: 'addSession',
+          inputs: {
+            key: 'user',
+            value: {
+              id: { template: "{{blocks['read_user'].outputs.data.id}}" },
+              email: { template: "{{blocks['read_user'].outputs.data.email}}" }
+            }
+          },
+          outputs: [],
+          nextBlock: null
+        }
+      ],
+      responses: {
+        set_user_session: {
+          user: {
+            id: { template: "{{blocks['read_user'].outputs.data.id}}" },
+            email: { template: "{{blocks['read_user'].outputs.data.email}}" }
+          }
+        },
+        password_false_node: {
+          user: null
+        }
+      }
+    }
+  };
+}
+
 test.beforeEach(async ({ page }) => {
   await resetEditor(page);
 });
@@ -27,10 +117,11 @@ test('renders API builder list and creates a blank API draft', async ({ page }) 
 
   await expect(page.getByTestId('app-header')).toHaveCount(0);
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
-  await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: 'API Builder' })).toHaveClass(/layout-top-nav__link--active/);
+  await expect(page.getByTestId('layout-top-nav').locator('a[href="#/apis"]')).toHaveClass(/layout-top-nav__link--active/);
   await expect(page.getByTestId('api-builder-shell')).toBeVisible();
   await expect(page.getByText('可视化搭建内部数据 API')).toBeVisible();
-  await expect(page.getByText('从模板创建')).toBeVisible();
+  await expect(page.getByText('从模板创建')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '内置样例' })).toBeVisible();
 
   await page.getByTestId('api-builder-new').click();
 
@@ -359,8 +450,25 @@ test('duplicates an API through the basic info dialog before opening the copy UR
 });
 
 test('creates an API from a sample, configures response, and dry-runs it', async ({ page }) => {
+  const apiState = await resetEditor(page, {
+    apiBuilderSamples: [
+      loginApiBuilderSample(),
+      {
+        ...loginApiBuilderSample(),
+        uuid: 'hidden-login-sample',
+        title: '隐藏样例',
+        status: 'inactive',
+        sortOrder: 2
+      }
+    ]
+  });
+
   await page.goto('/#/apis');
 
+  await expect.poll(() => apiState.apiBuilderSampleRequests.some((requestUrl) => (
+    new URL(requestUrl).pathname === '/api/mokelay/list_api_builder_samples'
+  ))).toBe(true);
+  await expect(page.getByRole('button', { name: /隐藏样例/ })).toHaveCount(0);
   await page.getByRole('button', { name: /登录接口/ }).click();
   await expect(page.getByRole('dialog', { name: '新建 API' })).toBeVisible();
   await page.getByTestId('api-info-submit').click();

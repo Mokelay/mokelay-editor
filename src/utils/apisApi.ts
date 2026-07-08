@@ -36,6 +36,22 @@ export type ListApisResult = {
   pagination: MokelayApisPagination;
 };
 
+export type ApiBuilderSampleRecord = {
+  uuid: string;
+  title: string;
+  description: string;
+  method: string;
+  apiJson: ApiJson;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListApiBuilderSamplesResult = {
+  samples: ApiBuilderSampleRecord[];
+  pagination: MokelayApisPagination;
+};
+
 export type ApifoxProjectRecord = {
   id: string;
   name: string;
@@ -85,6 +101,11 @@ type BuiltInApisResponse = {
   count?: unknown;
 };
 
+type ApiBuilderSamplesResponse = {
+  samples?: unknown;
+  pagination?: unknown;
+};
+
 type ApifoxProjectsResponse = {
   projects?: unknown;
   count?: unknown;
@@ -130,6 +151,14 @@ export async function listApis(params: ListApisParams) {
     params: userParams
   });
   return normalizeApisResponse(unwrapApiResponse(response.data));
+}
+
+export async function listApiBuilderSamples(params = { page: 1, pageSize: 100 }) {
+  const response = await apiClient.get<MokelayApiResponse<ApiBuilderSamplesResponse>>(
+    '/api/mokelay/list_api_builder_samples',
+    { params }
+  );
+  return normalizeApiBuilderSamplesResponse(unwrapApiResponse(response.data));
 }
 
 export async function getApi(uuid: string) {
@@ -254,6 +283,17 @@ function normalizeBuiltInApisResponse(value: BuiltInApisResponse, params: ListAp
   };
 }
 
+function normalizeApiBuilderSamplesResponse(value: ApiBuilderSamplesResponse): ListApiBuilderSamplesResult {
+  const samples = Array.isArray(value.samples)
+    ? value.samples.map((sample) => normalizeApiBuilderSampleRecord(sample))
+    : [];
+
+  return {
+    samples,
+    pagination: normalizePagination(value.pagination)
+  };
+}
+
 function normalizeApifoxProjectsResponse(value: ApifoxProjectsResponse): ListApifoxProjectsResult {
   const projects = Array.isArray(value.projects)
     ? value.projects
@@ -324,6 +364,34 @@ function normalizeBuiltInApiRecord(value: unknown): MokelayApiRecord {
     source: 'system',
     apiJson: value
   });
+}
+
+function normalizeApiBuilderSampleRecord(value: unknown): ApiBuilderSampleRecord {
+  if (!isRecord(value)) {
+    throw new Error('Invalid API Builder sample record.');
+  }
+
+  const uuid = readString(value.uuid);
+  const apiJsonValue = isRecord(value.apiJson)
+    ? value.apiJson
+    : isRecord(value.api_json)
+      ? value.api_json
+      : undefined;
+
+  if (!uuid || !apiJsonValue) {
+    throw new Error('Invalid API Builder sample record.');
+  }
+
+  return {
+    uuid,
+    title: readString(value.title) || uuid,
+    description: readString(value.description),
+    method: readString(value.method).toUpperCase() || readString(apiJsonValue.method).toUpperCase() || 'GET',
+    apiJson: apiJsonValue as ApiJson,
+    sortOrder: readNumber(value.sortOrder ?? value.sort_order, 0),
+    createdAt: readString(value.createdAt) || readString(value.created_at),
+    updatedAt: readString(value.updatedAt) || readString(value.updated_at)
+  };
 }
 
 function normalizeApifoxProjectRecord(value: unknown): ApifoxProjectRecord | undefined {

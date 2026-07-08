@@ -31,13 +31,10 @@ import {
   isControllerBlock,
   isStandardBlock,
   isStarterBlock,
-  normalizeTemplateOptions,
   processorDefinitions,
   processorName,
-  requestLocations,
-  templateDefinitions
+  requestLocations
 } from '@/api-builder/registry';
-import { sampleApis } from '@/api-builder/samples';
 import {
   appendTestCase,
   createDraft,
@@ -47,7 +44,17 @@ import {
 } from '@/api-builder/store';
 import { hasBlockingErrors, hasDangerWarnings, validateApiJson } from '@/api-builder/validation';
 import { buildVariableOptions, makeTemplate } from '@/api-builder/variables';
-import { deleteApi, getApi, getBuiltInApi, listApis, saveApi, type MokelayApiRecord, type MokelayApiSource } from '@/utils/apisApi';
+import {
+  deleteApi,
+  getApi,
+  getBuiltInApi,
+  listApiBuilderSamples,
+  listApis,
+  saveApi,
+  type ApiBuilderSampleRecord,
+  type MokelayApiRecord,
+  type MokelayApiSource
+} from '@/utils/apisApi';
 import type {
   ApiBlock,
   ApiBuilderDraft,
@@ -90,6 +97,9 @@ const draggedBlockUuid = ref('');
 const apiBuilderError = ref('');
 const isApiListLoading = ref(false);
 const isApiDetailLoading = ref(false);
+const isApiBuilderSamplesLoading = ref(false);
+const apiBuilderSamplesError = ref('');
+const apiBuilderSamples = ref<ApiBuilderSampleRecord[]>([]);
 const isSavingApi = ref(false);
 const isApiInfoDialogOpen = ref(false);
 const isSavingApiInfo = ref(false);
@@ -106,14 +116,6 @@ const apiInfoForm = reactive({
   name: '',
   uuid: '',
   method: 'GET'
-});
-const templateOptions = reactive({
-  selectedTemplateId: 'page',
-  datasource: 'Mokelay',
-  table: 'employees',
-  idField: 'id',
-  requestFields: 'name,email',
-  returnFields: 'id,enterprise_uuid,enterprise_name,name,email,created_at'
 });
 
 const activeDraft = computed(() => drafts.value.find((draft) => draft.id === activeDraftId.value) ?? null);
@@ -154,6 +156,7 @@ const { fitView } = useVueFlow('api-builder-flow');
 const apiUuidPattern = /^[A-Za-z0-9_-]{1,128}$/;
 let apiListRequestId = 0;
 let apiDetailRequestId = 0;
+let apiBuilderSamplesRequestId = 0;
 
 watch(
   () => [props.routeUuid, props.routeSource] as const,
@@ -163,6 +166,7 @@ watch(
       apiDetailRequestId += 1;
       activeDraftId.value = '';
       void refreshApiList(source);
+      void refreshApiBuilderSamples();
       return;
     }
     activeDraftId.value = uuid;
@@ -358,6 +362,26 @@ async function refreshApiList(source: MokelayApiSource = selectedApiSource.value
   }
 }
 
+async function refreshApiBuilderSamples() {
+  const requestId = ++apiBuilderSamplesRequestId;
+  isApiBuilderSamplesLoading.value = true;
+  apiBuilderSamplesError.value = '';
+
+  try {
+    const result = await listApiBuilderSamples({ page: 1, pageSize: 100 });
+    if (requestId !== apiBuilderSamplesRequestId) return;
+    apiBuilderSamples.value = result.samples;
+  } catch (error) {
+    if (requestId === apiBuilderSamplesRequestId) {
+      apiBuilderSamplesError.value = error instanceof Error ? error.message : '加载内置样例失败。';
+    }
+  } finally {
+    if (requestId === apiBuilderSamplesRequestId) {
+      isApiBuilderSamplesLoading.value = false;
+    }
+  }
+}
+
 async function loadApiDetail(uuid: string, source: MokelayApiSource = selectedApiSource.value) {
   if (!uuid) return;
 
@@ -417,20 +441,6 @@ function createBlankDraft() {
 
 function createFromApiJson(apiJson: unknown) {
   openCreateApiDialog(apiJson);
-}
-
-function createFromTemplate(templateId = templateOptions.selectedTemplateId) {
-  const definition = templateDefinitions.find((item) => item.id === templateId);
-  if (!definition) return;
-
-  const options = normalizeTemplateOptions({
-    datasource: templateOptions.datasource,
-    table: templateOptions.table,
-    idField: templateOptions.idField,
-    requestFields: splitFields(templateOptions.requestFields),
-    returnFields: splitFields(templateOptions.returnFields)
-  });
-  createFromApiJson(definition.build(options));
 }
 
 function openCreateApiDialog(apiJson: unknown = createEmptyApiJson()) {
@@ -1685,30 +1695,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
       <aside class="space-y-4">
         <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <h3 class="text-sm font-semibold text-slate-900 dark:text-white">从模板创建</h3>
-          <div class="mt-3 space-y-3">
-            <select v-model="templateOptions.selectedTemplateId" class="builder-input">
-              <option v-for="template in templateDefinitions" :key="template.id" :value="template.id">{{ template.title }}</option>
-            </select>
-            <div class="grid grid-cols-2 gap-2">
-              <input v-model="templateOptions.datasource" class="builder-input" placeholder="数据源，如 Mokelay">
-              <input v-model="templateOptions.table" class="builder-input" placeholder="表名，如 employees">
-              <input v-model="templateOptions.idField" class="builder-input" placeholder="主键，如 id">
-              <input v-model="templateOptions.requestFields" class="builder-input" placeholder="请求字段，逗号分隔">
-            </div>
-            <input v-model="templateOptions.returnFields" class="builder-input" placeholder="返回字段，逗号分隔">
-            <button class="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 dark:bg-white dark:text-slate-950" @click="createFromTemplate()">
-              使用模板
-            </button>
-          </div>
-        </section>
-
-        <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <h3 class="text-sm font-semibold text-slate-900 dark:text-white">内置样例</h3>
-          <div class="mt-3 grid gap-2">
+          <p v-if="apiBuilderSamplesError" class="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderSamplesError }}</p>
+          <p v-else-if="isApiBuilderSamplesLoading" class="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">正在加载内置样例...</p>
+          <p v-else-if="!apiBuilderSamples.length" class="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">暂无内置样例。</p>
+          <div v-else class="mt-3 grid gap-2">
             <button
-              v-for="sample in sampleApis"
-              :key="sample.id"
+              v-for="sample in apiBuilderSamples"
+              :key="sample.uuid"
               class="rounded-lg border border-slate-200 p-3 text-left hover:border-teal-300 hover:bg-teal-50 dark:border-slate-700 dark:hover:border-teal-500/60 dark:hover:bg-teal-500/10"
               @click="createFromApiJson(sample.apiJson)"
             >
