@@ -110,10 +110,10 @@ const apiInfoForm = reactive({
 const templateOptions = reactive({
   selectedTemplateId: 'page',
   datasource: 'Mokelay',
-  table: 'users',
+  table: 'employees',
   idField: 'id',
   requestFields: 'name,email',
-  returnFields: 'id,name,email,created_at'
+  returnFields: 'id,enterprise_uuid,enterprise_name,name,email,created_at'
 });
 
 const activeDraft = computed(() => drafts.value.find((draft) => draft.id === activeDraftId.value) ?? null);
@@ -1692,7 +1692,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             </select>
             <div class="grid grid-cols-2 gap-2">
               <input v-model="templateOptions.datasource" class="builder-input" placeholder="数据源，如 Mokelay">
-              <input v-model="templateOptions.table" class="builder-input" placeholder="表名，如 users">
+              <input v-model="templateOptions.table" class="builder-input" placeholder="表名，如 employees">
               <input v-model="templateOptions.idField" class="builder-input" placeholder="主键，如 id">
               <input v-model="templateOptions.requestFields" class="builder-input" placeholder="请求字段，逗号分隔">
             </div>

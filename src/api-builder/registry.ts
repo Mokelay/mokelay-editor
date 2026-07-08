@@ -100,7 +100,7 @@ export const blockDefinitions: BlockDefinition[] = [
     outputs: ['datas'],
     defaultInputs: () => ({
       datasource: 'Mokelay',
-      table: 'users',
+      table: 'employees',
       fields: ['id', 'name', 'created_at'],
       conditions: [],
       orderBy: []
@@ -132,7 +132,7 @@ export const blockDefinitions: BlockDefinition[] = [
     outputs: ['total'],
     defaultInputs: () => ({
       datasource: 'Mokelay',
-      table: 'users',
+      table: 'employees',
       conditions: []
     })
   },
@@ -145,7 +145,7 @@ export const blockDefinitions: BlockDefinition[] = [
     outputs: ['data'],
     defaultInputs: () => ({
       datasource: 'Mokelay',
-      table: 'users',
+      table: 'employees',
       fields: ['id', 'name', 'email'],
       conditions: [leafCondition('id', { template: '{{request.query.id}}' })]
     })
@@ -159,7 +159,7 @@ export const blockDefinitions: BlockDefinition[] = [
     outputs: ['uuid'],
     defaultInputs: () => ({
       datasource: 'Mokelay',
-      table: 'users',
+      table: 'employees',
       idField: 'id',
       fields: {
         name: { template: '{{request.body.name}}' }
@@ -175,7 +175,7 @@ export const blockDefinitions: BlockDefinition[] = [
     outputs: ['uuid'],
     defaultInputs: () => ({
       datasource: 'Mokelay',
-      table: 'users',
+      table: 'employees',
       idField: 'id',
       fields: {
         id: { template: '{{request.body.id}}' },
@@ -192,7 +192,7 @@ export const blockDefinitions: BlockDefinition[] = [
     outputs: ['affected'],
     defaultInputs: () => ({
       datasource: 'Mokelay',
-      table: 'users',
+      table: 'employees',
       fields: {
         name: { template: '{{request.body.name}}' }
       },
@@ -208,7 +208,7 @@ export const blockDefinitions: BlockDefinition[] = [
     outputs: ['affected'],
     defaultInputs: () => ({
       datasource: 'Mokelay',
-      table: 'users',
+      table: 'employees',
       conditions: [leafCondition('id', { template: '{{request.body.id}}' })]
     })
   },
@@ -570,10 +570,10 @@ export function leafCondition(fieldName = 'id', fieldValue: unknown = ''): Condi
 export function normalizeTemplateOptions(value: Partial<TemplateOptions> = {}): TemplateOptions {
   return {
     datasource: value.datasource?.trim() || 'Mokelay',
-    table: value.table?.trim() || 'users',
+    table: value.table?.trim() || 'employees',
     idField: value.idField?.trim() || 'id',
     requestFields: normalizeFieldList(value.requestFields, ['name', 'email']),
-    returnFields: normalizeFieldList(value.returnFields, ['id', 'name', 'email'])
+    returnFields: normalizeFieldList(value.returnFields, ['id', 'enterprise_uuid', 'enterprise_name', 'name', 'email'])
   };
 }
 
@@ -618,7 +618,8 @@ function controllerNodeLabel(node: { alias?: string; type?: 'DEFAULT'; value?: s
 }
 
 function buildRegisterTemplate(options: TemplateOptions): ApiJson {
-  const returnValue = objectFromFields(options.returnFields, "blocks['read_record'].outputs.data");
+  const employeeReturnFields = employeeAuthReturnFields(options.returnFields);
+  const returnValue = authUserFromFields(options.returnFields, "blocks['read_record'].outputs.data", "blocks['read_enterprise'].outputs.data");
 
   return {
     uuid: `register_${options.table}`,
@@ -626,6 +627,7 @@ function buildRegisterTemplate(options: TemplateOptions): ApiJson {
     method: 'POST',
     request: {
       body: [
+        requiredKey('enterprise_name', ['trim', 'is_not_null', { processor: 'max', param: [120] }]),
         requiredKey('name', ['trim', 'is_not_null', { processor: 'max', param: [128] }]),
         requiredKey('email', ['trim', 'is_not_null', 'email_check', { processor: 'max', param: [255] }]),
         requiredKey('password', ['is_not_null', { processor: 'min', param: [8] }, { processor: 'max', param: [128] }])
@@ -642,12 +644,33 @@ function buildRegisterTemplate(options: TemplateOptions): ApiJson {
         outputs: [{ key: 'total', processors: [{ processor: 'eq', param: [0] }] }]
       },
       {
+        ...createBlock('create', 'create_enterprise', '创建企业'),
+        inputs: {
+          datasource: options.datasource,
+          table: 'enterprise',
+          idField: 'uuid',
+          fields: {
+            name: template('request.body.enterprise_name')
+          }
+        }
+      },
+      {
+        ...createBlock('read', 'read_enterprise', '读取企业'),
+        inputs: {
+          datasource: options.datasource,
+          table: 'enterprise',
+          fields: ['uuid', 'name'],
+          conditions: [leafCondition('uuid', template("blocks['create_enterprise'].outputs.uuid"))]
+        }
+      },
+      {
         ...createBlock('create', 'create_record', '创建用户'),
         inputs: {
           datasource: options.datasource,
           table: options.table,
           idField: options.idField,
           fields: {
+            enterprise_uuid: template("blocks['create_enterprise'].outputs.uuid"),
             name: template('request.body.name'),
             email: template('request.body.email'),
             password_hash: {
@@ -662,7 +685,7 @@ function buildRegisterTemplate(options: TemplateOptions): ApiJson {
         inputs: {
           datasource: options.datasource,
           table: options.table,
-          fields: options.returnFields,
+          fields: employeeReturnFields,
           conditions: [leafCondition(options.idField, template("blocks['create_record'].outputs.uuid"))]
         }
       },
@@ -670,7 +693,7 @@ function buildRegisterTemplate(options: TemplateOptions): ApiJson {
         ...createBlock('addSession', 'set_user_session', '写入用户 Session'),
         inputs: {
           key: 'user',
-          value: template("blocks['read_record'].outputs.data")
+          value: returnValue
         }
       }
     ]),
@@ -681,6 +704,8 @@ function buildRegisterTemplate(options: TemplateOptions): ApiJson {
 }
 
 function buildLoginTemplate(options: TemplateOptions): ApiJson {
+  const employeeReturnFields = employeeAuthReturnFields(options.returnFields);
+  const returnValue = authUserFromFields(options.returnFields, "blocks['read_user'].outputs.data", "blocks['read_enterprise'].outputs.data");
   const passwordController = createController('if_controller', 'check_user_password', '校验密码');
   passwordController.inputs = {
     value: {
@@ -698,7 +723,7 @@ function buildLoginTemplate(options: TemplateOptions): ApiJson {
       uuid: 'password_true_node',
       alias: '校验通过',
       value: true,
-      nextBlock: 'set_user_session'
+      nextBlock: 'read_enterprise'
     },
     {
       uuid: 'password_false_node',
@@ -713,7 +738,7 @@ function buildLoginTemplate(options: TemplateOptions): ApiJson {
     inputs: {
       datasource: options.datasource,
       table: options.table,
-      fields: Array.from(new Set([...options.returnFields, 'password_hash'])),
+      fields: Array.from(new Set([...employeeReturnFields, 'password_hash'])),
       conditions: [leafCondition('email', template('request.body.email'))]
     },
     outputs: [{ key: 'data', processors: ['is_not_null'] }],
@@ -723,9 +748,20 @@ function buildLoginTemplate(options: TemplateOptions): ApiJson {
     ...createBlock('addSession', 'set_user_session', '写入用户 Session'),
     inputs: {
       key: 'user',
-      value: objectFromFields(options.returnFields, "blocks['read_user'].outputs.data")
+      value: returnValue
     },
     nextBlock: null
+  };
+  const readEnterprise = {
+    ...createBlock('read', 'read_enterprise', '读取企业'),
+    inputs: {
+      datasource: options.datasource,
+      table: 'enterprise',
+      fields: ['uuid', 'name'],
+      conditions: [leafCondition('uuid', template("blocks['read_user'].outputs.data.enterprise_uuid"))]
+    },
+    outputs: [{ key: 'data', processors: ['is_not_null'] }],
+    nextBlock: 'set_user_session'
   };
 
   return {
@@ -742,11 +778,12 @@ function buildLoginTemplate(options: TemplateOptions): ApiJson {
       createStarterBlock('read_user'),
       readUser,
       passwordController,
+      readEnterprise,
       setSession
     ],
     responses: {
       set_user_session: {
-        user: objectFromFields(options.returnFields, "blocks['read_user'].outputs.data")
+        user: returnValue
       },
       password_false_node: {
         user: null
@@ -888,4 +925,19 @@ function buildUpdateReadTemplate(options: TemplateOptions): ApiJson {
 
 function objectFromFields(fields: string[], basePath: string) {
   return Object.fromEntries(fields.map((field) => [field, template(`${basePath}.${field}`)]));
+}
+
+function employeeAuthReturnFields(fields: string[]) {
+  return Array.from(new Set([
+    ...fields.filter((field) => field !== 'enterprise_name'),
+    'enterprise_uuid'
+  ]));
+}
+
+function authUserFromFields(fields: string[], employeeBasePath: string, enterpriseBasePath: string) {
+  return {
+    ...objectFromFields(fields.filter((field) => field !== 'enterprise_name'), employeeBasePath),
+    enterprise_uuid: template(`${employeeBasePath}.enterprise_uuid`),
+    enterprise_name: template(`${enterpriseBasePath}.name`)
+  };
 }

@@ -3,10 +3,10 @@ import type { ApiJson } from '@/api-builder/types';
 
 const baseOptions = normalizeTemplateOptions({
   datasource: 'Mokelay',
-  table: 'users',
+  table: 'employees',
   idField: 'id',
   requestFields: ['name', 'email'],
-  returnFields: ['id', 'name', 'email', 'plan']
+  returnFields: ['id', 'enterprise_uuid', 'enterprise_name', 'name', 'email', 'plan']
 });
 
 const pageOptions = normalizeTemplateOptions({
