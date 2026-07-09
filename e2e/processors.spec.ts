@@ -130,6 +130,47 @@ test('formats valid dates in browser local time and returns failed conversions u
   expect(result.mismatch).toEqual({ timestamp: Date.UTC(2026, 5, 15, 4, 5, 6) });
 });
 
+test('generates random_id strings with defaults, shorthands, and fallback params', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { applyProcessor } = await import('/src/processors/index.ts');
+    return {
+      defaultId: applyProcessor('', {
+        processor: 'random_id',
+        param: { prefix: 'api_', length: 6 }
+      }),
+      keepsExisting: applyProcessor('existing_api', 'random_id'),
+      alwaysId: applyProcessor('existing_api', {
+        processor: 'random_id',
+        param: { prefix: 'api_', length: 4, when: 'always' }
+      }),
+      stringShorthand: applyProcessor(null, { processor: 'random_id', param: 'api_' }),
+      numberShorthand: applyProcessor(undefined, { processor: 'random_id', param: 8 }),
+      customAlphabet: applyProcessor('', {
+        processor: 'random_id',
+        param: { prefix: 'ID_', length: 4, alphabet: 'AB', lowerCase: false }
+      }),
+      invalidFallback: applyProcessor('', {
+        processor: 'random_id',
+        param: { length: -1, alphabet: '', when: 'sometimes' }
+      }),
+      mismatch: applyProcessor({ id: 1 }, {
+        processor: 'random_id',
+        param: { prefix: 'api_', length: 4 }
+      })
+    };
+  });
+
+  expect(result.defaultId).toMatch(/^api_[a-z0-9]{6}$/);
+  expect(result.keepsExisting).toBe('existing_api');
+  expect(result.alwaysId).toMatch(/^api_[a-z0-9]{4}$/);
+  expect(result.alwaysId).not.toBe('existing_api');
+  expect(result.stringShorthand).toMatch(/^api_[a-z0-9]{6}$/);
+  expect(result.numberShorthand).toMatch(/^[a-z0-9]{8}$/);
+  expect(result.customAlphabet).toMatch(/^ID_[AB]{4}$/);
+  expect(result.invalidFallback).toMatch(/^[a-z0-9]{6}$/);
+  expect(result.mismatch).toMatch(/^api_[a-z0-9]{4}$/);
+});
+
 test('reports invalid and unsupported processor configs with stable error codes', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const { applyProcessor } = await import('/src/processors/index.ts');

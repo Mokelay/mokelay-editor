@@ -649,6 +649,21 @@ export const zhMessages = {
         custom: '自定义',
         fields: { preset: '预设格式', format: '格式' }
       },
+      randomId: {
+        title: '随机标识',
+        description: '为空值生成短随机字符串，非空字符串可按配置保留。',
+        fields: {
+          prefix: '前缀',
+          length: '长度',
+          alphabet: '字符集',
+          lowerCase: '转小写',
+          when: '生成时机'
+        },
+        when: {
+          empty: '仅为空时',
+          always: '总是生成'
+        }
+      },
       validation: {
         required: '此项不能为空。',
         jsonObject: '请输入有效的 JSON 对象。'

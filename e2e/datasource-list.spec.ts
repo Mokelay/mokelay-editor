@@ -80,13 +80,14 @@ test('creates and edits a datasource through DSL actions', async ({ page }) => {
   await page.getByTestId('m-action-toolbar-action-create').click();
   const createDialog = page.getByTestId('action-dialog');
   await expect(createDialog).toContainText('创建数据源');
-  await createDialog.getByTestId('mokelay-datasource-create-uuid-input').fill('analytic');
+  const generatedUuid = await createDialog.getByTestId('mokelay-datasource-create-uuid-input').inputValue();
+  expect(generatedUuid).toMatch(/^ds_[a-z0-9]{5}$/);
   await createDialog.getByTestId('mokelay-datasource-create-alias-input').fill('  Analytics  ');
   await createDialog.getByTestId('mokelay-datasource-create-description-input').fill('  Reporting database  ');
   await createDialog.getByRole('button', { name: '保存数据源' }).click();
 
   expect((await createRequestPromise).postDataJSON()).toEqual({
-    uuid: 'analytic',
+    uuid: generatedUuid,
     alias: 'Analytics',
     description: 'Reporting database'
   });
@@ -106,14 +107,14 @@ test('creates and edits a datasource through DSL actions', async ({ page }) => {
   await editDialog.getByRole('button', { name: '保存数据源' }).click();
 
   const updateRequest = await updateRequestPromise;
-  expect(new URL(updateRequest.url()).searchParams.get('uuid')).toBe('analytic');
+  expect(new URL(updateRequest.url()).searchParams.get('uuid')).toBe(generatedUuid);
   expect(updateRequest.postDataJSON()).toEqual({
     alias: 'Analytics Primary',
     description: 'Primary reporting database'
   });
   await expect(editDialog).toHaveCount(0);
   await expect(page.getByRole('row', { name: /Analytics Primary/ })).toContainText('Primary reporting database');
-  expect(apiState.datasources.get('analytic')).toMatchObject({ alias: 'Analytics Primary' });
+  expect(apiState.datasources.get(generatedUuid)).toMatchObject({ alias: 'Analytics Primary' });
 });
 
 test('syncs datasource schema and opens schema details through DSL actions', async ({ page }) => {

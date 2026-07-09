@@ -4,7 +4,8 @@ export type {
   FilterParam,
   ProcessorConfig,
   ProcessorDefinition,
-  ProcessorErrorCode
+  ProcessorErrorCode,
+  RandomIdParam
 } from '@/processors/types';
 export { ProcessorError } from '@/processors/errors';
 export {

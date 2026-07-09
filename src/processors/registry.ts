@@ -1,6 +1,7 @@
 import { dateTimeFormatProcessor, validateDateTimeFormatParam } from '@/processors/executors/dateTimeFormat';
 import { filterProcessor } from '@/processors/executors/filter';
 import { mergeDataProcessor, readMergeDataParam } from '@/processors/executors/mergeData';
+import { randomIdProcessor } from '@/processors/executors/randomId';
 import { trimProcessor } from '@/processors/executors/trim';
 import { readFilterParam } from '@/processors/shared';
 import type { ProcessorDefinition } from '@/processors/types';
@@ -43,6 +44,17 @@ export const processorDefinitions: ProcessorDefinition[] = [
     createDefault: () => ({ processor: 'date_time_format', param: 'yyyy-MM-dd HH:mm:SS' }),
     execute: dateTimeFormatProcessor,
     validateParam: validateDateTimeFormatParam
+  },
+  {
+    name: 'random_id',
+    titleKey: 'datasource.processors.randomId.title',
+    descriptionKey: 'datasource.processors.randomId.description',
+    supportedTypes: ['string'],
+    createDefault: () => ({
+      processor: 'random_id',
+      param: { prefix: '', length: 6, when: 'empty' }
+    }),
+    execute: randomIdProcessor
   }
 ];
 

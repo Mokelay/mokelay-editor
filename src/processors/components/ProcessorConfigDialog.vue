@@ -4,6 +4,7 @@ import { useI18n } from '@/i18n';
 import DateTimeFormatProcessorEditor from '@/processors/components/DateTimeFormatProcessorEditor.vue';
 import FilterProcessorEditor from '@/processors/components/FilterProcessorEditor.vue';
 import MergeDataProcessorEditor from '@/processors/components/MergeDataProcessorEditor.vue';
+import RandomIdProcessorEditor from '@/processors/components/RandomIdProcessorEditor.vue';
 import TrimProcessorEditor from '@/processors/components/TrimProcessorEditor.vue';
 import {
   getProcessorDefinition,
@@ -87,6 +88,7 @@ function editorComponent(config: ProcessorConfig) {
   if (name === 'merge_data') return MergeDataProcessorEditor;
   if (name === 'filter') return FilterProcessorEditor;
   if (name === 'date_time_format') return DateTimeFormatProcessorEditor;
+  if (name === 'random_id') return RandomIdProcessorEditor;
   return undefined;
 }
 

@@ -649,6 +649,21 @@ export const enMessages = {
         custom: 'Custom',
         fields: { preset: 'Preset', format: 'Format' }
       },
+      randomId: {
+        title: 'Random ID',
+        description: 'Generates a short random string for empty values and can preserve non-empty strings.',
+        fields: {
+          prefix: 'Prefix',
+          length: 'Length',
+          alphabet: 'Alphabet',
+          lowerCase: 'Lowercase',
+          when: 'When'
+        },
+        when: {
+          empty: 'Only when empty',
+          always: 'Always generate'
+        }
+      },
       validation: {
         required: 'This field is required.',
         jsonObject: 'Enter a valid JSON object.'

@@ -21,6 +21,14 @@ export type ProcessorDefinition = {
   validateParam?: (param: unknown) => void;
 };
 
+export type RandomIdParam = {
+  prefix?: string;
+  length?: number;
+  alphabet?: string;
+  lowerCase?: boolean;
+  when?: 'always' | 'empty';
+};
+
 export type FilterConditionType = 'eq' | 'gt' | 'lt' | 'is_empty' | 'is_not_empty';
 
 export type FilterCondition = {

@@ -51,21 +51,22 @@ test('creates an app from the app list', async ({ page }) => {
   );
 
   await page.getByTestId('create-app-button').click();
-  await page.getByTestId('app-uuid').fill('mobile');
+  const generatedUuid = await page.getByTestId('app-uuid').inputValue();
+  expect(generatedUuid).toMatch(/^app_[a-z0-9]{4}$/);
   await page.getByTestId('create-app-alias').fill('  Mobile Console  ');
   await page.getByTestId('create-app-description').fill('  App for mobile operations  ');
   await page.getByTestId('create-app-submit').click();
 
   const createRequest = await createRequestPromise;
   expect(createRequest.postDataJSON()).toEqual({
-    uuid: 'mobile',
+    uuid: generatedUuid,
     alias: 'Mobile Console',
     description: 'App for mobile operations'
   });
 
   await expect(page.getByRole('row', { name: /Mobile Console/ })).toBeVisible();
   await expect(page.getByRole('row', { name: /App for mobile operations/ })).toBeVisible();
-  expect(apiState.apps.get('mobile')).toMatchObject({
+  expect(apiState.apps.get(generatedUuid)).toMatchObject({
     id: 1,
     alias: 'Mobile Console',
     description: 'App for mobile operations'
@@ -134,7 +135,7 @@ test('opens the pages DSL runtime from the top navigation', async ({ page }) => 
     ]
   });
 
-  await page.getByRole('link', { name: /页面列表|Pages/ }).click();
+  await page.getByRole('link', { name: /页面列表|页面|Pages/ }).click();
 
   await expect(page).toHaveURL(/#\/pages$/);
   await expect(page.getByTestId('preview-panel')).toBeVisible();

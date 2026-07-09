@@ -82,12 +82,31 @@ test('renders layouts as Page DSL and manages user/system layout tabs', async ({
   await page.getByTestId('m-action-toolbar-action-create').click();
   const createDialog = page.getByTestId('action-dialog');
   await expect(createDialog).toContainText('创建布局');
-  await createDialog.getByTestId('mokelay-layout-create-uuid-input').fill('created_layout');
+  const generatedUuid = await createDialog.getByTestId('mokelay-layout-create-uuid-input').inputValue();
+  expect(generatedUuid).toMatch(/^layout_[a-z0-9]{6}$/);
+  const createRequestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_layout'
+  );
   await createDialog.getByTestId('mokelay-layout-create-name-input').fill('创建布局');
   await createDialog.getByRole('button', { name: '保存布局' }).click();
+  const createRequestBody = (await createRequestPromise).postDataJSON();
+  expect(createRequestBody).toMatchObject({
+    uuid: generatedUuid,
+    name: '创建布局',
+    layoutJson: {
+      uuid: generatedUuid,
+      name: '创建布局'
+    }
+  });
   await expect(createDialog).toHaveCount(0);
   await expect(page.getByRole('cell', { name: '创建布局' })).toBeVisible();
-  expect(apiState.layouts.get('created_layout')).toMatchObject({ name: '创建布局' });
+  expect(apiState.layouts.get(generatedUuid)).toMatchObject({
+    name: '创建布局',
+    layoutJson: {
+      uuid: generatedUuid,
+      name: '创建布局'
+    }
+  });
 
   await page.getByRole('row', { name: /用户布局/ }).getByRole('button', { name: '打开' }).click();
   const editDialog = page.getByTestId('action-dialog');
