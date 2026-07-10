@@ -18,3 +18,4 @@ export {
 } from '@/actions/normalizer';
 export { resolveActionTemplates } from '@/actions/template';
 export { runActionGraph } from '@/actions/runner';
+export { controllerActionDefinitions } from '@/actions/controllers';

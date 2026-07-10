@@ -80,6 +80,22 @@ export function readRandomIdParam(param: unknown): RandomIdParam {
   };
 }
 
+/**
+ * @clientProcessorDoc {
+ *   "version": "1.0",
+ *   "processorName": "random_id",
+ *   "displayName": "生成随机 ID",
+ *   "category": "string",
+ *   "description": "按前缀、长度、字符表生成随机 ID，可配置仅在输入为空时生成。",
+ *   "inputs": [{"key":"value","type":"string|unknown","required":false,"description":"已有值；when=empty 且非空时直接保留。"}],
+ *   "params": [{"key":"prefix","type":"string","required":false,"defaultValue":"","description":"ID 前缀。"},{"key":"length","type":"number","required":false,"defaultValue":6,"description":"随机部分长度，最大 32。"},{"key":"alphabet","type":"string","required":false,"description":"随机字符表。"},{"key":"lowerCase","type":"boolean","required":false,"defaultValue":true,"description":"是否转小写。"},{"key":"when","type":"always|empty","required":false,"defaultValue":"empty","description":"生成时机。"}],
+ *   "outputs": [{"key":"value","type":"string|same-as-input","description":"生成后的 ID 或复用的已有值。"}],
+ *   "errors": [],
+ *   "config": [],
+ *   "runtime": [{"key":"pure","value":false},{"key":"async","value":false},{"key":"mutatesInput","value":false}],
+ *   "examples": [{"processor":"random_id","param":{"prefix":"item_","length":8,"when":"empty"},"input":"","output":"item_a1b2c3d4"}]
+ * }
+ */
 export const randomIdProcessor: ProcessorExecutor = (value, param) => {
   const normalized = normalizeParam(param);
   if (shouldReuseInput(value, normalized)) {

@@ -18,6 +18,23 @@ function requireControllerNodes(config: ActionConfig) {
   return Array.isArray(config.nodes) ? config.nodes : [];
 }
 
+/**
+ * @clientActionDoc {
+ *   "version": "1.0",
+ *   "actionName": "if_controller",
+ *   "displayName": "条件分支",
+ *   "actionType": "controller",
+ *   "category": "controller",
+ *   "description": "根据输入值在 true 和 false 两个节点之间选择下一步 Action。",
+ *   "inputs": [{"key":"value","type":"unknown","required":true,"description":"用于判断真值的输入。"}],
+ *   "outputs": [{"key":"nextAction","type":"string|null","description":"命中的下一步 Action UUID。"}],
+ *   "errors": [{"code":"INVALID_NODES","description":"必须恰好配置一个 true 节点和一个 false 节点。"}],
+ *   "config": [{"key":"nodes","type":"ActionNode[]","required":true,"description":"分支节点配置。"}],
+ *   "nodeSchema": [{"type":"boolean","description":"节点 value 必须为 true 或 false。"}],
+ *   "runtime": [{"key":"sideEffect","value":false},{"key":"async","value":false},{"key":"failureMode","value":"throws"}],
+ *   "examples": [{"action":{"uuid":"check","action":"if_controller","type":"controller","inputs":{"value":"{{event.ok}}"},"nodes":[{"uuid":"yes","value":true,"nextAction":"success"},{"uuid":"no","value":false,"nextAction":"failure"}]}}]
+ * }
+ */
 export function selectIfControllerNode(config: ActionConfig, inputs: Record<string, unknown>): ActionNode {
   const nodes = requireControllerNodes(config);
   const trueNodes = nodes.filter((node) => node.value === true);
@@ -31,6 +48,23 @@ export function selectIfControllerNode(config: ActionConfig, inputs: Record<stri
   return truthyControllerValue(inputs.value) ? trueNodes[0] : falseNodes[0];
 }
 
+/**
+ * @clientActionDoc {
+ *   "version": "1.0",
+ *   "actionName": "switch_controller",
+ *   "displayName": "条件匹配",
+ *   "actionType": "controller",
+ *   "category": "controller",
+ *   "description": "按 string、number 或 boolean 输入值匹配节点，并支持一个 DEFAULT 节点。",
+ *   "inputs": [{"key":"dataType","type":"string|number|boolean","required":true,"description":"匹配值的数据类型。"},{"key":"value","type":"string|number|boolean","required":true,"description":"待匹配的值。"}],
+ *   "outputs": [{"key":"nextAction","type":"string|null","description":"命中的下一步 Action UUID。"}],
+ *   "errors": [{"code":"INVALID_DATA_TYPE","description":"dataType 或 value 类型不匹配。"},{"code":"NO_MATCHED_NODE","description":"没有命中节点且没有 DEFAULT 节点。"}],
+ *   "config": [{"key":"nodes","type":"ActionNode[]","required":true,"description":"case 节点和可选 DEFAULT 节点。"}],
+ *   "nodeSchema": [{"type":"primitive|DEFAULT","description":"case value 类型必须与 dataType 一致。"}],
+ *   "runtime": [{"key":"sideEffect","value":false},{"key":"async","value":false},{"key":"failureMode","value":"throws"}],
+ *   "examples": [{"action":{"uuid":"route","action":"switch_controller","type":"controller","inputs":{"dataType":"string","value":"{{event.status}}"},"nodes":[{"uuid":"active","value":"active","nextAction":"show"},{"uuid":"default","type":"DEFAULT","nextAction":"fallback"}]}}]
+ * }
+ */
 export function selectSwitchControllerNode(config: ActionConfig, inputs: Record<string, unknown>): ActionNode {
   const dataType = inputs.dataType;
   if (dataType !== 'string' && dataType !== 'number' && dataType !== 'boolean') {
@@ -62,6 +96,11 @@ export function selectSwitchControllerNode(config: ActionConfig, inputs: Record<
   }
   return defaultNode;
 }
+
+export const controllerActionDefinitions = {
+  if_controller: selectIfControllerNode,
+  switch_controller: selectSwitchControllerNode
+};
 
 export function selectControllerNode(config: ActionConfig, inputs: Record<string, unknown>): ActionNode {
   if (config.action === 'if_controller') {
