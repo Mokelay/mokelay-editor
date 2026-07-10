@@ -234,13 +234,47 @@ async function mockClientBlockDocsPage(page: Page) {
           component_name: 'MButton',
           tool_symbol: 'mButtonEditorTool',
           initial_props: { label: '初始按钮' },
-          default_data: { label: '默认按钮', variant: 'primary' },
-          property_schema: [{ key: 'label', label: '文案', type: 'text' }],
+          default_data: {
+            label: '默认按钮',
+            variant: 'primary',
+            disabled: false,
+            action: { type: 'submit' }
+          },
+          property_schema: [
+            { key: 'label', label: '文案', type: 'text' },
+            {
+              key: 'variant',
+              label: '样式',
+              type: 'select',
+              options: [
+                { label: '主要', value: 'primary' },
+                { label: '危险', value: 'danger' },
+                { label: '警告', value: 'warning' }
+              ]
+            },
+            { key: 'disabled', label: '禁用', type: 'checkbox' },
+            {
+              key: 'action',
+              label: '动作 JSON',
+              type: 'textarea',
+              valueType: 'json',
+              validationMessage: '请输入有效 JSON。'
+            }
+          ],
           event_schema: [{ event: 'click', label: '点击' }],
           method_schema: [{ name: 'focus', label: '聚焦' }],
           data_fields_schema: [{ variable: 'value', label: '值', dataType: 'string' }],
           save_schema: [{ key: 'serialize', description: '保存按钮配置' }],
-          examples: [{ id: 'button-example', type: 'MButton', data: { label: '示例按钮' } }],
+          examples: [{
+            id: 'button-example',
+            type: 'MButton',
+            data: {
+              label: '示例按钮',
+              variant: 'primary',
+              disabled: false,
+              action: { type: 'submit' }
+            }
+          }],
           source_refs: [{ file: 'src/blocks/MButton.vue', reason: '组件实现' }],
           raw_meta: { counts: { properties: 1, events: 1, methods: 1, dataFields: 1, saveRules: 1 } }
         }
@@ -618,6 +652,45 @@ test('opens a shareable Block detail page with structured fields and visual JSON
   await expect(detailTables.nth(1)).toContainText('click');
   await expect(detailTables.nth(2)).toContainText('focus');
   await expect.poll(() => detailRequests.length).toBe(1);
+
+  const playground = page.getByTestId('m-block-playground');
+  await expect(playground).toBeVisible();
+  await expect(playground).toContainText('Test Button / MButton');
+  const previewButton = playground.getByTestId('block-doc-detail-playground-preview');
+  await expect(previewButton).toHaveText('示例按钮');
+
+  await playground.getByTestId('m-block-playground-field-label').fill('即时按钮');
+  await expect(previewButton).toHaveText('即时按钮');
+
+  await playground.getByTestId('m-block-playground-field-variant').selectOption('danger');
+  await expect(previewButton).toHaveClass(/page-dsl-button--danger/);
+
+  await playground.getByTestId('m-block-playground-field-disabled').check();
+  await expect(previewButton).toBeDisabled();
+
+  const actionField = playground.getByTestId('m-block-playground-field-action');
+  await actionField.fill('{"type":"navigate","url":"/next"}');
+  await expect(playground.getByTestId('m-block-playground-json')).toHaveValue(/"navigate"/);
+
+  const playgroundJson = playground.getByTestId('m-block-playground-json');
+  await playgroundJson.fill('{');
+  await expect(playground.getByTestId('m-block-playground-json-error')).toHaveText('请输入有效 JSON。');
+  await expect(previewButton).toHaveText('即时按钮');
+
+  await playgroundJson.fill(JSON.stringify({
+    label: 'JSON 按钮',
+    variant: 'warning',
+    disabled: false,
+    action: { type: 'submit' }
+  }, null, 2));
+  await expect(previewButton).toHaveText('JSON 按钮');
+  await expect(previewButton).toHaveClass(/page-dsl-button--warning/);
+  await expect(previewButton).not.toBeDisabled();
+
+  await playground.getByTestId('m-block-playground-format').click();
+  await expect(playgroundJson).toHaveValue(/"label": "JSON 按钮"/);
+  await playground.getByTestId('m-block-playground-reset').click();
+  await expect(previewButton).toHaveText('示例按钮');
 
   const jsonViewers = page.getByTestId('m-json-viewer');
   await expect(jsonViewers).toHaveCount(10);
