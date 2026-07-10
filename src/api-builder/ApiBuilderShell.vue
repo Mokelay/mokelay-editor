@@ -21,7 +21,6 @@ import {
   conditionTypes,
   createBlock,
   createController,
-  createEmptyApiJson,
   createStarterBlock,
   declarationKey,
   getBlockDefinition,
@@ -48,10 +47,7 @@ import {
   deleteApi,
   getApi,
   getBuiltInApi,
-  listApiBuilderSamples,
-  listApis,
   saveApi,
-  type ApiBuilderSampleRecord,
   type MokelayApiRecord,
   type MokelayApiSource
 } from '@/utils/apisApi';
@@ -84,27 +80,20 @@ type ApiBuilderShellProps = {
 };
 
 const props = withDefaults(defineProps<ApiBuilderShellProps>(), {
-  routeUuid: null,
+  routeUuid: '',
   routeSource: 'user'
 });
 
 const drafts = ref<ApiBuilderDraft[]>([]);
 const activeDraftId = ref(props.routeUuid || '');
-const selectedApiSource = ref<MokelayApiSource>(props.routeSource);
 const selection = ref<BuilderSelection>({ type: 'api' });
 const bottomTab = ref<'json' | 'validation' | 'test'>('json');
 const draggedBlockUuid = ref('');
 const apiBuilderError = ref('');
-const isApiListLoading = ref(false);
 const isApiDetailLoading = ref(false);
-const isApiBuilderSamplesLoading = ref(false);
-const apiBuilderSamplesError = ref('');
-const apiBuilderSamples = ref<ApiBuilderSampleRecord[]>([]);
 const isSavingApi = ref(false);
 const isApiInfoDialogOpen = ref(false);
 const isSavingApiInfo = ref(false);
-const apiInfoDialogMode = ref<'create' | 'duplicate' | 'edit'>('create');
-const apiInfoSourceDraftId = ref('');
 const apiInfoSourceJson = ref<ApiJson | null>(null);
 const apiInfoSourceLayout = ref<ApiBuilderLayout | null>(null);
 const apiInfoError = ref('');
@@ -139,10 +128,6 @@ const variableOptions = computed(() => {
   const beforeBlockUuid = selection.value.type === 'block' ? selection.value.uuid : undefined;
   return buildVariableOptions(activeDraft.value.apiJson, beforeBlockUuid);
 });
-const sortedDrafts = computed(() => selectedApiSource.value === 'system'
-  ? drafts.value
-  : [...drafts.value].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
-const hasApiRoute = computed(() => Boolean(props.routeUuid));
 const isActiveApiReadonly = computed(() => activeDraft.value?.source === 'system');
 const groupedBlocks = computed(() => ({
   query: blockDefinitions.filter((definition) => definition.group === 'query'),
@@ -154,24 +139,20 @@ const graphNodes = computed<Node[]>(() => buildGraphNodes());
 const graphEdges = computed<Edge[]>(() => buildGraphEdges());
 const { fitView } = useVueFlow('api-builder-flow');
 const apiUuidPattern = /^[A-Za-z0-9_-]{1,128}$/;
-let apiListRequestId = 0;
 let apiDetailRequestId = 0;
-let apiBuilderSamplesRequestId = 0;
 
 watch(
   () => [props.routeUuid, props.routeSource] as const,
   ([uuid, source]) => {
-    selectedApiSource.value = source;
     if (!uuid) {
       apiDetailRequestId += 1;
       activeDraftId.value = '';
-      void refreshApiList(source);
-      void refreshApiBuilderSamples();
+      apiBuilderError.value = '';
+      isApiDetailLoading.value = false;
       return;
     }
     activeDraftId.value = uuid;
     selection.value = { type: 'api' };
-    void refreshApiList(source);
     void loadApiDetail(uuid, source);
   },
   { immediate: true }
@@ -331,58 +312,7 @@ function replaceDraft(draft: ApiBuilderDraft) {
   drafts.value = next;
 }
 
-async function refreshApiList(source: MokelayApiSource = selectedApiSource.value) {
-  const requestId = ++apiListRequestId;
-  isApiListLoading.value = true;
-  apiBuilderError.value = '';
-
-  try {
-    const result = await listApis({ page: 1, pageSize: 100, source });
-    if (requestId !== apiListRequestId || selectedApiSource.value !== source) return;
-    const currentDrafts = new Map(drafts.value.map((draft) => [draft.id, draft]));
-    drafts.value = result.apis.map((api) => {
-      const currentDraft = currentDrafts.get(api.uuid);
-      return mergeDraftSessionState(draftFromApiRecord(api, currentDraft), currentDraft);
-    });
-    if (source === 'user') {
-      serverDraftIds.value = new Set(result.apis.map((api) => api.uuid));
-    }
-
-    if (activeDraftId.value && !drafts.value.some((draft) => draft.id === activeDraftId.value)) {
-      await loadApiDetail(activeDraftId.value, source);
-    }
-  } catch (error) {
-    if (requestId === apiListRequestId) {
-      apiBuilderError.value = error instanceof Error ? error.message : '加载 API 列表失败。';
-    }
-  } finally {
-    if (requestId === apiListRequestId) {
-      isApiListLoading.value = false;
-    }
-  }
-}
-
-async function refreshApiBuilderSamples() {
-  const requestId = ++apiBuilderSamplesRequestId;
-  isApiBuilderSamplesLoading.value = true;
-  apiBuilderSamplesError.value = '';
-
-  try {
-    const result = await listApiBuilderSamples({ page: 1, pageSize: 100 });
-    if (requestId !== apiBuilderSamplesRequestId) return;
-    apiBuilderSamples.value = result.samples;
-  } catch (error) {
-    if (requestId === apiBuilderSamplesRequestId) {
-      apiBuilderSamplesError.value = error instanceof Error ? error.message : '加载内置样例失败。';
-    }
-  } finally {
-    if (requestId === apiBuilderSamplesRequestId) {
-      isApiBuilderSamplesLoading.value = false;
-    }
-  }
-}
-
-async function loadApiDetail(uuid: string, source: MokelayApiSource = selectedApiSource.value) {
+async function loadApiDetail(uuid: string, source: MokelayApiSource = props.routeSource) {
   if (!uuid) return;
 
   const requestId = ++apiDetailRequestId;
@@ -414,45 +344,8 @@ function apiListHash(source: MokelayApiSource) {
   return source === 'system' ? '/apis?source=system' : '/apis';
 }
 
-function apiDetailHash(draft: ApiBuilderDraft) {
-  const path = `/apis/${encodeURIComponent(draft.id)}`;
-  return draft.source === 'system' ? `${path}?source=system` : path;
-}
-
 function navigateToList() {
-  window.location.hash = apiListHash(activeDraft.value?.source ?? selectedApiSource.value);
-}
-
-function navigateToDraft(draft: ApiBuilderDraft) {
-  activeDraftId.value = draft.id;
-  window.location.hash = apiDetailHash(draft);
-  if (draft.source === 'user' && serverDraftIds.value.has(draft.id)) {
-    void loadApiDetail(draft.id, 'user');
-  }
-}
-
-function changeApiSource(source: MokelayApiSource) {
-  window.location.hash = apiListHash(source);
-}
-
-function createBlankDraft() {
-  openCreateApiDialog(createEmptyApiJson());
-}
-
-function createFromApiJson(apiJson: unknown) {
-  openCreateApiDialog(apiJson);
-}
-
-function openCreateApiDialog(apiJson: unknown = createEmptyApiJson()) {
-  const draft = createDraft(apiJson as never);
-
-  apiInfoDialogMode.value = 'create';
-  apiInfoSourceDraftId.value = '';
-  apiInfoSourceJson.value = cloneValue(draft.apiJson);
-  apiInfoSourceLayout.value = normalizeApiBuilderLayout(draft.layout);
-  fillApiInfoForm(draft.apiJson);
-  apiInfoError.value = '';
-  isApiInfoDialogOpen.value = true;
+  window.location.hash = apiListHash(activeDraft.value?.source ?? props.routeSource);
 }
 
 function openDuplicateApiDialog() {
@@ -460,8 +353,6 @@ function openDuplicateApiDialog() {
 
   const draft = duplicateDraft(activeDraft.value);
 
-  apiInfoDialogMode.value = 'duplicate';
-  apiInfoSourceDraftId.value = '';
   apiInfoSourceJson.value = generateApiJson(draft);
   apiInfoSourceLayout.value = normalizeApiBuilderLayout(draft.layout);
   fillApiInfoForm(draft.apiJson);
@@ -529,25 +420,8 @@ async function submitApiInfoDialog() {
   try {
     const apiJson = buildApiJsonFromInfo(apiInfoSourceJson.value);
 
-    if (apiInfoDialogMode.value === 'create' || apiInfoDialogMode.value === 'duplicate') {
-      await saveApiJsonAsDraft(apiJson, apiInfoSourceLayout.value ?? undefined);
-      isApiInfoDialogOpen.value = false;
-      return;
-    }
-
-    if (!activeDraft.value) {
-      apiInfoError.value = '当前 API 不存在。';
-      return;
-    }
-
-    activeDraft.value.apiJson.uuid = apiJson.uuid;
-    activeDraft.value.apiJson.alias = apiJson.alias;
-    activeDraft.value.apiJson.method = apiJson.method;
-
-    const saved = await saveDraftToServer(activeDraft.value.status, apiInfoSourceDraftId.value);
-    if (saved) {
-      isApiInfoDialogOpen.value = false;
-    }
+    await saveApiJsonAsDraft(apiJson, apiInfoSourceLayout.value ?? undefined);
+    isApiInfoDialogOpen.value = false;
   } catch (error) {
     apiInfoError.value = error instanceof Error ? error.message : '保存 API 基本信息失败。';
   } finally {
@@ -573,31 +447,6 @@ async function saveApiJsonAsDraft(apiJson: ApiJson, layout: ApiBuilderLayout = n
 function duplicateCurrentDraft() {
   if (!activeDraft.value) return;
   openDuplicateApiDialog();
-}
-
-async function deleteDraft(draft: ApiBuilderDraft) {
-  if (draft.source === 'system') return;
-  if (!window.confirm(`删除接口「${draft.apiJson.alias || draft.apiJson.uuid}」？`)) {
-    return;
-  }
-
-  apiBuilderError.value = '';
-
-  try {
-    if (serverDraftIds.value.has(draft.id)) {
-      await deleteApi(draft.id);
-    }
-    drafts.value = drafts.value.filter((item) => item.id !== draft.id);
-    const nextServerDraftIds = new Set(serverDraftIds.value);
-    nextServerDraftIds.delete(draft.id);
-    serverDraftIds.value = nextServerDraftIds;
-    if (activeDraftId.value === draft.id) {
-      activeDraftId.value = '';
-      navigateToList();
-    }
-  } catch (error) {
-    apiBuilderError.value = error instanceof Error ? error.message : '删除 API 失败。';
-  }
 }
 
 async function saveDraftToServer(status: ApiBuilderDraft['status'], sourceDraftId = activeDraft.value?.id ?? '') {
@@ -1594,16 +1443,6 @@ function splitFields(value: string | string[]) {
   return value.split(',').map((field) => field.trim()).filter(Boolean);
 }
 
-function formatDate(value: string) {
-  if (!value) return '';
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(value));
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -1611,110 +1450,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 <template>
   <section data-testid="api-builder-shell" class="flex min-h-[calc(100vh-112px)] flex-1 flex-col gap-4">
-    <div v-if="!hasApiRoute" class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p class="text-sm font-medium text-teal-700 dark:text-teal-300">API Builder</p>
-            <h2 class="mt-1 text-2xl font-semibold text-slate-950 dark:text-white">可视化搭建内部数据 API</h2>
-            <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-              接口编排工作台。先把接口入口、请求参数、编排步骤和响应结构搭顺，再保存为 Mokelay Orchestration API JSON。
-            </p>
-          </div>
-          <div class="flex flex-wrap items-center justify-end gap-3">
-            <div class="flex rounded-lg border border-slate-300 bg-slate-50 p-1 text-sm dark:border-slate-600 dark:bg-slate-800" role="group" aria-label="接口来源">
-              <button
-                data-testid="api-source-user"
-                type="button"
-                class="rounded-md px-3 py-1.5 font-medium"
-                :class="selectedApiSource === 'user' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'"
-                :disabled="isApiListLoading"
-                @click="changeApiSource('user')"
-              >
-                用户创建
-              </button>
-              <button
-                data-testid="api-source-system"
-                type="button"
-                class="rounded-md px-3 py-1.5 font-medium"
-                :class="selectedApiSource === 'system' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'"
-                :disabled="isApiListLoading"
-                @click="changeApiSource('system')"
-              >
-                系统内置
-              </button>
-            </div>
-            <button v-if="selectedApiSource === 'user'" data-testid="api-builder-new" class="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="createBlankDraft">
-              新建 API
-            </button>
-          </div>
-        </div>
-
-        <p v-if="apiBuilderError" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderError }}</p>
-
-        <div class="mt-6 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
-          <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
-            <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">
-              <tr>
-                <th class="px-4 py-3">名称</th>
-                <th class="px-4 py-3">UUID</th>
-                <th class="px-4 py-3">方法</th>
-                <th v-if="selectedApiSource === 'user'" class="px-4 py-3">状态</th>
-                <th v-if="selectedApiSource === 'user'" class="px-4 py-3">最近编辑</th>
-                <th class="px-4 py-3 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-              <tr v-if="isApiListLoading">
-                <td :colspan="selectedApiSource === 'user' ? 6 : 4" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">正在加载 API 列表...</td>
-              </tr>
-              <tr v-else-if="!sortedDrafts.length">
-                <td :colspan="selectedApiSource === 'user' ? 6 : 4" class="px-4 py-8 text-center text-slate-500 dark:text-slate-400">暂无 API，可以从右侧模板或样例开始。</td>
-              </tr>
-              <tr v-for="draft in sortedDrafts" :key="draft.id" class="bg-white dark:bg-slate-900">
-                <td class="px-4 py-3 font-medium text-slate-900 dark:text-white">{{ draft.apiJson.alias || '未命名 API' }}</td>
-                <td class="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">{{ draft.apiJson.uuid }}</td>
-                <td class="px-4 py-3">
-                  <span class="rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-100">{{ draft.apiJson.method }}</span>
-                </td>
-                <td v-if="draft.source === 'user'" class="px-4 py-3">
-                  <span class="rounded-md px-2 py-1 text-xs font-semibold" :class="draft.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100'">
-                    {{ draft.status === 'published' ? '已发布' : '草稿' }}
-                  </span>
-                </td>
-                <td v-if="draft.source === 'user'" class="px-4 py-3 text-slate-500 dark:text-slate-400">{{ formatDate(draft.updatedAt) }}</td>
-                <td class="px-4 py-3 text-right">
-                  <button class="rounded-md px-2 py-1 text-teal-700 hover:bg-teal-50 dark:text-teal-200 dark:hover:bg-teal-500/10" @click="navigateToDraft(draft)">打开</button>
-                  <button v-if="draft.source === 'user'" class="rounded-md px-2 py-1 text-rose-700 hover:bg-rose-50 dark:text-rose-200 dark:hover:bg-rose-500/10" @click="deleteDraft(draft)">删除</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <aside class="space-y-4">
-        <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <h3 class="text-sm font-semibold text-slate-900 dark:text-white">内置样例</h3>
-          <p v-if="apiBuilderSamplesError" class="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderSamplesError }}</p>
-          <p v-else-if="isApiBuilderSamplesLoading" class="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">正在加载内置样例...</p>
-          <p v-else-if="!apiBuilderSamples.length" class="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/70 dark:text-slate-400">暂无内置样例。</p>
-          <div v-else class="mt-3 grid gap-2">
-            <button
-              v-for="sample in apiBuilderSamples"
-              :key="sample.uuid"
-              class="rounded-lg border border-slate-200 p-3 text-left hover:border-teal-300 hover:bg-teal-50 dark:border-slate-700 dark:hover:border-teal-500/60 dark:hover:bg-teal-500/10"
-              @click="createFromApiJson(sample.apiJson)"
-            >
-              <span class="block text-sm font-semibold text-slate-900 dark:text-white">{{ sample.title }}</span>
-              <span class="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">{{ sample.description }}</span>
-            </button>
-          </div>
-        </section>
-      </aside>
-    </div>
-
-    <div v-else-if="activeDraft && activeApiJson" class="flex flex-1 flex-col gap-4">
+    <div v-if="activeDraft && activeApiJson" class="flex flex-1 flex-col gap-4">
       <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <p v-if="apiBuilderError" class="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderError }}</p>
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -2330,7 +2066,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div>
             <p class="text-sm font-medium text-teal-700 dark:text-teal-300">API Builder</p>
             <h2 id="api-info-dialog-title" class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
-              {{ apiInfoDialogMode === 'edit' ? '编辑 API 基本信息' : apiInfoDialogMode === 'duplicate' ? '复制 API' : '新建 API' }}
+              复制 API
             </h2>
           </div>
 

@@ -1,5 +1,6 @@
 import { defineAsyncComponent, markRaw } from 'vue';
 import MActionEditor, { mActionEditorTool } from '@/blocks/MActionEditor.vue';
+import MActionCardList, { mActionCardListEditorTool } from '@/blocks/MActionCardList.vue';
 import MActionToolbar, { mActionToolbarEditorTool } from '@/blocks/MActionToolbar.vue';
 import MAdvanceInput, { mAdvanceInputEditorTool } from '@/blocks/MAdvanceInput.vue';
 import MAdvanceTable, { mAdvanceTableEditorTool } from '@/blocks/MAdvanceTable.vue';
@@ -20,6 +21,7 @@ import MImage, { mImageEditorTool } from '@/blocks/MImage.vue';
 import MImageChoiceField, { mImageChoiceFieldEditorTool } from '@/blocks/MImageChoiceField.vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
 import MJsonEditor, { mJsonEditorTool } from '@/blocks/MJsonEditor.vue';
+import MLayoutGrid, { mLayoutGridEditorTool } from '@/blocks/MLayoutGrid.vue';
 import MLayoutPreview, { mLayoutPreviewTool } from '@/blocks/MLayoutPreview.vue';
 import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
 import MLinearScaleField, { mLinearScaleFieldEditorTool } from '@/blocks/MLinearScaleField.vue';
@@ -77,6 +79,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
     component: markRaw(MActionEditor),
     ...mActionEditorTool
   },
+  [getEditorComponentName(MActionCardList)]: {
+    component: markRaw(MActionCardList),
+    ...mActionCardListEditorTool
+  },
   [getEditorComponentName(MActionToolbar)]: {
     component: markRaw(MActionToolbar),
     ...mActionToolbarEditorTool
@@ -92,6 +98,10 @@ const editorComponentRegistry: Record<string, EditorToolDefinition> = {
   [getEditorComponentName(MLayoutPreview)]: {
     component: markRaw(MLayoutPreview),
     ...mLayoutPreviewTool
+  },
+  [getEditorComponentName(MLayoutGrid)]: {
+    component: markRaw(MLayoutGrid),
+    ...mLayoutGridEditorTool
   },
   [getEditorComponentName(MLink)]: {
     component: markRaw(MLink),

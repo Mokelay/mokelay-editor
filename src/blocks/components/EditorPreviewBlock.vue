@@ -13,7 +13,11 @@ import {
 import {
   PageRuntimeVariableContextKey
 } from '@/utils/pageRuntimeContext';
-import { resolveRuntimeValue, type VariableValueResolveContext } from '@/utils/variableValue';
+import {
+  readRuntimePath,
+  resolveRuntimeValue,
+  type VariableValueResolveContext
+} from '@/utils/variableValue';
 
 interface EditorPreviewBlockProps {
   block: OutputData['blocks'][number];
@@ -42,6 +46,8 @@ const tableCellClass = computed(() =>
     ? 'border border-slate-200 px-2 py-1 text-left align-top dark:border-slate-700'
     : 'border border-slate-200 px-3 py-2 text-left align-top dark:border-slate-700'
 );
+const inlineTemplatePattern = /\{\{\s*([^}]+?)\s*\}\}/g;
+const blockTemplateRefPattern = /blocks(?:\[['"]([^'"]+)['"]\]|\.([A-Za-z0-9_-]+))/g;
 
 function getTableRows(block: OutputData['blocks'][number]) {
   const content = (block.data as { withHeadings?: boolean; content?: unknown }).content;
@@ -68,6 +74,10 @@ function getBlockId(block: OutputData['blocks'][number]) {
 }
 
 const resolvedBlockData = computed(() => resolveBlockData(props.block.data, props.block.type));
+const paragraphHtml = computed(() => {
+  const rawText = resolvedBlockData.value.text ?? (props.block.data as { text?: unknown }).text ?? '';
+  return resolveInlineTemplate(typeof rawText === 'string' ? rawText : String(rawText ?? ''));
+});
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -123,6 +133,7 @@ function getResolvedBlockData(block: OutputData['blocks'][number]) {
 function getBlockProps(block: OutputData['blocks'][number]) {
   const definition = getEditorComponentDefinition(block.type);
   const data = getResolvedBlockData(block);
+  const currentBlockId = getBlockId(block);
   if (!definition) {
     return {
       edit: false,
@@ -135,10 +146,46 @@ function getBlockProps(block: OutputData['blocks'][number]) {
       ...(definition.createInitialProps?.() ?? {}),
       ...data,
       edit: false,
-      currentBlockId: getBlockId(block)
+      currentBlockId
     }),
-    currentBlockId: getBlockId(block)
+    currentBlockId,
+    onChange: notifyRuntimeValueChange,
+    onToolChange: notifyRuntimeValueChange
   };
+}
+
+function notifyRuntimeValueChange() {
+  const blockId = getBlockId(props.block);
+  if (!blockId) return;
+  previewRuntime?.notifyBlockDataChange(blockId);
+}
+
+function stringifyTemplateValue(value: unknown) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function resolveInlineTemplate(text: string) {
+  return text.replace(inlineTemplatePattern, (_match, path: string) => {
+    const value = readRuntimePath(getVariableResolveContext(), path);
+    return escapeHtml(stringifyTemplateValue(value));
+  });
 }
 
 function unregisterCurrentBlock() {
@@ -197,9 +244,21 @@ async function loadRuntimeBlockData() {
   runtimeBlockData.value = blocks;
 }
 
+function collectStringReferencedBlockIds(value: string, result: Set<string>) {
+  for (const match of value.matchAll(blockTemplateRefPattern)) {
+    const blockId = (match[1] ?? match[2] ?? '').trim();
+    if (blockId) result.add(blockId);
+  }
+}
+
 function collectReferencedBlockIds(value: unknown, result = new Set<string>()) {
   if (Array.isArray(value)) {
     value.forEach((item) => collectReferencedBlockIds(item, result));
+    return result;
+  }
+
+  if (typeof value === 'string') {
+    collectStringReferencedBlockIds(value, result);
     return result;
   }
 
@@ -267,7 +326,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <p v-if="block.type === 'paragraph'" class="text-sm leading-6" v-html="block.data.text"></p>
+  <p v-if="block.type === 'paragraph'" class="text-sm leading-6" v-html="paragraphHtml"></p>
 
   <div v-else-if="block.type === 'table'" class="overflow-auto">
     <table :class="tableClass">

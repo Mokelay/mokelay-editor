@@ -153,11 +153,19 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
   const [path, rawQuery = ''] = normalizedPath.split('?', 2);
   const apiSource = new URLSearchParams(rawQuery).get('source') === 'system' ? 'system' : 'user';
   const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
-  const apiMatch = path.match(/^\/apis(?:\/([^/]+))?\/?$/);
+  if (path === '/apis') {
+    return createParsedRoute({
+      pageUuid: 'apis',
+      pageSource: 'system',
+      runtimePage: true
+    });
+  }
+
+  const apiMatch = path.match(/^\/apis\/([^/]+)\/?$/);
 
   if (apiMatch) {
     return createParsedRoute({
-      apiUuid: apiMatch[1] ? safeDecodeURIComponent(apiMatch[1]) : null,
+      apiUuid: safeDecodeURIComponent(apiMatch[1]),
       apiBuilder: true,
       apiSource
     });

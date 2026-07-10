@@ -23,6 +23,8 @@ export type MActionToolbarMode = 'inline' | 'grouped' | 'dropdown';
 
 export type ToolbarButton = Omit<MButtonProps, 'edit' | 'currentBlockId' | 'bare'> & {
   id: string;
+  showLoading?: boolean;
+  loadingLabel?: string;
   events?: BlockEvent[];
   children?: ToolbarButton[];
 };
@@ -139,6 +141,8 @@ function normalizeToolbarButtons(value: unknown, legacyActions?: unknown): Toolb
       variant: normalizedButton.variant,
       align: normalizedButton.align,
       ...(normalizedButton.disabled ? { disabled: true } : {}),
+      ...(buttonRecord.showLoading === false ? { showLoading: false } : {}),
+      ...(typeof buttonRecord.loadingLabel === 'string' ? { loadingLabel: buttonRecord.loadingLabel } : {}),
       events,
       ...(children.length ? { children } : {})
     }];
@@ -276,6 +280,10 @@ function isButtonLoading(button: ToolbarButton) {
   return loadingState.value[getButtonLoadingKey(button)] === true;
 }
 
+function shouldShowButtonLoading(button: ToolbarButton) {
+  return button.showLoading !== false && isButtonLoading(button);
+}
+
 function isButtonDisabled(button: ToolbarButton) {
   const hasManualState = Object.prototype.hasOwnProperty.call(disabledState.value, button.id);
   const disabled = hasManualState ? disabledState.value[button.id] === true : button.disabled === true;
@@ -398,7 +406,7 @@ function getRenderedButtonProps(button: ToolbarButton) {
     edit: props.edit,
     currentBlockId: `m-action-toolbar-action-${button.id}`,
     disabled: isButtonDisabled(button),
-    label: isButtonLoading(button) ? '执行中...' : data.label,
+    label: shouldShowButtonLoading(button) ? button.loadingLabel || '执行中...' : data.label,
     bare: true
   };
 }
