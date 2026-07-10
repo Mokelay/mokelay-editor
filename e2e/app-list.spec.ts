@@ -73,6 +73,25 @@ test('creates an app from the app list', async ({ page }) => {
   });
 });
 
+test('requires an app name when creating an app', async ({ page }) => {
+  await resetEditor(page, { initialRoute: '/' });
+  let createRequestCount = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_app') {
+      createRequestCount += 1;
+    }
+  });
+
+  await page.getByTestId('create-app-button').click();
+  await expect(page.getByTestId('create-app-alias')).toHaveAttribute('required', '');
+  await page.getByTestId('create-app-description').fill('Description without name');
+  await page.getByTestId('create-app-submit').click();
+
+  await page.waitForTimeout(250);
+  expect(createRequestCount).toBe(0);
+  await expect(page.getByTestId('create-app-alias')).toBeVisible();
+});
+
 test('edits an app while keeping its UUID read-only', async ({ page }) => {
   const apiState = await resetEditor(page, {
     initialRoute: '/',

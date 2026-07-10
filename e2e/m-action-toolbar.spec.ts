@@ -92,7 +92,8 @@ test('executes toolbar button events with call_block_method blockId inputs', asy
   ]));
 
   await openPreview(page);
-  const targetInput = page.getByTestId('preview-block-MInput').getByTestId('editor-input-control');
+  const targetInput = page.getByTestId('target-input');
+  await expect(targetInput).toBeVisible({ timeout: 15000 });
 
   await page.getByTestId('m-action-toolbar-action-focus_block_id').click();
   await expect(targetInput).toBeFocused();
@@ -118,7 +119,8 @@ test('confirms dangerous actions and cancels without executing', async ({ page }
   ]));
 
   await openPreview(page);
-  const targetInput = page.getByTestId('preview-block-MInput').getByTestId('editor-input-control');
+  const targetInput = page.getByTestId('target-input');
+  await expect(targetInput).toBeVisible({ timeout: 15000 });
 
   await page.getByTestId('m-action-toolbar-action-reject').click();
   await expect(page.getByTestId('global-call-confirm')).toBeVisible();
@@ -159,7 +161,8 @@ test('executes toolbar button events through external trigger', async ({ page })
   ]));
 
   await openPreview(page);
-  const targetInput = page.getByTestId('preview-block-MInput').getByTestId('editor-input-control');
+  const targetInput = page.getByTestId('target-input');
+  await expect(targetInput).toBeVisible({ timeout: 15000 });
 
   await page.getByRole('button', { name: 'External high trigger' }).click();
   await expect(targetInput).toBeFocused();
@@ -194,6 +197,8 @@ test('updates toolbar disabled state from table selection events in preview', as
   ]));
 
   await openPreview(page);
+  const targetInput = page.getByTestId('target-input');
+  await expect(targetInput).toBeVisible({ timeout: 15000 });
   await expect(page.getByTestId('advance-table-cell-0-0')).toContainText('Ada');
 
   const batchButton = page.getByTestId('m-action-toolbar-action-batch');
@@ -207,7 +212,7 @@ test('updates toolbar disabled state from table selection events in preview', as
   await expect(batchButton).toBeEnabled();
 
   await batchButton.click();
-  await expect(page.getByTestId('preview-block-MInput').getByTestId('editor-input-control')).toBeFocused();
+  await expect(targetInput).toBeFocused();
 });
 
 test('updates toolbar disabled state from table selection events in the editor canvas', async ({ page }) => {

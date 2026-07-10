@@ -117,6 +117,29 @@ test('creates and edits a datasource through DSL actions', async ({ page }) => {
   expect(apiState.datasources.get(generatedUuid)).toMatchObject({ alias: 'Analytics Primary' });
 });
 
+test('requires a datasource name when creating a datasource', async ({ page }) => {
+  await resetEditor(page, {
+    initialRoute: '/#/datasources',
+    ...datasourceSystemOptions()
+  });
+  let createRequestCount = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_datasource') {
+      createRequestCount += 1;
+    }
+  });
+
+  await page.getByTestId('m-action-toolbar-action-create').click();
+  const createDialog = page.getByTestId('action-dialog');
+  await expect(createDialog.getByTestId('mokelay-datasource-create-alias-input')).toHaveAttribute('required', '');
+  await createDialog.getByTestId('mokelay-datasource-create-description-input').fill('Description without name');
+  await createDialog.getByRole('button', { name: '保存数据源' }).click();
+
+  await page.waitForTimeout(250);
+  expect(createRequestCount).toBe(0);
+  await expect(createDialog).toBeVisible();
+});
+
 test('syncs datasource schema and opens schema details through DSL actions', async ({ page }) => {
   await resetEditor(page, {
     initialRoute: '/#/datasources',

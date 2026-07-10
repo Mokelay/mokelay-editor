@@ -134,3 +134,27 @@ test('renders layouts as Page DSL and manages user/system layout tabs', async ({
   await systemDialog.getByTestId('m-json-editor-control').fill('{\\n  \"schemaVersion\": 1,\\n  \"uuid\": \"local_only\",\\n  \"name\": \"本地编辑\",\\n  \"blocks\": []\\n}');
   expect(apiState.systemLayouts.get('mokelay_layout')).toMatchObject({ name: 'Mokelay编辑器布局' });
 });
+
+test('requires a layout name when creating a layout', async ({ page }) => {
+  await resetEditor(page, {
+    initialRoute: '/#/layouts',
+    systemPages: layoutPageUuids.map(readSystemPage),
+    systemLayouts: [readSystemLayout('mokelay_layout')],
+    seedDefaultPage: false
+  });
+  let createRequestCount = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_layout') {
+      createRequestCount += 1;
+    }
+  });
+
+  await page.getByTestId('m-action-toolbar-action-create').click();
+  const createDialog = page.getByTestId('action-dialog');
+  await expect(createDialog.getByTestId('mokelay-layout-create-name-input')).toHaveAttribute('required', '');
+  await createDialog.getByRole('button', { name: '保存布局' }).click();
+
+  await page.waitForTimeout(250);
+  expect(createRequestCount).toBe(0);
+  await expect(createDialog).toBeVisible();
+});

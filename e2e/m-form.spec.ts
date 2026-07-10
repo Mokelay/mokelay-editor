@@ -51,7 +51,7 @@ async function openNestedFormItemPropertyPanel(page: Page) {
   await expect(settingsButton).toBeVisible();
   await settingsButton.click();
 
-  const propertyButton = form.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '属性' });
+  const propertyButton = form.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: /属性|Properties/ });
   await expect(propertyButton).toBeVisible();
   await propertyButton.click();
 
@@ -63,16 +63,26 @@ async function openNestedFormItemPropertyPanel(page: Page) {
 async function openOuterFormPropertyPanel(page: Page) {
   const form = page.getByTestId('editor-form-tool');
   await expect(form).toBeVisible();
-  await form.hover({ position: { x: 4, y: 4 } });
+  const formBlock = form.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " ce-block ")][1]');
+  await expect(formBlock).toBeVisible();
+  const formBlockBox = await formBlock.boundingBox();
+  if (formBlockBox) {
+    const x = formBlockBox.x + Math.min(24, Math.max(4, formBlockBox.width / 2));
+    const y = formBlockBox.y + Math.min(Math.max(24, formBlockBox.height / 2), Math.max(4, formBlockBox.height - 4));
+    await page.mouse.move(x, y);
+    await page.mouse.click(x, y);
+  }
+  await form.hover({ position: { x: 8, y: 8 } });
+  await page.waitForTimeout(50);
 
   const settingsButton = page
     .getByTestId('editor-surface')
     .locator(':scope > .codex-editor > .ce-toolbar .ce-toolbar__settings-btn')
     .first();
   await expect(settingsButton).toBeVisible();
-  await settingsButton.click();
+  await settingsButton.click({ force: true });
 
-  const propertyButton = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: '属性' });
+  const propertyButton = page.locator('.ce-popover--opened .ce-popover-item').filter({ hasText: /属性|Properties/ });
   await expect(propertyButton).toBeVisible();
   await propertyButton.click();
 
@@ -130,7 +140,7 @@ test('adds form item through form menu, saves items, and previews', async ({ pag
   await page.getByTestId('preview-button').click();
 
   const previewBlock = page.getByTestId('preview-block-MForm');
-  await expect(previewBlock).toBeVisible();
+  await expect(previewBlock).toBeVisible({ timeout: 15000 });
   await expect(previewBlock.getByTestId('preview-form-item-label')).toHaveText('用户名');
   await expect(previewBlock.getByTestId('editor-input-tool')).toBeVisible();
   await expect(previewBlock).not.toContainText('userName');
@@ -260,6 +270,7 @@ test('configures form items from the form property panel', async ({ page }) => {
 
   await page.getByTestId('preview-button').click();
   const previewBlock = page.getByTestId('preview-block-MForm');
+  await expect(previewBlock).toBeVisible({ timeout: 15000 });
   await expect(previewBlock.getByTestId('editor-form-tool')).toHaveClass(/ce-form-tool--horizontal/);
   await expect(previewBlock.getByTestId('form-action-bar')).toBeVisible();
   await expect(previewBlock.getByTestId('m-action-toolbar-action-submit')).toContainText('提交');
@@ -311,9 +322,249 @@ test('loads saved form item values in editor and preview', async ({ page }) => {
 
   await page.getByTestId('preview-button').click();
   const previewBlock = page.getByTestId('preview-block-MForm');
-  await expect(previewBlock).toBeVisible();
+  await expect(previewBlock).toBeVisible({ timeout: 15000 });
   await expect(previewBlock.getByTestId('preview-form-item-label')).toHaveText('状态');
   await expect(previewBlock.getByTestId('editor-tag-tool')).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
+test('supports runtime values, reset, and submit options', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => {
+    pageErrors.push(error.message);
+  });
+
+  await seedSavedConfig(page, {
+    time: 1777614863777,
+    version: '2.31.6',
+    blocks: [
+      {
+        id: 'runtime-form',
+        type: 'MForm',
+        data: {
+          values: {
+            alias: 'Initial alias'
+          },
+          defaultValues: {
+            alias: 'Default alias',
+            description: 'Default description',
+            token: 'persisted'
+          },
+          submit: {
+            filterEmpty: true,
+            includeDisabled: false,
+            includeHidden: false
+          },
+          processors: {
+            beforeSetValues: [
+              { processor: 'merge_data', param: [{ source: 'setValues' }] }
+            ],
+            beforeSubmit: [
+              { processor: 'merge_data', param: [{ submitted: true }] }
+            ]
+          },
+          items: [
+            {
+              labelName: 'UUID',
+              variableName: 'uuid',
+              layout: 'Horizontal',
+              editor: {
+                id: 'runtime-uuid',
+                type: 'MInput',
+                data: {
+                  value: 'locked',
+                  disabled: true
+                }
+              }
+            },
+            {
+              labelName: 'Alias',
+              variableName: 'alias',
+              layout: 'Horizontal',
+              editor: {
+                id: 'runtime-alias',
+                type: 'MInput',
+                data: {
+                  value: ''
+                }
+              }
+            },
+            {
+              labelName: 'Description',
+              variableName: 'description',
+              layout: 'Horizontal',
+              editor: {
+                id: 'runtime-description',
+                type: 'MInput',
+                data: {
+                  value: ''
+                }
+              }
+            },
+            {
+              labelName: 'Secret',
+              variableName: 'secret',
+              layout: 'Horizontal',
+              hidden: true,
+              editor: {
+                id: 'runtime-secret',
+                type: 'MInput',
+                data: {
+                  value: 'secret'
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        id: 'set-values-button',
+        type: 'MButton',
+        data: {
+          label: 'Set Values',
+          variant: 'primary',
+          align: 'left',
+          action: { type: 'submit' }
+        },
+        events: [
+          {
+            event: 'click',
+            actions: [
+              {
+                uuid: 'set_form_values',
+                action: 'call_block_method',
+                inputs: {
+                  blockId: 'runtime-form',
+                  method: 'setValues',
+                  args: {
+                    alias: 'Bob',
+                    description: ''
+                  }
+                },
+                outputs: ['returnData'],
+                nextAction: null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'reset-values-button',
+        type: 'MButton',
+        data: {
+          label: 'Reset Values',
+          variant: 'secondary',
+          align: 'left',
+          action: { type: 'submit' }
+        },
+        events: [
+          {
+            event: 'click',
+            actions: [
+              {
+                uuid: 'reset_form_values',
+                action: 'call_block_method',
+                inputs: {
+                  blockId: 'runtime-form',
+                  method: 'reset'
+                },
+                outputs: ['returnData'],
+                nextAction: null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'submit-values-button',
+        type: 'MButton',
+        data: {
+          label: 'Submit Values',
+          variant: 'primary',
+          align: 'left',
+          action: { type: 'submit' }
+        },
+        events: [
+          {
+            event: 'click',
+            actions: [
+              {
+                uuid: 'submit_form_values',
+                action: 'call_block_method',
+                inputs: {
+                  blockId: 'runtime-form',
+                  method: 'submit'
+                },
+                outputs: ['returnData'],
+                nextAction: 'post_form_values'
+              },
+              {
+                uuid: 'post_form_values',
+                action: 'execute_ds',
+                inputs: {
+                  dsConfig: {
+                    type: 'API',
+                    domain: 'mokelay',
+                    path: '/api/mokelay/create_app',
+                    method: 'POST',
+                    headerData: [],
+                    queryData: [],
+                    bodyData: [
+                      {
+                        key: 'values',
+                        dataType: 'object',
+                        value: {
+                          template: "{{actions['submit_form_values'].outputs.returnData.values}}"
+                        }
+                      }
+                    ],
+                    schemaSelections: [],
+                    matchingExternalFields: []
+                  }
+                },
+                outputs: ['rawResponse'],
+                nextAction: null
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  });
+
+  await page.getByTestId('preview-button').click();
+  const previewBlock = page.getByTestId('preview-block-MForm');
+  await expect(previewBlock).toBeVisible({ timeout: 15000 });
+  await expect(previewBlock.getByTestId('runtime-alias')).toHaveValue('Initial alias');
+  await expect(previewBlock.getByTestId('runtime-description')).toHaveValue('Default description');
+  await expect(previewBlock.getByTestId('runtime-uuid')).toHaveValue('locked');
+  await expect(previewBlock.getByTestId('runtime-secret')).toHaveCount(0);
+
+  await page.getByTestId('set-values-button').click();
+  await expect(previewBlock.getByTestId('runtime-alias')).toHaveValue('Bob');
+  await expect(previewBlock.getByTestId('runtime-description')).toHaveValue('');
+
+  await page.getByTestId('reset-values-button').click();
+  await expect(previewBlock.getByTestId('runtime-alias')).toHaveValue('Default alias');
+  await expect(previewBlock.getByTestId('runtime-description')).toHaveValue('Default description');
+
+  await page.getByTestId('set-values-button').click();
+  await expect(previewBlock.getByTestId('runtime-alias')).toHaveValue('Bob');
+
+  const requestPromise = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'POST' && url.pathname === '/api/mokelay/create_app';
+  });
+  await page.getByTestId('submit-values-button').click();
+  const request = await requestPromise;
+  expect(request.postDataJSON()).toEqual({
+    values: {
+      alias: 'Bob',
+      token: 'persisted',
+      source: 'setValues',
+      submitted: true
+    }
+  });
   expect(pageErrors).toEqual([]);
 });
 

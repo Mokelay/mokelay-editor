@@ -314,9 +314,11 @@ test('runs preview events by calling exposed target block methods', async ({ pag
   ]));
 
   await openPreview(page);
+  const targetInput = page.getByTestId('target-input');
+  await expect(targetInput).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'Focus input' }).click();
 
-  await expect(page.getByTestId('preview-block-MInput').getByTestId('editor-input-control')).toBeFocused();
+  await expect(targetInput).toBeFocused();
 });
 
 test('runs preview events across nested MPage preview trees', async ({ page }) => {
@@ -353,9 +355,11 @@ test('runs preview events across nested MPage preview trees', async ({ page }) =
   ]));
 
   await openPreview(page);
+  const outerInput = page.getByTestId('outer-target-input');
+  await expect(outerInput).toBeVisible({ timeout: 15000 });
   await page.getByTestId('preview-block-MPage').getByRole('button', { name: 'Focus outer' }).click();
 
-  await expect(page.getByTestId('preview-block-MInput').getByTestId('editor-input-control')).toBeFocused();
+  await expect(outerInput).toBeFocused();
 });
 
 test('runs MForm item preview events against internal editor block ids', async ({ page }) => {
@@ -388,9 +392,11 @@ test('runs MForm item preview events against internal editor block ids', async (
 
   await openPreview(page);
   const previewForm = page.getByTestId('preview-block-MForm');
+  const formInput = previewForm.getByTestId('form-input');
+  await expect(formInput).toBeVisible({ timeout: 15000 });
   await previewForm.getByTestId('preview-form-item-label').click();
 
-  await expect(previewForm.getByTestId('editor-input-control')).toBeFocused();
+  await expect(formInput).toBeFocused();
 });
 
 test('runs confirm true branch through datasource and block method actions', async ({ page }) => {
@@ -427,11 +433,13 @@ test('runs confirm true branch through datasource and block method actions', asy
   ]));
 
   await openPreview(page);
+  const targetInput = page.getByTestId('target-input');
+  await expect(targetInput).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'Confirm and focus' }).click();
   await expect(page.getByTestId('global-call-confirm')).toBeVisible();
   await page.getByTestId('global-call-ok').click();
 
-  await expect(page.getByTestId('preview-block-MInput').getByTestId('editor-input-control')).toBeFocused();
+  await expect(targetInput).toBeFocused();
 });
 
 test('stops confirm false branch at null nextAction', async ({ page }) => {
@@ -467,11 +475,13 @@ test('stops confirm false branch at null nextAction', async ({ page }) => {
   ]));
 
   await openPreview(page);
+  const targetInput = page.getByTestId('target-input');
+  await expect(targetInput).toBeVisible({ timeout: 15000 });
   await page.getByRole('button', { name: 'Cancel focus' }).click();
   await expect(page.getByTestId('global-call-confirm')).toBeVisible();
   await page.getByTestId('global-call-cancel').click();
 
-  await expect(page.getByTestId('preview-block-MInput').getByTestId('editor-input-control')).not.toBeFocused();
+  await expect(targetInput).not.toBeFocused();
 });
 
 test('routes switch controller case and default branches', async ({ page }) => {

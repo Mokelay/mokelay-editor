@@ -124,6 +124,7 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
   }
 
   async function runActions(actions: unknown, sourceBlock: PreviewRuntimeBlock, event: unknown) {
+    await Promise.resolve();
     return await runActionGraph({
       actions: actions as ActionConfig[],
       sourceBlock,
@@ -165,6 +166,7 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
       }
 
       try {
+        await Promise.resolve();
         return await runActionGraph({
           actions: eventConfig.actions,
           sourceBlock,

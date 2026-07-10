@@ -4,10 +4,10 @@ export type { MFormItemData, MFormProps } from '@/blocks/mFormEditorTool';
 </script>
 
 <script setup lang="ts">
-import EditorJS, { type OutputData, type ToolSettings } from '@editorjs/editorjs';
+import type EditorJS from '@editorjs/editorjs';
+import type { OutputData, ToolSettings } from '@editorjs/editorjs';
 import type { MenuConfig } from '@editorjs/editorjs/types/tools';
 import { createApp, type App, computed, h, inject, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { BlockEventsDialogController, blockEventsIcon } from '@/editors/blockEventsDialog';
 import MFormItem, {
   mFormItemEditorTool,
   normalizeFormItemProps,
@@ -17,14 +17,9 @@ import MFormItem, {
 } from '@/blocks/MFormItem.vue';
 import {
   cloneSelectorBlock,
+  type StoredBlock,
   normalizeSelectorBlock
 } from '@/blocks/mEditorSelectorEditorTool';
-import {
-  createInitialFormItemEditorBlock,
-  getDefaultFormItemToolName,
-  getFormItemToolNames,
-  isAllowedFormItemToolName
-} from '@/blocks/mFormItemTools';
 import {
   cloneFormItemData,
   normalizeMFormItem,
@@ -32,11 +27,14 @@ import {
   normalizeMFormLayout,
   normalizeMFormActionBar,
   normalizeMFormValues,
+  normalizeMFormSubmit,
+  normalizeMFormProcessors,
   type MFormItemData,
+  type MFormSubmitData,
   type MFormProps
 } from '@/blocks/mFormEditorTool';
-import { getEditorComponentDefinition } from '@/editors/editorComponentRegistry';
-import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
+import type { BlockEventsDialogController } from '@/editors/blockEventsDialog';
+import type { EditorToolDefinition, EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import { getEditorJsI18nMessages, i18n, useI18n } from '@/i18n';
 import { cloneBlockEvents, normalizeBlockEvents, type BlockEvent } from '@/utils/blockEvents';
 import {
@@ -44,6 +42,7 @@ import {
   type PreviewRuntimeBlock
 } from '@/utils/previewBlockRuntime';
 import MActionToolbar from '@/blocks/MActionToolbar.vue';
+import type { ProcessorConfig } from '@/processors/types';
 
 type FormItemToolOptions = {
   data?: Record<string, unknown>;
@@ -60,6 +59,10 @@ type FormItemToolClass = new (options: FormItemToolOptions) => {
   renderSettings: () => MenuConfig;
 };
 
+const INTERNAL_FORM_TOOL_NAMES = new Set(['MPage', 'MForm', 'MFormItem', 'MEditorSelector']);
+const fallbackFormItemToolName = 'MInput';
+const blockEventsIcon = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 5h4v4H5V5Zm10 0h4v4h-4V5ZM5 15h4v4H5v-4Zm10.5-.5 3.5 3.5m0-3.5-3.5 3.5M9 7h6M7 9v6M17 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 const formItemToolClassCache = new Map<string, FormItemToolClass>();
 
 const props = withDefaults(defineProps<MFormProps & {
@@ -72,12 +75,20 @@ const props = withDefaults(defineProps<MFormProps & {
 
 const emit = defineEmits<{
   (event: 'change', items: MFormItemData[]): void;
+  (event: 'reset', payload: { values: Record<string, unknown> }): void;
+  (event: 'submit', payload: { values: Record<string, unknown>; valid: boolean; errors: unknown[] }): void;
 }>();
 
 const { t, localeValue } = useI18n();
+const rootRef = ref<HTMLElement | null>(null);
 const holderRef = ref<HTMLElement | null>(null);
 const previewItems = computed(() => normalizeMFormItems(props.items));
-const previewValues = computed(() => normalizeMFormValues(props.values));
+const formValues = computed(() => normalizeMFormValues(props.values));
+const formDefaultValues = computed(() => normalizeMFormValues(props.defaultValues));
+const formSubmitOptions = computed(() => normalizeMFormSubmit(props.submit));
+const formProcessors = computed(() => normalizeMFormProcessors(props.processors));
+const runtimeValues = ref<Record<string, unknown>>({});
+const initialRuntimeValues = ref<Record<string, unknown>>({});
 const formLayout = computed(() => normalizeMFormLayout(props.layout));
 const formActionBar = computed(() => normalizeMFormActionBar(props.actionBar ?? props.toolbar));
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
@@ -88,6 +99,8 @@ let skipNextPropSync = false;
 let editorMutationObserver: MutationObserver | null = null;
 let scheduledEditorSync: number | null = null;
 let editorDataCache: OutputData = buildOutput(previewItems.value);
+let isReadingRuntimeData = false;
+let toolbarAlignTimer: number | null = null;
 
 function escapeHtml(value: string) {
   return value
@@ -97,18 +110,53 @@ function escapeHtml(value: string) {
     .replace(/>/g, '&gt;');
 }
 
+function clearToolbarAlignTimer() {
+  if (toolbarAlignTimer === null) return;
+  window.clearTimeout(toolbarAlignTimer);
+  toolbarAlignTimer = null;
+}
+
+function alignOuterToolbarToForm() {
+  toolbarAlignTimer = null;
+
+  const root = rootRef.value;
+  if (!root) return;
+
+  const block = root.closest('.ce-block') as HTMLElement | null;
+  const editorRoot = root.closest('.codex-editor') as HTMLElement | null;
+  const toolbar = editorRoot?.querySelector<HTMLElement>(':scope > .ce-toolbar')
+    ?? editorRoot?.querySelector<HTMLElement>('.ce-toolbar');
+  const plusButton = toolbar?.querySelector<HTMLElement>('.ce-toolbar__plus');
+
+  if (!block || !toolbar || !plusButton) return;
+
+  const blockRect = block.getBoundingClientRect();
+  const rootRect = root.getBoundingClientRect();
+  const toolbarButtonHeight = plusButton.getBoundingClientRect().height || 26;
+  const top = block.offsetTop + (rootRect.top - blockRect.top) + (rootRect.height - toolbarButtonHeight) / 2;
+
+  toolbar.style.top = `${Math.max(0, Math.round(top))}px`;
+}
+
+function scheduleOuterToolbarAlignment() {
+  if (!props.edit) return;
+  clearToolbarAlignTimer();
+  toolbarAlignTimer = window.setTimeout(() => {
+    alignOuterToolbarToForm();
+  }, 0);
+}
+
 function normalizeOptionalString(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function createFormItemTool(toolName: string): FormItemToolClass {
+function createFormItemTool(
+  toolName: string,
+  definition: EditorToolDefinition,
+  initialEditorBlock: StoredBlock
+): FormItemToolClass {
   const cachedTool = formItemToolClassCache.get(toolName);
   if (cachedTool) return cachedTool;
-
-  const definition = getEditorComponentDefinition(toolName);
-  if (!definition) {
-    throw new Error(`MForm could not create a form item tool for "${toolName}".`);
-  }
 
   class FormItemTool {
     static get toolbox() {
@@ -123,6 +171,7 @@ function createFormItemTool(toolName: string): FormItemToolClass {
     private eventsDialog: BlockEventsDialogController | null = null;
     private events: BlockEvent[] = [];
     private fieldDataType = '';
+    private hidden = false;
     private toolbarAlignTimer: number | null = null;
     private readonly blockApi?: FormItemToolOptions['block'];
     private readonly handleToolbarPointer = () => {
@@ -135,11 +184,12 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       const existingEditor = normalizeSelectorBlock(data?.editor);
       this.events = cloneBlockEvents(data?.events);
       this.fieldDataType = normalizeOptionalString(data?.fieldDataType);
+      this.hidden = data?.hidden === true || data?.visible === false;
 
       this.state = reactive(normalizeFormItemProps({
         ...(data ?? {}),
         edit,
-        editor: existingEditor ?? createInitialFormItemEditorBlock(toolName)
+        editor: existingEditor ?? cloneSelectorBlock(initialEditorBlock)
       })) as NormalizedMFormItemProps;
     }
 
@@ -158,7 +208,7 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       wrapper.addEventListener('mouseenter', this.handleToolbarPointer);
       wrapper.addEventListener('mousemove', this.handleToolbarPointer);
       this.createPropertyDialog();
-      this.createEventsDialog();
+      void this.ensureEventsDialog();
       this.mountVueApp();
       return wrapper;
     }
@@ -181,6 +231,7 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       return {
         ...serializeFormItemProps(this.state),
         ...(this.fieldDataType ? { fieldDataType: this.fieldDataType } : {}),
+        ...(this.hidden ? { hidden: true } : {}),
         events
       };
     }
@@ -301,8 +352,10 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       this.bindPropertyInputs();
     }
 
-    private createEventsDialog() {
-      if (!this.wrapper) return;
+    private async ensureEventsDialog() {
+      if (this.eventsDialog || !this.wrapper) return this.eventsDialog;
+      const { BlockEventsDialogController } = await import('@/editors/blockEventsDialog');
+      if (this.eventsDialog || !this.wrapper) return this.eventsDialog;
 
       this.eventsDialog = new BlockEventsDialogController({
         owner: this.wrapper,
@@ -314,6 +367,7 @@ function createFormItemTool(toolName: string): FormItemToolClass {
         }
       });
       this.eventsDialog.mount();
+      return this.eventsDialog;
     }
 
     private openPropertyDialog() {
@@ -324,8 +378,9 @@ function createFormItemTool(toolName: string): FormItemToolClass {
       }
     }
 
-    private openEventsDialog() {
-      this.eventsDialog?.open();
+    private async openEventsDialog() {
+      const dialog = await this.ensureEventsDialog();
+      dialog?.open();
     }
 
     private syncPropertyDialogValues() {
@@ -437,18 +492,34 @@ function createFormItemTool(toolName: string): FormItemToolClass {
   return createdTool;
 }
 
-function createFormItemEditorTools() {
-  return Object.fromEntries(
-    getFormItemToolNames().map((toolName) => [
+function isAllowedFormItemToolName(toolName: string) {
+  return Boolean(toolName) && !INTERNAL_FORM_TOOL_NAMES.has(toolName) && toolName.startsWith('M');
+}
+
+async function createFormItemEditorTools() {
+  const [
+    { getEditorComponentDefinition },
+    { createInitialFormItemEditorBlock, getFormItemToolNames }
+  ] = await Promise.all([
+    import('@/editors/editorComponentRegistry'),
+    import('@/blocks/mFormItemTools')
+  ]);
+  const toolEntries = getFormItemToolNames().flatMap((toolName) => {
+    const definition = getEditorComponentDefinition(toolName);
+    if (!definition) return [];
+
+    return [[
       toolName,
       {
-        class: createFormItemTool(toolName),
+        class: createFormItemTool(toolName, definition, createInitialFormItemEditorBlock(toolName)),
         config: {
           edit: true
         }
       }
-    ])
-  ) as Record<string, ToolSettings>;
+    ]];
+  });
+
+  return Object.fromEntries(toolEntries) as Record<string, ToolSettings>;
 }
 
 function getBlockToolName(item: MFormItemData) {
@@ -457,7 +528,7 @@ function getBlockToolName(item: MFormItemData) {
     return editorType;
   }
 
-  return getDefaultFormItemToolName();
+  return fallbackFormItemToolName;
 }
 
 function formItemToBlock(item: MFormItemData, index: number): OutputData['blocks'][number] | undefined {
@@ -490,6 +561,189 @@ function readEditorValue(value: unknown) {
   return value;
 }
 
+function cloneValue<T>(value: T): T {
+  if (value === undefined || value === null || typeof value !== 'object') return value;
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function cloneRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? cloneValue(value) : {};
+}
+
+function isSameValue(left: unknown, right: unknown) {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return Object.is(left, right);
+  }
+}
+
+function setRuntimeValues(values: Record<string, unknown>) {
+  const nextValues = cloneRecord(values);
+  if (!isSameValue(runtimeValues.value, nextValues)) {
+    runtimeValues.value = nextValues;
+  }
+  return cloneRecord(runtimeValues.value);
+}
+
+function hasOwn(value: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function isEmptyObject(value: Record<string, unknown>) {
+  return Object.keys(value).length === 0;
+}
+
+function isMethodInvocation(value: Record<string, unknown>) {
+  return hasOwn(value, 'targetBlock') ||
+    hasOwn(value, 'sourceBlock') ||
+    hasOwn(value, 'actionConfig') ||
+    hasOwn(value, 'eventConfig');
+}
+
+function readValuesPayload(value: unknown): { hasValues: boolean; values: Record<string, unknown> } {
+  if (!isRecord(value)) {
+    return { hasValues: false, values: {} };
+  }
+
+  if (hasOwn(value, 'args')) {
+    return {
+      hasValues: isRecord(value.args),
+      values: cloneRecord(value.args)
+    };
+  }
+
+  if (isRecord(value.inputs)) {
+    if (hasOwn(value.inputs, 'values')) {
+      return {
+        hasValues: isRecord(value.inputs.values),
+        values: cloneRecord(value.inputs.values)
+      };
+    }
+
+    if (hasOwn(value.inputs, 'args')) {
+      return readValuesPayload({ args: value.inputs.args });
+    }
+  }
+
+  if (hasOwn(value, 'values')) {
+    return {
+      hasValues: isRecord(value.values),
+      values: cloneRecord(value.values)
+    };
+  }
+
+  if (isMethodInvocation(value)) {
+    return { hasValues: false, values: {} };
+  }
+
+  return { hasValues: true, values: cloneRecord(value) };
+}
+
+async function applyFormProcessors(values: Record<string, unknown>, processors?: ProcessorConfig[]) {
+  const normalizedValues = cloneRecord(values);
+  if (!processors?.length) {
+    return normalizedValues;
+  }
+
+  const { applyProcessors } = await import('@/processors/runner');
+  return cloneRecord(applyProcessors(normalizedValues, processors));
+}
+
+function buildInitialRuntimeValues() {
+  return {
+    ...formDefaultValues.value,
+    ...formValues.value
+  };
+}
+
+function syncRuntimeValuesFromProps() {
+  const values = cloneRecord(buildInitialRuntimeValues());
+  setRuntimeValues(values);
+  initialRuntimeValues.value = cloneRecord(values);
+}
+
+function notifyRuntimeDataChange() {
+  if (!props.currentBlockId) return;
+  previewRuntime?.notifyBlockDataChange(props.currentBlockId);
+}
+
+function isFormItemHidden(item: MFormItemData) {
+  return item.hidden === true;
+}
+
+function isFormItemDisabled(item: MFormItemData) {
+  return isRecord(item.editor?.data) && item.editor.data.disabled === true;
+}
+
+function isFormItemRequired(item: MFormItemData) {
+  return isRecord(item.editor?.data) && item.editor.data.required === true;
+}
+
+function isEmptySubmitValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return true;
+  if (Array.isArray(value)) return value.length === 0;
+  return isRecord(value) && Object.keys(value).length === 0;
+}
+
+function getSubmitOptions(): Required<MFormSubmitData> {
+  return {
+    filterEmpty: false,
+    includeDisabled: true,
+    includeHidden: false,
+    ...formSubmitOptions.value
+  };
+}
+
+function applySubmitOptions(values: Record<string, unknown>, options: Required<MFormSubmitData>) {
+  const nextValues = cloneRecord(values);
+
+  previewItems.value.forEach((item) => {
+    if (!item.variableName) return;
+    if (!options.includeDisabled && isFormItemDisabled(item)) {
+      delete nextValues[item.variableName];
+    }
+    if (!options.includeHidden && isFormItemHidden(item)) {
+      delete nextValues[item.variableName];
+    }
+  });
+
+  if (!options.filterEmpty) {
+    return nextValues;
+  }
+
+  return Object.fromEntries(
+    Object.entries(nextValues).filter(([, value]) => !isEmptySubmitValue(value))
+  );
+}
+
+function reportFirstInvalidControl() {
+  const controls = rootRef.value?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+    'input, textarea, select'
+  );
+  const firstInvalidControl = [...(controls ?? [])].find((control) => !control.checkValidity());
+  firstInvalidControl?.reportValidity();
+}
+
+function validateSubmitValues(values: Record<string, unknown>) {
+  return previewItems.value.flatMap((item) => {
+    if (!item.variableName || !isFormItemRequired(item) || isFormItemHidden(item) || isFormItemDisabled(item)) {
+      return [];
+    }
+
+    if (!isEmptySubmitValue(values[item.variableName])) {
+      return [];
+    }
+
+    return [{
+      field: item.variableName,
+      label: item.labelName,
+      type: 'required',
+      message: `${item.labelName} is required.`
+    }];
+  });
+}
+
 function getFormItemRuntimeBlock(item: MFormItemData, index: number): PreviewRuntimeBlock {
   return {
     id: `form-item-${item.variableName || index}`,
@@ -517,7 +771,7 @@ function getFormItemEventListeners(item: MFormItemData, index: number) {
 
 function getPreviewFormItemEditor(item: MFormItemData) {
   const editor = item.editor ? cloneSelectorBlock(item.editor) : undefined;
-  if (!editor || !item.variableName || !Object.prototype.hasOwnProperty.call(previewValues.value, item.variableName)) {
+  if (!editor || !item.variableName || !Object.prototype.hasOwnProperty.call(runtimeValues.value, item.variableName)) {
     return editor;
   }
 
@@ -526,7 +780,7 @@ function getPreviewFormItemEditor(item: MFormItemData) {
     ...editor,
     data: {
       ...data,
-      value: previewValues.value[item.variableName]
+      value: runtimeValues.value[item.variableName]
     }
   };
 }
@@ -547,13 +801,19 @@ function isSameItems(left: MFormItemData[], right: MFormItemData[]) {
 function notifyChanges(items: MFormItemData[]) {
   const normalizedItems = normalizeMFormItems(items);
   const values = normalizeMFormValues(props.values);
+  const defaultValues = normalizeMFormValues(props.defaultValues);
+  const submit = normalizeMFormSubmit(props.submit);
+  const processors = normalizeMFormProcessors(props.processors);
   const actionBar = normalizeMFormActionBar(props.actionBar ?? props.toolbar);
   const payload = {
     edit: props.edit,
     layout: normalizeMFormLayout(props.layout),
     items: normalizedItems.map((item) => cloneFormItemData(item)),
     ...(actionBar ? { actionBar } : {}),
-    ...(Object.keys(values).length ? { values } : {})
+    ...(Object.keys(values).length ? { values } : {}),
+    ...(Object.keys(defaultValues).length ? { defaultValues } : {}),
+    ...(Object.keys(submit).length ? { submit } : {}),
+    ...(Object.keys(processors).length ? { processors } : {})
   };
 
   skipNextPropSync = true;
@@ -630,10 +890,16 @@ async function mountEditor() {
   if (!props.edit || !holderRef.value || editor) return;
 
   editorDataCache = buildOutput(previewItems.value);
-  editor = new EditorJS({
+  const [{ default: EditorJSConstructor }, tools] = await Promise.all([
+    import('@editorjs/editorjs'),
+    createFormItemEditorTools()
+  ]);
+  if (!props.edit || !holderRef.value || editor) return;
+
+  editor = new EditorJSConstructor({
     holder: holderRef.value,
     placeholder: t('form.placeholder'),
-    tools: createFormItemEditorTools(),
+    tools,
     data: editorDataCache,
     minHeight: 0,
     i18n: {
@@ -681,29 +947,126 @@ async function saveEditor() {
   return editorDataCache;
 }
 
-async function getData() {
-  const blockData = await previewRuntime?.getBlockDataContext(props.currentBlockId) ?? {};
+async function readCurrentFormValues() {
+  if (isReadingRuntimeData) {
+    return cloneRecord(runtimeValues.value);
+  }
 
-  return Object.fromEntries(previewItems.value.map((item) => {
-    const editorId = item.editor?.id;
-    const runtimeValue = editorId ? blockData[editorId] : undefined;
-    const propValue = item.variableName ? previewValues.value[item.variableName] : undefined;
-    const fallbackValue = readEditorValue(item.editor?.data);
-    return [
-      item.variableName,
-      readEditorValue(runtimeValue) ?? propValue ?? fallbackValue ?? ''
-    ];
-  }));
+  isReadingRuntimeData = true;
+  try {
+    await nextTick();
+    const blockData = await previewRuntime?.getBlockDataContext(props.currentBlockId) ?? {};
+    const itemValues = Object.fromEntries(previewItems.value.flatMap((item) => {
+      if (!item.variableName) return [];
+
+      const editorId = item.editor?.id;
+      const runtimeValue = editorId ? blockData[editorId] : undefined;
+      const propValue = runtimeValues.value[item.variableName];
+      const fallbackValue = readEditorValue(item.editor?.data);
+      return [[
+        item.variableName,
+        readEditorValue(runtimeValue) ?? propValue ?? fallbackValue ?? ''
+      ]];
+    }));
+
+    const values = {
+      ...runtimeValues.value,
+      ...itemValues
+    };
+    return setRuntimeValues(values);
+  } finally {
+    isReadingRuntimeData = false;
+  }
+}
+
+async function getData(input?: unknown) {
+  if (!isRecord(input) || !isMethodInvocation(input)) {
+    return cloneRecord(runtimeValues.value);
+  }
+
+  return await readCurrentFormValues();
+}
+
+async function setValues(input: unknown = {}) {
+  const payload = readValuesPayload(input);
+  const incomingValues = await applyFormProcessors(payload.values, formProcessors.value.beforeSetValues);
+  const values = {
+    ...runtimeValues.value,
+    ...incomingValues
+  };
+
+  setRuntimeValues(values);
+  notifyRuntimeDataChange();
+  return {
+    values: cloneRecord(runtimeValues.value)
+  };
+}
+
+async function reset(input?: unknown) {
+  const payload = readValuesPayload(input);
+  const baseValues = payload.hasValues
+    ? payload.values
+    : !isEmptyObject(formDefaultValues.value)
+      ? formDefaultValues.value
+      : initialRuntimeValues.value;
+  const values = await applyFormProcessors(baseValues, formProcessors.value.beforeReset);
+
+  setRuntimeValues(values);
+  notifyRuntimeDataChange();
+  const result = {
+    values: cloneRecord(runtimeValues.value)
+  };
+  emit('reset', result);
+  return result;
+}
+
+async function submit() {
+  const currentValues = await readCurrentFormValues();
+  const errors = validateSubmitValues(currentValues);
+  if (errors.length) {
+    reportFirstInvalidControl();
+    const result = {
+      values: cloneRecord(currentValues),
+      valid: false,
+      errors
+    };
+    emit('submit', result);
+    return result;
+  }
+
+  const values = await applyFormProcessors(
+    applySubmitOptions(currentValues, getSubmitOptions()),
+    formProcessors.value.beforeSubmit
+  );
+  const result = {
+    values,
+    valid: true,
+    errors: [] as unknown[]
+  };
+
+  emit('submit', result);
+  return result;
 }
 
 defineExpose({
   saveEditor,
-  getData
+  getData,
+  setValues,
+  reset,
+  submit
 });
 
 onMounted(async () => {
   await mountEditor();
 });
+
+watch(
+  () => [props.values, props.defaultValues],
+  () => {
+    syncRuntimeValuesFromProps();
+  },
+  { deep: true, immediate: true }
+);
 
 watch(
   () => props.items,
@@ -748,18 +1111,23 @@ watch(
 );
 
 onBeforeUnmount(async () => {
+  clearToolbarAlignTimer();
   await unmountEditor();
 });
 </script>
 
 <template>
   <div
+    ref="rootRef"
     class="ce-form-tool"
     :class="{
       'ce-form-tool--edit': edit,
       'ce-form-tool--horizontal': formLayout === 'Horizontal'
     }"
     data-testid="editor-form-tool"
+    @focusin="scheduleOuterToolbarAlignment"
+    @mouseenter="scheduleOuterToolbarAlignment"
+    @mousemove="scheduleOuterToolbarAlignment"
   >
     <template v-if="edit">
       <div
@@ -781,16 +1149,20 @@ onBeforeUnmount(async () => {
     </template>
 
     <div v-else class="ce-form-tool__preview" data-testid="preview-form-items">
-      <MFormItem
+      <template
         v-for="(item, index) in previewItems"
         :key="`${item.variableName}-${index}`"
-        :edit="false"
-        :label-name="item.labelName"
-        :variable-name="item.variableName"
-        :editor="getPreviewFormItemEditor(item)"
-        :layout="item.layout"
-        v-on="getFormItemEventListeners(item, index)"
-      />
+      >
+        <MFormItem
+          v-if="!isFormItemHidden(item)"
+          :edit="false"
+          :label-name="item.labelName"
+          :variable-name="item.variableName"
+          :editor="getPreviewFormItemEditor(item)"
+          :layout="item.layout"
+          v-on="getFormItemEventListeners(item, index)"
+        />
+      </template>
       <div
         v-if="formActionBar"
         class="ce-form-tool__actions"

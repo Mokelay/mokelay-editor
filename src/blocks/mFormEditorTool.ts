@@ -9,6 +9,8 @@ import {
 import { cloneSelectorBlock, type StoredBlock } from '@/blocks/mEditorSelectorEditorTool';
 import { cloneBlockEvents, type BlockEvent } from '@/utils/blockEvents';
 import { normalizeVariableDataType } from '@/utils/variableValue';
+import { normalizeProcessorConfig } from '@/processors/shared';
+import type { ProcessorConfig } from '@/processors/types';
 import {
   normalizeFormItemProps,
   type MFormItemLayout,
@@ -24,6 +26,7 @@ export interface MFormItemData {
   fieldDataType?: string;
   editor?: StoredBlock;
   layout: MFormItemLayout;
+  hidden?: boolean;
   events?: BlockEvent[];
 }
 
@@ -35,10 +38,33 @@ export interface MFormProps {
   actionBar?: MFormActionBarData;
   toolbar?: MFormActionBarData;
   values?: Record<string, unknown>;
+  defaultValues?: Record<string, unknown>;
+  submit?: MFormSubmitData;
+  processors?: MFormProcessorsData;
 }
 
 export type MFormLayout = 'Vertical' | 'Horizontal';
 export type MFormActionBarData = Pick<MActionToolbarProps, 'align' | 'size' | 'mode' | 'buttons'>;
+
+export interface MFormSubmitData {
+  filterEmpty?: boolean;
+  includeDisabled?: boolean;
+  includeHidden?: boolean;
+}
+
+export interface MFormProcessorsData {
+  beforeSetValues?: ProcessorConfig[];
+  beforeSubmit?: ProcessorConfig[];
+  beforeReset?: ProcessorConfig[];
+}
+
+function normalizeProcessorConfigs(value: unknown): ProcessorConfig[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const normalized = normalizeProcessorConfig(item);
+    return normalized ? [normalized] : [];
+  });
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -51,6 +77,8 @@ function normalizeOptionalString(value: unknown) {
 type MFormItemDataInput = Partial<MFormItemProps> & {
   events?: unknown;
   fieldDataType?: unknown;
+  hidden?: unknown;
+  visible?: unknown;
 };
 
 export function cloneFormItemData(item: MFormItemDataInput): MFormItemData {
@@ -67,6 +95,7 @@ export function cloneFormItemData(item: MFormItemDataInput): MFormItemData {
     ...(fieldDataType ? { fieldDataType } : {}),
     ...(normalized.editor ? { editor: cloneSelectorBlock(normalized.editor) } : {}),
     layout: normalized.layout,
+    ...(item.hidden === true || item.visible === false ? { hidden: true } : {}),
     events
   };
 }
@@ -95,6 +124,34 @@ export function normalizeMFormValues(value: unknown): Record<string, unknown> {
   }
 
   return cloneValue(value);
+}
+
+export function normalizeMFormSubmit(value: unknown): MFormSubmitData {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return {
+    ...(value.filterEmpty === true ? { filterEmpty: true } : {}),
+    ...(value.includeDisabled === false ? { includeDisabled: false } : {}),
+    ...(value.includeHidden === true ? { includeHidden: true } : {})
+  };
+}
+
+export function normalizeMFormProcessors(value: unknown): MFormProcessorsData {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const beforeSetValues = normalizeProcessorConfigs(value.beforeSetValues);
+  const beforeSubmit = normalizeProcessorConfigs(value.beforeSubmit);
+  const beforeReset = normalizeProcessorConfigs(value.beforeReset);
+
+  return {
+    ...(beforeSetValues.length ? { beforeSetValues } : {}),
+    ...(beforeSubmit.length ? { beforeSubmit } : {}),
+    ...(beforeReset.length ? { beforeReset } : {})
+  };
 }
 
 export function normalizeMFormLayout(value: unknown): MFormLayout {
@@ -171,17 +228,26 @@ export const mFormEditorTool = defineEditorTool<MFormProps>({
     layout: normalizeMFormLayout(props.layout),
     items: normalizeMFormItems(props.items),
     actionBar: normalizeMFormActionBar(props.actionBar ?? props.toolbar),
-    values: normalizeMFormValues(props.values)
+    values: normalizeMFormValues(props.values),
+    defaultValues: normalizeMFormValues(props.defaultValues),
+    submit: normalizeMFormSubmit(props.submit),
+    processors: normalizeMFormProcessors(props.processors)
   }),
   serialize: (props) => {
     const layout = normalizeMFormLayout(props.layout);
     const actionBar = normalizeMFormActionBar(props.actionBar ?? props.toolbar);
     const values = normalizeMFormValues(props.values);
+    const defaultValues = normalizeMFormValues(props.defaultValues);
+    const submit = normalizeMFormSubmit(props.submit);
+    const processors = normalizeMFormProcessors(props.processors);
     return {
       ...(layout === 'Horizontal' ? { layout } : {}),
       items: normalizeMFormItems(props.items).map((item) => cloneFormItemData(item)),
       ...(actionBar ? { actionBar } : {}),
-      ...(Object.keys(values).length ? { values } : {})
+      ...(Object.keys(values).length ? { values } : {}),
+      ...(Object.keys(defaultValues).length ? { defaultValues } : {}),
+      ...(Object.keys(submit).length ? { submit } : {}),
+      ...(Object.keys(processors).length ? { processors } : {})
     };
   }
 });
