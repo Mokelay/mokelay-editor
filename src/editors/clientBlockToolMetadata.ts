@@ -71,7 +71,7 @@ function normalizeOptions(value: unknown): EditorToolPropertyField['options'] | 
   return options.length ? options : undefined;
 }
 
-function resolvePropertyFields(doc: NormalizedClientBlockDoc): EditorToolPropertyField[] {
+export function resolveClientBlockPropertyFields(doc: NormalizedClientBlockDoc): EditorToolPropertyField[] {
   return doc.properties.flatMap((field: ClientBlockPropertyField): EditorToolPropertyField[] => {
     if (!field.key || field.configurable === false) return [];
     const type = allowedFieldType(field.type);
@@ -104,7 +104,7 @@ export function resolveEditorToolDefinition<T extends EditorToolDefinition>(
   const title = doc
     ? localizedClientBlockText(doc.toolbox.title, doc.displayName)
     : toolName;
-  const fields = doc ? resolvePropertyFields(doc) : [];
+  const fields = doc ? resolveClientBlockPropertyFields(doc) : [];
 
   return {
     ...definition,

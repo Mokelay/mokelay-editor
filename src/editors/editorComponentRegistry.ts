@@ -32,6 +32,10 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     const module = await import('@/blocks/MAdvanceTable.vue');
     return { component: markRaw(module.default), ...module.mAdvanceTableEditorTool };
   },
+  MBlockPlayground: async () => {
+    const module = await import('@/blocks/MBlockPlayground.vue');
+    return { component: markRaw(module.default), ...module.mBlockPlaygroundTool };
+  },
   MChart: async () => {
     const module = await import('@/blocks/MChart.vue');
     return { component: markRaw(module.default), ...module.mChartEditorTool };
