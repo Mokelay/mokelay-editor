@@ -269,7 +269,7 @@ test('renders a system page with its declared layout', async ({ page }) => {
         ]
       }
     ],
-    layouts: [
+    systemLayouts: [
       {
         uuid: 'mokelay_layout',
         name: 'Mokelay编辑器布局',
@@ -295,7 +295,6 @@ test('renders a system page with its declared layout', async ({ page }) => {
               type: 'MEditorTopNav',
               data: {
                 brand: { text: 'Mokelay Editor', href: '#/', showMark: false },
-                homeAction: { id: 'home', type: 'MLink', data: { text: '首页', url: '#/' } },
                 items: { template: '{{resources.mainMenu.items}}' }
               }
             },
@@ -312,6 +311,7 @@ test('renders a system page with its declared layout', async ({ page }) => {
 
   await expect(page.getByTestId('layout-renderer')).toBeVisible();
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
+  await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: '首页', exact: true })).toHaveCount(0);
   await expect(page.getByTestId('layout-top-nav')).toContainText('页面列表');
   await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: 'Apps' })).not.toHaveClass(/layout-top-nav__link--active/);
   await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: '页面列表' })).toHaveClass(/layout-top-nav__link--active/);
@@ -324,6 +324,141 @@ test('renders a system page with its declared layout', async ({ page }) => {
   expect(topNavBox).not.toBeNull();
   expect(pageSlotBox).not.toBeNull();
   expect(pageSlotBox!.y - (topNavBox!.y + topNavBox!.height)).toBeGreaterThanOrEqual(12);
+});
+
+test('keeps editor top nav usable in H5 width', async ({ page }) => {
+  const pageUuid = '88888888-8888-4888-8888-888888888888';
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await resetEditor(page, {
+    initialRoute: `/#/pages/${pageUuid}/preview`,
+    pages: [
+      {
+        uuid: pageUuid,
+        name: 'H5 Layout Preview',
+        layoutUuid: 'h5_editor_layout',
+        blocks: [
+          {
+            id: 'h5-copy',
+            type: 'paragraph',
+            data: {
+              text: 'H5 layout content.'
+            }
+          }
+        ]
+      }
+    ],
+    layouts: [
+      {
+        uuid: 'h5_editor_layout',
+        name: 'H5 Editor Layout',
+        layoutJson: {
+          schemaVersion: 1,
+          uuid: 'h5_editor_layout',
+          name: 'H5 Editor Layout',
+          resources: {
+            mainMenu: {
+              type: 'static',
+              items: [
+                { label: 'Apps', href: '#/' },
+                { label: '数据源', href: '#/datasources' },
+                { label: '接口', href: '#/apis' },
+                { label: '页面', href: '#/pages' },
+                { label: '布局', href: '#/layouts' },
+                { label: '文档', href: '#/docs' },
+                { label: 'AI Chat', href: '#/ai-chat' }
+              ]
+            }
+          },
+          auth: {
+            enabled: false
+          },
+          blocks: [
+            {
+              id: 'editor-top-nav',
+              type: 'MEditorTopNav',
+              data: {
+                brand: { text: 'Mokelay Editor', href: '#/', showMark: false },
+                items: { template: '{{resources.mainMenu.items}}' },
+                utilityControls: [
+                  {
+                    id: 'theme',
+                    type: 'select',
+                    label: '主题',
+                    binding: { source: 'globalSetting', key: 'theme' },
+                    options: [
+                      { label: '浅色', value: 'light' },
+                      { label: '深色', value: 'dark' }
+                    ]
+                  },
+                  {
+                    id: 'language',
+                    type: 'select',
+                    label: '语言',
+                    binding: { source: 'globalSetting', key: 'language' },
+                    options: [
+                      { label: '中文', value: 'zh' },
+                      { label: 'English', value: 'en' }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              id: 'page-slot',
+              type: 'MPageSlot',
+              data: { name: 'default', surface: 'panel' }
+            }
+          ]
+        }
+      }
+    ]
+  });
+
+  const topNav = page.getByTestId('layout-top-nav');
+  const navLinks = topNav.locator('.layout-top-nav__links');
+  const menuButton = topNav.getByTestId('layout-top-nav-menu-button');
+  const themeButton = topNav.getByTestId('layout-top-nav-mobile-control-theme');
+  const languageButton = topNav.getByTestId('layout-top-nav-mobile-control-language');
+
+  await expect(topNav).toContainText('Mokelay Editor');
+  await expect(topNav.getByRole('link', { name: '首页', exact: true })).toHaveCount(0);
+  await expect(themeButton).toBeVisible();
+  await expect(languageButton).toBeVisible();
+  await expect(page.getByTestId('layout-top-nav-control-theme')).toBeHidden();
+  await expect(page.getByTestId('layout-top-nav-control-language')).toBeHidden();
+  await expect(navLinks).toBeHidden();
+  await expect(menuButton).toBeVisible();
+  await expect(menuButton).toContainText('页面');
+  await menuButton.click();
+  await expect(topNav.getByTestId('layout-top-nav-menu-list')).toContainText('AI Chat');
+  await themeButton.click();
+  await expect(topNav.getByTestId('layout-top-nav-mobile-control-menu-theme')).toContainText('深色');
+  await expect.poll(() => topNav.evaluate((element) => element.getBoundingClientRect().width <= document.documentElement.clientWidth)).toBe(true);
+  await expect.poll(() => page.evaluate(() => {
+    const documentWidth = document.documentElement.clientWidth;
+    return document.documentElement.scrollWidth <= documentWidth && document.body.scrollWidth <= documentWidth;
+  })).toBe(true);
+
+  await page.getByTestId('preview-mode-h5').click();
+
+  const phoneScreen = page.getByTestId('preview-phone-screen');
+  const h5TopNav = phoneScreen.getByTestId('layout-top-nav');
+  const h5NavLinks = h5TopNav.locator('.layout-top-nav__links');
+  const h5MenuButton = h5TopNav.getByTestId('layout-top-nav-menu-button');
+  const h5ThemeButton = h5TopNav.getByTestId('layout-top-nav-mobile-control-theme');
+  const h5LanguageButton = h5TopNav.getByTestId('layout-top-nav-mobile-control-language');
+
+  await expect(h5TopNav).toContainText('Mokelay Editor');
+  await expect(h5ThemeButton).toBeVisible();
+  await expect(h5LanguageButton).toBeVisible();
+  await expect(phoneScreen.getByTestId('layout-top-nav-control-theme')).toBeHidden();
+  await expect(phoneScreen.getByTestId('layout-top-nav-control-language')).toBeHidden();
+  await expect(h5NavLinks).toBeHidden();
+  await expect(h5MenuButton).toBeVisible();
+  await h5MenuButton.click();
+  await expect(h5TopNav.getByTestId('layout-top-nav-menu-list')).toContainText('AI Chat');
+  await expect.poll(() => phoneScreen.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
 
 test('binds editor top nav utility controls to global settings', async ({ page }) => {
