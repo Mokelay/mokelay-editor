@@ -134,7 +134,8 @@ function normalizeMatrixFieldProps(props: Partial<MMatrixFieldProps>): MMatrixFi
  *       "source": "submodule/mokelay-editor/src/blocks/MMatrixField.vue",
  *       "line": 20,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],

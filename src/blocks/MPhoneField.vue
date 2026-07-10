@@ -85,7 +85,8 @@ function normalizePhoneFieldProps(props: Partial<MPhoneFieldProps>): MPhoneField
  *       "source": "submodule/mokelay-editor/src/blocks/MPhoneField.vue",
  *       "line": 15,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],

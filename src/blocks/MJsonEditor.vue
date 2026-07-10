@@ -167,7 +167,8 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
  *       "line": 18,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "占位提示"
  *     },
  *     {
  *       "key": "recordUuid",
@@ -176,7 +177,8 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
  *       "line": 21,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "记录 UUID"
  *     },
  *     {
  *       "key": "recordName",
@@ -185,7 +187,8 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
  *       "line": 22,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "记录名称"
  *     }
  *   ],
  *   "events": [],
@@ -197,7 +200,8 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 233
+ *       "line": 233,
+ *       "label": "获取数据"
  *     },
  *     {
  *       "name": "getLayoutJson",
@@ -206,7 +210,8 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 234
+ *       "line": 234,
+ *       "label": "获取布局 JSON"
  *     }
  *   ],
  *   "dataFields": [

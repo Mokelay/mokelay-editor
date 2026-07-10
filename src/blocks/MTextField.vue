@@ -85,7 +85,8 @@ function normalizeTextFieldProps(props: Partial<MTextFieldProps>): MTextFieldPro
  *       "source": "submodule/mokelay-editor/src/blocks/MTextField.vue",
  *       "line": 15,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],

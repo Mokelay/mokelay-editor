@@ -85,7 +85,8 @@ function normalizeLinkFieldProps(props: Partial<MLinkFieldProps>): MLinkFieldPro
  *       "source": "submodule/mokelay-editor/src/blocks/MLinkField.vue",
  *       "line": 15,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],

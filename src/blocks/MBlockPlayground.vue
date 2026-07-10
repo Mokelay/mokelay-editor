@@ -112,7 +112,8 @@ export function normalizeMBlockPlaygroundProps(props: Partial<MBlockPlaygroundPr
  *       "tsType": "ClientBlockDoc | null",
  *       "source": "submodule/mokelay-editor/src/blocks/MBlockPlayground.vue",
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "Block 文档"
  *     },
  *     {
  *       "key": "initialSource",
@@ -124,8 +125,14 @@ export function normalizeMBlockPlaygroundProps(props: Partial<MBlockPlaygroundPr
  *       "label": "初始数据",
  *       "type": "select",
  *       "options": [
- *         { "value": "example", "label": "示例优先" },
- *         { "value": "default", "label": "默认值优先" }
+ *         {
+ *           "value": "example",
+ *           "label": "示例优先"
+ *         },
+ *         {
+ *           "value": "default",
+ *           "label": "默认值优先"
+ *         }
  *       ]
  *     },
  *     {

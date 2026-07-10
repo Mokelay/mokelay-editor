@@ -182,7 +182,8 @@ export function normalizeButtonProps(props: Partial<MButtonProps>): MButtonProps
  *       "source": "submodule/mokelay-editor/src/blocks/MButton.vue",
  *       "line": 24,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "裸按钮"
  *     },
  *     {
  *       "key": "visible",
@@ -213,7 +214,8 @@ export function normalizeButtonProps(props: Partial<MButtonProps>): MButtonProps
  *       "payload": "payload: MouseEvent",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MButton.vue",
- *       "line": 107
+ *       "line": 107,
+ *       "label": "点击按钮"
  *     }
  *   ],
  *   "methods": [],

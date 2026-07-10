@@ -184,7 +184,8 @@ function normalizeRecordListProps(props: Partial<MRecordListProps>): MRecordList
  *       "source": "submodule/mokelay-editor/src/blocks/MRecordList.vue",
  *       "line": 7,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "列表数据"
  *     },
  *     {
  *       "key": "count",
@@ -193,7 +194,8 @@ function normalizeRecordListProps(props: Partial<MRecordListProps>): MRecordList
  *       "source": "submodule/mokelay-editor/src/blocks/MRecordList.vue",
  *       "line": 8,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "数量"
  *     },
  *     {
  *       "key": "displayName",
@@ -202,7 +204,8 @@ function normalizeRecordListProps(props: Partial<MRecordListProps>): MRecordList
  *       "source": "submodule/mokelay-editor/src/blocks/MRecordList.vue",
  *       "line": 9,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "显示名称"
  *     },
  *     {
  *       "key": "blockType",
@@ -211,13 +214,12 @@ function normalizeRecordListProps(props: Partial<MRecordListProps>): MRecordList
  *       "source": "submodule/mokelay-editor/src/blocks/MRecordList.vue",
  *       "line": 10,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "Block 类型"
  *     },
  *     {
  *       "key": "value",
- *       "label": {
- *         "raw": "fieldLabels.value ?? '值'"
- *       },
+ *       "label": "fieldLabels.value ?? '值'",
  *       "type": "text",
  *       "source": "submodule/mokelay-editor/src/blocks/MRecordList.vue",
  *       "line": 302,

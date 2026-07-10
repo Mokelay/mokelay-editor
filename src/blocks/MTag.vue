@@ -55,10 +55,7 @@ export interface MTagProps {
  *       "line": 27,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "标签内容",
- *         "en": "Tag name"
- *       },
+ *       "label": "标签内容",
  *       "type": "text",
  *       "placeholder": {
  *         "zh": "标签",
@@ -73,10 +70,7 @@ export interface MTagProps {
  *       "line": 32,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "标签类型",
- *         "en": "Type"
- *       },
+ *       "label": "标签类型",
  *       "type": "select",
  *       "options": [
  *         {
@@ -131,10 +125,7 @@ export interface MTagProps {
  *       "line": 45,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "标签尺寸",
- *         "en": "Size"
- *       },
+ *       "label": "标签尺寸",
  *       "type": "select",
  *       "options": [
  *         {
@@ -175,10 +166,7 @@ export interface MTagProps {
  *       "line": 56,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "自定义颜色",
- *         "en": "Custom color"
- *       },
+ *       "label": "自定义颜色",
  *       "type": "text",
  *       "placeholder": {
  *         "zh": "例如：#409EFF",
@@ -193,10 +181,7 @@ export interface MTagProps {
  *       "line": 61,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "可关闭",
- *         "en": "Closable"
- *       },
+ *       "label": "可关闭",
  *       "type": "checkbox"
  *     }
  *   ],

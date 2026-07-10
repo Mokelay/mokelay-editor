@@ -109,7 +109,8 @@ function normalizeTextareaFieldProps(props: Partial<MTextareaFieldProps>): MText
  *       "source": "submodule/mokelay-editor/src/blocks/MTextareaField.vue",
  *       "line": 17,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     },
  *     {
  *       "key": "required",
@@ -118,7 +119,8 @@ function normalizeTextareaFieldProps(props: Partial<MTextareaFieldProps>): MText
  *       "source": "submodule/mokelay-editor/src/blocks/MTextareaField.vue",
  *       "line": 21,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "必填"
  *     },
  *     {
  *       "key": "maxLength",
@@ -127,7 +129,8 @@ function normalizeTextareaFieldProps(props: Partial<MTextareaFieldProps>): MText
  *       "source": "submodule/mokelay-editor/src/blocks/MTextareaField.vue",
  *       "line": 22,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "最大长度"
  *     },
  *     {
  *       "key": "disabled",
@@ -136,7 +139,8 @@ function normalizeTextareaFieldProps(props: Partial<MTextareaFieldProps>): MText
  *       "source": "submodule/mokelay-editor/src/blocks/MTextareaField.vue",
  *       "line": 23,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "禁用"
  *     }
  *   ],
  *   "events": [],
@@ -148,7 +152,8 @@ function normalizeTextareaFieldProps(props: Partial<MTextareaFieldProps>): MText
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MTextareaField.vue",
- *       "line": 134
+ *       "line": 134,
+ *       "label": "聚焦"
  *     },
  *     {
  *       "name": "getData",
@@ -157,7 +162,8 @@ function normalizeTextareaFieldProps(props: Partial<MTextareaFieldProps>): MText
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MTextareaField.vue",
- *       "line": 135
+ *       "line": 135,
+ *       "label": "获取数据"
  *     }
  *   ],
  *   "dataFields": [

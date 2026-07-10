@@ -121,10 +121,7 @@ function getTabsDataFields(): BlockDataField[] {
  *       "line": 99,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "页签配置",
- *         "en": "Tabs config"
- *       },
+ *       "label": "页签配置",
  *       "type": "textarea",
  *       "valueType": "json",
  *       "validationMessage": {
@@ -140,10 +137,7 @@ function getTabsDataFields(): BlockDataField[] {
  *       "line": 106,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "激活页签 ID",
- *         "en": "Active tab ID"
- *       },
+ *       "label": "激活页签 ID",
  *       "type": "text"
  *     }
  *   ],
@@ -156,7 +150,8 @@ function getTabsDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
- *       "line": 285
+ *       "line": 285,
+ *       "label": "获取数据"
  *     },
  *     {
  *       "name": "setActiviTabId",
@@ -165,7 +160,8 @@ function getTabsDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
- *       "line": 286
+ *       "line": 286,
+ *       "label": "设置激活页签"
  *     }
  *   ],
  *   "dataFields": [

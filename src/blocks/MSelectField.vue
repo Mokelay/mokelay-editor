@@ -99,7 +99,8 @@ function normalizeSelectFieldProps(props: Partial<MSelectFieldProps>): MSelectFi
  *       "source": "submodule/mokelay-editor/src/blocks/MSelectField.vue",
  *       "line": 18,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],
@@ -110,7 +111,8 @@ function normalizeSelectFieldProps(props: Partial<MSelectFieldProps>): MSelectFi
  *       "async": false,
  *       "params": "none",
  *       "returns": "{ value: string }",
- *       "description": "返回当前选择值，供 MForm 与页面动作读取。"
+ *       "description": "返回当前选择值，供 MForm 与页面动作读取。",
+ *       "label": "获取数据"
  *     }
  *   ],
  *   "dataFields": [

@@ -369,7 +369,8 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
  *       "line": 56,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "结果数据"
  *     }
  *   ],
  *   "events": [
@@ -378,42 +379,48 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "payload": "payload: MUploadImportProps & { files: MUploadImportUploadedFile[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 260
+ *       "line": 260,
+ *       "label": "变更"
  *     },
  *     {
  *       "event": "before-upload",
  *       "payload": "payload: { files: MUploadImportUploadedFile[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 260
+ *       "line": 260,
+ *       "label": "上传前"
  *     },
  *     {
  *       "event": "upload-progress",
  *       "payload": "payload: { file: MUploadImportUploadedFile; percent: number }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 260
+ *       "line": 260,
+ *       "label": "上传进度"
  *     },
  *     {
  *       "event": "upload-success",
  *       "payload": "payload: { result: MUploadImportResult; files: MUploadImportUploadedFile[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 260
+ *       "line": 260,
+ *       "label": "上传成功"
  *     },
  *     {
  *       "event": "upload-error",
  *       "payload": "payload: { error: Error; file?: MUploadImportUploadedFile }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 260
+ *       "line": 260,
+ *       "label": "上传失败"
  *     },
  *     {
  *       "event": "template-download",
  *       "payload": "payload: { template?: MUploadImportTemplate }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 260
+ *       "line": 260,
+ *       "label": "下载模板"
  *     }
  *   ],
  *   "methods": [
@@ -424,7 +431,8 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 825
+ *       "line": 825,
+ *       "label": "选择文件"
  *     },
  *     {
  *       "name": "upload",
@@ -433,7 +441,8 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 826
+ *       "line": 826,
+ *       "label": "上传"
  *     },
  *     {
  *       "name": "clear",
@@ -442,7 +451,8 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 827
+ *       "line": 827,
+ *       "label": "清空"
  *     },
  *     {
  *       "name": "removeFile",
@@ -451,7 +461,8 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 828
+ *       "line": 828,
+ *       "label": "移除文件"
  *     },
  *     {
  *       "name": "downloadTemplate",
@@ -460,7 +471,8 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 829
+ *       "line": 829,
+ *       "label": "下载模板"
  *     },
  *     {
  *       "name": "parseFiles",
@@ -469,7 +481,8 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 830
+ *       "line": 830,
+ *       "label": "解析文件"
  *     },
  *     {
  *       "name": "setValue",
@@ -478,7 +491,8 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 831
+ *       "line": 831,
+ *       "label": "设置值"
  *     },
  *     {
  *       "name": "getData",
@@ -487,7 +501,8 @@ function getUploadImportDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MUploadImport.vue",
- *       "line": 832
+ *       "line": 832,
+ *       "label": "获取数据"
  *     }
  *   ],
  *   "dataFields": [

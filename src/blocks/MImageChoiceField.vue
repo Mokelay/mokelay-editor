@@ -118,7 +118,8 @@ function normalizeImageChoiceFieldProps(props: Partial<MImageChoiceFieldProps>):
  *       "source": "submodule/mokelay-editor/src/blocks/MImageChoiceField.vue",
  *       "line": 19,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],

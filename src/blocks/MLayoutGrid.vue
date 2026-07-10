@@ -300,7 +300,8 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
  *       "line": 29,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "响应式配置"
  *     },
  *     {
  *       "key": "areas",
@@ -309,7 +310,8 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
  *       "line": 34,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "区域配置"
  *     }
  *   ],
  *   "events": [],
@@ -321,7 +323,8 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
- *       "line": 678
+ *       "line": 678,
+ *       "label": "获取数据"
  *     },
  *     {
  *       "name": "saveEditor",
@@ -330,7 +333,8 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
- *       "line": 679
+ *       "line": 679,
+ *       "label": "保存编辑器"
  *     }
  *   ],
  *   "dataFields": [

@@ -55,10 +55,7 @@ function trimmedString(value: unknown, fallback: string) {
  *       "line": 25,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "链接文本",
- *         "en": "Link text"
- *       },
+ *       "label": "链接文本",
  *       "type": "text",
  *       "placeholder": {
  *         "zh": "链接",
@@ -73,10 +70,7 @@ function trimmedString(value: unknown, fallback: string) {
  *       "line": 30,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "链接地址",
- *         "en": "Link URL"
- *       },
+ *       "label": "链接地址",
  *       "type": "text",
  *       "placeholder": "https://mokelay.com"
  *     },
@@ -88,10 +82,7 @@ function trimmedString(value: unknown, fallback: string) {
  *       "line": 35,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "新页面打开",
- *         "en": "Open in new page"
- *       },
+ *       "label": "新页面打开",
  *       "type": "checkbox"
  *     }
  *   ],

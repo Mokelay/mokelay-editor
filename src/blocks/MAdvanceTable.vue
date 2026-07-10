@@ -103,10 +103,7 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "line": 81,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "显示序号列",
- *         "en": "Show index column"
- *       },
+ *       "label": "显示序号列",
  *       "type": "checkbox"
  *     },
  *     {
@@ -117,10 +114,7 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "line": 86,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "显示多选列",
- *         "en": "Show selection column"
- *       },
+ *       "label": "显示多选列",
  *       "type": "checkbox"
  *     },
  *     {
@@ -131,10 +125,7 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "line": 91,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "显示分页",
- *         "en": "Show pagination"
- *       },
+ *       "label": "显示分页",
  *       "type": "checkbox"
  *     },
  *     {
@@ -145,10 +136,7 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "line": 33,
  *       "declaredInProps": true,
  *       "configurable": false,
- *       "label": {
- *         "zh": "行数据",
- *         "en": "Rows"
- *       }
+ *       "label": "行数据"
  *     },
  *     {
  *       "key": "columns",
@@ -158,10 +146,7 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "line": 96,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "列配置",
- *         "en": "Columns"
- *       },
+ *       "label": "列配置",
  *       "type": "component",
  *       "component": "MAdvanceTableColumnsEditor"
  *     },
@@ -173,10 +158,7 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "line": 102,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "数据源",
- *         "en": "Datasource"
- *       },
+ *       "label": "数据源",
  *       "type": "component",
  *       "component": "MDatasourceEditor"
  *     }
@@ -187,14 +169,16 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "payload": "payload: {\n    selectedRows: Record<string, unknown>[];\n    selection: ReturnType<typeof getSelectionState>;\n  }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
- *       "line": 191
+ *       "line": 191,
+ *       "label": "已选中行"
  *     },
  *     {
  *       "event": "emptySelectedRow",
  *       "payload": "payload: {\n    selectedRows: Record<string, unknown>[];\n    selection: ReturnType<typeof getSelectionState>;\n  }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
- *       "line": 191
+ *       "line": 191,
+ *       "label": "清空选中行"
  *     }
  *   ],
  *   "methods": [
@@ -205,7 +189,8 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
- *       "line": 856
+ *       "line": 856,
+ *       "label": "获取数据"
  *     },
  *     {
  *       "name": "refresh",
@@ -214,7 +199,8 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
- *       "line": 857
+ *       "line": 857,
+ *       "label": "刷新"
  *     },
  *     {
  *       "name": "search",
@@ -223,7 +209,8 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
- *       "line": 858
+ *       "line": 858,
+ *       "label": "搜索"
  *     },
  *     {
  *       "name": "getSelectedRows",
@@ -232,7 +219,8 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
- *       "line": 859
+ *       "line": 859,
+ *       "label": "获取选中行"
  *     },
  *     {
  *       "name": "getSelectedValues",
@@ -241,7 +229,8 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
- *       "line": 860
+ *       "line": 860,
+ *       "label": "获取选中值"
  *     },
  *     {
  *       "name": "clearSelection",
@@ -250,7 +239,8 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
- *       "line": 861
+ *       "line": 861,
+ *       "label": "清空选择"
  *     },
  *     {
  *       "name": "getSelectionState",
@@ -259,7 +249,8 @@ export function getAdvanceTableDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
- *       "line": 862
+ *       "line": 862,
+ *       "label": "获取选择状态"
  *     }
  *   ],
  *   "dataFields": [

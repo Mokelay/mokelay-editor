@@ -211,10 +211,7 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "line": 192,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "布局方式",
- *         "en": "Layout"
- *       },
+ *       "label": "布局方式",
  *       "type": "select",
  *       "options": [
  *         {
@@ -241,10 +238,7 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "line": 201,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "表单项配置",
- *         "en": "Form item settings"
- *       },
+ *       "label": "表单项配置",
  *       "type": "component",
  *       "component": "MFormItemsEditor"
  *     },
@@ -256,10 +250,7 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "line": 207,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "操作栏配置",
- *         "en": "Action bar settings"
- *       },
+ *       "label": "操作栏配置",
  *       "type": "component",
  *       "component": "MActionToolBarEditor"
  *     },
@@ -270,7 +261,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
  *       "line": 39,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "工具栏配置"
  *     },
  *     {
  *       "key": "values",
@@ -279,7 +271,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
  *       "line": 40,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "表单值"
  *     },
  *     {
  *       "key": "defaultValues",
@@ -288,7 +281,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
  *       "line": 41,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "默认值"
  *     },
  *     {
  *       "key": "submit",
@@ -297,7 +291,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
  *       "line": 42,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "提交配置"
  *     },
  *     {
  *       "key": "processors",
@@ -306,7 +301,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
  *       "line": 43,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "处理器配置"
  *     }
  *   ],
  *   "events": [
@@ -315,21 +311,24 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "payload": "items: MFormItemData[]",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
- *       "line": 76
+ *       "line": 76,
+ *       "label": "变更"
  *     },
  *     {
  *       "event": "reset",
  *       "payload": "payload: { values: Record<string, unknown> }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
- *       "line": 76
+ *       "line": 76,
+ *       "label": "重置"
  *     },
  *     {
  *       "event": "submit",
  *       "payload": "payload: { values: Record<string, unknown>; valid: boolean; errors: unknown[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
- *       "line": 76
+ *       "line": 76,
+ *       "label": "提交"
  *     }
  *   ],
  *   "methods": [
@@ -340,7 +339,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
- *       "line": 1052
+ *       "line": 1052,
+ *       "label": "保存编辑器"
  *     },
  *     {
  *       "name": "getData",
@@ -349,7 +349,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
- *       "line": 1053
+ *       "line": 1053,
+ *       "label": "获取数据"
  *     },
  *     {
  *       "name": "setValues",
@@ -358,7 +359,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
- *       "line": 1054
+ *       "line": 1054,
+ *       "label": "设置表单值"
  *     },
  *     {
  *       "name": "reset",
@@ -367,7 +369,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
- *       "line": 1055
+ *       "line": 1055,
+ *       "label": "重置"
  *     },
  *     {
  *       "name": "submit",
@@ -376,7 +379,8 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
- *       "line": 1056
+ *       "line": 1056,
+ *       "label": "提交"
  *     }
  *   ],
  *   "dataFields": [

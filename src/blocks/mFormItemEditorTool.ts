@@ -46,10 +46,7 @@ import {
  *       "line": 91,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "字段文本",
- *         "en": "Field label"
- *       },
+ *       "label": "字段文本",
  *       "type": "text",
  *       "placeholder": {
  *         "zh": "请输入字段文本",
@@ -64,10 +61,7 @@ import {
  *       "line": 96,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "变量名",
- *         "en": "Variable name"
- *       },
+ *       "label": "变量名",
  *       "type": "text",
  *       "placeholder": {
  *         "zh": "请输入变量名",
@@ -82,10 +76,7 @@ import {
  *       "line": 101,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "布局方式",
- *         "en": "Layout"
- *       },
+ *       "label": "布局方式",
  *       "type": "select",
  *       "options": [
  *         {
@@ -111,7 +102,8 @@ import {
  *       "source": "submodule/mokelay-editor/src/blocks/MFormItem.vue",
  *       "line": 16,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "编辑器配置"
  *     }
  *   ],
  *   "events": [
@@ -120,7 +112,8 @@ import {
  *       "payload": "payload: MouseEvent",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MFormItem.vue",
- *       "line": 140
+ *       "line": 140,
+ *       "label": "点击表单项"
  *     }
  *   ],
  *   "methods": [],

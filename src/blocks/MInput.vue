@@ -88,10 +88,7 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
  *       "line": 63,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "占位提示",
- *         "en": "Placeholder"
- *       },
+ *       "label": "占位提示",
  *       "type": "text",
  *       "placeholder": {
  *         "zh": "请输入.....",
@@ -106,10 +103,7 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
  *       "line": 68,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "默认值",
- *         "en": "Default value"
- *       },
+ *       "label": "默认值",
  *       "type": "text",
  *       "placeholder": {
  *         "zh": "请输入默认值",
@@ -123,7 +117,8 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
  *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
  *       "line": 10,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     },
  *     {
  *       "key": "required",
@@ -132,7 +127,8 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
  *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
  *       "line": 13,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "必填"
  *     },
  *     {
  *       "key": "maxLength",
@@ -141,7 +137,8 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
  *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
  *       "line": 14,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "最大长度"
  *     },
  *     {
  *       "key": "disabled",
@@ -150,7 +147,8 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
  *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
  *       "line": 15,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "禁用"
  *     }
  *   ],
  *   "events": [],
@@ -162,7 +160,8 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
- *       "line": 135
+ *       "line": 135,
+ *       "label": "聚焦"
  *     },
  *     {
  *       "name": "getData",
@@ -171,7 +170,8 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
- *       "line": 136
+ *       "line": 136,
+ *       "label": "获取数据"
  *     }
  *   ],
  *   "dataFields": [

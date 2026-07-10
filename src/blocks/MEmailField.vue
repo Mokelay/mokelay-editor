@@ -85,7 +85,8 @@ function normalizeEmailFieldProps(props: Partial<MEmailFieldProps>): MEmailField
  *       "source": "submodule/mokelay-editor/src/blocks/MEmailField.vue",
  *       "line": 15,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],

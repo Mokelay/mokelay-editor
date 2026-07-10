@@ -99,7 +99,8 @@ function normalizeDateRangeFieldProps(props: Partial<MDateRangeFieldProps>): MDa
  *       "source": "submodule/mokelay-editor/src/blocks/MDateRangeField.vue",
  *       "line": 20,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],
@@ -111,7 +112,8 @@ function normalizeDateRangeFieldProps(props: Partial<MDateRangeFieldProps>): MDa
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MDateRangeField.vue",
- *       "line": 225
+ *       "line": 225,
+ *       "label": "获取数据"
  *     }
  *   ],
  *   "dataFields": [

@@ -51,7 +51,8 @@ export interface MAdvanceInputProps {
  *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceInput.vue",
  *       "line": 18,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "输入值"
  *     }
  *   ],
  *   "events": [],

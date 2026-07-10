@@ -128,7 +128,8 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
  *       "line": 68,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "可用页面变量来源"
  *     },
  *     {
  *       "key": "value",
@@ -137,7 +138,8 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
  *       "line": 69,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "数据源配置"
  *     },
  *     {
  *       "key": "matchingExternalFields",
@@ -146,7 +148,8 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
  *       "line": 70,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "匹配外部字段"
  *     },
  *     {
  *       "key": "showPageBreak",
@@ -155,7 +158,8 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
  *       "line": 71,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "显示分页"
  *     }
  *   ],
  *   "events": [],
@@ -167,7 +171,8 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
- *       "line": 1285
+ *       "line": 1285,
+ *       "label": "获取数据"
  *     }
  *   ],
  *   "dataFields": [],

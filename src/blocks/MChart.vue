@@ -175,10 +175,7 @@ export function normalizeChartProps(props: Partial<MChartProps>): Required<MChar
  *       "line": 117,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "图表类型",
- *         "en": "Chart type"
- *       },
+ *       "label": "图表类型",
  *       "type": "select",
  *       "options": [
  *         {
@@ -212,10 +209,7 @@ export function normalizeChartProps(props: Partial<MChartProps>): Required<MChar
  *       "line": 127,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "横坐标数据",
- *         "en": "X-axis data"
- *       },
+ *       "label": "横坐标数据",
  *       "type": "textarea",
  *       "valueType": "json",
  *       "validationMessage": {
@@ -231,10 +225,7 @@ export function normalizeChartProps(props: Partial<MChartProps>): Required<MChar
  *       "line": 134,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": {
- *         "zh": "图表数据",
- *         "en": "Series data"
- *       },
+ *       "label": "图表数据",
  *       "type": "textarea",
  *       "valueType": "json",
  *       "validationMessage": {

@@ -124,7 +124,8 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *       "async": false,
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
- *       "source": "submodule/mokelay-editor/src/blocks/MJson.vue"
+ *       "source": "submodule/mokelay-editor/src/blocks/MJson.vue",
+ *       "label": "获取数据"
  *     }
  *   ],
  *   "dataFields": [
@@ -150,7 +151,10 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *         "label": "示例 JSON",
  *         "value": {
  *           "enabled": true,
- *           "items": ["one", "two"]
+ *           "items": [
+ *             "one",
+ *             "two"
+ *           ]
  *         },
  *         "height": 360,
  *         "expandDepth": 1

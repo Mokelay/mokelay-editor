@@ -117,7 +117,8 @@ function normalizeFileUploadFieldProps(props: Partial<MFileUploadFieldProps>): M
  *       "source": "submodule/mokelay-editor/src/blocks/MFileUploadField.vue",
  *       "line": 16,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],

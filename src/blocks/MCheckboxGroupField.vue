@@ -106,7 +106,8 @@ function normalizeCheckboxGroupFieldProps(props: Partial<MCheckboxGroupFieldProp
  *       "source": "submodule/mokelay-editor/src/blocks/MCheckboxGroupField.vue",
  *       "line": 18,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],

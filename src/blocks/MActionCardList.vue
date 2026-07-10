@@ -298,7 +298,8 @@ function getActionCardListDataFields(): BlockDataField[] {
  *       "source": "submodule/mokelay-editor/src/blocks/MActionCardList.vue",
  *       "line": 27,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "激活项标识"
  *     }
  *   ],
  *   "events": [
@@ -307,14 +308,16 @@ function getActionCardListDataFields(): BlockDataField[] {
  *       "payload": "payload: MActionCardListEventPayload",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionCardList.vue",
- *       "line": 217
+ *       "line": 217,
+ *       "label": "选择卡片"
  *     },
  *     {
  *       "event": "click",
  *       "payload": "payload: MActionCardListEventPayload",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionCardList.vue",
- *       "line": 217
+ *       "line": 217,
+ *       "label": "点击卡片"
  *     }
  *   ],
  *   "methods": [
@@ -325,7 +328,8 @@ function getActionCardListDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionCardList.vue",
- *       "line": 393
+ *       "line": 393,
+ *       "label": "获取数据"
  *     },
  *     {
  *       "name": "setItems",
@@ -334,7 +338,8 @@ function getActionCardListDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionCardList.vue",
- *       "line": 394
+ *       "line": 394,
+ *       "label": "设置列表数据"
  *     },
  *     {
  *       "name": "setActive",
@@ -343,7 +348,8 @@ function getActionCardListDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionCardList.vue",
- *       "line": 395
+ *       "line": 395,
+ *       "label": "设置激活项"
  *     },
  *     {
  *       "name": "clearActive",
@@ -352,7 +358,8 @@ function getActionCardListDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionCardList.vue",
- *       "line": 396
+ *       "line": 396,
+ *       "label": "清除激活项"
  *     }
  *   ],
  *   "dataFields": [

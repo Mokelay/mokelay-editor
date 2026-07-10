@@ -104,7 +104,8 @@ function normalizeRadioGroupFieldProps(props: Partial<MRadioGroupFieldProps>): M
  *       "source": "submodule/mokelay-editor/src/blocks/MRadioGroupField.vue",
  *       "line": 18,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段 ID"
  *     }
  *   ],
  *   "events": [],

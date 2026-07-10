@@ -100,7 +100,8 @@ export function cloneSelectorBlock(block: StoredBlock): StoredBlock {
  *       "source": "submodule/mokelay-editor/src/blocks/mEditorSelectorEditorTool.ts",
  *       "line": 14,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "选中 Block"
  *     },
  *     {
  *       "key": "excludeToolNames",
@@ -109,7 +110,8 @@ export function cloneSelectorBlock(block: StoredBlock): StoredBlock {
  *       "source": "submodule/mokelay-editor/src/blocks/mEditorSelectorEditorTool.ts",
  *       "line": 15,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "排除工具名称"
  *     }
  *   ],
  *   "events": [],

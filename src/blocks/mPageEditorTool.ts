@@ -48,7 +48,8 @@ export type MPageToolProps = {
  *       "source": "submodule/mokelay-editor/src/blocks/mPageEditorTool.ts",
  *       "line": 11,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "页面 Blocks"
  *     }
  *   ],
  *   "events": [
@@ -57,14 +58,16 @@ export type MPageToolProps = {
  *       "payload": "blocks: OutputData['blocks']",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MPage.vue",
- *       "line": 57
+ *       "line": 57,
+ *       "label": "变更"
  *     },
  *     {
  *       "event": "close",
  *       "payload": "result?: unknown",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MPage.vue",
- *       "line": 57
+ *       "line": 57,
+ *       "label": "关闭"
  *     }
  *   ],
  *   "methods": [
@@ -75,7 +78,8 @@ export type MPageToolProps = {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MPage.vue",
- *       "line": 563
+ *       "line": 563,
+ *       "label": "保存编辑器"
  *     },
  *     {
  *       "name": "getData",
@@ -84,7 +88,8 @@ export type MPageToolProps = {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MPage.vue",
- *       "line": 564
+ *       "line": 564,
+ *       "label": "获取数据"
  *     },
  *     {
  *       "name": "close",
@@ -93,7 +98,8 @@ export type MPageToolProps = {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MPage.vue",
- *       "line": 565
+ *       "line": 565,
+ *       "label": "关闭"
  *     }
  *   ],
  *   "dataFields": [

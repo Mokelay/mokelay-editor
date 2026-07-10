@@ -231,7 +231,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
  *       "line": 33,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "对齐方式"
  *     },
  *     {
  *       "key": "size",
@@ -240,7 +241,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
  *       "line": 34,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "尺寸"
  *     },
  *     {
  *       "key": "mode",
@@ -249,7 +251,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
  *       "line": 35,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "模式"
  *     },
  *     {
  *       "key": "buttons",
@@ -258,7 +261,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
  *       "line": 36,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "按钮配置"
  *     },
  *     {
  *       "key": "actions",
@@ -267,7 +271,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
  *       "line": 37,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "动作配置"
  *     }
  *   ],
  *   "events": [
@@ -276,28 +281,32 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "payload": "payload: ButtonEventPayload & { nativeEvent?: MouseEvent }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 227
+ *       "line": 227,
+ *       "label": "点击按钮"
  *     },
  *     {
  *       "event": "before-execute",
  *       "payload": "payload: ButtonEventPayload",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 227
+ *       "line": 227,
+ *       "label": "执行前"
  *     },
  *     {
  *       "event": "execute-success",
  *       "payload": "payload: ButtonEventPayload & { result?: unknown }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 227
+ *       "line": 227,
+ *       "label": "执行成功"
  *     },
  *     {
  *       "event": "execute-error",
  *       "payload": "payload: ButtonEventPayload & { error: unknown }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 227
+ *       "line": 227,
+ *       "label": "执行失败"
  *     }
  *   ],
  *   "methods": [
@@ -308,7 +317,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 419
+ *       "line": 419,
+ *       "label": "触发动作"
  *     },
  *     {
  *       "name": "enable",
@@ -317,7 +327,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 420
+ *       "line": 420,
+ *       "label": "启用"
  *     },
  *     {
  *       "name": "disable",
@@ -326,7 +337,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 421
+ *       "line": 421,
+ *       "label": "禁用"
  *     },
  *     {
  *       "name": "setLoading",
@@ -335,7 +347,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 422
+ *       "line": 422,
+ *       "label": "设置加载状态"
  *     },
  *     {
  *       "name": "setDisabled",
@@ -344,7 +357,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 423
+ *       "line": 423,
+ *       "label": "设置禁用状态"
  *     },
  *     {
  *       "name": "getButton",
@@ -353,7 +367,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 424
+ *       "line": 424,
+ *       "label": "获取按钮"
  *     },
  *     {
  *       "name": "getAction",
@@ -362,7 +377,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 425
+ *       "line": 425,
+ *       "label": "获取动作"
  *     },
  *     {
  *       "name": "refreshVisibility",
@@ -371,7 +387,8 @@ export function serializeMActionToolbarProps(props: Partial<MActionToolbarProps>
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MActionToolbar.vue",
- *       "line": 426
+ *       "line": 426,
+ *       "label": "刷新可见性"
  *     }
  *   ],
  *   "dataFields": [],

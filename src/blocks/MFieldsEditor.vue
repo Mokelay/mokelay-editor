@@ -92,7 +92,8 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
  *       "line": 15,
  *       "declaredInProps": true,
- *       "configurable": false
+ *       "configurable": false,
+ *       "label": "字段配置"
  *     }
  *   ],
  *   "events": [],
