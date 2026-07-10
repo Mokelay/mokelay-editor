@@ -101,51 +101,221 @@ export function normalizeChartProps(props: Partial<MChartProps>): Required<MChar
   };
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MChart",
+ *   "displayName": "图表",
+ *   "category": "data",
+ *   "description": "图表 Block，基于 ECharts 渲染可配置的数据、坐标轴和视觉样式。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MChart",
+ *     "toolSymbol": "mChartEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 130
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "图表",
+ *       "en": "Chart"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 16V11M12 16V8M16 16v-6\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "type": "line",
+ *     "xAxis": [
+ *       {
+ *         "zh": "周一",
+ *         "en": "Mon"
+ *       },
+ *       {
+ *         "zh": "周二",
+ *         "en": "Tue"
+ *       },
+ *       {
+ *         "zh": "周三",
+ *         "en": "Wed"
+ *       },
+ *       {
+ *         "zh": "周四",
+ *         "en": "Thu"
+ *       },
+ *       {
+ *         "zh": "周五",
+ *         "en": "Fri"
+ *       }
+ *     ],
+ *     "series": [
+ *       {
+ *         "name": {
+ *           "zh": "数据",
+ *           "en": "Data"
+ *         },
+ *         "data": [
+ *           120,
+ *           200,
+ *           150,
+ *           80,
+ *           70
+ *         ]
+ *       }
+ *     ]
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "type",
+ *       "optional": true,
+ *       "tsType": "MChartType",
+ *       "source": "submodule/mokelay-editor/src/blocks/MChart.vue",
+ *       "line": 117,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "图表类型",
+ *         "en": "Chart type"
+ *       },
+ *       "type": "select",
+ *       "options": [
+ *         {
+ *           "value": "line",
+ *           "label": {
+ *             "zh": "折线图",
+ *             "en": "Line chart"
+ *           }
+ *         },
+ *         {
+ *           "value": "bar",
+ *           "label": {
+ *             "zh": "柱状图",
+ *             "en": "Bar chart"
+ *           }
+ *         },
+ *         {
+ *           "value": "pie",
+ *           "label": {
+ *             "zh": "饼图",
+ *             "en": "Pie chart"
+ *           }
+ *         }
+ *       ]
+ *     },
+ *     {
+ *       "key": "xAxis",
+ *       "optional": true,
+ *       "tsType": "string[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MChart.vue",
+ *       "line": 127,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "横坐标数据",
+ *         "en": "X-axis data"
+ *       },
+ *       "type": "textarea",
+ *       "valueType": "json",
+ *       "validationMessage": {
+ *         "zh": "请输入有效 JSON。",
+ *         "en": "Enter valid JSON."
+ *       }
+ *     },
+ *     {
+ *       "key": "series",
+ *       "optional": true,
+ *       "tsType": "MChartSeriesItem[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MChart.vue",
+ *       "line": 134,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "图表数据",
+ *         "en": "Series data"
+ *       },
+ *       "type": "textarea",
+ *       "valueType": "json",
+ *       "validationMessage": {
+ *         "zh": "请输入有效 JSON。",
+ *         "en": "Enter valid JSON."
+ *       }
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [],
+ *   "dataFields": [],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MChart-example",
+ *       "type": "MChart",
+ *       "data": {
+ *         "type": "line",
+ *         "xAxis": [
+ *           {
+ *             "zh": "周一",
+ *             "en": "Mon"
+ *           },
+ *           {
+ *             "zh": "周二",
+ *             "en": "Tue"
+ *           },
+ *           {
+ *             "zh": "周三",
+ *             "en": "Wed"
+ *           },
+ *           {
+ *             "zh": "周四",
+ *             "en": "Thu"
+ *           },
+ *           {
+ *             "zh": "周五",
+ *             "en": "Fri"
+ *           }
+ *         ],
+ *         "series": [
+ *           {
+ *             "name": {
+ *               "zh": "数据",
+ *               "en": "Data"
+ *             },
+ *             "data": [
+ *               120,
+ *               200,
+ *               150,
+ *               80,
+ *               70
+ *             ]
+ *           }
+ *         ]
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MChart.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MChart.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mChartEditorTool = defineEditorTool<MChartProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('chart.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 16V11M12 16V8M16 16v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-  },
-  propertyPanel: {
-    get title() {
-      return i18n.t('chart.propertyPanelTitle');
-    },
-    get fields() {
-      return [
-        {
-          key: 'type',
-          label: i18n.t('chart.properties.type'),
-          type: 'select' as const,
-          options: [
-            { label: i18n.t('chart.types.line'), value: 'line' },
-            { label: i18n.t('chart.types.bar'), value: 'bar' },
-            { label: i18n.t('chart.types.pie'), value: 'pie' }
-          ]
-        },
-        {
-          key: 'xAxis',
-          label: i18n.t('chart.properties.xAxis'),
-          type: 'textarea' as const,
-          valueType: 'json' as const,
-          validationMessage: i18n.t('chart.validation.invalidJson')
-        },
-        {
-          key: 'series',
-          label: i18n.t('chart.properties.series'),
-          type: 'textarea' as const,
-          valueType: 'json' as const,
-          validationMessage: i18n.t('chart.validation.invalidJson')
-        }
-      ];
-    }
-  },
-  createInitialProps: () => ({
-    type: 'line',
-    xAxis: getDefaultXAxis(),
-    series: getDefaultSeries()
-  }),
   normalizeProps: normalizeChartProps,
   serialize: (props) => {
     const normalized = normalizeChartProps(props);

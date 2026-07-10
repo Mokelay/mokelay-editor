@@ -1,5 +1,5 @@
 import { defineEditorTool } from '@/editors/editorToolDefinition';
-import { i18n } from '@/i18n';
+
 import { cloneBlockEvents, finalizeEditorBlocksWithEvents, type BlockEvent } from '@/utils/blockEvents';
 
 export type StoredBlock = {
@@ -66,16 +66,86 @@ export function cloneSelectorBlock(block: StoredBlock): StoredBlock {
   };
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MEditorSelector",
+ *   "displayName": "组件选择器",
+ *   "category": "container",
+ *   "description": "嵌套组件选择器，用于在配置项中编辑单个 Block；候选组件与默认值由客户端 Block 文档 API 提供。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MEditorSelector",
+ *     "toolSymbol": "mEditorSelectorEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 20
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "组件选择器",
+ *       "en": "Component Selector"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"14\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 9h8M8 13h5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M16 15l2 2 3-4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {},
+ *   "properties": [
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "StoredBlock",
+ *       "source": "submodule/mokelay-editor/src/blocks/mEditorSelectorEditorTool.ts",
+ *       "line": 14,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "excludeToolNames",
+ *       "optional": true,
+ *       "tsType": "string[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/mEditorSelectorEditorTool.ts",
+ *       "line": 15,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [],
+ *   "dataFields": [],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MEditorSelector-example",
+ *       "type": "MEditorSelector",
+ *       "data": {}
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MEditorSelector.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/mEditorSelectorEditorTool.ts",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mEditorSelectorEditorTool = defineEditorTool<MEditorSelectorProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('editorSelector.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16 15l2 2 3-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-  },
-  createInitialProps: () => ({
-    value: undefined
-  }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
     value: normalizeSelectorBlock(props.value),

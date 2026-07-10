@@ -107,6 +107,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
       :value="context.page.blocks"
       :page-id="context.page.uuid"
       :data-sources="context.page.dataSources"
+      :runtime-context="context.pageContext"
     />
   </div>
 

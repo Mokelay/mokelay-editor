@@ -3,12 +3,13 @@ import MButton, { mButtonEditorTool } from '@/blocks/MButton.vue';
 import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
 import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
 import MTag, { mTagEditorTool } from '@/blocks/MTag.vue';
-import type { EditorToolDefinition } from '@/editors/editorToolDefinition';
-
-export type InlineCustomComponentDefinition = Pick<
+import { resolveEditorToolDefinition } from '@/editors/clientBlockToolMetadata';
+import type {
   EditorToolDefinition,
-  'toolbox' | 'createInitialProps' | 'propertyPanel' | 'normalizeProps' | 'serialize'
-> & {
+  ResolvedEditorToolDefinition
+} from '@/editors/editorToolDefinition';
+
+export type InlineCustomComponentDefinition = ResolvedEditorToolDefinition & {
   component: Component;
 };
 
@@ -29,14 +30,18 @@ const inlineCustomComponents = {
     component: markRaw(MTag),
     ...mTagEditorTool
   }
-} satisfies Record<string, InlineCustomComponentDefinition>;
+} satisfies Record<string, EditorToolDefinition>;
 
 export function getInlineCustomComponentEntries() {
-  return Object.entries(inlineCustomComponents);
+  return Object.entries(inlineCustomComponents).map(([type, definition]) => [
+    type,
+    resolveEditorToolDefinition(type, definition)
+  ] as const);
 }
 
 export function getInlineCustomComponentDefinition(type: string) {
-  return inlineCustomComponents[type as keyof typeof inlineCustomComponents];
+  const definition = inlineCustomComponents[type as keyof typeof inlineCustomComponents];
+  return definition ? resolveEditorToolDefinition(type, definition) : undefined;
 }
 
 export function isInlineCustomComponent(type: string) {

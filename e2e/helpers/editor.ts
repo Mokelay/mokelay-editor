@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import type { Locator, Page, Route } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { PageDataSourceConfig } from '../../src/utils/pageRuntimeContext';
 
 export const storageKey = 'mokelay-editor-config';
 export const defaultPageUuid = '00000000-0000-4000-8000-000000000000';
@@ -22,6 +23,7 @@ export type MockMokelayPage = {
   uuid: string;
   name: string;
   blocks: SavedBlock[];
+  dataSources?: PageDataSourceConfig[];
   appUuid?: string | null;
   layoutUuid?: string | null;
   createdAt?: string;
@@ -1345,6 +1347,7 @@ async function fulfillPageBundle(
           uuid: pageRecord.uuid,
           name: pageRecord.name,
           blocks: pageRecord.blocks,
+          dataSources: pageRecord.dataSources ?? [],
           appUuid: pageRecord.appUuid ?? null,
           layoutUuid: pageRecord.layoutUuid ?? null,
           createdAt: pageRecord.createdAt,

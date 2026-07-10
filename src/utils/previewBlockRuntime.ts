@@ -3,6 +3,7 @@ import type { OutputData } from '@editorjs/editorjs';
 import type { BlockEvent } from '@/utils/blockEvents';
 import type { ActionConfig, ActionContext } from '@/actions';
 import { runActionGraph } from '@/actions';
+import { $message } from '@/utils/globalCalls';
 
 export type PreviewRuntimeBlock = OutputData['blocks'][number] | {
   id?: string;
@@ -183,6 +184,8 @@ export function createPreviewBlockRuntime(): PreviewBlockRuntime {
         });
       } catch (error) {
         warnRuntime('Action graph failed.', { eventConfig, sourceBlock, error });
+        const message = error instanceof Error && error.message ? error.message : '操作失败。';
+        void $message({ type: 'error', content: message }).catch(() => undefined);
         return undefined;
       }
     },

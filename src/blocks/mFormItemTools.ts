@@ -1,8 +1,13 @@
 import {
-  getEditorComponentDefinition,
-  getEditorComponentRegistry
-} from '@/editors/editorComponentRegistry';
-import type { EditorToolComponentProps } from '@/editors/editorToolDefinition';
+  getRegisteredEditorToolNames,
+  isRegisteredEditorComponent
+} from '@/editors/editorComponentRuntimeRegistry';
+import type { EditorComponentToolbox } from '@/editors/editorToolDefinition';
+import { getClientBlockDefaultData } from '@/editors/clientBlockToolMetadata';
+import {
+  getClientBlockDocSnapshot,
+  getToolboxVisibleClientBlockDocs
+} from '@/utils/clientBlockDocs';
 import {
   cloneSelectorBlock,
   type StoredBlock
@@ -19,8 +24,15 @@ function generateBlockId() {
 }
 
 export function getFormItemToolNames() {
-  return Object.keys(getEditorComponentRegistry()).filter((toolName) =>
-    !INTERNAL_FORM_TOOL_NAMES.has(toolName) && Boolean(getEditorComponentDefinition(toolName))
+  const docs = getToolboxVisibleClientBlockDocs();
+  if (docs.length) {
+    return docs
+      .map((doc) => doc.blockType)
+      .filter((toolName) => !INTERNAL_FORM_TOOL_NAMES.has(toolName) && isRegisteredEditorComponent(toolName));
+  }
+
+  return getRegisteredEditorToolNames().filter((toolName) =>
+    !INTERNAL_FORM_TOOL_NAMES.has(toolName) && isRegisteredEditorComponent(toolName)
   );
 }
 
@@ -34,19 +46,18 @@ export function getDefaultFormItemToolName() {
 }
 
 export function createInitialFormItemEditorBlock(toolName: string): StoredBlock {
-  const definition = getEditorComponentDefinition(toolName);
-  if (!definition) {
-    throw new Error(`MForm could not find a registered component for "${toolName}".`);
-  }
+  const doc = getClientBlockDocSnapshot(toolName);
+ return cloneSelectorBlock({
+   id: generateBlockId(),
+   type: toolName,
+    data: getClientBlockDefaultData(doc)
+ });
+}
 
-  const normalizedProps = definition.normalizeProps({
-    ...(definition.createInitialProps?.() ?? {}),
-    edit: true
-  } as Partial<EditorToolComponentProps>);
-
-  return cloneSelectorBlock({
-    id: generateBlockId(),
-    type: toolName,
-    data: definition.serialize(normalizedProps)
-  });
+export function getFormItemToolbox(toolName: string): EditorComponentToolbox {
+  const doc = getClientBlockDocSnapshot(toolName);
+  return {
+    title: doc?.displayName || toolName,
+    icon: typeof doc?.toolbox.icon === 'string' ? doc.toolbox.icon : '',
+  };
 }

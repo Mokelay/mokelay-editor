@@ -9,7 +9,6 @@ import type { OutputData, ToolSettings } from '@editorjs/editorjs';
 import type { MenuConfig } from '@editorjs/editorjs/types/tools';
 import { createApp, type App, computed, h, inject, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import MFormItem, {
-  mFormItemEditorTool,
   normalizeFormItemProps,
   serializeFormItemProps,
   type NormalizedMFormItemProps,
@@ -34,7 +33,8 @@ import {
   type MFormProps
 } from '@/blocks/mFormEditorTool';
 import type { BlockEventsDialogController } from '@/editors/blockEventsDialog';
-import type { EditorToolDefinition, EditorToolPropertyField } from '@/editors/editorToolDefinition';
+import type { EditorToolPropertyField, ResolvedEditorToolDefinition } from '@/editors/editorToolDefinition';
+import { loadEditorComponentDefinition } from '@/editors/editorComponentRuntimeRegistry';
 import { getEditorJsI18nMessages, i18n, useI18n } from '@/i18n';
 import { cloneBlockEvents, normalizeBlockEvents, type BlockEvent } from '@/utils/blockEvents';
 import {
@@ -152,10 +152,12 @@ function normalizeOptionalString(value: unknown) {
 
 function createFormItemTool(
   toolName: string,
-  definition: EditorToolDefinition,
+  definition: Pick<ResolvedEditorToolDefinition, 'toolbox'>,
+  formItemDefinition: ResolvedEditorToolDefinition,
   initialEditorBlock: StoredBlock
 ): FormItemToolClass {
-  const cachedTool = formItemToolClassCache.get(toolName);
+  const cacheKey = `${i18n.locale}:${toolName}:${definition.toolbox.title}:${formItemDefinition.propertyPanel?.title ?? ''}`;
+  const cachedTool = formItemToolClassCache.get(cacheKey);
   if (cachedTool) return cachedTool;
 
   class FormItemTool {
@@ -321,7 +323,7 @@ function createFormItemTool(
     }
 
     private getPropertyFields() {
-      return mFormItemEditorTool.propertyPanel?.fields ?? [];
+      return formItemDefinition.propertyPanel?.fields ?? [];
     }
 
     private createPropertyDialog() {
@@ -332,7 +334,7 @@ function createFormItemTool(
       dialog.dataset.testid = 'tool-property-dialog';
       dialog.dataset.toolName = 'MFormItem';
 
-      const title = mFormItemEditorTool.propertyPanel?.title || i18n.t('editor.propertyDialogTitle');
+      const title = formItemDefinition.propertyPanel?.title || i18n.t('editor.propertyDialogTitle');
       const fields = this.getPropertyFields().map((field) => this.renderPropertyField(field)).join('');
 
       dialog.innerHTML = `
@@ -488,7 +490,7 @@ function createFormItemTool(
   }
 
   const createdTool = FormItemTool as unknown as FormItemToolClass;
-  formItemToolClassCache.set(toolName, createdTool);
+  formItemToolClassCache.set(cacheKey, createdTool);
   return createdTool;
 }
 
@@ -497,21 +499,21 @@ function isAllowedFormItemToolName(toolName: string) {
 }
 
 async function createFormItemEditorTools() {
-  const [
-    { getEditorComponentDefinition },
-    { createInitialFormItemEditorBlock, getFormItemToolNames }
-  ] = await Promise.all([
-    import('@/editors/editorComponentRegistry'),
-    import('@/blocks/mFormItemTools')
-  ]);
-  const toolEntries = getFormItemToolNames().flatMap((toolName) => {
-    const definition = getEditorComponentDefinition(toolName);
-    if (!definition) return [];
+  const { createInitialFormItemEditorBlock, getFormItemToolNames, getFormItemToolbox } =
+    await import('@/blocks/mFormItemTools');
+  const formItemDefinition = await loadEditorComponentDefinition('MFormItem');
+  if (!formItemDefinition) return {};
 
+  const toolEntries = getFormItemToolNames().flatMap((toolName) => {
     return [[
       toolName,
       {
-        class: createFormItemTool(toolName, definition, createInitialFormItemEditorBlock(toolName)),
+        class: createFormItemTool(
+          toolName,
+          { toolbox: getFormItemToolbox(toolName) },
+          formItemDefinition,
+          createInitialFormItemEditorBlock(toolName)
+        ),
         config: {
           edit: true
         }

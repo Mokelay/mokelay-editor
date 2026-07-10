@@ -1,13 +1,7 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { valueBlockDataField } from '@/blocks/blockDataFields';
-import {
-  booleanValue,
-  normalizeValue,
-  numberValue,
-  pageDslPropertyTitle,
-  stringValue
-} from '@/blocks/pageDslEditorTools';
+import { booleanValue, normalizeValue, numberValue, stringValue } from '@/blocks/pageDslEditorTools';
 import type { BlockDataField } from '@/utils/variableValue';
 
 export interface MJsonEditorProps {
@@ -90,26 +84,220 @@ function getJsonEditorDataFields(): BlockDataField[] {
   ];
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MJsonEditor",
+ *   "displayName": "JSON 编辑器",
+ *   "category": "content",
+ *   "description": "可编辑 JSON 编辑器，提供格式化、校验和只读模式；用于布局等需要修改 JSON 的 DSL 场景。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MJsonEditor",
+ *     "toolSymbol": "mJsonEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 80
+ *   },
+ *   "toolbox": {
+ *     "title": "JSON 编辑器",
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M8 7 5 12l3 5M16 7l3 5-3 5M13 5l-2 14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "label": "JSON",
+ *     "value": {},
+ *     "placeholder": "{\n  \"schemaVersion\": 1\n}",
+ *     "rows": 18,
+ *     "readonly": false
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "label",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 103,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "标题",
+ *       "type": "text"
+ *     },
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 104,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "JSON 值",
+ *       "type": "textarea",
+ *       "valueType": "json",
+ *       "validationMessage": "请输入有效 JSON。"
+ *     },
+ *     {
+ *       "key": "rows",
+ *       "optional": true,
+ *       "tsType": "number",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 105,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "行数",
+ *       "type": "text"
+ *     },
+ *     {
+ *       "key": "readonly",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 106,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "只读",
+ *       "type": "checkbox"
+ *     },
+ *     {
+ *       "key": "placeholder",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 18,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "recordUuid",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 21,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "recordName",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 22,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [
+ *     {
+ *       "name": "getData",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 233
+ *     },
+ *     {
+ *       "name": "getLayoutJson",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 234
+ *     }
+ *   ],
+ *   "dataFields": [
+ *     {
+ *       "label": "值",
+ *       "variable": "value",
+ *       "dataType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue"
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "'JSON 对象'",
+ *         "zh": "JSON 对象",
+ *         "en": "JSON 对象"
+ *       },
+ *       "variable": "layoutJson",
+ *       "dataType": "object",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 70
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "'记录 UUID'",
+ *         "zh": "记录 UUID",
+ *         "en": "记录 UUID"
+ *       },
+ *       "variable": "recordUuid",
+ *       "dataType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 75
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "'记录名称'",
+ *         "zh": "记录名称",
+ *         "en": "记录名称"
+ *       },
+ *       "variable": "recordName",
+ *       "dataType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 80
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "'校验状态'",
+ *         "zh": "校验状态",
+ *         "en": "校验状态"
+ *       },
+ *       "variable": "valid",
+ *       "dataType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "line": 85
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MJsonEditor-example",
+ *       "type": "MJsonEditor",
+ *       "data": {
+ *         "label": "JSON",
+ *         "value": {},
+ *         "placeholder": "{\n  \"schemaVersion\": 1\n}",
+ *         "rows": 18,
+ *         "readonly": false
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mJsonEditorTool = defineEditorTool<MJsonEditorProps>({
-  toolbox: {
-    title: 'JSON 编辑器',
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8 7 5 12l3 5M16 7l3 5-3 5M13 5l-2 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-  },
-  propertyPanel: {
-    get title() {
-      return pageDslPropertyTitle('JSON 编辑器');
-    },
-    fields: [
-      { key: 'label', label: '标题' },
-      { key: 'value', label: 'JSON 值', type: 'textarea', valueType: 'json', validationMessage: '请输入有效 JSON。' },
-      { key: 'rows', label: '行数' },
-      { key: 'readonly', label: '只读', type: 'checkbox' }
-    ]
-  },
-  createInitialProps: () => ({
-    ...jsonEditorDefaults,
-    value: cloneValue(jsonEditorDefaults.value)
-  }),
   getDataFields: () => getJsonEditorDataFields(),
   normalizeProps: normalizeJsonEditorProps,
   serialize: (props) => {

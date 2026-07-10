@@ -4,7 +4,7 @@ import * as QRCode from 'qrcode';
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { MokelayLayout, RenderBundlePage } from '@/utils/layoutsApi';
-import type { PageDataSourceConfig } from '@/utils/pageRuntimeContext';
+import type { PageDataSourceConfig, PageRuntimeContext } from '@/utils/pageRuntimeContext';
 
 const previewModes = ['pc', 'h5', 'ios', 'android'] as const;
 
@@ -13,6 +13,7 @@ type PreviewMode = typeof previewModes[number];
 type PreviewPanelProps = {
   blocks?: OutputData['blocks'];
   dataSources?: PageDataSourceConfig[];
+  runtimeContext?: PageRuntimeContext;
   loading?: boolean;
   error?: string;
   pageUuid?: string | null;
@@ -198,16 +199,16 @@ watch(
       </div>
 
       <div v-else-if="previewMode === 'pc'" data-testid="preview-pc-canvas" class="min-h-full">
-        <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" />
-        <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" />
+        <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" :page-runtime-context="runtimeContext" />
+        <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" :runtime-context="runtimeContext" />
       </div>
 
       <div v-else :data-testid="mobileCanvasTestId" class="flex min-h-full justify-center overflow-auto bg-slate-100 px-4 py-6 dark:bg-slate-950">
         <div data-testid="preview-phone-shell" :class="phoneShellClass">
           <div v-if="previewMode === 'ios'" class="absolute left-1/2 top-3 z-10 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-slate-950 dark:bg-slate-800"></div>
           <div data-testid="preview-phone-screen" :class="phoneScreenClass">
-            <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" />
-            <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" />
+            <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" :page-runtime-context="runtimeContext" />
+            <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" :runtime-context="runtimeContext" />
           </div>
         </div>
       </div>

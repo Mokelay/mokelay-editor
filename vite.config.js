@@ -29,6 +29,10 @@ export default defineConfig(function () { return ({
                     if (moduleId.includes('/qrcode/')) {
                         return 'qrcode';
                     }
+                    if (moduleId.includes('/json-editor-vue/') ||
+                        moduleId.includes('/vanilla-jsoneditor/')) {
+                        return 'json-editor';
+                    }
                     if (moduleId.includes('/zrender/')) {
                         return 'zrender';
                     }

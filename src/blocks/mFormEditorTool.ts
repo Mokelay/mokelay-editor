@@ -1,6 +1,6 @@
-import { defineAsyncComponent } from 'vue';
+
 import { defineEditorTool } from '@/editors/editorToolDefinition';
-import { i18n } from '@/i18n';
+
 import {
   normalizeMActionToolbarProps,
   serializeMActionToolbarProps,
@@ -15,10 +15,7 @@ import {
   normalizeFormItemProps,
   type MFormItemLayout,
   type MFormItemProps
-} from '@/blocks/MFormItem.vue';
-
-const MFormItemsEditor = defineAsyncComponent(() => import('@/blocks/MFormItemsEditor.vue'));
-const MActionToolBarEditor = defineAsyncComponent(() => import('@/blocks/MActionToolBarEditor.vue'));
+} from '@/blocks/mFormItemProps';
 
 export interface MFormItemData {
   labelName: string;
@@ -176,47 +173,268 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
   return serializeMActionToolbarProps(normalized);
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MForm",
+ *   "displayName": "表单",
+ *   "category": "container",
+ *   "description": "表单容器，负责字段布局、校验和表单项的嵌套编辑；子组件工具由客户端 Block 文档 API 的元数据创建。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MForm",
+ *     "toolSymbol": "mFormEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 30
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "表单",
+ *       "en": "Form"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 8h8M8 12h8M8 16h4\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "layout": "Vertical",
+ *     "items": []
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "layout",
+ *       "optional": true,
+ *       "tsType": "MFormLayout",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 192,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "布局方式",
+ *         "en": "Layout"
+ *       },
+ *       "type": "select",
+ *       "options": [
+ *         {
+ *           "value": "Vertical",
+ *           "label": {
+ *             "zh": "垂直",
+ *             "en": "Vertical"
+ *           }
+ *         },
+ *         {
+ *           "value": "Horizontal",
+ *           "label": {
+ *             "zh": "水平",
+ *             "en": "Horizontal"
+ *           }
+ *         }
+ *       ]
+ *     },
+ *     {
+ *       "key": "items",
+ *       "optional": true,
+ *       "tsType": "MFormItemData[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 201,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "表单项配置",
+ *         "en": "Form item settings"
+ *       },
+ *       "type": "component",
+ *       "component": "MFormItemsEditor"
+ *     },
+ *     {
+ *       "key": "actionBar",
+ *       "optional": true,
+ *       "tsType": "MFormActionBarData",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 207,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "操作栏配置",
+ *         "en": "Action bar settings"
+ *       },
+ *       "type": "component",
+ *       "component": "MActionToolBarEditor"
+ *     },
+ *     {
+ *       "key": "toolbar",
+ *       "optional": true,
+ *       "tsType": "MFormActionBarData",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 39,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "values",
+ *       "optional": true,
+ *       "tsType": "Record<string, unknown>",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 40,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "defaultValues",
+ *       "optional": true,
+ *       "tsType": "Record<string, unknown>",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 41,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "submit",
+ *       "optional": true,
+ *       "tsType": "MFormSubmitData",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 42,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "processors",
+ *       "optional": true,
+ *       "tsType": "MFormProcessorsData",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 43,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     }
+ *   ],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "payload": "items: MFormItemData[]",
+ *       "trigger": "Vue component emit",
+ *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
+ *       "line": 76
+ *     },
+ *     {
+ *       "event": "reset",
+ *       "payload": "payload: { values: Record<string, unknown> }",
+ *       "trigger": "Vue component emit",
+ *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
+ *       "line": 76
+ *     },
+ *     {
+ *       "event": "submit",
+ *       "payload": "payload: { values: Record<string, unknown>; valid: boolean; errors: unknown[] }",
+ *       "trigger": "Vue component emit",
+ *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
+ *       "line": 76
+ *     }
+ *   ],
+ *   "methods": [
+ *     {
+ *       "name": "saveEditor",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
+ *       "line": 1052
+ *     },
+ *     {
+ *       "name": "getData",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
+ *       "line": 1053
+ *     },
+ *     {
+ *       "name": "setValues",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
+ *       "line": 1054
+ *     },
+ *     {
+ *       "name": "reset",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
+ *       "line": 1055
+ *     },
+ *     {
+ *       "name": "submit",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MForm.vue",
+ *       "line": 1056
+ *     }
+ *   ],
+ *   "dataFields": [
+ *     {
+ *       "label": {
+ *         "raw": "item.labelName"
+ *       },
+ *       "variable": "item.variableName",
+ *       "dataType": "normalizeVariableDataType(item.fieldDataType)",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 220
+ *     },
+ *     {
+ *       "label": {
+ *         "zh": "表单项字段",
+ *         "en": "Form item field",
+ *         "raw": "normalizeMFormItems(context.data.items)"
+ *       },
+ *       "variable": "<item.variableName>",
+ *       "dataType": "dynamic",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "notes": "getDataFields maps each configured form item to its variableName and labelName."
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MForm-example",
+ *       "type": "MForm",
+ *       "data": {
+ *         "layout": "Vertical",
+ *         "items": []
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MForm.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mFormEditorTool = defineEditorTool<MFormProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('form.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="4" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8h8M8 12h8M8 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-  },
-  propertyPanel: {
-    get title() {
-      return i18n.t('form.propertyPanelTitle');
-    },
-    get fields() {
-      return [
-        {
-          key: 'layout',
-          label: i18n.t('form.properties.layout'),
-          type: 'select' as const,
-          options: [
-            { label: i18n.t('form.layouts.vertical'), value: 'Vertical' },
-            { label: i18n.t('form.layouts.horizontal'), value: 'Horizontal' }
-          ]
-        },
-        {
-          key: 'items',
-          label: i18n.t('form.properties.items'),
-          type: 'component' as const,
-          component: MFormItemsEditor
-        },
-        {
-          key: 'actionBar',
-          label: i18n.t('form.properties.actionBar'),
-          type: 'component' as const,
-          component: MActionToolBarEditor
-        }
-      ];
-    }
-  },
-  createInitialProps: () => ({
-    layout: 'Vertical',
-    items: []
-  }),
   getDataFields: (context) => normalizeMFormItems(context.data.items).map((item) => ({
     label: item.labelName,
     variable: item.variableName,

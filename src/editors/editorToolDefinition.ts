@@ -44,17 +44,23 @@ export type EditorComponentToolbox = {
   icon: string;
 };
 
+// Block source files only provide runtime behavior. Registration metadata is resolved
+// from @clientBlockDoc so toolbox, defaults, and property fields have one owner.
 export type EditorToolDefinition<TProps extends EditorToolComponentProps = EditorToolComponentProps> = {
   component: Component;
-  toolbox: EditorComponentToolbox;
-  createInitialProps?: () => Partial<TProps>;
-  propertyPanel?: EditorToolPropertyPanel;
   getDataFields?: (context: { data: Record<string, unknown>; blockId: string }) => BlockDataField[];
   // 将任意输入 props 归一化为可渲染、可保存的完整结构。
   normalizeProps: (props: Partial<TProps>) => TProps;
   // 将组件状态序列化为 EditorJS block.data。
   serialize: (props: TProps) => Record<string, unknown>;
 };
+
+export type ResolvedEditorToolDefinition<TProps extends EditorToolComponentProps = EditorToolComponentProps> =
+  EditorToolDefinition<TProps> & {
+    toolbox: EditorComponentToolbox;
+    createInitialProps: () => Partial<TProps>;
+    propertyPanel?: EditorToolPropertyPanel;
+  };
 
 // 用于定义工具元数据的辅助函数，运行时不做额外加工，主要提供类型约束。
 export function defineEditorTool<TProps extends EditorToolComponentProps>(definition: Omit<EditorToolDefinition<TProps>, 'component'>) {

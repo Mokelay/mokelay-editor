@@ -13,11 +13,13 @@ import {
   type LayoutRuntimeContext
 } from '@/utils/layoutRuntime';
 import type { MokelayLayout, RenderBundlePage } from '@/utils/layoutsApi';
+import type { PageRuntimeContext } from '@/utils/pageRuntimeContext';
 import LayoutBlockRenderer from '@/layouts/LayoutBlockRenderer.vue';
 
 const props = defineProps<{
   layout: MokelayLayout;
   page: RenderBundlePage;
+  pageRuntimeContext?: PageRuntimeContext;
 }>();
 
 const slots = useSlots();
@@ -34,6 +36,7 @@ const runtimeContext = computed<LayoutRuntimeContext>(() => ({
   layout: props.layout,
   resources: resources.value,
   auth: auth.value,
+  pageContext: props.pageRuntimeContext ?? {},
   route: getCurrentLayoutRoute()
 }));
 

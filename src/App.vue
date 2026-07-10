@@ -16,7 +16,7 @@ import {
   type MokelayPage,
   type PageSource
 } from '@/utils/pagesApi';
-import type { PageDataSourceConfig } from '@/utils/pageRuntimeContext';
+import type { PageDataSourceConfig, PageRuntimeContext } from '@/utils/pageRuntimeContext';
 import {
   getPageRenderBundle,
   getSystemLayout,
@@ -89,6 +89,11 @@ const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.valu
 const isRuntimePage = computed(() => !isApiBuilderPage.value && parsedRoute.value.runtimePage);
 const isNotFoundPage = computed(() => !isApiBuilderPage.value && (parsedRoute.value.notFound || runtimePageLoadFailed.value));
 const isEditorPage = computed(() => !isApiBuilderPage.value && !isPreviewPage.value && !isRuntimePage.value && !isNotFoundPage.value && Boolean(routePageUuid.value));
+const pageRuntimeContext = computed<PageRuntimeContext>(() => ({
+  route: {
+    query: parseRouteQuery(routeLocation.value.rawPath)
+  }
+}));
 const usesSourceLayout = computed(() => isApiBuilderPage.value || isAiChatPage.value || isEditorPage.value);
 const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
 const isLayoutFramedPage = computed(() => isStandalonePage.value || usesSourceLayout.value);
@@ -201,6 +206,12 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
   }
 
   return createParsedRoute({ notFound: true });
+}
+
+function parseRouteQuery(rawPath: string) {
+  const queryIndex = rawPath.indexOf('?');
+  const rawQuery = queryIndex >= 0 ? rawPath.slice(queryIndex + 1) : '';
+  return Object.fromEntries(new URLSearchParams(rawQuery).entries());
 }
 
 function safeDecodeURIComponent(value: string) {
@@ -754,6 +765,7 @@ function backToPagesPage() {
         v-else-if="isRuntimePage"
         :blocks="pageBlocks"
         :data-sources="pageDataSources"
+        :runtime-context="pageRuntimeContext"
         :loading="isLoadingPage"
         :page-uuid="routePageUuid ?? currentPageUuid"
         :page-name="currentPageName"
@@ -766,6 +778,7 @@ function backToPagesPage() {
         v-else-if="isPreviewPage"
         :blocks="pageBlocks"
         :data-sources="pageDataSources"
+        :runtime-context="pageRuntimeContext"
         :loading="isLoadingPage"
         :error="pageError"
         :page-uuid="routePageUuid ?? currentPageUuid"

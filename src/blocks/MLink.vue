@@ -9,51 +9,142 @@ export interface MLinkProps {
   open?: boolean;
 }
 
+function trimmedString(value: unknown, fallback: string) {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MLink",
+ *   "displayName": "链接",
+ *   "category": "content",
+ *   "description": "链接 Block，支持文案、目标地址、打开方式和链接样式。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MLink",
+ *     "toolSymbol": "mLinkEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 100
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "链接",
+ *       "en": "Link"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M10.6 13.4a4 4 0 0 0 5.7 0l2.1-2.1a4 4 0 0 0-5.7-5.7l-1.2 1.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M13.4 10.6a4 4 0 0 0-5.7 0l-2.1 2.1a4 4 0 0 0 5.7 5.7l1.2-1.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "text": {
+ *       "zh": "链接",
+ *       "en": "Link"
+ *     },
+ *     "url": "https://mokelay.com",
+ *     "open": false
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "text",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLink.vue",
+ *       "line": 25,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "链接文本",
+ *         "en": "Link text"
+ *       },
+ *       "type": "text",
+ *       "placeholder": {
+ *         "zh": "链接",
+ *         "en": "Link"
+ *       }
+ *     },
+ *     {
+ *       "key": "url",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLink.vue",
+ *       "line": 30,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "链接地址",
+ *         "en": "Link URL"
+ *       },
+ *       "type": "text",
+ *       "placeholder": "https://mokelay.com"
+ *     },
+ *     {
+ *       "key": "open",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLink.vue",
+ *       "line": 35,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "新页面打开",
+ *         "en": "Open in new page"
+ *       },
+ *       "type": "checkbox"
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [],
+ *   "dataFields": [],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MLink-example",
+ *       "type": "MLink",
+ *       "data": {
+ *         "text": {
+ *           "zh": "链接",
+ *           "en": "Link"
+ *         },
+ *         "url": "https://mokelay.com",
+ *         "open": false
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MLink.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MLink.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mLinkEditorTool = defineEditorTool<MLinkProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('link.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M10.6 13.4a4 4 0 0 0 5.7 0l2.1-2.1a4 4 0 0 0-5.7-5.7l-1.2 1.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M13.4 10.6a4 4 0 0 0-5.7 0l-2.1 2.1a4 4 0 0 0 5.7 5.7l1.2-1.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-  },
-  propertyPanel: {
-    get title() {
-      return i18n.t('link.propertyPanelTitle');
-    },
-    get fields() {
-      return [
-        {
-          key: 'text',
-          label: i18n.t('link.properties.text'),
-          placeholder: i18n.t('link.defaultText')
-        },
-        {
-          key: 'url',
-          label: i18n.t('link.properties.url'),
-          placeholder: i18n.t('link.defaultUrl')
-        },
-        {
-          key: 'open',
-          label: i18n.t('link.properties.open'),
-          type: 'checkbox' as const
-        }
-      ];
-    }
-  },
-  createInitialProps: () => ({
-    text: i18n.t('link.defaultText'),
-    url: i18n.t('link.defaultUrl'),
-    open: false
-  }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
-    text: props.text?.trim() || i18n.t('link.defaultText'),
-    url: props.url?.trim() || i18n.t('link.defaultUrl'),
+    text: trimmedString(props.text, i18n.t('link.defaultText')),
+    url: trimmedString(props.url, i18n.t('link.defaultUrl')),
     open: props.open === true
   }),
   serialize: (props) => ({
-    text: props.text?.trim() || i18n.t('link.defaultText'),
-    url: props.url?.trim() || i18n.t('link.defaultUrl'),
+    text: trimmedString(props.text, i18n.t('link.defaultText')),
+    url: trimmedString(props.url, i18n.t('link.defaultUrl')),
     open: props.open === true
   })
 });
@@ -70,7 +161,7 @@ const props = defineProps<MLinkProps & {
 
 const { t } = useI18n();
 const rootRef = ref<HTMLElement | null>(null);
-const linkText = computed(() => props.text?.trim() || t('link.defaultText'));
+const linkText = computed(() => trimmedString(props.text, t('link.defaultText')));
 const safeHref = computed(() => normalizeHref(props.url ?? ''));
 const target = computed(() => (props.open ? '_blank' : undefined));
 const rel = computed(() => (props.open ? 'noopener noreferrer' : undefined));

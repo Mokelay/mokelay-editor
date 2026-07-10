@@ -1,8 +1,7 @@
 <script lang="ts">
-import { defineEditorTool, type EditorToolPropertyField } from '@/editors/editorToolDefinition';
+import { defineEditorTool } from '@/editors/editorToolDefinition';
 import { i18n } from '@/i18n';
-import MDatasourceEditor from '@/blocks/MDatasourceEditor.vue';
-import MAdvanceTableColumnsEditor from '@/blocks/MAdvanceTableColumnsEditor.vue';
+
 import {
   getParagraphText,
   normalizeStoredBlocks,
@@ -31,11 +30,12 @@ export interface MAdvanceTableProps {
   index?: boolean;
   selection?: boolean;
   showPageBreak?: boolean;
+  rows?: unknown;
   columns?: MAdvanceTableColumnConfig[];
   ds?: MDatasourceApiObject;
 }
 
-function getAdvanceTableDataFields(): BlockDataField[] {
+export function getAdvanceTableDataFields(): BlockDataField[] {
   return [
     {
       label: i18n.t('advanceTable.datasourceFields.data'),
@@ -65,62 +65,294 @@ function getAdvanceTableDataFields(): BlockDataField[] {
   ];
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MAdvanceTable",
+ *   "displayName": "高级表格",
+ *   "category": "data",
+ *   "description": "高级表格，支持静态数据或数据源、分页选择、固定列和单元格内嵌 Block 的行数据绑定。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MAdvanceTable",
+ *     "toolSymbol": "mAdvanceTableEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 120
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "高级表格",
+ *       "en": "Advanced Table"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M3 10h18M8 5v14M16 5v14\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "index": false,
+ *     "selection": false
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "index",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 81,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "显示序号列",
+ *         "en": "Show index column"
+ *       },
+ *       "type": "checkbox"
+ *     },
+ *     {
+ *       "key": "selection",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 86,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "显示多选列",
+ *         "en": "Show selection column"
+ *       },
+ *       "type": "checkbox"
+ *     },
+ *     {
+ *       "key": "showPageBreak",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 91,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "显示分页",
+ *         "en": "Show pagination"
+ *       },
+ *       "type": "checkbox"
+ *     },
+ *     {
+ *       "key": "rows",
+ *       "optional": true,
+ *       "tsType": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 33,
+ *       "declaredInProps": true,
+ *       "configurable": false,
+ *       "label": {
+ *         "zh": "行数据",
+ *         "en": "Rows"
+ *       }
+ *     },
+ *     {
+ *       "key": "columns",
+ *       "optional": true,
+ *       "tsType": "MAdvanceTableColumnConfig[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 96,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "列配置",
+ *         "en": "Columns"
+ *       },
+ *       "type": "component",
+ *       "component": "MAdvanceTableColumnsEditor"
+ *     },
+ *     {
+ *       "key": "ds",
+ *       "optional": true,
+ *       "tsType": "MDatasourceApiObject",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 102,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "数据源",
+ *         "en": "Datasource"
+ *       },
+ *       "type": "component",
+ *       "component": "MDatasourceEditor"
+ *     }
+ *   ],
+ *   "events": [
+ *     {
+ *       "event": "havingSelectedRows",
+ *       "payload": "payload: {\n    selectedRows: Record<string, unknown>[];\n    selection: ReturnType<typeof getSelectionState>;\n  }",
+ *       "trigger": "Vue component emit",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 191
+ *     },
+ *     {
+ *       "event": "emptySelectedRow",
+ *       "payload": "payload: {\n    selectedRows: Record<string, unknown>[];\n    selection: ReturnType<typeof getSelectionState>;\n  }",
+ *       "trigger": "Vue component emit",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 191
+ *     }
+ *   ],
+ *   "methods": [
+ *     {
+ *       "name": "getData",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 856
+ *     },
+ *     {
+ *       "name": "refresh",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 857
+ *     },
+ *     {
+ *       "name": "search",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 858
+ *     },
+ *     {
+ *       "name": "getSelectedRows",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 859
+ *     },
+ *     {
+ *       "name": "getSelectedValues",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 860
+ *     },
+ *     {
+ *       "name": "clearSelection",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 861
+ *     },
+ *     {
+ *       "name": "getSelectionState",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 862
+ *     }
+ *   ],
+ *   "dataFields": [
+ *     {
+ *       "label": {
+ *         "raw": "i18n.t('advanceTable.datasourceFields.data')",
+ *         "zh": "列表数据",
+ *         "en": "List data"
+ *       },
+ *       "variable": "data",
+ *       "dataType": "array",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 40
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "i18n.t('advanceTable.datasourceFields.page')",
+ *         "zh": "当前页",
+ *         "en": "Page"
+ *       },
+ *       "variable": "page",
+ *       "dataType": "number",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 45
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "i18n.t('advanceTable.datasourceFields.pageSize')",
+ *         "zh": "每页条数",
+ *         "en": "Page size"
+ *       },
+ *       "variable": "pageSize",
+ *       "dataType": "number",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 50
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "i18n.t('advanceTable.datasourceFields.total')",
+ *         "zh": "总数",
+ *         "en": "Total"
+ *       },
+ *       "variable": "total",
+ *       "dataType": "number",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 55
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "i18n.t('advanceTable.datasourceFields.search')",
+ *         "zh": "搜索条件",
+ *         "en": "Search"
+ *       },
+ *       "variable": "search",
+ *       "dataType": "object",
+ *       "source": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "line": 60
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MAdvanceTable-example",
+ *       "type": "MAdvanceTable",
+ *       "data": {
+ *         "index": false,
+ *         "selection": false
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MAdvanceTable.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('advanceTable.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 5v14M16 5v14" stroke="currentColor" stroke-width="2"/></svg>'
-  },
-  propertyPanel: {
-    get title() {
-      return i18n.t('advanceTable.propertyPanelTitle');
-    },
-    get fields(): EditorToolPropertyField[] {
-      return [
-        {
-          key: 'index',
-          label: i18n.t('advanceTable.properties.index'),
-          type: 'checkbox' as const
-        },
-        {
-          key: 'selection',
-          label: i18n.t('advanceTable.properties.selection'),
-          type: 'checkbox' as const
-        },
-        {
-          key: 'showPageBreak',
-          label: i18n.t('advanceTable.properties.showPageBreak'),
-          type: 'checkbox' as const
-        },
-        {
-          key: 'columns',
-          label: i18n.t('advanceTable.properties.columns'),
-          type: 'component' as const,
-          component: MAdvanceTableColumnsEditor
-        },
-        {
-          key: 'ds',
-          label: i18n.t('advanceTable.properties.ds'),
-          type: 'component' as const,
-          component: MDatasourceEditor,
-          getComponentProps: ({ value, state }) => ({
-            value,
-            matchingExternalFields: getAdvanceTableDataFields().map((field) => ({
-              label: field.label,
-              variable: field.variable,
-              type: field.dataType
-            })),
-            showPageBreak: state.showPageBreak === true
-          })
-        }
-      ];
-    }
-  },
-  createInitialProps: () => ({
-    index: false,
-    selection: false
-  }),
   getDataFields: () => getAdvanceTableDataFields(),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
@@ -128,6 +360,7 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
     index: props.index === true,
     selection: props.selection === true,
     showPageBreak: props.showPageBreak === true,
+    ...(props.rows !== undefined ? { rows: props.rows } : {}),
     columns: normalizeColumns(props.columns),
     ds: normalizeDatasourceConfig(props.ds)
   }),
@@ -138,6 +371,7 @@ export const mAdvanceTableEditorTool = defineEditorTool<MAdvanceTableProps>({
       index: props.index === true,
       selection: props.selection === true,
       showPageBreak: props.showPageBreak === true,
+      ...(props.rows !== undefined ? { rows: props.rows } : {}),
       ...(columns.length ? { columns } : {}),
       ...(ds ? { ds } : {})
     };
@@ -166,7 +400,7 @@ function getDatasourceConfigSignature(value: MDatasourceApiObject | undefined) {
 </script>
 
 <script setup lang="ts">
-import { computed, inject, ref, shallowRef, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
 import { getInlineCustomComponentDefinition } from '@/editors/inlineCustomComponents';
 import { useI18n } from '@/i18n';
@@ -212,6 +446,7 @@ const rootRef = ref<HTMLElement | null>(null);
 const selectedRows = ref(new Set<number>());
 const tableData = shallowRef<Record<string, unknown>[]>([]);
 const runtimeBlockData = shallowRef<Record<string, Record<string, unknown>>>({});
+const cellRuntimeInstances = new Map<string, unknown>();
 const submittedSearch = shallowRef<Record<string, unknown>>({});
 const paginationState = ref<PaginationState>({
   page: 1,
@@ -225,7 +460,9 @@ let lastSelectionEmpty = true;
 
 const normalizedColumns = computed(() => normalizeColumns(props.columns));
 const normalizedDatasource = computed(() => normalizeDatasourceConfig(props.ds));
-const normalizedData = computed(() => tableData.value);
+const normalizedInlineRows = computed(() => normalizeRuntimeRows(resolveRuntimeValue(props.rows, pageVariableContext.value)));
+const hasInlineRows = computed(() => normalizedInlineRows.value !== undefined);
+const normalizedData = computed(() => normalizedInlineRows.value ?? tableData.value);
 const hasConfiguredColumns = computed(() => normalizedColumns.value.length > 0);
 const displayRows = computed(() => hasConfiguredColumns.value ? normalizedData.value : []);
 const hasSelectionColumn = computed(() => props.selection === true);
@@ -260,14 +497,14 @@ const shouldShowEmptyRow = computed(() =>
   !hasConfiguredColumns.value ||
   datasourceLoading.value ||
   Boolean(datasourceError.value) ||
-  (!normalizedDatasource.value && !displayRows.value.length) ||
+  (!hasInlineRows.value && !normalizedDatasource.value && !displayRows.value.length) ||
   !displayRows.value.length
 );
 const emptyMessage = computed(() => {
   if (!hasConfiguredColumns.value) return t('advanceTable.noColumns');
   if (datasourceLoading.value) return t('advanceTable.loading');
   if (datasourceError.value) return datasourceError.value;
-  if (!normalizedDatasource.value && !displayRows.value.length) return t('advanceTable.noDatasource');
+  if (!hasInlineRows.value && !normalizedDatasource.value && !displayRows.value.length) return t('advanceTable.noDatasource');
   return t('advanceTable.empty');
 });
 const emptyColumnSpan = computed(() => Math.max(
@@ -436,8 +673,23 @@ function getDatasourceSelfReferenceBlockId(datasource: MDatasourceApiObject) {
 
 async function loadDatasourceRows() {
   const datasource = normalizedDatasource.value;
+  const inlineRows = normalizedInlineRows.value;
   const loadId = ++datasourceLoadId;
   setSelectedRows(new Set());
+
+  if (inlineRows !== undefined) {
+    tableData.value = [];
+    paginationState.value = {
+      page: 1,
+      pageSize: Math.max(inlineRows.length, 1),
+      total: inlineRows.length
+    };
+    datasourceLoading.value = false;
+    datasourceError.value = '';
+    notifyRuntimeDataChange();
+    return;
+  }
+
   resetRuntimeData();
 
   if (!datasource) {
@@ -483,6 +735,7 @@ async function loadDatasourceRows() {
       total: normalizeNonNegativeIntegerValue(getMatchedRuntimeValue(runtimeData.matchingExternalFieldData, 'total'), 0)
     };
     notifyRuntimeDataChange();
+    await nextTick();
   } catch {
     if (loadId !== datasourceLoadId) return;
     datasourceError.value = t('advanceTable.loadFailed');
@@ -495,7 +748,7 @@ async function loadDatasourceRows() {
 
 function getData() {
   return {
-    data: tableData.value,
+    data: normalizedData.value,
     page: pagination.value.currentPage,
     pageSize: pagination.value.pageSize,
     total: pagination.value.total,
@@ -664,6 +917,12 @@ function getCellBlocks(row: Record<string, unknown>, column: MAdvanceTableColumn
   });
 }
 
+function getRowRenderKey(row: Record<string, unknown>, rowIndex: number) {
+  const stableId = [row.uuid, row.id, row.key]
+    .find((value) => (typeof value === 'string' || typeof value === 'number') && String(value).trim());
+  return stableId === undefined ? `row-${rowIndex}` : `row-${String(stableId)}`;
+}
+
 function getPreviewComponent(type: string) {
   return getInlineCustomComponentDefinition(type)?.component ?? null;
 }
@@ -692,6 +951,32 @@ function getBoundCellBlockData(block: StoredBlock) {
     }
   });
   return isRecord(resolved) ? resolved : {};
+}
+
+function setCellBlockRuntimeRef(block: StoredBlock, instance: unknown) {
+  const id = block.id.trim();
+  if (!previewRuntime || !id) return;
+
+  const existing = cellRuntimeInstances.get(id);
+  if (!instance) {
+    if (existing) {
+      previewRuntime.unregisterBlock(id, existing);
+      cellRuntimeInstances.delete(id);
+    }
+    return;
+  }
+
+  if (existing && existing !== instance) {
+    previewRuntime.unregisterBlock(id, existing);
+  }
+
+  previewRuntime.registerBlock(id, {
+    id,
+    type: block.type,
+    instance,
+    data: getBoundCellBlockData(block)
+  });
+  cellRuntimeInstances.set(id, instance);
 }
 
 function getCellBlockEventListeners(block: StoredBlock) {
@@ -778,7 +1063,8 @@ function getColumnStyle(column: MAdvanceTableColumnConfig, columnIndex: number) 
 function getFixedClass(column: MAdvanceTableColumnConfig) {
   return {
     'ce-advance-table-tool__cell--fixed-left': column.fixed === 'left',
-    'ce-advance-table-tool__cell--fixed-right': column.fixed === 'right'
+    'ce-advance-table-tool__cell--fixed-right': column.fixed === 'right',
+    'ce-advance-table-tool__cell--wrap': column.wrap === true
   };
 }
 
@@ -837,12 +1123,22 @@ function goToPage(page: number) {
 }
 
 watch(
-  () => getDatasourceConfigSignature(normalizedDatasource.value),
+  [
+    () => getDatasourceConfigSignature(normalizedDatasource.value),
+    () => normalizedInlineRows.value
+  ],
   () => {
     void loadDatasourceRows();
   },
-  { immediate: true }
+  { deep: true, immediate: true }
 );
+
+onBeforeUnmount(() => {
+  cellRuntimeInstances.forEach((instance, id) => {
+    previewRuntime?.unregisterBlock(id, instance);
+  });
+  cellRuntimeInstances.clear();
+});
 
 watch(
   () => props.currentBlockId,
@@ -906,7 +1202,7 @@ defineExpose({
         <tbody>
           <tr
             v-for="(row, rowIndex) in displayRows"
-            :key="`row-${rowIndex}`"
+            :key="getRowRenderKey(row, rowIndex)"
             class="ce-advance-table-tool__row"
             :class="{ 'ce-advance-table-tool__row--selected': isRowSelected(rowIndex) }"
             :data-testid="`advance-table-row-${rowIndex}`"
@@ -935,7 +1231,7 @@ defineExpose({
             </td>
             <td
               v-for="(column, columnIndex) in normalizedColumns"
-              :key="`cell-${rowIndex}-${columnIndex}`"
+              :key="`cell-${getRowRenderKey(row, rowIndex)}-${columnIndex}`"
               class="ce-advance-table-tool__cell"
               :class="getFixedClass(column)"
               :style="getColumnStyle(column, columnIndex)"
@@ -943,12 +1239,13 @@ defineExpose({
             >
               <template
                 v-for="(block, blockIndex) in getCellBlocks(row, column)"
-                :key="`${rowIndex}-${columnIndex}-${block.id}-${block.type}-${blockIndex}`"
+                :key="`${getRowRenderKey(row, rowIndex)}-${columnIndex}-${block.id}-${block.type}-${blockIndex}`"
               >
                 <span v-if="block.type === 'paragraph'" class="ce-advance-table-tool__cell-text">{{ getBlockText(block) }}</span>
                 <span v-else class="ce-advance-table-tool__cell-token">
                   <component
                     :is="getPreviewComponent(block.type)"
+                    :ref="(instance: unknown) => setCellBlockRuntimeRef(block, instance)"
                     v-bind="getPreviewProps(block)"
                     v-on="getCellBlockEventListeners(block)"
                   />
@@ -1042,6 +1339,10 @@ defineExpose({
 .ce-advance-table-tool__cell--control {
   padding: 10px;
   text-align: center;
+}
+
+.ce-advance-table-tool__cell--wrap {
+  white-space: normal;
 }
 
 .ce-advance-table-tool__cell--fixed-left,
@@ -1144,6 +1445,18 @@ defineExpose({
   min-height: 30px;
   border-radius: 6px;
   padding: 6px 10px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.ce-advance-table-tool__cell--wrap :deep(.ce-input-tool) {
+  width: 72px;
+}
+
+.ce-advance-table-tool__cell--wrap :deep(.ce-input-tool__control) {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 6px 8px;
   font-size: 12px;
   line-height: 16px;
 }

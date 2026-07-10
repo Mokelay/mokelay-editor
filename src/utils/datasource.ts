@@ -170,7 +170,10 @@ export function normalizeBodyValue(dataType: MDatasourceBodyDataType, value: unk
   }
 
   if (dataType === 'string') {
-    return typeof value === 'string' ? value : normalizeString(value);
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+    if (typeof value === 'boolean') return String(value);
+    return normalizeString(value);
   }
 
   if (dataType === 'number') {
@@ -178,7 +181,14 @@ export function normalizeBodyValue(dataType: MDatasourceBodyDataType, value: unk
   }
 
   if (dataType === 'boolean') {
-    return typeof value === 'boolean' ? value : false;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (['1', 'true', 'yes'].includes(normalized)) return true;
+      if (['0', 'false', 'no'].includes(normalized)) return false;
+    }
+    return false;
   }
 
   if (dataType === 'null') {

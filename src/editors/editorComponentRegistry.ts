@@ -1,253 +1,279 @@
-import { defineAsyncComponent, markRaw } from 'vue';
-import MActionEditor, { mActionEditorTool } from '@/blocks/MActionEditor.vue';
-import MActionCardList, { mActionCardListEditorTool } from '@/blocks/MActionCardList.vue';
-import MActionToolbar, { mActionToolbarEditorTool } from '@/blocks/MActionToolbar.vue';
-import MAdvanceInput, { mAdvanceInputEditorTool } from '@/blocks/MAdvanceInput.vue';
-import MAdvanceTable, { mAdvanceTableEditorTool } from '@/blocks/MAdvanceTable.vue';
-import MChart, { mChartEditorTool } from '@/blocks/MChart.vue';
-import MDateRangeField, { mDateRangeFieldEditorTool } from '@/blocks/MDateRangeField.vue';
-import MDatasourceEditor, { mDatasourceEditorTool } from '@/blocks/MDatasourceEditor.vue';
-import MDividerLine, { mDividerLineEditorTool } from '@/blocks/MDividerLine.vue';
-import { mFormEditorTool } from '@/blocks/mFormEditorTool';
-import MFormItem, { mFormItemEditorTool } from '@/blocks/MFormItem.vue';
-import MButton, { mButtonEditorTool } from '@/blocks/MButton.vue';
-import MCheckboxGroupField, { mCheckboxGroupFieldEditorTool } from '@/blocks/MCheckboxGroupField.vue';
-import MEmailField, { mEmailFieldEditorTool } from '@/blocks/MEmailField.vue';
-import MEmbed, { mEmbedEditorTool } from '@/blocks/MEmbed.vue';
-import MFileUploadField, { mFileUploadFieldEditorTool } from '@/blocks/MFileUploadField.vue';
-import MFieldsEditor, { mFieldsEditorTool } from '@/blocks/MFieldsEditor.vue';
-import MHeading, { mHeadingEditorTool } from '@/blocks/MHeading.vue';
-import MImage, { mImageEditorTool } from '@/blocks/MImage.vue';
-import MImageChoiceField, { mImageChoiceFieldEditorTool } from '@/blocks/MImageChoiceField.vue';
-import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
-import MJsonEditor, { mJsonEditorTool } from '@/blocks/MJsonEditor.vue';
-import MLayoutGrid, { mLayoutGridEditorTool } from '@/blocks/MLayoutGrid.vue';
-import MLayoutPreview, { mLayoutPreviewTool } from '@/blocks/MLayoutPreview.vue';
-import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
-import MLinearScaleField, { mLinearScaleFieldEditorTool } from '@/blocks/MLinearScaleField.vue';
-import MLinkField, { mLinkFieldEditorTool } from '@/blocks/MLinkField.vue';
-import MMatrixField, { mMatrixFieldEditorTool } from '@/blocks/MMatrixField.vue';
-import MPhoneField, { mPhoneFieldEditorTool } from '@/blocks/MPhoneField.vue';
-import MRadioGroupField, { mRadioGroupFieldEditorTool } from '@/blocks/MRadioGroupField.vue';
-import MRecordList, { mRecordListEditorTool } from '@/blocks/MRecordList.vue';
-import MRatingField, { mRatingFieldEditorTool } from '@/blocks/MRatingField.vue';
-import MResultPage, { mResultPageEditorTool } from '@/blocks/MResultPage.vue';
-import MRichText, { mRichTextEditorTool } from '@/blocks/MRichText.vue';
-import MSelectField, { mSelectFieldEditorTool } from '@/blocks/MSelectField.vue';
-import MTag, { mTagEditorTool } from '@/blocks/MTag.vue';
-import MTextField, { mTextFieldEditorTool } from '@/blocks/MTextField.vue';
-import MTextareaField, { mTextareaFieldEditorTool } from '@/blocks/MTextareaField.vue';
-import MThankYouPage, { mThankYouPageEditorTool } from '@/blocks/MThankYouPage.vue';
-import MTabs, { mTabsEditorTool } from '@/blocks/MTabs.vue';
-import MUploadImport, { mUploadImportEditorTool } from '@/blocks/MUploadImport.vue';
-import { mEditorSelectorEditorTool } from '@/blocks/mEditorSelectorEditorTool';
-import { mPageEditorTool } from '@/blocks/mPageEditorTool';
-import type { EditorToolDefinition } from '@/editors/editorToolDefinition';
+import { markRaw, type Component } from 'vue';
+import {
+  resolveEditorToolDefinition
+} from '@/editors/clientBlockToolMetadata';
+import type {
+  EditorToolDefinition,
+  ResolvedEditorToolDefinition
+} from '@/editors/editorToolDefinition';
+import type { NormalizedClientBlockDoc } from '@/utils/clientBlockDocs';
 
-export type { EditorComponentToolbox, EditorToolComponentProps, EditorToolDefinition } from '@/editors/editorToolDefinition';
+type LoadedDefinition = EditorToolDefinition;
+type EditorToolLoader = () => Promise<LoadedDefinition>;
 
-type NamedComponent = {
-  name?: string;
-  __name?: string;
-};
-
-// 统一获取 Vue 组件名称，作为 EditorJS 工具名。
-function getEditorComponentName(component: NamedComponent) {
-  const componentName = component.name || component.__name;
-  if (!componentName) {
-    throw new Error('Editor component is missing both name and __name.');
-  }
-  return componentName;
-}
-
-// 编辑器组件注册表：
-// key = 工具名（即 block.type），value = 工具定义（组件 + 工具元信息）。
-const editorComponentRegistry: Record<string, EditorToolDefinition> = {
-  MPage: {
-    component: markRaw(defineAsyncComponent(() => import('@/blocks/MPage.vue'))),
-    ...mPageEditorTool
+const editorComponentLoaders: Record<string, EditorToolLoader> = {
+  MActionEditor: async () => {
+    const module = await import('@/blocks/MActionEditor.vue');
+    return { component: markRaw(module.default), ...module.mActionEditorTool };
   },
-  MEditorSelector: {
-    component: markRaw(defineAsyncComponent(() => import('@/blocks/MEditorSelector.vue'))),
-    ...mEditorSelectorEditorTool
+  MActionCardList: async () => {
+    const module = await import('@/blocks/MActionCardList.vue');
+    return { component: markRaw(module.default), ...module.mActionCardListEditorTool };
   },
-  MForm: {
-    component: markRaw(defineAsyncComponent(() => import('@/blocks/MForm.vue'))),
-    ...mFormEditorTool
+  MActionToolbar: async () => {
+    const module = await import('@/blocks/MActionToolbar.vue');
+    return { component: markRaw(module.default), ...module.mActionToolbarEditorTool };
   },
-  [getEditorComponentName(MActionEditor)]: {
-    component: markRaw(MActionEditor),
-    ...mActionEditorTool
+  MAdvanceInput: async () => {
+    const module = await import('@/blocks/MAdvanceInput.vue');
+    return { component: markRaw(module.default), ...module.mAdvanceInputEditorTool };
   },
-  [getEditorComponentName(MActionCardList)]: {
-    component: markRaw(MActionCardList),
-    ...mActionCardListEditorTool
+  MAdvanceTable: async () => {
+    const module = await import('@/blocks/MAdvanceTable.vue');
+    return { component: markRaw(module.default), ...module.mAdvanceTableEditorTool };
   },
-  [getEditorComponentName(MActionToolbar)]: {
-    component: markRaw(MActionToolbar),
-    ...mActionToolbarEditorTool
+  MChart: async () => {
+    const module = await import('@/blocks/MChart.vue');
+    return { component: markRaw(module.default), ...module.mChartEditorTool };
   },
-  [getEditorComponentName(MInput)]: {
-    component: markRaw(MInput),
-    ...mInputEditorTool
+  MDateRangeField: async () => {
+    const module = await import('@/blocks/MDateRangeField.vue');
+    return { component: markRaw(module.default), ...module.mDateRangeFieldEditorTool };
   },
-  [getEditorComponentName(MJsonEditor)]: {
-    component: markRaw(MJsonEditor),
-    ...mJsonEditorTool
+  MDatasourceEditor: async () => {
+    const module = await import('@/blocks/MDatasourceEditor.vue');
+    return { component: markRaw(module.default), ...module.mDatasourceEditorTool };
   },
-  [getEditorComponentName(MLayoutPreview)]: {
-    component: markRaw(MLayoutPreview),
-    ...mLayoutPreviewTool
+  MDividerLine: async () => {
+    const module = await import('@/blocks/MDividerLine.vue');
+    return { component: markRaw(module.default), ...module.mDividerLineEditorTool };
   },
-  [getEditorComponentName(MLayoutGrid)]: {
-    component: markRaw(MLayoutGrid),
-    ...mLayoutGridEditorTool
+  MForm: async () => {
+    const [{ default: component }, { mFormEditorTool }] = await Promise.all([
+      import('@/blocks/MForm.vue'),
+      import('@/blocks/mFormEditorTool')
+    ]);
+    return { component: markRaw(component), ...mFormEditorTool };
   },
-  [getEditorComponentName(MLink)]: {
-    component: markRaw(MLink),
-    ...mLinkEditorTool
+  MFormItem: async () => {
+    const [{ default: component }, { mFormItemEditorTool }] = await Promise.all([
+      import('@/blocks/MFormItem.vue'),
+      import('@/blocks/mFormItemEditorTool')
+    ]);
+    return { component: markRaw(component), ...mFormItemEditorTool };
   },
-  [getEditorComponentName(MAdvanceInput)]: {
-    component: markRaw(MAdvanceInput),
-    ...mAdvanceInputEditorTool
+  MButton: async () => {
+    const module = await import('@/blocks/MButton.vue');
+    return { component: markRaw(module.default), ...module.mButtonEditorTool };
   },
-  [getEditorComponentName(MAdvanceTable)]: {
-    component: markRaw(MAdvanceTable),
-    ...mAdvanceTableEditorTool
+  MCheckboxGroupField: async () => {
+    const module = await import('@/blocks/MCheckboxGroupField.vue');
+    return { component: markRaw(module.default), ...module.mCheckboxGroupFieldEditorTool };
   },
-  [getEditorComponentName(MChart)]: {
-    component: markRaw(MChart),
-    ...mChartEditorTool
+  MEmailField: async () => {
+    const module = await import('@/blocks/MEmailField.vue');
+    return { component: markRaw(module.default), ...module.mEmailFieldEditorTool };
   },
-  [getEditorComponentName(MDateRangeField)]: {
-    component: markRaw(MDateRangeField),
-    ...mDateRangeFieldEditorTool
+  MEmbed: async () => {
+    const module = await import('@/blocks/MEmbed.vue');
+    return { component: markRaw(module.default), ...module.mEmbedEditorTool };
   },
-  [getEditorComponentName(MDatasourceEditor)]: {
-    component: markRaw(MDatasourceEditor),
-    ...mDatasourceEditorTool
+  MFileUploadField: async () => {
+    const module = await import('@/blocks/MFileUploadField.vue');
+    return { component: markRaw(module.default), ...module.mFileUploadFieldEditorTool };
   },
-  [getEditorComponentName(MFieldsEditor)]: {
-    component: markRaw(MFieldsEditor),
-    ...mFieldsEditorTool
+  MFieldsEditor: async () => {
+    const module = await import('@/blocks/MFieldsEditor.vue');
+    return { component: markRaw(module.default), ...module.mFieldsEditorTool };
   },
-  [getEditorComponentName(MDividerLine)]: {
-    component: markRaw(MDividerLine),
-    ...mDividerLineEditorTool
+  MHeading: async () => {
+    const module = await import('@/blocks/MHeading.vue');
+    return { component: markRaw(module.default), ...module.mHeadingEditorTool };
   },
-  [getEditorComponentName(MFormItem)]: {
-    component: markRaw(MFormItem),
-    ...mFormItemEditorTool
+  MImage: async () => {
+    const module = await import('@/blocks/MImage.vue');
+    return { component: markRaw(module.default), ...module.mImageEditorTool };
   },
-  [getEditorComponentName(MTag)]: {
-    component: markRaw(MTag),
-    ...mTagEditorTool
+  MImageChoiceField: async () => {
+    const module = await import('@/blocks/MImageChoiceField.vue');
+    return { component: markRaw(module.default), ...module.mImageChoiceFieldEditorTool };
   },
-  [getEditorComponentName(MTabs)]: {
-    component: markRaw(MTabs),
-    ...mTabsEditorTool
+  MInput: async () => {
+    const module = await import('@/blocks/MInput.vue');
+    return { component: markRaw(module.default), ...module.mInputEditorTool };
   },
-  [getEditorComponentName(MHeading)]: {
-    component: markRaw(MHeading),
-    ...mHeadingEditorTool
+  MJson: async () => {
+    const module = await import('@/blocks/MJson.vue');
+    return { component: markRaw(module.default), ...module.mJsonTool };
   },
-  [getEditorComponentName(MRichText)]: {
-    component: markRaw(MRichText),
-    ...mRichTextEditorTool
+  MJsonEditor: async () => {
+    const module = await import('@/blocks/MJsonEditor.vue');
+    return { component: markRaw(module.default), ...module.mJsonEditorTool };
   },
-  [getEditorComponentName(MImage)]: {
-    component: markRaw(MImage),
-    ...mImageEditorTool
+  MLayoutGrid: async () => {
+    const module = await import('@/blocks/MLayoutGrid.vue');
+    return { component: markRaw(module.default), ...module.mLayoutGridEditorTool };
   },
-  [getEditorComponentName(MEmbed)]: {
-    component: markRaw(MEmbed),
-    ...mEmbedEditorTool
+  MLayoutPreview: async () => {
+    const module = await import('@/blocks/MLayoutPreview.vue');
+    return { component: markRaw(module.default), ...module.mLayoutPreviewTool };
   },
-  [getEditorComponentName(MTextField)]: {
-    component: markRaw(MTextField),
-    ...mTextFieldEditorTool
+  MLink: async () => {
+    const module = await import('@/blocks/MLink.vue');
+    return { component: markRaw(module.default), ...module.mLinkEditorTool };
   },
-  [getEditorComponentName(MEmailField)]: {
-    component: markRaw(MEmailField),
-    ...mEmailFieldEditorTool
+  MLinearScaleField: async () => {
+    const module = await import('@/blocks/MLinearScaleField.vue');
+    return { component: markRaw(module.default), ...module.mLinearScaleFieldEditorTool };
   },
-  [getEditorComponentName(MPhoneField)]: {
-    component: markRaw(MPhoneField),
-    ...mPhoneFieldEditorTool
+  MLinkField: async () => {
+    const module = await import('@/blocks/MLinkField.vue');
+    return { component: markRaw(module.default), ...module.mLinkFieldEditorTool };
   },
-  [getEditorComponentName(MLinkField)]: {
-    component: markRaw(MLinkField),
-    ...mLinkFieldEditorTool
+  MMatrixField: async () => {
+    const module = await import('@/blocks/MMatrixField.vue');
+    return { component: markRaw(module.default), ...module.mMatrixFieldEditorTool };
   },
-  [getEditorComponentName(MTextareaField)]: {
-    component: markRaw(MTextareaField),
-    ...mTextareaFieldEditorTool
+  MPage: async () => {
+    const [{ default: component }, { mPageEditorTool }] = await Promise.all([
+      import('@/blocks/MPage.vue'),
+      import('@/blocks/mPageEditorTool')
+    ]);
+    return { component: markRaw(component), ...mPageEditorTool };
   },
-  [getEditorComponentName(MFileUploadField)]: {
-    component: markRaw(MFileUploadField),
-    ...mFileUploadFieldEditorTool
+  MEditorSelector: async () => {
+    const [{ default: component }, { mEditorSelectorEditorTool }] = await Promise.all([
+      import('@/blocks/MEditorSelector.vue'),
+      import('@/blocks/mEditorSelectorEditorTool')
+    ]);
+    return { component: markRaw(component), ...mEditorSelectorEditorTool };
   },
-  [getEditorComponentName(MUploadImport)]: {
-    component: markRaw(MUploadImport),
-    ...mUploadImportEditorTool
+  MPhoneField: async () => {
+    const module = await import('@/blocks/MPhoneField.vue');
+    return { component: markRaw(module.default), ...module.mPhoneFieldEditorTool };
   },
-  [getEditorComponentName(MSelectField)]: {
-    component: markRaw(MSelectField),
-    ...mSelectFieldEditorTool
+  MRadioGroupField: async () => {
+    const module = await import('@/blocks/MRadioGroupField.vue');
+    return { component: markRaw(module.default), ...module.mRadioGroupFieldEditorTool };
   },
-  [getEditorComponentName(MRadioGroupField)]: {
-    component: markRaw(MRadioGroupField),
-    ...mRadioGroupFieldEditorTool
+  MRecordList: async () => {
+    const module = await import('@/blocks/MRecordList.vue');
+    return { component: markRaw(module.default), ...module.mRecordListEditorTool };
   },
-  [getEditorComponentName(MRecordList)]: {
-    component: markRaw(MRecordList),
-    ...mRecordListEditorTool
+  MRatingField: async () => {
+    const module = await import('@/blocks/MRatingField.vue');
+    return { component: markRaw(module.default), ...module.mRatingFieldEditorTool };
   },
-  [getEditorComponentName(MCheckboxGroupField)]: {
-    component: markRaw(MCheckboxGroupField),
-    ...mCheckboxGroupFieldEditorTool
+  MResultPage: async () => {
+    const module = await import('@/blocks/MResultPage.vue');
+    return { component: markRaw(module.default), ...module.mResultPageEditorTool };
   },
-  [getEditorComponentName(MImageChoiceField)]: {
-    component: markRaw(MImageChoiceField),
-    ...mImageChoiceFieldEditorTool
+  MRichText: async () => {
+    const module = await import('@/blocks/MRichText.vue');
+    return { component: markRaw(module.default), ...module.mRichTextEditorTool };
   },
-  [getEditorComponentName(MRatingField)]: {
-    component: markRaw(MRatingField),
-    ...mRatingFieldEditorTool
+  MSelectField: async () => {
+    const module = await import('@/blocks/MSelectField.vue');
+    return { component: markRaw(module.default), ...module.mSelectFieldEditorTool };
   },
-  [getEditorComponentName(MLinearScaleField)]: {
-    component: markRaw(MLinearScaleField),
-    ...mLinearScaleFieldEditorTool
+  MTag: async () => {
+    const module = await import('@/blocks/MTag.vue');
+    return { component: markRaw(module.default), ...module.mTagEditorTool };
   },
-  [getEditorComponentName(MMatrixField)]: {
-    component: markRaw(MMatrixField),
-    ...mMatrixFieldEditorTool
+  MTextField: async () => {
+    const module = await import('@/blocks/MTextField.vue');
+    return { component: markRaw(module.default), ...module.mTextFieldEditorTool };
   },
-  [getEditorComponentName(MThankYouPage)]: {
-    component: markRaw(MThankYouPage),
-    ...mThankYouPageEditorTool
+  MTextareaField: async () => {
+    const module = await import('@/blocks/MTextareaField.vue');
+    return { component: markRaw(module.default), ...module.mTextareaFieldEditorTool };
   },
-  [getEditorComponentName(MResultPage)]: {
-    component: markRaw(MResultPage),
-    ...mResultPageEditorTool
+  MThankYouPage: async () => {
+    const module = await import('@/blocks/MThankYouPage.vue');
+    return { component: markRaw(module.default), ...module.mThankYouPageEditorTool };
   },
-  [getEditorComponentName(MButton)]: {
-    component: markRaw(MButton),
-    ...mButtonEditorTool
+  MTabs: async () => {
+    const module = await import('@/blocks/MTabs.vue');
+    return { component: markRaw(module.default), ...module.mTabsEditorTool };
+  },
+  MUploadImport: async () => {
+    const module = await import('@/blocks/MUploadImport.vue');
+    return { component: markRaw(module.default), ...module.mUploadImportEditorTool };
   }
 };
 
-// 根据工具名读取工具定义。
-export function getEditorComponentDefinition(toolName: string) {
-  return editorComponentRegistry[toolName];
+const loadedDefinitions = new Map<string, LoadedDefinition>();
+const loadingDefinitions = new Map<string, Promise<LoadedDefinition | undefined>>();
+
+export type {
+  EditorComponentToolbox,
+  EditorToolComponentProps,
+  EditorToolDefinition,
+  ResolvedEditorToolDefinition
+} from '@/editors/editorToolDefinition';
+
+export function getEditorComponentDefinition(toolName: string, doc?: NormalizedClientBlockDoc) {
+  const definition = loadedDefinitions.get(toolName);
+  return definition ? resolveEditorToolDefinition(toolName, definition, doc) : undefined;
 }
 
-// 判断某个 block.type 是否为已注册的自定义组件。
+export async function loadEditorComponentDefinition(toolName: string, doc?: NormalizedClientBlockDoc) {
+  const loaded = loadedDefinitions.get(toolName);
+  if (loaded) return resolveEditorToolDefinition(toolName, loaded, doc);
+
+  const loader = editorComponentLoaders[toolName];
+  if (!loader) return undefined;
+
+  let pending = loadingDefinitions.get(toolName);
+  if (!pending) {
+    pending = loader()
+      .then((definition) => {
+        loadedDefinitions.set(toolName, definition);
+        return definition;
+      })
+      .finally(() => {
+        loadingDefinitions.delete(toolName);
+      });
+    loadingDefinitions.set(toolName, pending);
+  }
+
+  const definition = await pending;
+  return definition ? resolveEditorToolDefinition(toolName, definition, doc) : undefined;
+}
+
+export async function loadEditorComponentDefinitions(
+  toolNames: Iterable<string>,
+  documents?: ReadonlyMap<string, NormalizedClientBlockDoc>
+) {
+  const entries = await Promise.all(
+    [...new Set(toolNames)].map(async (toolName) => {
+      const definition = await loadEditorComponentDefinition(toolName, documents?.get(toolName));
+      return definition ? [toolName, definition] as const : undefined;
+    })
+  );
+
+  return Object.fromEntries(entries.filter((entry): entry is readonly [string, ResolvedEditorToolDefinition] => Boolean(entry)));
+}
+
 export function isRegisteredEditorComponent(toolName: string) {
-  return toolName in editorComponentRegistry;
+  return Object.prototype.hasOwnProperty.call(editorComponentLoaders, toolName);
 }
 
-// 暴露完整注册表，用于工厂层批量生成工具配置。
-export function getEditorComponentRegistry() {
-  return editorComponentRegistry;
+export function getRegisteredEditorComponentNames() {
+  return Object.keys(editorComponentLoaders);
+}
+
+export const getRegisteredEditorToolNames = getRegisteredEditorComponentNames;
+
+export function getEditorComponentRegistry(documents?: ReadonlyMap<string, NormalizedClientBlockDoc>) {
+  return Object.fromEntries(
+    [...loadedDefinitions.keys()].flatMap((toolName) => {
+      const definition = getEditorComponentDefinition(toolName, documents?.get(toolName));
+      return definition ? [[toolName, definition] as const] : [];
+    })
+  ) as Record<string, ResolvedEditorToolDefinition>;
+}
+
+export function getEditorComponentBehaviorRegistry() {
+  return Object.fromEntries(loadedDefinitions.entries());
 }

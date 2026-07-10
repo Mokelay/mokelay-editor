@@ -1,6 +1,5 @@
 import { createApp, type App } from 'vue';
 import { i18n } from '@/i18n';
-import MActionEditor from '@/blocks/MActionEditor.vue';
 import {
   cloneBlockEvents,
   createEmptyBlockEvent,
@@ -173,7 +172,10 @@ export class BlockEventsDialogController {
     });
   }
 
-  private mountActionEditors() {
+  private async mountActionEditors() {
+    if (!this.dialog) return;
+
+    const { default: MActionEditor } = await import('@/blocks/MActionEditor.vue');
     if (!this.dialog) return;
 
     this.dialog.querySelectorAll<HTMLElement>('[data-event-actions-index]').forEach((container) => {

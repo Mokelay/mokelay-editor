@@ -79,6 +79,14 @@ function readRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function mokelayFailureMessage(value: unknown) {
+  const response = readRecord(value);
+  if (response.ok !== false) return '';
+
+  const error = readRecord(response.error);
+  return stringInput(error.message) || '接口请求失败。';
+}
+
 function optionalRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -240,6 +248,10 @@ export const executeDatasourceAction: ActionExecutor = async ({ inputs, state })
       blocks: state.blocks
     }
   });
+  const failureMessage = mokelayFailureMessage(runtimeData.rawResponse);
+  if (failureMessage) {
+    throw new Error(failureMessage);
+  }
   const responses = Object.fromEntries(
     runtimeData.schemaSelectionData.map((field) => [field.path, field.value])
   );

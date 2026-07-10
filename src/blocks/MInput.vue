@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
-import { i18n } from '@/i18n';
+
 import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 // 输入框组件在编辑器中的属性定义。
@@ -47,36 +47,178 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
 }
 
 // 输入框工具定义：提供工具箱信息、属性面板、默认值和保存规则。
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MInput",
+ *   "displayName": "输入框",
+ *   "category": "form",
+ *   "description": "输入框，支持标签、占位符、输入类型、禁用状态和受控值。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MInput",
+ *     "toolSymbol": "mInputEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 70
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "输入框",
+ *       "en": "Input"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"2\" ry=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 12h8\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "placeholder": {
+ *       "zh": "请输入.....",
+ *       "en": "Please enter..."
+ *     },
+ *     "value": ""
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "placeholder",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "line": 63,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "占位提示",
+ *         "en": "Placeholder"
+ *       },
+ *       "type": "text",
+ *       "placeholder": {
+ *         "zh": "请输入.....",
+ *         "en": "Please enter..."
+ *       }
+ *     },
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "line": 68,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "默认值",
+ *         "en": "Default value"
+ *       },
+ *       "type": "text",
+ *       "placeholder": {
+ *         "zh": "请输入默认值",
+ *         "en": "Please enter a default value"
+ *       }
+ *     },
+ *     {
+ *       "key": "id",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "line": 10,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "required",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "line": 13,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "maxLength",
+ *       "optional": true,
+ *       "tsType": "number",
+ *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "line": 14,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "disabled",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "line": 15,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [
+ *     {
+ *       "name": "focus",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "line": 135
+ *     },
+ *     {
+ *       "name": "getData",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "line": 136
+ *     }
+ *   ],
+ *   "dataFields": [
+ *     {
+ *       "label": "值",
+ *       "variable": "value",
+ *       "dataType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MInput.vue"
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MInput-example",
+ *       "type": "MInput",
+ *       "data": {
+ *         "placeholder": {
+ *           "zh": "请输入.....",
+ *           "en": "Please enter..."
+ *         },
+ *         "value": ""
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MInput.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mInputEditorTool = defineEditorTool<MInputProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('input.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-  },
-  propertyPanel: {
-    get title() {
-      return i18n.t('input.propertyPanelTitle');
-    },
-    get fields() {
-      return [
-        {
-          key: 'placeholder',
-          label: i18n.t('input.properties.placeholder'),
-          placeholder: i18n.t('input.defaultPlaceholder')
-        },
-        {
-          key: 'value',
-          label: i18n.t('input.properties.value'),
-          placeholder: i18n.t('input.properties.valuePlaceholder')
-        }
-      ];
-    }
-  },
-  createInitialProps: () => ({
-    placeholder: i18n.t('input.defaultPlaceholder'),
-    value: ''
-  }),
   getDataFields: () => valueBlockDataField('string'),
   normalizeProps: normalizeInputProps,
   serialize: (props) => {

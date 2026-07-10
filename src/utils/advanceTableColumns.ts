@@ -13,6 +13,7 @@ export interface MAdvanceTableColumnConfig {
   columnContent?: StoredBlock[];
   width?: number | null;
   fixed?: MAdvanceTableFixed;
+  wrap?: boolean;
   fieldVariable?: string;
   fieldDataType?: string;
 }
@@ -135,6 +136,7 @@ export function normalizeAdvanceTableColumns(columns?: MAdvanceTableColumnConfig
         columnContent,
         width: normalizeAdvanceTableWidth(column.width),
         fixed: normalizeAdvanceTableFixed(column.fixed),
+        ...(column.wrap === true ? { wrap: true } : {}),
         ...(fieldVariable ? { fieldVariable } : {}),
         ...(fieldDataType ? { fieldDataType } : {})
       };

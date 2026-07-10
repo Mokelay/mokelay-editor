@@ -1,6 +1,5 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
-import { i18n } from '@/i18n';
 import { bodyDataTypes } from '@/utils/datasource';
 import { isRecord } from '@/utils/datasourceSchema';
 
@@ -57,16 +56,118 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
   return [...fieldsByVariable.values()];
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MFieldsEditor",
+ *   "displayName": "字段编辑器",
+ *   "category": "form",
+ *   "description": "字段编辑器，用于维护字段名、类型、标签和表单字段配置。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MFieldsEditor",
+ *     "toolSymbol": "mFieldsEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 160
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "字段编辑器",
+ *       "en": "Fields Editor"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"14\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 9h8M8 13h8M8 17h5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "value": []
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "MFieldsEditorField[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "line": 15,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [],
+ *   "dataFields": [
+ *     {
+ *       "label": {
+ *         "raw": "field.label"
+ *       },
+ *       "variable": "field.variable",
+ *       "dataType": "normalizeFieldsEditorDataType(field.dataType)",
+ *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "line": 202
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "candidate.label.trim()"
+ *       },
+ *       "variable": "candidate.variable.trim()",
+ *       "dataType": "normalizeFieldsEditorDataType(candidate.dataType)",
+ *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "line": 225
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "item.key.trim()"
+ *       },
+ *       "variable": "item.key.trim()",
+ *       "dataType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "line": 323
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "field.label"
+ *       },
+ *       "variable": "field.path",
+ *       "dataType": "normalizeFieldsEditorDataType(field.type)",
+ *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "line": 447
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MFieldsEditor-example",
+ *       "type": "MFieldsEditor",
+ *       "data": {
+ *         "value": []
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mFieldsEditorTool = defineEditorTool<MFieldsEditorProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('fieldsEditor.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-  },
-  createInitialProps: () => ({
-    value: []
-  }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
     value: normalizeFieldsEditorValue(props.value)

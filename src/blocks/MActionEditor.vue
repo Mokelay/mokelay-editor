@@ -18,14 +18,102 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
   };
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MActionEditor",
+ *   "displayName": "Action配置",
+ *   "category": "action",
+ *   "description": "动作配置编辑器，用于编辑并序列化 Action 配置数组，同时发出变更事件。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MActionEditor",
+ *     "toolSymbol": "mActionEditorTool",
+ *     "editorEnabled": false,
+ *     "toolboxVisible": false,
+ *     "sortOrder": 40
+ *   },
+ *   "toolbox": {
+ *     "title": "Action配置",
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M5 5h5v5H5V5Zm9 0h5v5h-5V5ZM5 14h5v5H5v-5Zm9.5.5 4 4m0-4-4 4M10 7.5h4M7.5 10v4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "value": []
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "EditorActionConfig[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "line": 10,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "modelValue",
+ *       "optional": true,
+ *       "tsType": "EditorActionConfig[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "line": 11,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     }
+ *   ],
+ *   "events": [
+ *     {
+ *       "event": "update:modelValue",
+ *       "payload": "value: ActionConfig[]",
+ *       "trigger": "Vue component emit",
+ *       "source": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "line": 144
+ *     },
+ *     {
+ *       "event": "change",
+ *       "payload": "value: ActionConfig[]",
+ *       "trigger": "Vue component emit",
+ *       "source": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "line": 144
+ *     }
+ *   ],
+ *   "methods": [],
+ *   "dataFields": [],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MActionEditor-example",
+ *       "type": "MActionEditor",
+ *       "data": {
+ *         "value": []
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mActionEditorTool = defineEditorTool<MActionEditorProps>({
-  toolbox: {
-    title: 'Action配置',
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 5h5v5H5V5Zm9 0h5v5h-5V5ZM5 14h5v5H5v-5Zm9.5.5 4 4m0-4-4 4M10 7.5h4M7.5 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-  },
-  createInitialProps: () => ({
-    value: []
-  }),
   normalizeProps: normalizeMActionEditorProps,
   serialize: (props) => ({
     value: cloneEditorActions(props.value ?? props.modelValue)

@@ -1,5 +1,4 @@
-import { i18n } from '@/i18n';
-import type { EditorToolComponentProps, EditorToolPropertyField } from '@/editors/editorToolDefinition';
+import type { EditorToolComponentProps } from '@/editors/editorToolDefinition';
 
 export type PageDslAlign = 'left' | 'center' | 'right';
 export type PageDslButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'warning' | 'text';
@@ -21,48 +20,10 @@ export type PageDslCallbacks<TProps extends EditorToolComponentProps> = {
   onToolChange?: (payload: TProps) => void;
 };
 
-export const textIcon = '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 6h14M5 12h10M5 18h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-export const fieldIcon = '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-export const choiceIcon = '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="7" r="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="17" r="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7h7M12 17h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-export const flowIcon = '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5 6h14v5H5zM5 16h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
-export const imageIcon = '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="m7 16 4-4 3 3 2-2 3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-export const embedIcon = '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M10 7H7a5 5 0 0 0 0 10h3M14 7h3a5 5 0 0 1 0 10h-3M8 12h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-export const buttonIcon = '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="7" width="16" height="10" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 12h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-
-export const alignOptions = [
-  { label: '左对齐', value: 'left' },
-  { label: '居中', value: 'center' },
-  { label: '右对齐', value: 'right' }
-];
-
-export const placeholderField: EditorToolPropertyField = { key: 'placeholder', label: '占位提示' };
-export const valueField: EditorToolPropertyField = { key: 'value', label: '值' };
-export const jsonValueField: EditorToolPropertyField = {
-  key: 'value',
-  label: '值 JSON',
-  type: 'textarea',
-  valueType: 'json',
-  validationMessage: '请输入有效值 JSON。'
-};
-
-export const inputFields: EditorToolPropertyField[] = [placeholderField, valueField];
-
-export const optionField: EditorToolPropertyField = {
-  key: 'options',
-  label: '选项 JSON',
-  type: 'textarea',
-  valueType: 'json',
-  validationMessage: '请输入有效选项 JSON。'
-};
-
 let nextPageDslFieldId = 0;
 
 export function createPageDslFieldId() {
   return `page-dsl-field-${++nextPageDslFieldId}`;
-}
-
-export function pageDslPropertyTitle(title: string) {
-  return `${title}${i18n.t('editor.propertyDialogTitle')}`;
 }
 
 export function stringValue(value: unknown, fallback = '') {
@@ -70,7 +31,14 @@ export function stringValue(value: unknown, fallback = '') {
 }
 
 export function booleanValue(value: unknown, fallback = false) {
-  return typeof value === 'boolean' ? value : fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes'].includes(normalized)) return true;
+    if (['0', 'false', 'no'].includes(normalized)) return false;
+  }
+  return fallback;
 }
 
 export function numberValue(value: unknown, fallback: number) {

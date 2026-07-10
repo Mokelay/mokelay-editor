@@ -4,11 +4,12 @@ export type { MEditorSelectorProps, StoredBlock } from '@/blocks/mEditorSelector
 </script>
 
 <script setup lang="ts">
-import EditorJS, { type OutputData, type ToolSettings } from '@editorjs/editorjs';
+import type EditorJS from '@editorjs/editorjs';
+import type { OutputData, ToolSettings } from '@editorjs/editorjs';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
-import { getEditorComponentDefinition } from '@/editors/editorComponentRegistry';
+import { isRegisteredEditorComponent } from '@/editors/editorComponentRuntimeRegistry';
 import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
 import {
   finalizeEditorOutputWithEvents,
@@ -20,6 +21,11 @@ import {
   type MEditorSelectorProps,
   type StoredBlock
 } from '@/blocks/mEditorSelectorEditorTool';
+import {
+  getToolboxVisibleClientBlockDocs,
+  loadClientBlockDocs,
+  type NormalizedClientBlockDoc
+} from '@/utils/clientBlockDocs';
 
 const SELECTOR_TOOL_NAME = 'MEditorSelector';
 const INTERNAL_BLOCK_TYPES = new Set(['paragraph', 'table', 'columns']);
@@ -44,6 +50,7 @@ let editorMutationObserver: MutationObserver | null = null;
 let scheduledEditorSync: number | null = null;
 let scheduledToolbarSync: number | null = null;
 let editorDataCache: OutputData = buildOutput(selectedBlock.value);
+let clientBlockDocsCache: NormalizedClientBlockDoc[] = getToolboxVisibleClientBlockDocs();
 
 function buildOutput(block?: StoredBlock): OutputData {
   return {
@@ -64,7 +71,11 @@ function getExcludedToolNames() {
 }
 
 function isAllowedSelectorType(type: string) {
-  return !getExcludedToolNames().has(type) && !INTERNAL_BLOCK_TYPES.has(type) && Boolean(getEditorComponentDefinition(type));
+  const docs = getToolboxVisibleClientBlockDocs(clientBlockDocsCache);
+  return !getExcludedToolNames().has(type)
+    && !INTERNAL_BLOCK_TYPES.has(type)
+    && docs.some((doc) => doc.blockType === type)
+    && isRegisteredEditorComponent(type);
 }
 
 function toStoredBlock(block: OutputData['blocks'][number]): StoredBlock | undefined {
@@ -235,13 +246,15 @@ function scheduleSelectorToolbarSync() {
 async function mountEditor() {
   if (!props.edit || !holderRef.value || editor) return;
 
+  const { default: EditorJSConstructor } = await import('@editorjs/editorjs');
+  clientBlockDocsCache = await loadClientBlockDocs();
   editorDataCache = buildOutput(selectedBlock.value);
   const tools = createEditorTools(
     { edit: true },
-    { exclude: getExcludedToolNames() }
+    { exclude: getExcludedToolNames(), docs: clientBlockDocsCache }
   ) as Record<string, ToolSettings>;
 
-  editor = new EditorJS({
+  editor = new EditorJSConstructor({
     holder: holderRef.value,
     placeholder: t('editorSelector.placeholder'),
     tools,

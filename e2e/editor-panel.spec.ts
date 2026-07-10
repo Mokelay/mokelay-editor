@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 test('renders editor panel with expected controls', async ({ page }) => {
   await expect(page.getByTestId('app-header')).toHaveCount(0);
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
-  await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: '页面列表' })).toHaveClass(/layout-top-nav__link--active/);
+  await expect(page.getByTestId('layout-top-nav').locator('a[href="#/pages"]')).toHaveClass(/layout-top-nav__link--active/);
   await expect(page.getByTestId('layout-top-nav-control-theme')).toBeVisible();
   await expect(page.getByTestId('layout-top-nav-control-language')).toBeVisible();
   await expect(page.getByTestId('editor-panel')).toBeVisible();

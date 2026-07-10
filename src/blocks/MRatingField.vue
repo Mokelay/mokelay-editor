@@ -1,13 +1,6 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
-import {
-  choiceIcon,
-  normalizeValue,
-  numberValue,
-  pageDslPropertyTitle,
-  stringValue,
-  valueField
-} from '@/blocks/pageDslEditorTools';
+import { normalizeValue, numberValue, stringValue } from '@/blocks/pageDslEditorTools';
 import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export interface MRatingFieldProps {
@@ -18,7 +11,6 @@ export interface MRatingFieldProps {
   highLabel?: string;
 }
 
-const ratingFieldTitle = '评分';
 const ratingFieldDefaults = {
   value: '',
   max: 5,
@@ -41,20 +33,126 @@ function normalizeRatingFieldProps(props: Partial<MRatingFieldProps>): MRatingFi
   };
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MRatingField",
+ *   "displayName": "评分",
+ *   "category": "form",
+ *   "description": "评分字段，支持评分值、最大值和表单校验。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MRatingField",
+ *     "toolSymbol": "mRatingFieldEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 370
+ *   },
+ *   "toolbox": {
+ *     "title": "评分",
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"7\" cy=\"7\" r=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><circle cx=\"7\" cy=\"17\" r=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M12 7h7M12 17h7\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "value": "",
+ *     "max": 5,
+ *     "lowLabel": "不满意",
+ *     "highLabel": "非常满意"
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MRatingField.vue",
+ *       "line": 15,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "值",
+ *       "type": "text"
+ *     },
+ *     {
+ *       "key": "max",
+ *       "optional": true,
+ *       "tsType": "number",
+ *       "source": "submodule/mokelay-editor/src/blocks/MRatingField.vue",
+ *       "line": 53,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "最高分",
+ *       "type": "text"
+ *     },
+ *     {
+ *       "key": "lowLabel",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MRatingField.vue",
+ *       "line": 53,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "低分文案",
+ *       "type": "text"
+ *     },
+ *     {
+ *       "key": "highLabel",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MRatingField.vue",
+ *       "line": 53,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "高分文案",
+ *       "type": "text"
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [],
+ *   "dataFields": [
+ *     {
+ *       "label": "值",
+ *       "variable": "value",
+ *       "dataType": "number",
+ *       "source": "submodule/mokelay-editor/src/blocks/MRatingField.vue"
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MRatingField-example",
+ *       "type": "MRatingField",
+ *       "data": {
+ *         "value": "",
+ *         "max": 5,
+ *         "lowLabel": "不满意",
+ *         "highLabel": "非常满意"
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MRatingField.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MRatingField.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mRatingFieldEditorTool = defineEditorTool<MRatingFieldProps>({
-  toolbox: {
-    title: ratingFieldTitle,
-    icon: choiceIcon
-  },
-  propertyPanel: {
-    get title() {
-      return pageDslPropertyTitle(ratingFieldTitle);
-    },
-    fields: [valueField, { key: 'max', label: '最高分' }, { key: 'lowLabel', label: '低分文案' }, { key: 'highLabel', label: '高分文案' }]
-  },
-  createInitialProps: () => ({
-    ...ratingFieldDefaults
-  }),
   getDataFields: () => valueBlockDataField('number'),
   normalizeProps: normalizeRatingFieldProps,
   serialize: (props) => {

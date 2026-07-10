@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
-import { i18n } from '@/i18n';
+
 import {
   cloneJsonSchema,
   cloneJsonValue,
@@ -84,16 +84,134 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
   return normalized.type === 'API' ? normalized : getDefaultApiDatasource();
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MDatasourceEditor",
+ *   "displayName": "数据源编辑器",
+ *   "category": "data",
+ *   "description": "数据源编辑器，用于配置静态数据、变量或接口数据源，并规范化请求参数和分页设置。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MDatasourceEditor",
+ *     "toolSymbol": "mDatasourceEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 150
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "数据源编辑器",
+ *       "en": "Datasource Editor"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><ellipse cx=\"12\" cy=\"6\" rx=\"7\" ry=\"3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 12c1.1.5 2.5.8 4 .8s2.9-.3 4-.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "value": {
+ *       "type": "API",
+ *       "domain": "mokelay",
+ *       "path": "",
+ *       "method": "GET",
+ *       "headerData": [],
+ *       "bodyData": [],
+ *       "queryData": []
+ *     }
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "getAvailablePageVariableSources",
+ *       "optional": true,
+ *       "tsType": "import('@/utils/variableValue').GetAvailablePageVariableSources",
+ *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "line": 68,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "MDatasourceApiObject",
+ *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "line": 69,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "matchingExternalFields",
+ *       "optional": true,
+ *       "tsType": "MDatasourceExternalField[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "line": 70,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "showPageBreak",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "line": 71,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [
+ *     {
+ *       "name": "getData",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "line": 1285
+ *     }
+ *   ],
+ *   "dataFields": [],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MDatasourceEditor-example",
+ *       "type": "MDatasourceEditor",
+ *       "data": {
+ *         "value": {
+ *           "type": "API",
+ *           "domain": "mokelay",
+ *           "path": "",
+ *           "method": "GET",
+ *           "headerData": [],
+ *           "bodyData": [],
+ *           "queryData": []
+ *         }
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('datasource.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><ellipse cx="12" cy="6" rx="7" ry="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12c1.1.5 2.5.8 4 .8s2.9-.3 4-.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-  },
-  createInitialProps: () => ({
-    value: getDefaultApiDatasource()
-  }),
   normalizeProps: (props) => ({
     edit: props.edit ?? false,
     currentBlockId: props.currentBlockId,

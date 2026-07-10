@@ -1,13 +1,6 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
-import {
-  createPageDslFieldId,
-  fieldIcon,
-  jsonValueField,
-  normalizeValue,
-  pageDslPropertyTitle,
-  stringValue
-} from '@/blocks/pageDslEditorTools';
+import { createPageDslFieldId, normalizeValue, stringValue } from '@/blocks/pageDslEditorTools';
 import { valueBlockDataField } from '@/blocks/blockDataFields';
 
 export type MDateRangeFieldValue = {
@@ -21,7 +14,6 @@ export interface MDateRangeFieldProps {
   value?: unknown;
 }
 
-const dateRangeFieldTitle = '日期范围';
 const dateRangeFieldDefaults = {
   value: {
     start: '',
@@ -58,20 +50,114 @@ function normalizeDateRangeFieldProps(props: Partial<MDateRangeFieldProps>): MDa
   };
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MDateRangeField",
+ *   "displayName": "日期范围",
+ *   "category": "form",
+ *   "description": "日期范围表单字段，收集开始和结束日期，并支持必填、禁用和展示格式。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MDateRangeField",
+ *     "toolSymbol": "mDateRangeFieldEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 140
+ *   },
+ *   "toolbox": {
+ *     "title": "日期范围",
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 12h8\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "value": {
+ *       "start": "",
+ *       "end": ""
+ *     }
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MDateRangeField.vue",
+ *       "line": 21,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "值 JSON",
+ *       "validationMessage": "请输入有效值 JSON。",
+ *       "type": "textarea",
+ *       "valueType": "json"
+ *     },
+ *     {
+ *       "key": "id",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MDateRangeField.vue",
+ *       "line": 20,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [
+ *     {
+ *       "name": "getData",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MDateRangeField.vue",
+ *       "line": 225
+ *     }
+ *   ],
+ *   "dataFields": [
+ *     {
+ *       "label": "值",
+ *       "variable": "value",
+ *       "dataType": "object",
+ *       "source": "submodule/mokelay-editor/src/blocks/MDateRangeField.vue"
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MDateRangeField-example",
+ *       "type": "MDateRangeField",
+ *       "data": {
+ *         "value": {
+ *           "start": "",
+ *           "end": ""
+ *         }
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MDateRangeField.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MDateRangeField.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mDateRangeFieldEditorTool = defineEditorTool<MDateRangeFieldProps>({
-  toolbox: {
-    title: dateRangeFieldTitle,
-    icon: fieldIcon
-  },
-  propertyPanel: {
-    get title() {
-      return pageDslPropertyTitle(dateRangeFieldTitle);
-    },
-    fields: [jsonValueField]
-  },
-  createInitialProps: () => ({
-    value: { ...dateRangeFieldDefaults.value }
-  }),
   getDataFields: () => valueBlockDataField('object'),
   normalizeProps: normalizeDateRangeFieldProps,
   serialize: (props) => ({

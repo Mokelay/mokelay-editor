@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, shallowRef, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { type OutputData } from '@editorjs/editorjs';
 import {
-  getEditorComponentDefinition,
+  loadEditorComponentDefinition,
   isRegisteredEditorComponent
-} from '@/editors/editorComponentRegistry';
+} from '@/editors/editorComponentRuntimeRegistry';
+import type { ResolvedEditorToolDefinition } from '@/editors/editorToolDefinition';
 import { normalizeBlockEvents } from '@/utils/blockEvents';
 import {
   PreviewBlockRuntimeKey,
@@ -35,10 +36,13 @@ const tableClass = computed(() =>
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 const pageVariableContext = inject(PageRuntimeVariableContextKey, computed<VariableValueResolveContext>(() => ({})));
 const componentInstance = shallowRef<unknown | null>(null);
+const loadedDefinition = shallowRef<ResolvedEditorToolDefinition | undefined>();
+const componentLoadError = ref('');
 const runtimeBlockData = shallowRef<Record<string, Record<string, unknown>>>({});
 let registeredId = '';
 let registeredInstance: unknown;
 let blockDataLoadId = 0;
+let componentLoadId = 0;
 let unsubscribeBlockDataChanges: Array<() => void> = [];
 
 const tableCellClass = computed(() =>
@@ -65,8 +69,7 @@ function isCustomBlock(type: string) {
 }
 
 function getBlockComponent(type: string) {
-  const definition = getEditorComponentDefinition(type);
-  return definition?.component ?? null;
+  return type === props.block.type ? loadedDefinition.value?.component ?? null : null;
 }
 
 function getBlockId(block: OutputData['blocks'][number]) {
@@ -131,7 +134,7 @@ function getResolvedBlockData(block: OutputData['blocks'][number]) {
 }
 
 function getBlockProps(block: OutputData['blocks'][number]) {
-  const definition = getEditorComponentDefinition(block.type);
+  const definition = block.type === props.block.type ? loadedDefinition.value : undefined;
   const data = getResolvedBlockData(block);
   const currentBlockId = getBlockId(block);
   if (!definition) {
@@ -152,6 +155,25 @@ function getBlockProps(block: OutputData['blocks'][number]) {
     onChange: notifyRuntimeValueChange,
     onToolChange: notifyRuntimeValueChange
   };
+}
+
+async function loadBlockComponent() {
+  const loadId = ++componentLoadId;
+  loadedDefinition.value = undefined;
+  componentLoadError.value = '';
+  if (!isCustomBlock(props.block.type)) return;
+
+  try {
+    const definition = await loadEditorComponentDefinition(props.block.type);
+    if (loadId !== componentLoadId) return;
+    if (!definition) {
+      throw new Error('未注册的 Block: ' + props.block.type);
+    }
+    loadedDefinition.value = definition;
+  } catch (error) {
+    if (loadId !== componentLoadId) return;
+    componentLoadError.value = error instanceof Error ? error.message : String(error);
+  }
 }
 
 function notifyRuntimeValueChange() {
@@ -304,6 +326,18 @@ watch(
 );
 
 watch(
+  () => props.block.type,
+  () => {
+    void loadBlockComponent();
+  }
+);
+
+watch(loadedDefinition, () => {
+  unregisterCurrentBlock();
+  registerCurrentBlock();
+});
+
+watch(
   () => props.block.data,
   () => {
     void loadRuntimeBlockData();
@@ -320,8 +354,13 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  componentLoadId += 1;
   unsubscribeBlockDataChanges.forEach((unsubscribe) => unsubscribe());
   unregisterCurrentBlock();
+});
+
+onMounted(() => {
+  void loadBlockComponent();
 });
 </script>
 
@@ -347,6 +386,15 @@ onBeforeUnmount(() => {
       </tbody>
     </table>
   </div>
+
+  <p v-else-if="isCustomBlock(block.type) && componentLoadError" class="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/60 dark:bg-red-950/30 dark:text-red-200">
+    {{ componentLoadError }}
+    <button type="button" class="ml-2 underline" @click="loadBlockComponent">重试</button>
+  </p>
+
+  <p v-else-if="isCustomBlock(block.type) && !loadedDefinition" data-testid="preview-block-loading" class="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+    页面加载中...
+  </p>
 
   <component
     :is="getBlockComponent(block.type)"

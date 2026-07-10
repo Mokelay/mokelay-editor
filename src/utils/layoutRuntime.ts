@@ -10,6 +10,7 @@ import {
   resolveDatasourceRuntimeData
 } from '@/utils/datasourceRuntime';
 import { normalizeDatasource, type MDatasourceApiObject } from '@/utils/datasource';
+import type { PageRuntimeContext } from '@/utils/pageRuntimeContext';
 
 export type LayoutAuthState = {
   loggedIn: boolean;
@@ -27,6 +28,7 @@ export type LayoutRuntimeContext = {
     [key: string]: unknown;
   };
   auth: LayoutAuthState;
+  pageContext: PageRuntimeContext;
   route: {
     path: string;
     hash: string;

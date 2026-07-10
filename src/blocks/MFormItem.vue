@@ -1,131 +1,34 @@
 <script lang="ts">
-import { defineEditorTool } from '@/editors/editorToolDefinition';
-import { i18n } from '@/i18n';
 import {
-  cloneSelectorBlock,
-  normalizeSelectorBlock,
-  type StoredBlock
-} from '@/blocks/mEditorSelectorEditorTool';
+  cloneEditorBlock,
+  normalizeFormItemProps,
+  normalizeLayout,
+  type MFormItemProps
+} from '@/blocks/mFormItemProps';
 
-export type MFormItemLayout = 'Vertical' | 'Horizontal';
+export {
+  generateFormItemVariableName,
+  getDefaultFormItemLabelName,
+  normalizeFormItemProps,
+  serializeFormItemProps
+} from '@/blocks/mFormItemProps';
+export type {
+  MFormItemLayout,
+  MFormItemProps,
+  NormalizedMFormItemProps
+} from '@/blocks/mFormItemProps';
 
-export interface MFormItemProps {
-  edit: boolean;
-  labelName?: string;
-  variableName?: string;
-  editor?: StoredBlock;
-  layout?: MFormItemLayout;
-}
-
-export type NormalizedMFormItemProps = Omit<MFormItemProps, 'labelName' | 'variableName' | 'layout'> & {
-  labelName: string;
-  variableName: string;
-  layout: MFormItemLayout;
-};
-
-export function generateFormItemVariableName() {
-  const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID().slice(0, 8)
-    : Math.random().toString(36).slice(2, 10);
-
-  return `field_${suffix}`;
-}
-
-export function getDefaultFormItemLabelName() {
-  return i18n.t('formItem.defaultLabelName');
-}
-
-function normalizeLayout(value?: unknown): MFormItemLayout {
-  return value === 'Horizontal' ? 'Horizontal' : 'Vertical';
-}
-
-function normalizeLabelName(value?: unknown) {
-  return typeof value === 'string' && value.trim() ? value : getDefaultFormItemLabelName();
-}
-
-function normalizeVariableName(value?: unknown, fallback?: string) {
-  if (typeof value === 'string' && value.trim()) {
-    return value.trim();
-  }
-
-  return fallback || generateFormItemVariableName();
-}
-
-function cloneEditorBlock(block?: StoredBlock) {
-  return block ? cloneSelectorBlock(block) : undefined;
-}
-
-export function normalizeFormItemProps(props: Partial<MFormItemProps>, fallbackVariableName?: string): NormalizedMFormItemProps {
-  return {
-    edit: props.edit ?? false,
-    labelName: normalizeLabelName(props.labelName),
-    variableName: normalizeVariableName(props.variableName, fallbackVariableName),
-    editor: normalizeSelectorBlock(props.editor),
-    layout: normalizeLayout(props.layout)
-  };
-}
-
-export function serializeFormItemProps(props: Partial<MFormItemProps>) {
-  const normalized = normalizeFormItemProps(props);
-  return {
-    labelName: normalized.labelName,
-    variableName: normalized.variableName,
-    ...(normalized.editor ? { editor: cloneSelectorBlock(normalized.editor) } : {}),
-    layout: normalized.layout
-  };
-}
-
-export const mFormItemEditorTool = defineEditorTool<MFormItemProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('formItem.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 9h8M8 13h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="13" r="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>'
-  },
-  propertyPanel: {
-    get title() {
-      return i18n.t('formItem.propertyPanelTitle');
-    },
-    get fields() {
-      return [
-        {
-          key: 'labelName',
-          label: i18n.t('formItem.properties.labelName'),
-          placeholder: i18n.t('formItem.placeholders.labelName')
-        },
-        {
-          key: 'variableName',
-          label: i18n.t('formItem.properties.variableName'),
-          placeholder: i18n.t('formItem.placeholders.variableName')
-        },
-        {
-          key: 'layout',
-          label: i18n.t('formItem.properties.layout'),
-          type: 'select' as const,
-          options: [
-            { label: i18n.t('formItem.layouts.vertical'), value: 'Vertical' },
-            { label: i18n.t('formItem.layouts.horizontal'), value: 'Horizontal' }
-          ]
-        }
-      ];
-    }
-  },
-  createInitialProps: () => ({
-    labelName: getDefaultFormItemLabelName(),
-    variableName: generateFormItemVariableName(),
-    editor: undefined,
-    layout: 'Vertical'
-  }),
-  normalizeProps: (props) => normalizeFormItemProps(props),
-  serialize: serializeFormItemProps
-});
+export { mFormItemEditorTool } from '@/blocks/mFormItemEditorTool';
 </script>
 
 <script setup lang="ts">
 import { defineAsyncComponent, reactive, watch } from 'vue';
 import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
 import { useI18n } from '@/i18n';
-import type { MEditorSelectorProps } from '@/blocks/mEditorSelectorEditorTool';
+import {
+  normalizeSelectorBlock,
+  type MEditorSelectorProps
+} from '@/blocks/mEditorSelectorEditorTool';
 
 const MEditorSelector = defineAsyncComponent(() => import('@/blocks/MEditorSelector.vue'));
 

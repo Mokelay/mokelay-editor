@@ -1,11 +1,7 @@
 <script lang="ts">
 import type { OutputData } from '@editorjs/editorjs';
 import { defineEditorTool, type EditorToolComponentProps } from '@/editors/editorToolDefinition';
-import {
-  normalizeValue,
-  pageDslPropertyTitle,
-  stringValue
-} from '@/blocks/pageDslEditorTools';
+import { normalizeValue, stringValue } from '@/blocks/pageDslEditorTools';
 import type { BlockDataField } from '@/utils/variableValue';
 
 export type MLayoutGridTrack = string | number;
@@ -34,7 +30,6 @@ export interface MLayoutGridProps extends EditorToolComponentProps {
   areas?: MLayoutGridArea[];
 }
 
-const layoutGridTitle = '布局网格';
 const defaultAreas: MLayoutGridArea[] = [
   {
     id: 'main',
@@ -154,7 +149,9 @@ function normalizeColumns(value: unknown, areas: MLayoutGridArea[]): MLayoutGrid
 function normalizeResponsiveConfig(value: unknown): MLayoutGridResponsiveConfig | undefined {
   if (!isRecord(value)) return undefined;
   const areaOrder = Array.isArray(value.areaOrder)
-    ? value.areaOrder.filter((item): item is string => typeof item === 'string' && item.trim()).map((item) => item.trim())
+    ? value.areaOrder
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => item.trim())
     : undefined;
 
   return {
@@ -226,38 +223,193 @@ function getLayoutGridDataFields(): BlockDataField[] {
   ];
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MLayoutGrid",
+ *   "displayName": "布局网格",
+ *   "category": "content",
+ *   "description": "多区域布局网格，支持列轨道、区域、嵌套 Block 和响应式断点；嵌套工具按当前文档 API 元数据构建。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MLayoutGrid",
+ *     "toolSymbol": "mLayoutGridEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 90
+ *   },
+ *   "toolbox": {
+ *     "title": "布局网格",
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"4\" y=\"5\" width=\"7\" height=\"14\" rx=\"1.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><rect x=\"13\" y=\"5\" width=\"7\" height=\"14\" rx=\"1.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "columns": "minmax(0, 1fr) 320px",
+ *     "gap": 16,
+ *     "responsive": {
+ *       "mobile": {
+ *         "columns": 1
+ *       }
+ *     },
+ *     "areas": [
+ *       {
+ *         "id": "main",
+ *         "name": "主区域",
+ *         "width": "minmax(0, 1fr)",
+ *         "blocks": []
+ *       },
+ *       {
+ *         "id": "aside",
+ *         "name": "侧边栏",
+ *         "width": "320px",
+ *         "blocks": []
+ *       }
+ *     ]
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "columns",
+ *       "optional": true,
+ *       "tsType": "MLayoutGridTrack | MLayoutGridTrack[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "line": 239,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "列宽配置",
+ *       "type": "text",
+ *       "placeholder": "minmax(0, 1fr) 320px"
+ *     },
+ *     {
+ *       "key": "gap",
+ *       "optional": true,
+ *       "tsType": "number | string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "line": 244,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "区域间距",
+ *       "type": "text",
+ *       "placeholder": "16 / 16px / 1rem"
+ *     },
+ *     {
+ *       "key": "responsive",
+ *       "optional": true,
+ *       "tsType": "{\n    mobile?: MLayoutGridResponsiveConfig;\n    tablet?: MLayoutGridResponsiveConfig;\n    desktop?: MLayoutGridResponsiveConfig;\n  }",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "line": 29,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     },
+ *     {
+ *       "key": "areas",
+ *       "optional": true,
+ *       "tsType": "MLayoutGridArea[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "line": 34,
+ *       "declaredInProps": true,
+ *       "configurable": false
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [
+ *     {
+ *       "name": "getData",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "line": 678
+ *     },
+ *     {
+ *       "name": "saveEditor",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "line": 679
+ *     }
+ *   ],
+ *   "dataFields": [
+ *     {
+ *       "label": {
+ *         "raw": "'区域数据'",
+ *         "zh": "区域数据",
+ *         "en": "区域数据"
+ *       },
+ *       "variable": "areas",
+ *       "dataType": "array",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "line": 216
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "'区域数量'",
+ *         "zh": "区域数量",
+ *         "en": "区域数量"
+ *       },
+ *       "variable": "areaCount",
+ *       "dataType": "number",
+ *       "source": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "line": 221
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MLayoutGrid-example",
+ *       "type": "MLayoutGrid",
+ *       "data": {
+ *         "columns": "minmax(0, 1fr) 320px",
+ *         "gap": 16,
+ *         "responsive": {
+ *           "mobile": {
+ *             "columns": 1
+ *           }
+ *         },
+ *         "areas": [
+ *           {
+ *             "id": "main",
+ *             "name": "主区域",
+ *             "width": "minmax(0, 1fr)",
+ *             "blocks": []
+ *           },
+ *           {
+ *             "id": "aside",
+ *             "name": "侧边栏",
+ *             "width": "320px",
+ *             "blocks": []
+ *           }
+ *         ]
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MLayoutGrid.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mLayoutGridEditorTool = defineEditorTool<MLayoutGridProps>({
-  toolbox: {
-    title: layoutGridTitle,
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="5" width="7" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="5" width="7" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/></svg>'
-  },
-  propertyPanel: {
-    get title() {
-      return pageDslPropertyTitle(layoutGridTitle);
-    },
-    fields: [
-      {
-        key: 'columns',
-        label: '列宽配置',
-        placeholder: 'minmax(0, 1fr) 320px'
-      },
-      {
-        key: 'gap',
-        label: '区域间距',
-        placeholder: '16 / 16px / 1rem'
-      }
-    ]
-  },
-  createInitialProps: () => ({
-    columns: deriveColumnsFromAreas(defaultAreas),
-    gap: 16,
-    responsive: {
-      mobile: {
-        columns: 1
-      }
-    },
-    areas: cloneValue(defaultAreas)
-  }),
   getDataFields: getLayoutGridDataFields,
   normalizeProps: normalizeMLayoutGridProps,
   serialize: serializeMLayoutGridProps
@@ -265,10 +417,8 @@ export const mLayoutGridEditorTool = defineEditorTool<MLayoutGridProps>({
 </script>
 
 <script setup lang="ts">
-import EditorJS from '@editorjs/editorjs';
+import type EditorJS from '@editorjs/editorjs';
 import type { ToolSettings } from '@editorjs/editorjs';
-import EditorJsColumns from '@calumk/editorjs-columns';
-import Table from '@editorjs/table';
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { createEditorTools } from '@/editors/EditorToolFactory';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
@@ -280,6 +430,7 @@ import {
   prepareEditorOutputWithEvents
 } from '@/utils/blockEvents';
 import { PreviewBlockRuntimeKey } from '@/utils/previewBlockRuntime';
+import { getClientBlockDocsSnapshot } from '@/utils/clientBlockDocs';
 
 type AreaEditorRegistry = Map<string, EditorJS>;
 type AreaSyncEventName = 'input' | 'change' | 'click';
@@ -386,7 +537,11 @@ async function saveEditorJsInstance(instance: EditorJS): Promise<OutputData | un
   return undefined;
 }
 
-function createNestedTools() {
+function createNestedTools(
+  EditorJSConstructor: typeof import('@editorjs/editorjs').default,
+  EditorJsColumns: ToolSettings['class'],
+  Table: ToolSettings['class']
+) {
   const baseTools = {
     ...(createEditorTools({
       edit: true,
@@ -394,7 +549,8 @@ function createNestedTools() {
       getAvailablePageVariableSources: props.getAvailablePageVariableSources,
       previewRuntime: previewRuntime ?? props.previewRuntime
     }, {
-      exclude: [GRID_TOOL_NAME]
+      exclude: [GRID_TOOL_NAME],
+      docs: getClientBlockDocsSnapshot()
     }) as Record<string, ToolSettings>),
     table: {
       class: Table as unknown as ToolSettings['class'],
@@ -407,7 +563,7 @@ function createNestedTools() {
     columns: {
       class: EditorJsColumns as unknown as ToolSettings['class'],
       config: {
-        EditorJsLibrary: EditorJS,
+        EditorJsLibrary: EditorJSConstructor,
         tools: baseTools
       }
     }
@@ -484,7 +640,7 @@ function startAreaSyncListeners(areaId: string) {
     childList: true,
     subtree: true
   });
-  const listeners: AreaSyncListener[] = ['input', 'change', 'click'].map((event) => ({
+  const listeners: AreaSyncListener[] = (['input', 'change', 'click'] as const).map((event) => ({
     event,
     listener: () => scheduleAreaSync(areaId)
   }));
@@ -512,10 +668,23 @@ async function mountAreaEditor(areaId: string) {
   const area = findArea(areaId);
   if (!holder || !area) return;
 
-  const editor = new EditorJS({
+  const [
+    { default: EditorJSConstructor },
+    { default: EditorJsColumns },
+    { default: Table }
+  ] = await Promise.all([
+    import('@editorjs/editorjs'),
+    import('@calumk/editorjs-columns'),
+    import('@editorjs/table')
+  ]);
+  const editor = new EditorJSConstructor({
     holder,
     placeholder: t('editor.placeholder'),
-    tools: createNestedTools(),
+    tools: createNestedTools(
+      EditorJSConstructor,
+      EditorJsColumns as unknown as ToolSettings['class'],
+      Table as unknown as ToolSettings['class']
+    ),
     data: prepareEditorOutputWithEvents(buildAreaOutput(area)),
     minHeight: 0,
     i18n: {
@@ -574,7 +743,7 @@ async function unmountAllAreaEditors() {
   await Promise.all([...areaEditors.keys()].map((areaId) => unmountAreaEditor(areaId)));
 }
 
-function setAreaHolder(areaId: string, element: Element | null) {
+function setAreaHolder(areaId: string, element: unknown) {
   if (element instanceof HTMLElement) {
     areaHolders.set(areaId, element);
     void nextTick(() => mountAreaEditor(areaId));

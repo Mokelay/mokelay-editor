@@ -38,6 +38,13 @@ export default defineConfig(() => ({
             return 'qrcode';
           }
 
+          if (
+            moduleId.includes('/json-editor-vue/') ||
+            moduleId.includes('/vanilla-jsoneditor/')
+          ) {
+            return 'json-editor';
+          }
+
           if (moduleId.includes('/zrender/')) {
             return 'zrender';
           }

@@ -83,37 +83,160 @@ function getTabsDataFields(): BlockDataField[] {
   ];
 }
 
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MTabs",
+ *   "displayName": "页签",
+ *   "category": "content",
+ *   "description": "页签容器，按配置渲染多个页面或内容区，并支持当前页签切换。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MTabs",
+ *     "toolSymbol": "mTabsEditorTool",
+ *     "editorEnabled": true,
+ *     "toolboxVisible": true,
+ *     "sortOrder": 200
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "页签",
+ *       "en": "Tabs"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"3\" y=\"6\" width=\"18\" height=\"12\" rx=\"3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M10 6v12M3 11h7\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "tabs": [],
+ *     "activeTabId": ""
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "tabs",
+ *       "optional": true,
+ *       "tsType": "MTabsTab[]",
+ *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
+ *       "line": 99,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "页签配置",
+ *         "en": "Tabs config"
+ *       },
+ *       "type": "textarea",
+ *       "valueType": "json",
+ *       "validationMessage": {
+ *         "zh": "请输入有效页签 JSON。",
+ *         "en": "Enter valid tabs JSON."
+ *       }
+ *     },
+ *     {
+ *       "key": "activeTabId",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
+ *       "line": 106,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": {
+ *         "zh": "激活页签 ID",
+ *         "en": "Active tab ID"
+ *       },
+ *       "type": "text"
+ *     }
+ *   ],
+ *   "events": [],
+ *   "methods": [
+ *     {
+ *       "name": "getData",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
+ *       "line": 285
+ *     },
+ *     {
+ *       "name": "setActiviTabId",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "not declared in defineExpose object",
+ *       "returns": "unknown",
+ *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
+ *       "line": 286
+ *     }
+ *   ],
+ *   "dataFields": [
+ *     {
+ *       "label": {
+ *         "raw": "i18n.t('tabs.dataFields.activeTabId')",
+ *         "zh": "激活页签 ID",
+ *         "en": "Active tab ID"
+ *       },
+ *       "variable": "activeTabId",
+ *       "dataType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
+ *       "line": 68
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "i18n.t('tabs.dataFields.activeTab')",
+ *         "zh": "激活页签",
+ *         "en": "Active tab"
+ *       },
+ *       "variable": "activeTab",
+ *       "dataType": "object",
+ *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
+ *       "line": 73
+ *     },
+ *     {
+ *       "label": {
+ *         "raw": "i18n.t('tabs.dataFields.tabs')",
+ *         "zh": "页签列表",
+ *         "en": "Tabs"
+ *       },
+ *       "variable": "tabs",
+ *       "dataType": "array",
+ *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
+ *       "line": 78
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MTabs-example",
+ *       "type": "MTabs",
+ *       "data": {
+ *         "tabs": [],
+ *         "activeTabId": ""
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MTabs.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MTabs.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
 export const mTabsEditorTool = defineEditorTool<MTabsProps>({
-  toolbox: {
-    get title() {
-      return i18n.t('tabs.toolboxTitle');
-    },
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="6" width="18" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 6v12M3 11h7" stroke="currentColor" stroke-width="2"/></svg>'
-  },
-  propertyPanel: {
-    get title() {
-      return i18n.t('tabs.propertyPanelTitle');
-    },
-    get fields() {
-      return [
-        {
-          key: 'tabs',
-          label: i18n.t('tabs.properties.tabs'),
-          type: 'textarea' as const,
-          valueType: 'json' as const,
-          validationMessage: i18n.t('tabs.validation.invalidTabsJson')
-        },
-        {
-          key: 'activeTabId',
-          label: i18n.t('tabs.properties.activeTabId')
-        }
-      ];
-    }
-  },
-  createInitialProps: () => ({
-    tabs: [],
-    activeTabId: ''
-  }),
   getDataFields: () => getTabsDataFields(),
   normalizeProps: (props) => {
     const tabs = normalizeTabs(props.tabs);

@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import EditorJS, { type OutputData, type ToolSettings } from '@editorjs/editorjs';
-import EditorJsColumns from '@calumk/editorjs-columns';
-import Table from '@editorjs/table';
+import type EditorJS from '@editorjs/editorjs';
+import type { OutputData, ToolSettings } from '@editorjs/editorjs';
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
-import { getEditorComponentDefinition } from '@/editors/editorComponentRegistry';
+import { getEditorComponentDefinition } from '@/editors/editorComponentRuntimeRegistry';
 import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
 import {
   finalizeEditorBlocksWithEvents,
@@ -37,6 +36,11 @@ import {
   type VariableValueDataType,
   type VariableValueResolveContext
 } from '@/utils/variableValue';
+import {
+  getClientBlockDocsSnapshot,
+  loadClientBlockDocs,
+  type NormalizedClientBlockDoc
+} from '@/utils/clientBlockDocs';
 
 // MPage 作为容器块，既支持 EditorJS 编辑态，也支持组件化预览态。
 export interface MPageProps {
@@ -67,6 +71,7 @@ let editorMutationObserver: MutationObserver | null = null;
 let scheduledEditorSync: number | null = null;
 // 缓存最近一次编辑器输出，用于编辑态与预览态切换时保留数据。
 let editorDataCache: OutputData = buildOutput(props.value);
+let clientBlockDocsCache: NormalizedClientBlockDoc[] = getClientBlockDocsSnapshot();
 
 const { t, localeValue } = useI18n();
 const holderRef = ref<HTMLElement | null>(null);
@@ -344,19 +349,31 @@ function stopEditorSyncListeners() {
 
 async function mountEditor() {
   if (!holderRef.value || !shouldRenderEditor.value || editor) return;
+  const [
+    { default: EditorJSConstructor },
+    { default: EditorJsColumns },
+    { default: Table }
+  ] = await Promise.all([
+    import('@editorjs/editorjs'),
+    import('@calumk/editorjs-columns'),
+    import('@editorjs/table')
+  ]);
+  clientBlockDocsCache = await loadClientBlockDocs();
   const columnTools: Record<string, ToolSettings> = {
     ...(createEditorTools({
       edit: true,
       getAvailableBlockDataSources,
       getAvailablePageVariableSources,
       previewRuntime
+    }, {
+      docs: clientBlockDocsCache
     }) as Record<string, ToolSettings>),
     table: {
       class: Table as unknown as ToolSettings['class'],
       inlineToolbar: true
     }
   };
-  editor = new EditorJS({
+  editor = new EditorJSConstructor({
     holder: holderRef.value,
     placeholder: t('editor.placeholder'),
     tools: {
@@ -364,7 +381,7 @@ async function mountEditor() {
       columns: {
         class: EditorJsColumns as unknown as ToolSettings['class'],
         config: {
-          EditorJsLibrary: EditorJS,
+          EditorJsLibrary: EditorJSConstructor,
           tools: columnTools
         }
       }

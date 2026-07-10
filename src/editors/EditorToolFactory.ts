@@ -1,13 +1,20 @@
 import { createApp, type App } from 'vue';
 import { i18n } from '@/i18n';
 import type { MenuConfig } from '@editorjs/editorjs/types/tools';
-import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
-import { BlockEventsDialogController, blockEventsIcon } from '@/editors/blockEventsDialog';
+import type {
+  EditorToolComponentProps,
+  EditorToolPropertyField,
+  ResolvedEditorToolDefinition
+} from '@/editors/editorToolDefinition';
+import type { BlockEventsDialogController } from '@/editors/blockEventsDialog';
 import {
-  getEditorComponentRegistry,
-  getEditorComponentDefinition,
-  type EditorToolComponentProps
-} from '@/editors/editorComponentRegistry';
+  isRegisteredEditorComponent,
+  loadEditorComponentDefinition
+} from '@/editors/editorComponentRuntimeRegistry';
+import {
+  getClientBlockDefaultData,
+  localizedClientBlockText
+} from '@/editors/clientBlockToolMetadata';
 import {
   PreviewBlockRuntimeKey,
   type PreviewBlockRuntime
@@ -20,6 +27,11 @@ import {
   removeInternalBlockEventsFromData,
   type BlockEvent
 } from '@/utils/blockEvents';
+import {
+  getClientBlockDocSnapshot,
+  getClientBlockDocsSnapshot,
+  type NormalizedClientBlockDoc
+} from '@/utils/clientBlockDocs';
 
 type EditorToolFactoryOptions = {
   data?: Record<string, unknown>;
@@ -34,6 +46,7 @@ type EditorToolClass = new (options: EditorToolFactoryOptions) => {
   render: () => HTMLElement;
   save: () => Record<string, unknown>;
   destroy: () => void;
+  renderSettings?: () => MenuConfig;
 };
 
 type PropertyInput = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
@@ -48,69 +61,83 @@ type PropertyInputReadResult = {
 
 type CreateEditorToolsOptions = {
   exclude?: Iterable<string>;
+  docs?: readonly NormalizedClientBlockDoc[];
 };
 
 type MergedEditorToolProps = Partial<EditorToolComponentProps> & Record<string, unknown>;
 
+const blockEventsIcon = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 5h4v4H5V5Zm10 0h4v4h-4V5ZM5 15h4v4H5v-4Zm10.5-.5 3.5 3.5m0-3.5-3.5 3.5M9 7h6M7 9v6M17 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 // 缓存已经构建过的工具类，避免重复创建 class。
 const toolClassCache = new Map<string, EditorToolClass>();
 
+function docSignature(doc: NormalizedClientBlockDoc | undefined) {
+  if (!doc) return 'local';
+  return JSON.stringify({
+    uuid: doc.uuid,
+    editorEnabled: doc.editorEnabled,
+    toolboxVisible: doc.toolboxVisible,
+    sortOrder: doc.sortOrder,
+    toolbox: doc.toolbox,
+    defaultData: doc.defaultData,
+    properties: doc.properties
+  });
+}
+
+function getToolbox(doc: NormalizedClientBlockDoc | undefined, toolName: string) {
+  return {
+    title: doc
+      ? localizedClientBlockText(doc.toolbox.title, doc.displayName || toolName)
+      : toolName,
+    icon: doc && typeof doc.toolbox.icon === 'string' ? doc.toolbox.icon : ''
+  };
+}
+
 export default class EditorToolFactory {
-  static create(toolName: string): EditorToolClass {
-    const cachedTool = toolClassCache.get(toolName);
+  static create(toolName: string, doc?: NormalizedClientBlockDoc): EditorToolClass {
+    const effectiveDoc = doc ?? getClientBlockDocSnapshot(toolName);
+    // 文档元数据里的工具箱标题和属性标签会随当前语言解析，不能复用另一种语言创建的类。
+    const cacheKey = `${i18n.locale}:${toolName}:${docSignature(effectiveDoc)}`;
+    const cachedTool = toolClassCache.get(cacheKey);
     if (cachedTool) return cachedTool;
 
-    const definition = getEditorComponentDefinition(toolName);
-    if (!definition) {
-      throw new Error(`EditorToolFactory could not find a registered component for "${toolName}".`);
-    }
+   const showInToolbox = !effectiveDoc || (effectiveDoc.editorEnabled && effectiveDoc.toolboxVisible);
+    const toolbox = getToolbox(effectiveDoc, toolName);
 
     class RegisteredEditorTool {
       static get toolbox() {
-        return definition.toolbox;
+        return showInToolbox ? toolbox : false;
       }
 
-      private readonly state: EditorToolComponentProps;
-      private wrapper: HTMLElement | null = null;
+      private state: EditorToolComponentProps | null = null;
+      private definition: ResolvedEditorToolDefinition | undefined;
+     private wrapper: HTMLElement | null = null;
       private contentRoot: HTMLElement | null = null;
       private vueApp: App<Element> | null = null;
       private propertyComponentApps: App<Element>[] = [];
       private propertyDialog: HTMLDialogElement | null = null;
       private eventsDialog: BlockEventsDialogController | null = null;
       private events: BlockEvent[] = [];
-      private readonly blockApi?: EditorToolFactoryOptions['block'];
-      private readonly previewRuntime?: PreviewBlockRuntime;
-      private runtimeBlockId = '';
+     private readonly blockApi?: EditorToolFactoryOptions['block'];
+     private readonly previewRuntime?: PreviewBlockRuntime;
+      private readonly pendingInput: MergedEditorToolProps;
+      private rawData: Record<string, unknown>;
+      private loadingPromise: Promise<void> | null = null;
+     private runtimeBlockId = '';
       private runtimeBlockInstance: unknown;
 
       constructor({ data, config, block }: EditorToolFactoryOptions) {
         // data 是已保存 block.data，config 是工具级固定配置（例如 edit）。
         this.blockApi = block;
         this.previewRuntime = config?.previewRuntime as PreviewBlockRuntime | undefined;
-        const mergedProps: MergedEditorToolProps = {
-          ...(config ?? {}),
-          ...removeInternalBlockEventsFromData(data),
-          ...(typeof block?.id === 'string' && block.id.trim() ? { currentBlockId: block.id.trim() } : {})
-        };
-        this.events = getInternalBlockEventsFromData(data);
-
-        if (typeof mergedProps.edit !== 'boolean') {
-          throw new Error(`EditorToolFactory requires config.edit to be explicitly set for "${toolName}".`);
-        }
-
-        this.state = {
-          ...definition.normalizeProps({
-            ...mergedProps
-          }),
-          ...(typeof mergedProps.currentBlockId === 'string' ? { currentBlockId: mergedProps.currentBlockId } : {}),
-          ...(typeof mergedProps.getAvailableBlockDataSources === 'function'
-            ? { getAvailableBlockDataSources: mergedProps.getAvailableBlockDataSources }
-            : {}),
-          ...(typeof mergedProps.getAvailablePageVariableSources === 'function'
-            ? { getAvailablePageVariableSources: mergedProps.getAvailablePageVariableSources }
-            : {})
-        };
-      }
+        this.pendingInput = {
+         ...(config ?? {}),
+         ...removeInternalBlockEventsFromData(data),
+         ...(typeof block?.id === 'string' && block.id.trim() ? { currentBlockId: block.id.trim() } : {})
+       };
+        this.rawData = { ...(data ?? {}) };
+       this.events = getInternalBlockEventsFromData(data);
+     }
 
       render() {
         // EditorJS 要求 render 返回宿主元素；内部再挂载 Vue 组件。
@@ -124,12 +151,11 @@ export default class EditorToolFactory {
         contentRoot.dataset.testid = `editor-tool-content-${toolName}`;
         wrapper.appendChild(contentRoot);
 
-        this.wrapper = wrapper;
-        this.contentRoot = contentRoot;
-        this.createPropertyDialog();
-        this.createEventsDialog();
-        this.mountVueApp();
-        return wrapper;
+       this.wrapper = wrapper;
+       this.contentRoot = contentRoot;
+        this.setLoadingState();
+        void this.loadAndMount();
+       return wrapper;
       }
 
       destroy() {
@@ -139,18 +165,25 @@ export default class EditorToolFactory {
         this.eventsDialog?.destroy();
         this.eventsDialog = null;
         this.propertyDialog = null;
-        this.contentRoot = null;
-        this.wrapper = null;
-      }
+       this.contentRoot = null;
+       this.wrapper = null;
+        this.loadingPromise = null;
+     }
 
-      save() {
-        return attachInternalBlockEventsToData(definition.serialize(this.state), this.events, true);
-      }
+     save() {
+        const definition = this.definition;
+        const state = this.state;
+        if (!definition || !state) {
+          return attachInternalBlockEventsToData(this.rawData, this.events, true);
+        }
+        return attachInternalBlockEventsToData(definition.serialize(state), this.events, true);
+     }
 
-      renderSettings(): MenuConfig {
-        const settings = [];
+     renderSettings(): MenuConfig {
+       const settings = [];
+        const definition = this.definition;
 
-        if (definition.propertyPanel?.fields.length) {
+        if (definition?.propertyPanel?.fields.length) {
           settings.push({
             icon: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19.14 12.94C19.18 12.63 19.2 12.32 19.2 12C19.2 11.68 19.18 11.36 19.13 11.06L21.11 9.51C21.29 9.37 21.34 9.11 21.23 8.9L19.35 5.64C19.24 5.43 18.99 5.35 18.77 5.42L16.44 6.17C15.96 5.8 15.44 5.48 14.87 5.23L14.51 2.75C14.48 2.52 14.28 2.35 14.04 2.35H10.28C10.04 2.35 9.84 2.52 9.81 2.75L9.45 5.23C8.88 5.48 8.36 5.81 7.88 6.17L5.55 5.42C5.33 5.35 5.08 5.43 4.97 5.64L3.09 8.9C2.98 9.11 3.03 9.37 3.21 9.51L5.19 11.06C5.14 11.36 5.12 11.68 5.12 12C5.12 12.32 5.14 12.64 5.19 12.94L3.21 14.49C3.03 14.63 2.98 14.89 3.09 15.1L4.97 18.36C5.08 18.57 5.33 18.65 5.55 18.58L7.88 17.83C8.36 18.2 8.88 18.52 9.45 18.77L9.81 21.25C9.84 21.48 10.04 21.65 10.28 21.65H14.04C14.28 21.65 14.48 21.48 14.51 21.25L14.87 18.77C15.44 18.52 15.96 18.19 16.44 17.83L18.77 18.58C18.99 18.65 19.24 18.57 19.35 18.36L21.23 15.1C21.34 14.89 21.29 14.63 21.11 14.49L19.14 12.94ZM12.16 15.6C10.17 15.6 8.56 13.99 8.56 12C8.56 10.01 10.17 8.4 12.16 8.4C14.15 8.4 15.76 10.01 15.76 12C15.76 13.99 14.15 15.6 12.16 15.6Z" fill="currentColor"/></svg>',
             title: i18n.t('editor.properties'),
@@ -170,21 +203,96 @@ export default class EditorToolFactory {
           closeOnActivate: true
         });
 
-        return settings as MenuConfig;
+       return settings as MenuConfig;
+     }
+
+      private setLoadingState() {
+        if (!this.contentRoot) return;
+        this.contentRoot.replaceChildren();
+        const state = document.createElement('div');
+        state.className = 'mokelay-editor-tool__loading';
+        state.dataset.testid = 'editor-tool-loading';
+        state.textContent = i18n.t('page.loading');
+        this.contentRoot.appendChild(state);
       }
 
-      private mountVueApp() {
+      private setErrorState(message: string) {
         if (!this.contentRoot) return;
+        this.contentRoot.replaceChildren();
+        const state = document.createElement('div');
+        state.className = 'mokelay-editor-tool__load-error';
+        state.dataset.testid = 'editor-tool-load-error';
+        state.textContent = message;
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.dataset.testid = 'editor-tool-retry';
+        retry.textContent = i18n.locale === 'zh' ? '重试' : 'Retry';
+        retry.addEventListener('click', () => {
+          this.loadingPromise = null;
+          this.setLoadingState();
+          void this.loadAndMount();
+        });
+        state.appendChild(retry);
+        this.contentRoot.appendChild(state);
+        if (import.meta.env.DEV) {
+          console.error(`[Mokelay editor] Failed to load block "${toolName}": ${message}`);
+        }
+      }
+
+      private async loadAndMount() {
+        if (this.loadingPromise) return this.loadingPromise;
+
+        this.loadingPromise = (async () => {
+          try {
+            const definition = await loadEditorComponentDefinition(toolName, effectiveDoc);
+            if (!definition) {
+              throw new Error(`EditorToolFactory could not load a registered component for "${toolName}".`);
+            }
+            if (typeof this.pendingInput.edit !== 'boolean') {
+              throw new Error(`EditorToolFactory requires config.edit to be explicitly set for "${toolName}".`);
+            }
+
+            this.definition = definition;
+            const normalized = definition.normalizeProps({ ...this.pendingInput });
+            this.state = {
+              ...normalized,
+              ...(typeof this.pendingInput.currentBlockId === 'string'
+                ? { currentBlockId: this.pendingInput.currentBlockId }
+                : {}),
+              ...(typeof this.pendingInput.getAvailableBlockDataSources === 'function'
+                ? { getAvailableBlockDataSources: this.pendingInput.getAvailableBlockDataSources }
+                : {}),
+              ...(typeof this.pendingInput.getAvailablePageVariableSources === 'function'
+                ? { getAvailablePageVariableSources: this.pendingInput.getAvailablePageVariableSources }
+                : {})
+            };
+            if (!this.wrapper || !this.contentRoot) return;
+            this.contentRoot.replaceChildren();
+            this.createPropertyDialog();
+            this.createEventsDialog();
+            this.mountVueApp();
+          } catch (error) {
+            this.setErrorState(error instanceof Error ? error.message : String(error));
+          }
+        })();
+
+        return this.loadingPromise;
+      }
+
+     private mountVueApp() {
+        const definition = this.definition;
+        const state = this.state;
+        if (!this.contentRoot || !definition || !state) return;
 
         const blockEventListeners = this.createBlockEventListeners();
         const updateState = (payload: unknown) => {
           if (typeof payload === 'object' && payload !== null) {
-            Object.assign(this.state, payload);
+            Object.assign(state, payload);
           }
         };
         this.unmountVueApp();
         this.vueApp = createApp(definition.component, {
-          ...this.state,
+          ...state,
           ...blockEventListeners,
           // 兼容两种回调命名，统一回写到同一份 state。
           onToolChange: this.chainHandlers(blockEventListeners.onToolChange, updateState),
@@ -206,19 +314,22 @@ export default class EditorToolFactory {
         app.provide(PreviewBlockRuntimeKey, this.previewRuntime);
       }
 
-      private getCurrentBlockId() {
-        return typeof this.state.currentBlockId === 'string' ? this.state.currentBlockId.trim() : '';
-      }
+     private getCurrentBlockId() {
+        return typeof this.state?.currentBlockId === 'string' ? this.state.currentBlockId.trim() : '';
+     }
 
-      private registerRuntimeBlock(instance: unknown) {
-        const id = this.getCurrentBlockId();
-        if (!this.previewRuntime || !id || !instance) return;
+     private registerRuntimeBlock(instance: unknown) {
+       const id = this.getCurrentBlockId();
+       if (!this.previewRuntime || !id || !instance) return;
+        const definition = this.definition;
+        const state = this.state;
+        if (!definition || !state) return;
 
         this.previewRuntime.registerBlock(id, {
           id,
           type: toolName,
           instance,
-          data: definition.serialize(this.state)
+          data: definition.serialize(state)
         });
         this.runtimeBlockId = id;
         this.runtimeBlockInstance = instance;
@@ -232,13 +343,15 @@ export default class EditorToolFactory {
         this.runtimeBlockInstance = undefined;
       }
 
-      private createSourceBlock() {
-        return {
-          id: this.getCurrentBlockId(),
-          type: toolName,
-          data: definition.serialize(this.state),
-          events: cloneBlockEvents(this.events)
-        };
+     private createSourceBlock() {
+        const definition = this.definition;
+        const state = this.state;
+       return {
+         id: this.getCurrentBlockId(),
+         type: toolName,
+          data: definition && state ? definition.serialize(state) : { ...this.rawData },
+         events: cloneBlockEvents(this.events)
+       };
       }
 
       private listenerPropName(eventName: string) {
@@ -269,8 +382,9 @@ export default class EditorToolFactory {
         return listeners;
       }
 
-      private createPropertyDialog() {
-        if (!this.wrapper || !definition.propertyPanel?.fields.length) return;
+     private createPropertyDialog() {
+        const definition = this.definition;
+        if (!this.wrapper || !definition?.propertyPanel?.fields.length) return;
 
         const dialog = document.createElement('dialog');
         dialog.className = 'mokelay-editor-tool__property-dialog';
@@ -300,7 +414,10 @@ export default class EditorToolFactory {
         this.bindPropertyInputs();
       }
 
-      private createEventsDialog() {
+      private async createEventsDialog() {
+        if (!this.wrapper) return;
+
+        const { BlockEventsDialogController } = await import('@/editors/blockEventsDialog');
         if (!this.wrapper) return;
 
         this.eventsDialog = new BlockEventsDialogController({
@@ -498,7 +615,7 @@ export default class EditorToolFactory {
         if (!this.propertyDialog) return;
 
         this.unmountPropertyComponents();
-        definition.propertyPanel?.fields
+        this.definition?.propertyPanel?.fields
           .filter((field) => field.type === 'component')
           .forEach((field) => {
             if (!field.component || !this.propertyDialog) return;
@@ -627,7 +744,7 @@ export default class EditorToolFactory {
     }
 
     const createdTool = RegisteredEditorTool as unknown as EditorToolClass;
-    toolClassCache.set(toolName, createdTool);
+    toolClassCache.set(cacheKey, createdTool);
     return createdTool;
   }
 }
@@ -637,29 +754,20 @@ export function createEditorTools(
   options: CreateEditorToolsOptions = {}
 ) {
   const excludedTools = new Set(options.exclude ?? []);
+  const docs = [...(options.docs ?? getClientBlockDocsSnapshot())]
+    .filter((doc) => doc.status === 'active')
+    .filter((doc) => !excludedTools.has(doc.blockType) && isRegisteredEditorComponent(doc.blockType));
 
   return Object.fromEntries(
-    Object.entries(getEditorComponentRegistry())
-      .filter(([toolName]) => !excludedTools.has(toolName))
-      .map(([toolName, definition]) => [
-        toolName,
-        {
-          class: EditorToolFactory.create(toolName),
-          config: {
-            ...definition.normalizeProps({
-              ...(definition.createInitialProps?.() ?? {}),
-              ...sharedConfig
-            }),
-            ...(sharedConfig.getAvailableBlockDataSources
-              ? { getAvailableBlockDataSources: sharedConfig.getAvailableBlockDataSources }
-              : {}),
-            ...(sharedConfig.getAvailablePageVariableSources
-              ? { getAvailablePageVariableSources: sharedConfig.getAvailablePageVariableSources }
-              : {}),
-            ...(sharedConfig.currentBlockId ? { currentBlockId: sharedConfig.currentBlockId } : {}),
-            ...(sharedConfig.previewRuntime ? { previewRuntime: sharedConfig.previewRuntime } : {})
-          }
+    docs.map((doc) => [
+      doc.blockType,
+      {
+        class: EditorToolFactory.create(doc.blockType, doc),
+        config: {
+          ...getClientBlockDefaultData(doc),
+          ...sharedConfig
         }
-      ])
+      }
+    ])
   );
 }

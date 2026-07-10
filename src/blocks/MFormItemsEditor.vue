@@ -15,8 +15,9 @@ import {
   getFormItemToolNames,
   isAllowedFormItemToolName
 } from '@/blocks/mFormItemTools';
-import { getEditorComponentDefinition } from '@/editors/editorComponentRegistry';
+import { getEditorComponentDefinition } from '@/editors/editorComponentRuntimeRegistry';
 import { useI18n } from '@/i18n';
+import { getClientBlockDocSnapshot } from '@/utils/clientBlockDocs';
 
 type FormItemsEditorPayload = {
   value: MFormItemData[];
@@ -48,6 +49,8 @@ function cloneItems(value?: MFormItemData[]) {
 }
 
 function getToolTitle(toolName: string) {
+  const doc = getClientBlockDocSnapshot(toolName);
+  if (doc?.displayName) return doc.displayName;
   return getEditorComponentDefinition(toolName)?.toolbox.title ?? toolName;
 }
 
