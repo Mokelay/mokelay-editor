@@ -163,6 +163,13 @@ export const enMessages = {
       flow: 'Advanced'
     },
     previous: 'Previous config',
+    validation: {
+      invalidJson: 'Enter valid JSON, or use a variable value.',
+      invalidArray: 'Enter a valid JSON array, or use a variable value.',
+      invalidObject: 'Enter a valid JSON object, or use a variable value.',
+      invalidNumber: 'Enter a valid number, or use a variable value.',
+      invalidBoolean: 'Enter true or false, or use a variable value.'
+    },
     actions: {
       insert: 'Insert variable'
     },

@@ -1,3 +1,270 @@
+<script lang="ts">
+import { defineEditorTool, type EditorToolComponentProps } from '@/editors/editorToolDefinition';
+import { valueBlockDataField } from '@/blocks/blockDataFields';
+import {
+  normalizeVariableDataType as normalizeEditorVariableDataType,
+  normalizeVariableValueConfig as normalizeEditorVariableValueConfig,
+  serializeVariableValueConfig as serializeEditorVariableValueConfig,
+  type BlockDataSource as EditorBlockDataSource,
+  type GetAvailableBlockDataSources as EditorGetAvailableBlockDataSources,
+  type GetAvailablePageVariableSources as EditorGetAvailablePageVariableSources,
+  type PageVariableSource as EditorPageVariableSource,
+  type VariableOption as EditorVariableOption,
+  type VariableValueDataType as EditorVariableValueDataType
+} from '@/utils/variableValue';
+
+export interface MVariableValueEditorProps extends EditorToolComponentProps {
+  value?: unknown;
+  modelValue?: unknown;
+  variables?: EditorVariableOption[];
+  blockDataSources?: EditorBlockDataSource[];
+  pageVariableSources?: EditorPageVariableSource[];
+  getAvailableBlockDataSources?: EditorGetAvailableBlockDataSources;
+  getAvailablePageVariableSources?: EditorGetAvailablePageVariableSources;
+  valueType?: EditorVariableValueDataType;
+  readonly?: boolean;
+  multiline?: boolean;
+  placeholder?: string;
+  testid?: string;
+}
+
+function stringValue(value: unknown, fallback = '') {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function booleanValue(value: unknown, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes'].includes(normalized)) return true;
+    if (['0', 'false', 'no'].includes(normalized)) return false;
+  }
+  return fallback;
+}
+
+function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorProps>): MVariableValueEditorProps {
+  const value = props.value !== undefined ? props.value : props.modelValue;
+  return {
+    edit: props.edit ?? false,
+    currentBlockId: stringValue(props.currentBlockId),
+    getAvailableBlockDataSources: props.getAvailableBlockDataSources,
+    getAvailablePageVariableSources: props.getAvailablePageVariableSources,
+    value: serializeEditorVariableValueConfig(normalizeEditorVariableValueConfig(value)),
+    modelValue: serializeEditorVariableValueConfig(normalizeEditorVariableValueConfig(value)),
+    valueType: normalizeEditorVariableDataType(props.valueType),
+    readonly: booleanValue(props.readonly),
+    multiline: booleanValue(props.multiline),
+    placeholder: stringValue(props.placeholder),
+    testid: stringValue(props.testid)
+  };
+}
+
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "blockType": "MVariableValueEditor",
+ *   "displayName": "变量值编辑器",
+ *   "category": "content",
+ *   "description": "变量值编辑器，用于在固定值、Block 输出变量、页面变量、存储变量和 flow 表达式之间切换，并序列化为可运行的 VariableValueConfig 或普通值。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MVariableValueEditor",
+ *     "toolSymbol": "mVariableValueEditorTool",
+ *     "editorEnabled": false,
+ *     "toolboxVisible": false,
+ *     "sortOrder": 170
+ *   },
+ *   "toolbox": {
+ *     "title": {
+ *       "zh": "变量值编辑器",
+ *       "en": "Variable Value Editor"
+ *     },
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M4 7h6M14 7h6M4 17h6M14 17h6\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/><path d=\"M10 7c2 0 2 10 4 10M14 7c-2 0-2 10-4 10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "value": "",
+ *     "valueType": "string",
+ *     "multiline": false,
+ *     "readonly": false,
+ *     "placeholder": ""
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "unknown | VariableValueConfig",
+ *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "line": 14,
+ *       "declaredInProps": true,
+ *       "configurable": false,
+ *       "label": "值配置"
+ *     },
+ *     {
+ *       "key": "valueType",
+ *       "optional": true,
+ *       "tsType": "VariableValueDataType",
+ *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "line": 20,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "值类型",
+ *       "type": "select",
+ *       "options": [
+ *         { "value": "string", "label": "字符串" },
+ *         { "value": "number", "label": "数字" },
+ *         { "value": "boolean", "label": "布尔" },
+ *         { "value": "object", "label": "对象" },
+ *         { "value": "array", "label": "数组" }
+ *       ]
+ *     },
+ *     {
+ *       "key": "multiline",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "line": 22,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "多行输入",
+ *       "type": "checkbox"
+ *     },
+ *     {
+ *       "key": "readonly",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "line": 21,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "只读",
+ *       "type": "checkbox"
+ *     },
+ *     {
+ *       "key": "placeholder",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "line": 23,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "占位提示",
+ *       "type": "text"
+ *     }
+ *   ],
+ *   "events": [
+ *     {
+ *       "event": "update:modelValue",
+ *       "payload": "value: unknown",
+ *       "trigger": "值配置变化时",
+ *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "label": "更新绑定值"
+ *     },
+ *     {
+ *       "event": "change",
+ *       "payload": "{ value: unknown }",
+ *       "trigger": "值配置变化时",
+ *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "label": "变更"
+ *     }
+ *   ],
+ *   "methods": [
+ *     {
+ *       "name": "setValue",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "value: unknown",
+ *       "returns": "void",
+ *       "label": "设置值"
+ *     },
+ *     {
+ *       "name": "getValue",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "none",
+ *       "returns": "unknown",
+ *       "label": "获取值"
+ *     },
+ *     {
+ *       "name": "clear",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "none",
+ *       "returns": "void",
+ *       "label": "清空"
+ *     },
+ *     {
+ *       "name": "validate",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": "none",
+ *       "returns": "{ valid: boolean; message?: string }",
+ *       "label": "校验"
+ *     }
+ *   ],
+ *   "dataFields": [
+ *     {
+ *       "label": "值",
+ *       "variable": "value",
+ *       "dataType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue"
+ *     }
+ *   ],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时调用该 block 的 serialize(props)，只输出 value、valueType、multiline、readonly 和 placeholder。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MVariableValueEditor-example",
+ *       "type": "MVariableValueEditor",
+ *       "data": {
+ *         "value": "",
+ *         "valueType": "string",
+ *         "multiline": false,
+ *         "readonly": false,
+ *         "placeholder": ""
+ *       }
+ *     }
+ *   ],
+ *   "sourceRefs": [
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "reason": "Vue component implementation"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "reason": "Editor tool definition"
+ *     },
+ *     {
+ *       "file": "submodule/mokelay-editor/src/editors/editorComponentRegistry.ts",
+ *       "reason": "registered editor component"
+ *     }
+ *   ]
+ * }
+ */
+export const mVariableValueEditorTool = defineEditorTool<MVariableValueEditorProps>({
+  getDataFields: (context) => valueBlockDataField(normalizeEditorVariableDataType(context.data.valueType)),
+  normalizeProps: normalizeMVariableValueEditorProps,
+  serialize: (props) => {
+    const normalized = normalizeMVariableValueEditorProps(props);
+    return {
+      value: normalized.value,
+      valueType: normalized.valueType,
+      multiline: normalized.multiline,
+      readonly: normalized.readonly,
+      placeholder: normalized.placeholder
+    };
+  }
+});
+</script>
+
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
@@ -15,7 +282,10 @@ import {
   normalizeVariableValueConfig,
   serializeVariableValueConfig,
   stringifyVariableValue,
+  validateVariableFlowConfig,
   type BlockDataSource,
+  type GetAvailableBlockDataSources,
+  type GetAvailablePageVariableSources,
   type PageVariableSource,
   type VariableFlowConfig,
   type VariableOption,
@@ -24,21 +294,32 @@ import {
   type VariableValueSource
 } from '@/utils/variableValue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  edit?: boolean;
+  value?: unknown;
   modelValue?: unknown;
   variables?: VariableOption[];
   blockDataSources?: BlockDataSource[];
   pageVariableSources?: PageVariableSource[];
+  getAvailableBlockDataSources?: GetAvailableBlockDataSources;
+  getAvailablePageVariableSources?: GetAvailablePageVariableSources;
   currentBlockId?: string;
   valueType?: VariableValueDataType;
   readonly?: boolean;
   multiline?: boolean;
   placeholder?: string;
   testid?: string;
-}>();
+}>(), {
+  edit: false,
+  readonly: false,
+  multiline: false,
+  placeholder: '',
+  testid: ''
+});
 
 const emit = defineEmits<{
   (event: 'update:modelValue', value: unknown): void;
+  (event: 'change', payload: { value: unknown }): void;
 }>();
 
 const { t } = useI18n();
@@ -55,6 +336,7 @@ const processorOpen = ref(false);
 const flowOpen = ref(false);
 const previousSummary = ref('');
 const pageIdListId = `variable-page-id-options-${Math.random().toString(36).slice(2)}`;
+const inputErrorId = `variable-value-error-${Math.random().toString(36).slice(2)}`;
 let lastEmittedValue = '';
 const legacySourceBlockId = '__legacy_variables__';
 const variableSourceOptions: Array<{ value: VariableValueSource; label: string }> = [
@@ -67,7 +349,9 @@ const variableSourceOptions: Array<{ value: VariableValueSource; label: string }
 
 const normalizedVariables = computed(() => normalizeVariableOptions(props.variables));
 const availablePageVariableSources = computed(() => {
-  const sources = normalizePageVariableSources(props.pageVariableSources);
+  const sources = normalizePageVariableSources(
+    props.pageVariableSources ?? props.getAvailablePageVariableSources?.()
+  );
   if (!pageId.value || sources.some((source) => source.pageId === pageId.value)) return sources;
 
   return [{
@@ -76,7 +360,9 @@ const availablePageVariableSources = computed(() => {
   }, ...sources];
 });
 const availableBlockDataSources = computed(() => {
-  const sources = normalizeBlockDataSources(props.blockDataSources);
+  const sources = normalizeBlockDataSources(
+    props.blockDataSources ?? props.getAvailableBlockDataSources?.(props.currentBlockId)
+  );
   const hasSelectedSource = blockId.value && sources.some((source) => source.blockId === blockId.value);
   const shouldShowLegacySource = normalizedVariables.value.length && !sources.length;
   const legacySource = shouldShowLegacySource
@@ -134,9 +420,65 @@ const processorField = computed<DatasourceSchemaSelection | undefined>(() => {
     processors: variableProcessors.value
   };
 });
+const inputValidation = computed(() => mode.value === 'input'
+  ? parseInputValue(inputValue.value)
+  : { valid: true as const, value: undefined });
+const inputValidationError = computed(() => inputValidation.value.valid ? '' : inputValidation.value.message);
 
-function syncFromModelValue() {
-  const config = normalizeVariableValueConfig(props.modelValue);
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseInputValue(value: string): { valid: true; value: unknown } | { valid: false; message: string } {
+  const valueType = props.valueType ?? 'string';
+  if (valueType === 'string') {
+    return { valid: true, value };
+  }
+
+  const trimmed = value.trim();
+  if (valueType === 'number') {
+    const numberValue = Number(trimmed);
+    return trimmed && Number.isFinite(numberValue)
+      ? { valid: true, value: numberValue }
+      : { valid: false, message: t('variableValue.validation.invalidNumber') };
+  }
+
+  if (valueType === 'boolean') {
+    const normalized = trimmed.toLowerCase();
+    if (normalized === 'true') return { valid: true, value: true };
+    if (normalized === 'false') return { valid: true, value: false };
+    return { valid: false, message: t('variableValue.validation.invalidBoolean') };
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (valueType === 'array') {
+      return Array.isArray(parsed)
+        ? { valid: true, value: parsed }
+        : { valid: false, message: t('variableValue.validation.invalidArray') };
+    }
+
+    return isPlainObject(parsed)
+      ? { valid: true, value: parsed }
+      : { valid: false, message: t('variableValue.validation.invalidObject') };
+  } catch {
+    return {
+      valid: false,
+      message: valueType === 'array'
+        ? t('variableValue.validation.invalidArray')
+        : valueType === 'object'
+          ? t('variableValue.validation.invalidObject')
+          : t('variableValue.validation.invalidJson')
+    };
+  }
+}
+
+function boundValue() {
+  return props.modelValue !== undefined ? props.modelValue : props.value;
+}
+
+function syncFromValue(value: unknown) {
+  const config = normalizeVariableValueConfig(value);
   mode.value = config.mode;
   previousSummary.value = stringifyVariableValue(config);
   if (config.mode === 'input') {
@@ -179,6 +521,7 @@ function syncFromModelValue() {
 function emitValue(value: unknown) {
   lastEmittedValue = JSON.stringify(value);
   emit('update:modelValue', value);
+  emit('change', { value });
 }
 
 function buildVariableConfig(): VariableValueConfig {
@@ -210,7 +553,9 @@ function buildVariableConfig(): VariableValueConfig {
 function emitCurrentMode() {
   if (props.readonly) return;
   if (mode.value === 'input') {
-    emitValue(serializeVariableValueConfig({ mode: 'input', value: inputValue.value }));
+    const result = parseInputValue(inputValue.value);
+    if (!result.valid) return;
+    emitValue(result.value);
     return;
   }
   if (mode.value === 'variable') {
@@ -332,12 +677,72 @@ function processorLabel(processor: ProcessorConfig) {
   return definition ? t(definition.titleKey) : name;
 }
 
-watch(() => props.modelValue, (value) => {
+function setValue(value: unknown) {
+  syncFromValue(value);
+  if (mode.value === 'input') {
+    const result = parseInputValue(inputValue.value);
+    if (result.valid) {
+      emitValue(result.value);
+    }
+    return;
+  }
+  emitValue(serializeVariableValueConfig(normalizeVariableValueConfig(value)));
+}
+
+function getValue() {
+  if (mode.value === 'input' && inputValidation.value.valid) {
+    return inputValidation.value.value;
+  }
+  return serializeVariableValueConfig(currentConfig());
+}
+
+function clear() {
+  syncFromValue('');
+  emitValue('');
+}
+
+function validate() {
+  if (mode.value === 'input' && !inputValidation.value.valid) {
+    return {
+      valid: false,
+      message: inputValidation.value.message
+    };
+  }
+
+  if (mode.value === 'variable' && !variableName.value.trim()) {
+    return {
+      valid: false,
+      message: t('variableValue.variable.fieldPlaceholder')
+    };
+  }
+
+  if (mode.value === 'flow') {
+    try {
+      validateVariableFlowConfig(flowValue.value);
+    } catch (error) {
+      return {
+        valid: false,
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+defineExpose({
+  setValue,
+  getValue,
+  clear,
+  validate
+});
+
+watch(() => boundValue(), (value) => {
   if (lastEmittedValue && JSON.stringify(value) === lastEmittedValue) {
     lastEmittedValue = '';
     return;
   }
-  syncFromModelValue();
+  syncFromValue(value);
 }, { immediate: true, deep: true });
 </script>
 
@@ -376,25 +781,41 @@ watch(() => props.modelValue, (value) => {
       </button>
     </div>
 
-    <textarea
-      v-if="mode === 'input' && multiline"
-      class="variable-value-editor__input variable-value-editor__input--multiline"
-      :data-testid="testid"
-      :readonly="readonly"
-      :placeholder="placeholder"
-      :value="inputValue"
-      @input="updateInput(($event.target as HTMLTextAreaElement).value)"
-    ></textarea>
-    <input
-      v-else-if="mode === 'input'"
-      class="variable-value-editor__input"
-      :data-testid="testid"
-      type="text"
-      :readonly="readonly"
-      :placeholder="placeholder"
-      :value="inputValue"
-      @input="updateInput(($event.target as HTMLInputElement).value)"
-    >
+    <div v-if="mode === 'input'" class="variable-value-editor__constant">
+      <textarea
+        v-if="multiline"
+        class="variable-value-editor__input variable-value-editor__input--multiline"
+        :class="{ 'variable-value-editor__input--invalid': inputValidationError }"
+        :data-testid="testid"
+        :readonly="readonly"
+        :placeholder="placeholder"
+        :value="inputValue"
+        :aria-invalid="inputValidationError ? 'true' : undefined"
+        :aria-describedby="inputValidationError ? inputErrorId : undefined"
+        @input="updateInput(($event.target as HTMLTextAreaElement).value)"
+      ></textarea>
+      <input
+        v-else
+        class="variable-value-editor__input"
+        :class="{ 'variable-value-editor__input--invalid': inputValidationError }"
+        :data-testid="testid"
+        type="text"
+        :readonly="readonly"
+        :placeholder="placeholder"
+        :value="inputValue"
+        :aria-invalid="inputValidationError ? 'true' : undefined"
+        :aria-describedby="inputValidationError ? inputErrorId : undefined"
+        @input="updateInput(($event.target as HTMLInputElement).value)"
+      >
+      <p
+        v-if="inputValidationError"
+        :id="inputErrorId"
+        class="variable-value-editor__error"
+        :data-testid="testid ? `${testid}-error` : undefined"
+      >
+        {{ inputValidationError }}
+      </p>
+    </div>
 
     <div v-else-if="mode === 'variable'" class="variable-value-editor__variable" :data-testid="testid">
       <select
@@ -568,12 +989,33 @@ watch(() => props.modelValue, (value) => {
   padding: 7px 9px;
 }
 
+.variable-value-editor__constant {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .variable-value-editor__input--multiline {
   min-height: 86px;
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.variable-value-editor__input--invalid {
+  border-color: rgb(220 38 38);
+  box-shadow: 0 0 0 2px rgb(220 38 38 / 0.12);
+}
+
+.variable-value-editor__error {
+  margin: 0;
+  color: rgb(220 38 38);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 16px;
 }
 
 .variable-value-editor__variable,
@@ -661,5 +1103,10 @@ watch(() => props.modelValue, (value) => {
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
+}
+
+.dark .variable-value-editor__input--invalid {
+  border-color: rgb(248 113 113);
+  box-shadow: 0 0 0 2px rgb(248 113 113 / 0.14);
 }
 </style>

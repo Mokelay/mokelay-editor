@@ -104,11 +104,12 @@ function normalizeInputProps(props: Partial<MInputProps>): MInputProps {
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "默认值",
- *       "type": "text",
+ *       "type": "component",
  *       "placeholder": {
  *         "zh": "请输入默认值",
  *         "en": "Please enter a default value"
- *       }
+ *       },
+ *       "component": "MVariableValueEditor"
  *     },
  *     {
  *       "key": "id",

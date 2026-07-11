@@ -76,7 +76,8 @@ function normalizeTextFieldProps(props: Partial<MTextFieldProps>): MTextFieldPro
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "值",
- *       "type": "text"
+ *       "type": "component",
+ *       "component": "MVariableValueEditor"
  *     },
  *     {
  *       "key": "id",

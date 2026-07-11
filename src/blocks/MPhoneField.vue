@@ -76,7 +76,8 @@ function normalizePhoneFieldProps(props: Partial<MPhoneFieldProps>): MPhoneField
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "值",
- *       "type": "text"
+ *       "type": "component",
+ *       "component": "MVariableValueEditor"
  *     },
  *     {
  *       "key": "id",

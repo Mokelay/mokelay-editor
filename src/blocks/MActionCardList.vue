@@ -187,9 +187,8 @@ function getActionCardListDataFields(): BlockDataField[] {
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "列表数据 JSON / 变量",
- *       "type": "textarea",
- *       "valueType": "json",
- *       "validationMessage": "请输入有效数组 JSON，或使用变量值。"
+ *       "type": "component",
+ *       "component": "MVariableValueEditor"
  *     },
  *     {
  *       "key": "itemKey",

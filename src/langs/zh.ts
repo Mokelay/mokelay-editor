@@ -163,6 +163,13 @@ export const zhMessages = {
       flow: '高级'
     },
     previous: '上一配置',
+    validation: {
+      invalidJson: '请输入有效 JSON，或使用变量值。',
+      invalidArray: '请输入有效数组 JSON，或使用变量值。',
+      invalidObject: '请输入有效对象 JSON，或使用变量值。',
+      invalidNumber: '请输入有效数字，或使用变量值。',
+      invalidBoolean: '请输入 true 或 false，或使用变量值。'
+    },
     actions: {
       insert: '插入变量'
     },

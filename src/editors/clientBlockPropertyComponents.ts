@@ -2,12 +2,14 @@ import { defineAsyncComponent } from 'vue';
 import { i18n } from '@/i18n';
 import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import { getClientBlockDocSnapshot } from '@/utils/clientBlockDocs';
+import type { VariableValueDataType } from '@/utils/variableValue';
 
 const MFormItemsEditor = defineAsyncComponent(() => import('@/blocks/MFormItemsEditor.vue'));
 const MActionToolBarEditor = defineAsyncComponent(() => import('@/blocks/MActionToolBarEditor.vue'));
 const MActionEditor = defineAsyncComponent(() => import('@/blocks/MActionEditor.vue'));
 const MAdvanceTableColumnsEditor = defineAsyncComponent(() => import('@/blocks/MAdvanceTableColumnsEditor.vue'));
 const MDatasourceEditor = defineAsyncComponent(() => import('@/blocks/MDatasourceEditor.vue'));
+const MVariableValueEditor = defineAsyncComponent(() => import('@/blocks/MVariableValueEditor.vue'));
 
 type PropertyComponentBinding = Pick<EditorToolPropertyField, 'component' | 'getComponentProps'>;
 
@@ -46,6 +48,41 @@ function advanceTableMatchingFields() {
   }) ?? [];
 }
 
+function getRuntimeBlockDataSources(state: Record<string, unknown>) {
+  const getter = state.getAvailableBlockDataSources;
+  if (typeof getter !== 'function') return [];
+  const currentBlockId = typeof state.currentBlockId === 'string' ? state.currentBlockId : undefined;
+  return (getter as (excludeBlockId?: string) => unknown)(currentBlockId);
+}
+
+function getRuntimePageVariableSources(state: Record<string, unknown>) {
+  const getter = state.getAvailablePageVariableSources;
+  if (typeof getter !== 'function') return [];
+  return (getter as () => unknown)();
+}
+
+type VariableValueBindingOptions = {
+  valueType: VariableValueDataType | ((state: Record<string, unknown>) => VariableValueDataType);
+  multiline?: boolean;
+  placeholder?: string;
+};
+
+function variableValueBinding(options: VariableValueBindingOptions): PropertyComponentBinding {
+  return {
+    component: MVariableValueEditor,
+    getComponentProps: ({ value, state }) => ({
+      modelValue: value,
+      valueType: typeof options.valueType === 'function'
+        ? options.valueType(state)
+        : options.valueType,
+      multiline: options.multiline === true,
+      placeholder: options.placeholder ?? '',
+      blockDataSources: getRuntimeBlockDataSources(state),
+      pageVariableSources: getRuntimePageVariableSources(state)
+    })
+  };
+}
+
 // JSON documents identify a component editor by name; this map keeps only the
 // executable Vue component and any runtime-only props callback out of the docs.
 const propertyComponentBindings: Record<string, PropertyComponentBinding> = {
@@ -81,7 +118,24 @@ const propertyComponentBindings: Record<string, PropertyComponentBinding> = {
   },
   'MUploadImport.uploadAction': {
     component: MActionEditor
-  }
+  },
+  'MInput.value': variableValueBinding({ valueType: 'string' }),
+  'MTextField.value': variableValueBinding({ valueType: 'string' }),
+  'MEmailField.value': variableValueBinding({ valueType: 'string' }),
+  'MPhoneField.value': variableValueBinding({ valueType: 'string' }),
+  'MLinkField.value': variableValueBinding({ valueType: 'string' }),
+  'MTextareaField.value': variableValueBinding({ valueType: 'string', multiline: true }),
+  'MDateRangeField.value': variableValueBinding({
+    valueType: 'object',
+    multiline: true,
+    placeholder: '{ "start": "2026-01-01", "end": "2026-01-31" }'
+  }),
+  'MCheckboxGroupField.value': variableValueBinding({ valueType: 'array', multiline: true }),
+  'MImageChoiceField.value': variableValueBinding({
+    valueType: (state) => state.multiple === true ? 'array' : 'string',
+    multiline: true
+  }),
+  'MActionCardList.items': variableValueBinding({ valueType: 'array', multiline: true })
 };
 
 export function getClientBlockPropertyComponentBinding(blockType: string, propertyKey: string) {

@@ -203,6 +203,10 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
   MUploadImport: async () => {
     const module = await import('@/blocks/MUploadImport.vue');
     return { component: markRaw(module.default), ...module.mUploadImportEditorTool };
+  },
+  MVariableValueEditor: async () => {
+    const module = await import('@/blocks/MVariableValueEditor.vue');
+    return { component: markRaw(module.default), ...module.mVariableValueEditorTool };
   }
 };
 

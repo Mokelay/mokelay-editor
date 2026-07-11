@@ -76,7 +76,8 @@ function normalizeLinkFieldProps(props: Partial<MLinkFieldProps>): MLinkFieldPro
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "值",
- *       "type": "text"
+ *       "type": "component",
+ *       "component": "MVariableValueEditor"
  *     },
  *     {
  *       "key": "id",

@@ -82,9 +82,8 @@ function normalizeCheckboxGroupFieldProps(props: Partial<MCheckboxGroupFieldProp
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "值 JSON",
- *       "validationMessage": "请输入有效值 JSON。",
- *       "type": "textarea",
- *       "valueType": "json"
+ *       "type": "component",
+ *       "component": "MVariableValueEditor"
  *     },
  *     {
  *       "key": "options",
