@@ -1,9 +1,119 @@
+<script lang="ts">
+import { defineEditorTool, type EditorToolComponentProps } from '@/editors/editorToolDefinition';
+import {
+  normalizeAdvanceTableColumns,
+  type MAdvanceTableColumnConfig
+} from '@/utils/advanceTableColumns';
+
+export type ColumnsEditorPayload = {
+  value: MAdvanceTableColumnConfig[];
+};
+
+export interface MAdvanceTableColumnsEditorProps extends EditorToolComponentProps {
+  value?: MAdvanceTableColumnConfig[];
+}
+
+export function normalizeMAdvanceTableColumnsEditorProps(
+  props: Partial<MAdvanceTableColumnsEditorProps>
+): MAdvanceTableColumnsEditorProps {
+  return {
+    edit: props.edit ?? false,
+    currentBlockId: props.currentBlockId,
+    getAvailableBlockDataSources: props.getAvailableBlockDataSources,
+    getAvailablePageVariableSources: props.getAvailablePageVariableSources,
+    previewRuntime: props.previewRuntime,
+    value: normalizeAdvanceTableColumns(props.value)
+  };
+}
+
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "editorBlock": true,
+ *   "blockType": "MAdvanceTableColumnsEditor",
+ *   "displayName": "高级表格列配置编辑器",
+ *   "category": "data",
+ *   "description": "高级表格列配置编辑器，用于维护 MAdvanceTable 的列字段、宽度、固定列、列内容模板和列级事件。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MAdvanceTableColumnsEditor",
+ *     "toolSymbol": "mAdvanceTableColumnsEditorTool",
+ *     "editorEnabled": false,
+ *     "toolboxVisible": false,
+ *     "sortOrder": 173
+ *   },
+ *   "toolbox": {
+ *     "title": "高级表格列配置编辑器",
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"14\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M10 5v14M14 5v14M4 10h16\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "value": []
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "MAdvanceTableColumnConfig[]",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MAdvanceTableColumnsEditor.vue",
+ *       "line": 9,
+ *       "declaredInProps": true,
+ *       "configurable": false,
+ *       "label": "列配置"
+ *     }
+ *   ],
+ *   "events": [
+ *     {
+ *       "event": "toolChange",
+ *       "payload": "{ value: MAdvanceTableColumnConfig[] }",
+ *       "trigger": "属性编辑器保存时",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MAdvanceTableColumnsEditor.vue",
+ *       "label": "工具变更"
+ *     },
+ *     {
+ *       "event": "change",
+ *       "payload": "{ value: MAdvanceTableColumnConfig[] }",
+ *       "trigger": "属性编辑器保存时",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MAdvanceTableColumnsEditor.vue",
+ *       "label": "变更"
+ *     }
+ *   ],
+ *   "methods": [],
+ *   "dataFields": [],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时输出归一化后的 value 列配置数组。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MAdvanceTableColumnsEditor-example",
+ *       "type": "MAdvanceTableColumnsEditor",
+ *       "data": {
+ *         "value": []
+ *       }
+ *     }
+ *   ]
+ * }
+ */
+export const mAdvanceTableColumnsEditorTool = defineEditorTool<MAdvanceTableColumnsEditorProps>({
+  normalizeProps: normalizeMAdvanceTableColumnsEditorProps,
+  serialize: (props) => ({
+    value: normalizeAdvanceTableColumns(props.value)
+  })
+});
+</script>
+
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import MFieldsEditor, {
   normalizeFieldsEditorValue,
   type MFieldsEditorField
-} from '@/blocks/MFieldsEditor.vue';
+} from '@/editors/blocks/MFieldsEditor.vue';
 import { useI18n } from '@/i18n';
 import {
   createAdvanceTableColumnFromField,
@@ -11,23 +121,15 @@ import {
   getDefaultAdvanceTableFieldTemplate,
   getSingleParagraphColumnTemplate,
   inferAdvanceTableColumnVariable,
-  normalizeAdvanceTableColumns,
   normalizeAdvanceTableFixed,
   normalizeAdvanceTableWidth,
   setSingleParagraphColumnTemplate,
   type AdvanceTableColumnField,
-  type MAdvanceTableColumnConfig,
   type MAdvanceTableFixed
 } from '@/utils/advanceTableColumns';
 import { cloneBlockEvents } from '@/utils/blockEvents';
 
-type ColumnsEditorPayload = {
-  value: MAdvanceTableColumnConfig[];
-};
-
-const props = defineProps<{
-  edit: boolean;
-  value?: MAdvanceTableColumnConfig[];
+const props = defineProps<MAdvanceTableColumnsEditorProps & {
   onChange?: (payload: ColumnsEditorPayload) => void;
   onToolChange?: (payload: ColumnsEditorPayload) => void;
 }>();

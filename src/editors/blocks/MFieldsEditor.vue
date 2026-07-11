@@ -60,6 +60,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  * @clientBlockDoc
  * {
  *   "version": 1,
+ *   "editorBlock": true,
  *   "blockType": "MFieldsEditor",
  *   "displayName": "字段编辑器",
  *   "category": "form",
@@ -89,7 +90,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       "key": "value",
  *       "optional": true,
  *       "tsType": "MFieldsEditorField[]",
- *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
  *       "line": 15,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -105,7 +106,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       },
  *       "variable": "field.variable",
  *       "dataType": "normalizeFieldsEditorDataType(field.dataType)",
- *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
  *       "line": 202
  *     },
  *     {
@@ -114,7 +115,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       },
  *       "variable": "candidate.variable.trim()",
  *       "dataType": "normalizeFieldsEditorDataType(candidate.dataType)",
- *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
  *       "line": 225
  *     },
  *     {
@@ -123,7 +124,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       },
  *       "variable": "item.key.trim()",
  *       "dataType": "string",
- *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
  *       "line": 323
  *     },
  *     {
@@ -132,7 +133,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       },
  *       "variable": "field.path",
  *       "dataType": "normalizeFieldsEditorDataType(field.type)",
- *       "source": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
  *       "line": 447
  *     }
  *   ],
@@ -154,11 +155,11 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *   ],
  *   "sourceRefs": [
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
  *       "reason": "Vue component implementation"
  *     },
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MFieldsEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
  *       "reason": "Editor tool definition"
  *     },
  *     {

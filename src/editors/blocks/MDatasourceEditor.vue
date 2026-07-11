@@ -88,6 +88,7 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  * @clientBlockDoc
  * {
  *   "version": 1,
+ *   "editorBlock": true,
  *   "blockType": "MDatasourceEditor",
  *   "displayName": "数据源编辑器",
  *   "category": "data",
@@ -125,7 +126,7 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "key": "getAvailablePageVariableSources",
  *       "optional": true,
  *       "tsType": "import('@/utils/variableValue').GetAvailablePageVariableSources",
- *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
  *       "line": 68,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -135,7 +136,7 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "key": "value",
  *       "optional": true,
  *       "tsType": "MDatasourceApiObject",
- *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
  *       "line": 69,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -145,7 +146,7 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "key": "matchingExternalFields",
  *       "optional": true,
  *       "tsType": "MDatasourceExternalField[]",
- *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
  *       "line": 70,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -155,7 +156,7 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "key": "showPageBreak",
  *       "optional": true,
  *       "tsType": "boolean",
- *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
  *       "line": 71,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -170,7 +171,7 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "async": true,
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
- *       "source": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
  *       "line": 1285,
  *       "label": "获取数据"
  *     }
@@ -202,11 +203,11 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *   ],
  *   "sourceRefs": [
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
  *       "reason": "Vue component implementation"
  *     },
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MDatasourceEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
  *       "reason": "Editor tool definition"
  *     },
  *     {
@@ -236,7 +237,7 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
 import { computed, inject, reactive, ref, shallowRef, triggerRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import JsonTreeView from '@/blocks/components/JsonTreeView.vue';
-import MVariableValueEditor from '@/blocks/MVariableValueEditor.vue';
+import MVariableValueEditor from '@/editors/blocks/MVariableValueEditor.vue';
 import DatasourceApiImportDialog, {
   type DatasourceApiImportSource
 } from '@/blocks/components/DatasourceApiImportDialog.vue';

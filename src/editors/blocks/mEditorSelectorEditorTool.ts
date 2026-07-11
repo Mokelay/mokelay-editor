@@ -70,6 +70,7 @@ export function cloneSelectorBlock(block: StoredBlock): StoredBlock {
  * @clientBlockDoc
  * {
  *   "version": 1,
+ *   "editorBlock": true,
  *   "blockType": "MEditorSelector",
  *   "displayName": "组件选择器",
  *   "category": "container",
@@ -97,7 +98,7 @@ export function cloneSelectorBlock(block: StoredBlock): StoredBlock {
  *       "key": "value",
  *       "optional": true,
  *       "tsType": "StoredBlock",
- *       "source": "submodule/mokelay-editor/src/blocks/mEditorSelectorEditorTool.ts",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/mEditorSelectorEditorTool.ts",
  *       "line": 14,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -107,7 +108,7 @@ export function cloneSelectorBlock(block: StoredBlock): StoredBlock {
  *       "key": "excludeToolNames",
  *       "optional": true,
  *       "tsType": "string[]",
- *       "source": "submodule/mokelay-editor/src/blocks/mEditorSelectorEditorTool.ts",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/mEditorSelectorEditorTool.ts",
  *       "line": 15,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -133,11 +134,11 @@ export function cloneSelectorBlock(block: StoredBlock): StoredBlock {
  *   ],
  *   "sourceRefs": [
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MEditorSelector.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MEditorSelector.vue",
  *       "reason": "Vue component implementation"
  *     },
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/mEditorSelectorEditorTool.ts",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/mEditorSelectorEditorTool.ts",
  *       "reason": "Editor tool definition"
  *     },
  *     {

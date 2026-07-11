@@ -1,6 +1,6 @@
 <script lang="ts">
-export { mEditorSelectorEditorTool } from '@/blocks/mEditorSelectorEditorTool';
-export type { MEditorSelectorProps, StoredBlock } from '@/blocks/mEditorSelectorEditorTool';
+export { mEditorSelectorEditorTool } from '@/editors/blocks/mEditorSelectorEditorTool';
+export type { MEditorSelectorProps, StoredBlock } from '@/editors/blocks/mEditorSelectorEditorTool';
 </script>
 
 <script setup lang="ts">
@@ -20,7 +20,7 @@ import {
   normalizeSelectorBlock,
   type MEditorSelectorProps,
   type StoredBlock
-} from '@/blocks/mEditorSelectorEditorTool';
+} from '@/editors/blocks/mEditorSelectorEditorTool';
 import {
   getToolboxVisibleClientBlockDocs,
   loadClientBlockDocs,

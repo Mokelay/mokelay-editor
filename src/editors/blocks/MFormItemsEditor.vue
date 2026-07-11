@@ -1,13 +1,121 @@
+<script lang="ts">
+import { defineEditorTool, type EditorToolComponentProps } from '@/editors/editorToolDefinition';
+import {
+  normalizeMFormItems,
+  type MFormItemData
+} from '@/blocks/mFormEditorTool';
+
+export type FormItemsEditorPayload = {
+  value: MFormItemData[];
+};
+
+export interface MFormItemsEditorProps extends EditorToolComponentProps {
+  value?: MFormItemData[];
+}
+
+export function normalizeMFormItemsEditorProps(
+  props: Partial<MFormItemsEditorProps>
+): MFormItemsEditorProps {
+  return {
+    edit: props.edit ?? false,
+    currentBlockId: props.currentBlockId,
+    getAvailableBlockDataSources: props.getAvailableBlockDataSources,
+    getAvailablePageVariableSources: props.getAvailablePageVariableSources,
+    previewRuntime: props.previewRuntime,
+    value: normalizeMFormItems(props.value)
+  };
+}
+
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "editorBlock": true,
+ *   "blockType": "MFormItemsEditor",
+ *   "displayName": "表单项列表编辑器",
+ *   "category": "form",
+ *   "description": "表单项列表编辑器，用于维护 MForm 的字段列表、字段变量、布局和内嵌字段组件配置。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MFormItemsEditor",
+ *     "toolSymbol": "mFormItemsEditorTool",
+ *     "editorEnabled": false,
+ *     "toolboxVisible": false,
+ *     "sortOrder": 174
+ *   },
+ *   "toolbox": {
+ *     "title": "表单项列表编辑器",
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 8h8M8 12h8M8 16h5\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "value": []
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "MFormItemData[]",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFormItemsEditor.vue",
+ *       "line": 9,
+ *       "declaredInProps": true,
+ *       "configurable": false,
+ *       "label": "表单项配置"
+ *     }
+ *   ],
+ *   "events": [
+ *     {
+ *       "event": "toolChange",
+ *       "payload": "{ value: MFormItemData[] }",
+ *       "trigger": "属性编辑器保存时",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFormItemsEditor.vue",
+ *       "label": "工具变更"
+ *     },
+ *     {
+ *       "event": "change",
+ *       "payload": "{ value: MFormItemData[] }",
+ *       "trigger": "属性编辑器保存时",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFormItemsEditor.vue",
+ *       "label": "变更"
+ *     }
+ *   ],
+ *   "methods": [],
+ *   "dataFields": [],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时输出归一化后的 value 表单项数组。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MFormItemsEditor-example",
+ *       "type": "MFormItemsEditor",
+ *       "data": {
+ *         "value": []
+ *       }
+ *     }
+ *   ]
+ * }
+ */
+export const mFormItemsEditorTool = defineEditorTool<MFormItemsEditorProps>({
+  normalizeProps: normalizeMFormItemsEditorProps,
+  serialize: (props) => ({
+    value: normalizeMFormItems(props.value)
+  })
+});
+</script>
+
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import MFieldsEditor, {
   normalizeFieldsEditorValue,
   type MFieldsEditorField
-} from '@/blocks/MFieldsEditor.vue';
+} from '@/editors/blocks/MFieldsEditor.vue';
 import {
-  cloneFormItemData,
-  normalizeMFormItems,
-  type MFormItemData
+  cloneFormItemData
 } from '@/blocks/mFormEditorTool';
 import {
   createInitialFormItemEditorBlock,
@@ -19,13 +127,7 @@ import { getEditorComponentDefinition } from '@/editors/editorComponentRuntimeRe
 import { useI18n } from '@/i18n';
 import { getClientBlockDocSnapshot } from '@/utils/clientBlockDocs';
 
-type FormItemsEditorPayload = {
-  value: MFormItemData[];
-};
-
-const props = defineProps<{
-  edit: boolean;
-  value?: MFormItemData[];
+const props = defineProps<MFormItemsEditorProps & {
   onChange?: (payload: FormItemsEditorPayload) => void;
   onToolChange?: (payload: FormItemsEditorPayload) => void;
 }>();

@@ -18,7 +18,7 @@ import {
   cloneSelectorBlock,
   type StoredBlock,
   normalizeSelectorBlock
-} from '@/blocks/mEditorSelectorEditorTool';
+} from '@/editors/blocks/mEditorSelectorEditorTool';
 import {
   cloneFormItemData,
   normalizeMFormItem,

@@ -3,7 +3,7 @@ import {
   cloneSelectorBlock,
   normalizeSelectorBlock,
   type StoredBlock
-} from '@/blocks/mEditorSelectorEditorTool';
+} from '@/editors/blocks/mEditorSelectorEditorTool';
 
 export type MFormItemLayout = 'Vertical' | 'Horizontal';
 

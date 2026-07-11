@@ -70,6 +70,8 @@ export type ClientBlockDoc = {
   editorEnabled?: boolean;
   toolbox_visible?: boolean | number | string;
   toolboxVisible?: boolean;
+  editor_block?: boolean | number | string;
+  editorBlock?: boolean;
   sort_order?: number | string;
   sortOrder?: number;
   registration?: ClientBlockRegistration;
@@ -107,6 +109,7 @@ export type NormalizedClientBlockDoc = Required<Pick<ClientBlockDoc,
   toolSymbol: string;
   editorEnabled: boolean;
   toolboxVisible: boolean;
+  editorBlock: boolean;
   sortOrder: number;
   defaultData: Record<string, unknown>;
   properties: ClientBlockPropertyField[];
@@ -160,6 +163,7 @@ export function normalizeClientBlockDoc(doc: ClientBlockDoc, index = 0): Normali
   const registration = recordValue(doc.registration) as ClientBlockRegistration;
   const editorEnabled = booleanValue(doc.editorEnabled ?? doc.editor_enabled ?? registration.editorEnabled, true);
   const toolboxVisible = booleanValue(doc.toolboxVisible ?? doc.toolbox_visible ?? registration.toolboxVisible, editorEnabled);
+  const editorBlock = booleanValue(doc.editorBlock ?? doc.editor_block, false);
   const sortOrder = numberValue(doc.sortOrder ?? doc.sort_order ?? registration.sortOrder, index * 10);
   const defaultData = recordValue(doc.defaultData ?? doc.default_data ?? doc.initialProps ?? doc.initial_props);
 
@@ -177,6 +181,7 @@ export function normalizeClientBlockDoc(doc: ClientBlockDoc, index = 0): Normali
     status: doc.status || 'active',
     editorEnabled,
     toolboxVisible,
+    editorBlock,
     sortOrder,
     registration: {
       ...registration,

@@ -13,8 +13,12 @@ type EditorToolLoader = () => Promise<LoadedDefinition>;
 
 const editorComponentLoaders: Record<string, EditorToolLoader> = {
   MActionEditor: async () => {
-    const module = await import('@/blocks/MActionEditor.vue');
+    const module = await import('@/editors/blocks/MActionEditor.vue');
     return { component: markRaw(module.default), ...module.mActionEditorTool };
+  },
+  MActionToolBarEditor: async () => {
+    const module = await import('@/editors/blocks/MActionToolBarEditor.vue');
+    return { component: markRaw(module.default), ...module.mActionToolBarEditorTool };
   },
   MActionCardList: async () => {
     const module = await import('@/blocks/MActionCardList.vue');
@@ -32,6 +36,10 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     const module = await import('@/blocks/MAdvanceTable.vue');
     return { component: markRaw(module.default), ...module.mAdvanceTableEditorTool };
   },
+  MAdvanceTableColumnsEditor: async () => {
+    const module = await import('@/editors/blocks/MAdvanceTableColumnsEditor.vue');
+    return { component: markRaw(module.default), ...module.mAdvanceTableColumnsEditorTool };
+  },
   MBlockPlayground: async () => {
     const module = await import('@/blocks/MBlockPlayground.vue');
     return { component: markRaw(module.default), ...module.mBlockPlaygroundTool };
@@ -41,7 +49,7 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     return { component: markRaw(module.default), ...module.mChartEditorTool };
   },
   MChartDataEditor: async () => {
-    const module = await import('@/blocks/MChartDataEditor.vue');
+    const module = await import('@/editors/blocks/MChartDataEditor.vue');
     return { component: markRaw(module.default), ...module.mChartDataEditorTool };
   },
   MDateRangeField: async () => {
@@ -49,7 +57,7 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     return { component: markRaw(module.default), ...module.mDateRangeFieldEditorTool };
   },
   MDatasourceEditor: async () => {
-    const module = await import('@/blocks/MDatasourceEditor.vue');
+    const module = await import('@/editors/blocks/MDatasourceEditor.vue');
     return { component: markRaw(module.default), ...module.mDatasourceEditorTool };
   },
   MDividerLine: async () => {
@@ -91,8 +99,12 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     return { component: markRaw(module.default), ...module.mFileUploadFieldEditorTool };
   },
   MFieldsEditor: async () => {
-    const module = await import('@/blocks/MFieldsEditor.vue');
+    const module = await import('@/editors/blocks/MFieldsEditor.vue');
     return { component: markRaw(module.default), ...module.mFieldsEditorTool };
+  },
+  MFormItemsEditor: async () => {
+    const module = await import('@/editors/blocks/MFormItemsEditor.vue');
+    return { component: markRaw(module.default), ...module.mFormItemsEditorTool };
   },
   MHeading: async () => {
     const module = await import('@/blocks/MHeading.vue');
@@ -151,8 +163,8 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
   },
   MEditorSelector: async () => {
     const [{ default: component }, { mEditorSelectorEditorTool }] = await Promise.all([
-      import('@/blocks/MEditorSelector.vue'),
-      import('@/blocks/mEditorSelectorEditorTool')
+      import('@/editors/blocks/MEditorSelector.vue'),
+      import('@/editors/blocks/mEditorSelectorEditorTool')
     ]);
     return { component: markRaw(component), ...mEditorSelectorEditorTool };
   },
@@ -209,7 +221,7 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     return { component: markRaw(module.default), ...module.mUploadImportEditorTool };
   },
   MVariableValueEditor: async () => {
-    const module = await import('@/blocks/MVariableValueEditor.vue');
+    const module = await import('@/editors/blocks/MVariableValueEditor.vue');
     return { component: markRaw(module.default), ...module.mVariableValueEditorTool };
   }
 };

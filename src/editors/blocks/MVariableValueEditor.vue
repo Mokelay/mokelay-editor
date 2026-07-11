@@ -64,6 +64,7 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  * @clientBlockDoc
  * {
  *   "version": 1,
+ *   "editorBlock": true,
  *   "blockType": "MVariableValueEditor",
  *   "displayName": "变量值编辑器",
  *   "category": "content",
@@ -97,7 +98,7 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  *       "key": "value",
  *       "optional": true,
  *       "tsType": "unknown | VariableValueConfig",
- *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
  *       "line": 14,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -107,7 +108,7 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  *       "key": "valueType",
  *       "optional": true,
  *       "tsType": "VariableValueDataType",
- *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
  *       "line": 20,
  *       "declaredInProps": true,
  *       "configurable": true,
@@ -125,7 +126,7 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  *       "key": "multiline",
  *       "optional": true,
  *       "tsType": "boolean",
- *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
  *       "line": 22,
  *       "declaredInProps": true,
  *       "configurable": true,
@@ -136,7 +137,7 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  *       "key": "readonly",
  *       "optional": true,
  *       "tsType": "boolean",
- *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
  *       "line": 21,
  *       "declaredInProps": true,
  *       "configurable": true,
@@ -147,7 +148,7 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  *       "key": "placeholder",
  *       "optional": true,
  *       "tsType": "string",
- *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
  *       "line": 23,
  *       "declaredInProps": true,
  *       "configurable": true,
@@ -160,14 +161,14 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  *       "event": "update:modelValue",
  *       "payload": "value: unknown",
  *       "trigger": "值配置变化时",
- *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
  *       "label": "更新绑定值"
  *     },
  *     {
  *       "event": "change",
  *       "payload": "{ value: unknown }",
  *       "trigger": "值配置变化时",
- *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
  *       "label": "变更"
  *     }
  *   ],
@@ -210,7 +211,7 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  *       "label": "值",
  *       "variable": "value",
  *       "dataType": "string",
- *       "source": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue"
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue"
  *     }
  *   ],
  *   "saveRules": [
@@ -235,11 +236,11 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  *   ],
  *   "sourceRefs": [
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
  *       "reason": "Vue component implementation"
  *     },
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MVariableValueEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
  *       "reason": "Editor tool definition"
  *     },
  *     {

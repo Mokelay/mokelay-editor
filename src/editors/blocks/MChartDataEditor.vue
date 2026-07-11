@@ -172,6 +172,7 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  * @clientBlockDoc
  * {
  *   "version": 1,
+ *   "editorBlock": true,
  *   "blockType": "MChartDataEditor",
  *   "displayName": "图表数据编辑器",
  *   "category": "data",
@@ -215,7 +216,7 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "key": "xAxis",
  *       "optional": true,
  *       "tsType": "string[]",
- *       "source": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
  *       "line": 18,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -225,7 +226,7 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "key": "series",
  *       "optional": true,
  *       "tsType": "MChartDataEditorSeriesItem[]",
- *       "source": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
  *       "line": 19,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -235,7 +236,7 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "key": "chartType",
  *       "optional": true,
  *       "tsType": "MChartDataEditorChartType | string",
- *       "source": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
  *       "line": 20,
  *       "declaredInProps": true,
  *       "configurable": true,
@@ -251,7 +252,7 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "key": "readonly",
  *       "optional": true,
  *       "tsType": "boolean",
- *       "source": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
  *       "line": 21,
  *       "declaredInProps": true,
  *       "configurable": true,
@@ -264,14 +265,14 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "event": "update:modelValue",
  *       "payload": "value: MChartDataEditorData",
  *       "trigger": "图表数据保存时",
- *       "source": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
  *       "label": "更新绑定值"
  *     },
  *     {
  *       "event": "change",
  *       "payload": "{ value?: MChartDataEditorData; patch?: Pick<MChartDataEditorData, 'xAxis' | 'series'> }",
  *       "trigger": "图表数据保存时",
- *       "source": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
  *       "label": "变更"
  *     }
  *   ],
@@ -314,13 +315,13 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "label": "横坐标",
  *       "variable": "xAxis",
  *       "dataType": "array",
- *       "source": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue"
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue"
  *     },
  *     {
  *       "label": "系列数据",
  *       "variable": "series",
  *       "dataType": "array",
- *       "source": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue"
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue"
  *     }
  *   ],
  *   "saveRules": [
@@ -346,11 +347,11 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *   ],
  *   "sourceRefs": [
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
  *       "reason": "Vue component implementation"
  *     },
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MChartDataEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
  *       "reason": "Editor tool definition"
  *     },
  *     {

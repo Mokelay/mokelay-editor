@@ -6,7 +6,7 @@ import {
   serializeMActionToolbarProps,
   type MActionToolbarProps
 } from '@/blocks/MActionToolbar.vue';
-import { cloneSelectorBlock, type StoredBlock } from '@/blocks/mEditorSelectorEditorTool';
+import { cloneSelectorBlock, type StoredBlock } from '@/editors/blocks/mEditorSelectorEditorTool';
 import { cloneBlockEvents, type BlockEvent } from '@/utils/blockEvents';
 import { normalizeVariableDataType } from '@/utils/variableValue';
 import { normalizeProcessorConfig } from '@/processors/shared';

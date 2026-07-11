@@ -4,13 +4,13 @@ import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import { getClientBlockDocSnapshot } from '@/utils/clientBlockDocs';
 import type { VariableValueDataType } from '@/utils/variableValue';
 
-const MFormItemsEditor = defineAsyncComponent(() => import('@/blocks/MFormItemsEditor.vue'));
-const MActionToolBarEditor = defineAsyncComponent(() => import('@/blocks/MActionToolBarEditor.vue'));
-const MActionEditor = defineAsyncComponent(() => import('@/blocks/MActionEditor.vue'));
-const MAdvanceTableColumnsEditor = defineAsyncComponent(() => import('@/blocks/MAdvanceTableColumnsEditor.vue'));
-const MChartDataEditor = defineAsyncComponent(() => import('@/blocks/MChartDataEditor.vue'));
-const MDatasourceEditor = defineAsyncComponent(() => import('@/blocks/MDatasourceEditor.vue'));
-const MVariableValueEditor = defineAsyncComponent(() => import('@/blocks/MVariableValueEditor.vue'));
+const MFormItemsEditor = defineAsyncComponent(() => import('@/editors/blocks/MFormItemsEditor.vue'));
+const MActionToolBarEditor = defineAsyncComponent(() => import('@/editors/blocks/MActionToolBarEditor.vue'));
+const MActionEditor = defineAsyncComponent(() => import('@/editors/blocks/MActionEditor.vue'));
+const MAdvanceTableColumnsEditor = defineAsyncComponent(() => import('@/editors/blocks/MAdvanceTableColumnsEditor.vue'));
+const MChartDataEditor = defineAsyncComponent(() => import('@/editors/blocks/MChartDataEditor.vue'));
+const MDatasourceEditor = defineAsyncComponent(() => import('@/editors/blocks/MDatasourceEditor.vue'));
+const MVariableValueEditor = defineAsyncComponent(() => import('@/editors/blocks/MVariableValueEditor.vue'));
 
 type PropertyComponentBinding = Pick<EditorToolPropertyField, 'component' | 'getComponentProps'>;
 

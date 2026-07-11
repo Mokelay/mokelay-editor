@@ -28,9 +28,9 @@ import { useI18n } from '@/i18n';
 import {
   normalizeSelectorBlock,
   type MEditorSelectorProps
-} from '@/blocks/mEditorSelectorEditorTool';
+} from '@/editors/blocks/mEditorSelectorEditorTool';
 
-const MEditorSelector = defineAsyncComponent(() => import('@/blocks/MEditorSelector.vue'));
+const MEditorSelector = defineAsyncComponent(() => import('@/editors/blocks/MEditorSelector.vue'));
 
 const props = withDefaults(defineProps<MFormItemProps & {
   onChange?: (payload: MFormItemProps) => void;

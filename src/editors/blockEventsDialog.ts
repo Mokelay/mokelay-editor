@@ -175,7 +175,7 @@ export class BlockEventsDialogController {
   private async mountActionEditors() {
     if (!this.dialog) return;
 
-    const { default: MActionEditor } = await import('@/blocks/MActionEditor.vue');
+    const { default: MActionEditor } = await import('@/editors/blocks/MActionEditor.vue');
     if (!this.dialog) return;
 
     this.dialog.querySelectorAll<HTMLElement>('[data-event-actions-index]').forEach((container) => {

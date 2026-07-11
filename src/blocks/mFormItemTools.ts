@@ -11,7 +11,7 @@ import {
 import {
   cloneSelectorBlock,
   type StoredBlock
-} from '@/blocks/mEditorSelectorEditorTool';
+} from '@/editors/blocks/mEditorSelectorEditorTool';
 
 const INTERNAL_FORM_TOOL_NAMES = new Set(['MPage', 'MForm', 'MFormItem', 'MEditorSelector']);
 

@@ -22,6 +22,7 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  * @clientBlockDoc
  * {
  *   "version": 1,
+ *   "editorBlock": true,
  *   "blockType": "MActionEditor",
  *   "displayName": "Action配置",
  *   "category": "action",
@@ -48,7 +49,7 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *       "key": "value",
  *       "optional": true,
  *       "tsType": "EditorActionConfig[]",
- *       "source": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
  *       "line": 10,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -58,7 +59,7 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *       "key": "modelValue",
  *       "optional": true,
  *       "tsType": "EditorActionConfig[]",
- *       "source": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
  *       "line": 11,
  *       "declaredInProps": true,
  *       "configurable": false,
@@ -70,7 +71,7 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *       "event": "update:modelValue",
  *       "payload": "value: ActionConfig[]",
  *       "trigger": "Vue component emit",
- *       "source": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
  *       "line": 144,
  *       "label": "更新绑定值"
  *     },
@@ -78,7 +79,7 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *       "event": "change",
  *       "payload": "value: ActionConfig[]",
  *       "trigger": "Vue component emit",
- *       "source": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
  *       "line": 144,
  *       "label": "变更"
  *     }
@@ -103,11 +104,11 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *   ],
  *   "sourceRefs": [
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
  *       "reason": "Vue component implementation"
  *     },
  *     {
- *       "file": "submodule/mokelay-editor/src/blocks/MActionEditor.vue",
+ *       "file": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
  *       "reason": "Editor tool definition"
  *     },
  *     {

@@ -1,6 +1,5 @@
-<script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import MActionEditor from '@/blocks/MActionEditor.vue';
+<script lang="ts">
+import { defineEditorTool, type EditorToolComponentProps } from '@/editors/editorToolDefinition';
 import {
   serializeMActionToolbarProps,
   type MActionToolbarAlign,
@@ -8,27 +7,180 @@ import {
   type MActionToolbarSize,
   type ToolbarButton
 } from '@/blocks/MActionToolbar.vue';
-import { cloneActions, type ActionConfig } from '@/actions';
-import { cloneBlockEvents } from '@/utils/blockEvents';
-import { useI18n } from '@/i18n';
 
-type MActionToolBarEditorData = {
+export type MActionToolBarEditorData = {
   align?: MActionToolbarAlign | string;
   size?: MActionToolbarSize | string;
   mode?: MActionToolbarMode | string;
   buttons?: ToolbarButton[];
 };
 
-type ActionToolBarEditorPayload = {
+export type ActionToolBarEditorPayload = {
   value?: MActionToolBarEditorData;
   patch?: MActionToolBarEditorData;
 };
 
-const props = defineProps<{
-  edit: boolean;
+export interface MActionToolBarEditorProps extends EditorToolComponentProps {
   value?: MActionToolBarEditorData;
   allowEmpty?: boolean;
   outputMode?: 'value' | 'patch';
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeActionToolbarEditorValue(value: unknown): MActionToolBarEditorData {
+  const source = isRecord(value) ? value : {};
+  return serializeMActionToolbarProps({
+    ...source,
+    edit: false,
+    buttons: Array.isArray(source.buttons) ? source.buttons : []
+  });
+}
+
+export function normalizeMActionToolBarEditorProps(
+  props: Partial<MActionToolBarEditorProps>
+): MActionToolBarEditorProps {
+  return {
+    edit: props.edit ?? false,
+    currentBlockId: props.currentBlockId,
+    getAvailableBlockDataSources: props.getAvailableBlockDataSources,
+    getAvailablePageVariableSources: props.getAvailablePageVariableSources,
+    previewRuntime: props.previewRuntime,
+    value: normalizeActionToolbarEditorValue(props.value),
+    allowEmpty: props.allowEmpty === true,
+    outputMode: props.outputMode === 'patch' ? 'patch' : 'value'
+  };
+}
+
+/**
+ * @clientBlockDoc
+ * {
+ *   "version": 1,
+ *   "editorBlock": true,
+ *   "blockType": "MActionToolBarEditor",
+ *   "displayName": "动作工具栏配置编辑器",
+ *   "category": "action",
+ *   "description": "动作工具栏配置编辑器，用于维护动作工具栏的对齐、尺寸、展示模式和按钮事件配置。",
+ *   "status": "active",
+ *   "registration": {
+ *     "sourceKind": "mokelay-editor",
+ *     "sourcePackage": "mokelay-editor",
+ *     "componentName": "MActionToolBarEditor",
+ *     "toolSymbol": "mActionToolBarEditorTool",
+ *     "editorEnabled": false,
+ *     "toolboxVisible": false,
+ *     "sortOrder": 172
+ *   },
+ *   "toolbox": {
+ *     "title": "动作工具栏配置编辑器",
+ *     "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/><path d=\"M8 10h3M14 10h2M8 14h8\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>"
+ *   },
+ *   "defaultData": {
+ *     "value": {
+ *       "align": "left",
+ *       "size": "md",
+ *       "mode": "inline",
+ *       "buttons": []
+ *     },
+ *     "allowEmpty": false,
+ *     "outputMode": "value"
+ *   },
+ *   "properties": [
+ *     {
+ *       "key": "value",
+ *       "optional": true,
+ *       "tsType": "MActionToolBarEditorData",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
+ *       "line": 18,
+ *       "declaredInProps": true,
+ *       "configurable": false,
+ *       "label": "工具栏配置"
+ *     },
+ *     {
+ *       "key": "allowEmpty",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
+ *       "line": 19,
+ *       "declaredInProps": true,
+ *       "configurable": false,
+ *       "label": "允许空工具栏"
+ *     },
+ *     {
+ *       "key": "outputMode",
+ *       "optional": true,
+ *       "tsType": "'value' | 'patch'",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
+ *       "line": 20,
+ *       "declaredInProps": true,
+ *       "configurable": false,
+ *       "label": "输出模式"
+ *     }
+ *   ],
+ *   "events": [
+ *     {
+ *       "event": "toolChange",
+ *       "payload": "{ value?: MActionToolBarEditorData; patch?: MActionToolBarEditorData }",
+ *       "trigger": "属性编辑器保存时",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
+ *       "label": "工具变更"
+ *     },
+ *     {
+ *       "event": "change",
+ *       "payload": "{ value?: MActionToolBarEditorData; patch?: MActionToolBarEditorData }",
+ *       "trigger": "属性编辑器保存时",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
+ *       "label": "变更"
+ *     }
+ *   ],
+ *   "methods": [],
+ *   "dataFields": [],
+ *   "saveRules": [
+ *     {
+ *       "key": "serialize",
+ *       "type": "function",
+ *       "description": "保存时输出 value、allowEmpty 和 outputMode；作为属性编辑器时由 payload 决定回写 value 或 patch。"
+ *     }
+ *   ],
+ *   "examples": [
+ *     {
+ *       "id": "MActionToolBarEditor-example",
+ *       "type": "MActionToolBarEditor",
+ *       "data": {
+ *         "value": {
+ *           "align": "left",
+ *           "size": "md",
+ *           "mode": "inline",
+ *           "buttons": []
+ *         }
+ *       }
+ *     }
+ *   ]
+ * }
+ */
+export const mActionToolBarEditorTool = defineEditorTool<MActionToolBarEditorProps>({
+  normalizeProps: normalizeMActionToolBarEditorProps,
+  serialize: (props) => {
+    const normalized = normalizeMActionToolBarEditorProps(props);
+    return {
+      value: normalized.value,
+      allowEmpty: normalized.allowEmpty,
+      outputMode: normalized.outputMode
+    };
+  }
+});
+</script>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import MActionEditor from '@/editors/blocks/MActionEditor.vue';
+import { cloneActions, type ActionConfig } from '@/actions';
+import { cloneBlockEvents } from '@/utils/blockEvents';
+import { useI18n } from '@/i18n';
+
+const props = defineProps<MActionToolBarEditorProps & {
   onChange?: (payload: ActionToolBarEditorPayload) => void;
   onToolChange?: (payload: ActionToolBarEditorPayload) => void;
 }>();
@@ -42,22 +194,13 @@ const savedButtonCount = computed(() => committedToolbar.value.buttons?.length ?
 const draftButtons = computed(() => draftToolbar.value.buttons ?? []);
 const isReadOnly = computed(() => !props.edit);
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function cloneValue<T>(value: T): T {
   if (value === undefined || value === null || typeof value !== 'object') return value;
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function normalizeToolbar(value: unknown): MActionToolBarEditorData {
-  const source = isRecord(value) ? value : {};
-  return serializeMActionToolbarProps({
-    ...source,
-    edit: false,
-    buttons: Array.isArray(source.buttons) ? source.buttons : []
-  });
+  return normalizeActionToolbarEditorValue(value);
 }
 
 function cloneToolbar(value: unknown): MActionToolBarEditorData {
