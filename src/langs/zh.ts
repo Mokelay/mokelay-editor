@@ -309,6 +309,44 @@ export const zhMessages = {
       loadFailed: '页面加载失败。',
       emptyPage: '当前页签没有页面内容。'
     },
+    configEditor: {
+      title: '页签配置',
+      defaultTabName: '页签 {index}',
+      empty: '暂无页签，点击新增页签开始配置。',
+      loadingPages: '页面加载中...',
+      pageOptionsLoadFailed: '页面列表加载失败，可继续手动输入 pageUUID。',
+      summary: {
+        savedCount: '已配置 {count} 个页签 · 默认：{active}',
+        noActive: '未设置'
+      },
+      sources: {
+        user: '用户页面',
+        system: '系统页面'
+      },
+      columns: {
+        active: '默认',
+        id: 'ID',
+        name: '名称',
+        source: '来源',
+        pageUUID: '页面 UUID',
+        actions: '操作'
+      },
+      actions: {
+        settings: '编辑页签配置',
+        add: '新增页签',
+        refreshPages: '刷新页面列表',
+        clear: '清空配置',
+        remove: '删除'
+      },
+      validation: {
+        invalid: '页签配置不合法。',
+        emptyId: '页签 ID 不能为空。',
+        duplicateId: '页签 ID 不能重复：{id}',
+        emptyName: '页签名称不能为空。',
+        emptyPageUUID: '页面 UUID 不能为空。',
+        invalidActive: '默认激活页签必须存在于页签列表。'
+      }
+    },
     validation: {
       invalidTabsJson: '请输入有效页签 JSON。'
     }

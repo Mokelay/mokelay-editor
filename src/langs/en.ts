@@ -309,6 +309,44 @@ export const enMessages = {
       loadFailed: 'Failed to load page.',
       emptyPage: 'The active tab has no page content.'
     },
+    configEditor: {
+      title: 'Tabs Config',
+      defaultTabName: 'Tab {index}',
+      empty: 'No tabs yet. Add a tab to start.',
+      loadingPages: 'Loading pages...',
+      pageOptionsLoadFailed: 'Failed to load page options. You can still enter pageUUID manually.',
+      summary: {
+        savedCount: '{count} tabs configured · Default: {active}',
+        noActive: 'Not set'
+      },
+      sources: {
+        user: 'User page',
+        system: 'System page'
+      },
+      columns: {
+        active: 'Default',
+        id: 'ID',
+        name: 'Name',
+        source: 'Source',
+        pageUUID: 'Page UUID',
+        actions: 'Actions'
+      },
+      actions: {
+        settings: 'Edit tabs config',
+        add: 'Add tab',
+        refreshPages: 'Refresh pages',
+        clear: 'Clear config',
+        remove: 'Remove'
+      },
+      validation: {
+        invalid: 'Tabs config is invalid.',
+        emptyId: 'Tab ID is required.',
+        duplicateId: 'Tab ID must be unique: {id}',
+        emptyName: 'Tab name is required.',
+        emptyPageUUID: 'Page UUID is required.',
+        invalidActive: 'The default active tab must exist in the tab list.'
+      }
+    },
     validation: {
       invalidTabsJson: 'Enter valid tabs JSON.'
     }

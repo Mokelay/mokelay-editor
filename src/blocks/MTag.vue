@@ -247,16 +247,18 @@ export const mTagEditorTool = defineEditorTool<MTagProps>({
 </script>
 
 <script setup lang="ts">
-import { nextTick, onMounted, onBeforeUnmount, ref } from 'vue';
+import { ref } from 'vue';
 import { ElTag } from 'element-ui/es/components/tag/index.mjs';
 import 'element-ui/es/components/tag/style/css';
+import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
 
 const props = defineProps<MTagProps & {
   onChange?: (payload: MTagProps) => void;
   onToolChange?: (payload: MTagProps) => void;
 }>();
 const rootRef = ref<HTMLElement | null>(null);
-let toolbarAlignTimer: number | null = null;
+
+useEditorBlockToolbarAlignment(rootRef);
 
 function emitChange(payload: Partial<MTagProps>) {
   const nextPayload = {
@@ -277,50 +279,6 @@ function handleClose() {
     closable: props.closable ?? false
   });
 }
-
-function clearToolbarAlignTimer() {
-  if (toolbarAlignTimer === null) return;
-  window.clearTimeout(toolbarAlignTimer);
-  toolbarAlignTimer = null;
-}
-
-function alignToolbarToTag() {
-  const root = rootRef.value;
-  if (!root) return;
-
-  const block = root.closest('.ce-block') as HTMLElement | null;
-  const toolbar = root.closest('.codex-editor')?.querySelector('.ce-toolbar') as HTMLElement | null;
-  const plusButton = toolbar?.querySelector('.ce-toolbar__plus') as HTMLElement | null;
-
-  if (!block || !toolbar || !plusButton) return;
-
-  const blockRect = block.getBoundingClientRect();
-  const tagRect = root.getBoundingClientRect();
-  const toolbarButtonHeight = plusButton.getBoundingClientRect().height || 26;
-  const top = block.offsetTop + (tagRect.top - blockRect.top) + (tagRect.height - toolbarButtonHeight) / 2;
-
-  toolbar.style.top = `${Math.round(top)}px`;
-}
-
-function scheduleToolbarAlignment() {
-  clearToolbarAlignTimer();
-  toolbarAlignTimer = window.setTimeout(() => {
-    alignToolbarToTag();
-  }, 0);
-}
-
-onMounted(() => {
-  nextTick(() => {
-    rootRef.value?.addEventListener('mouseenter', scheduleToolbarAlignment);
-    rootRef.value?.addEventListener('mousemove', scheduleToolbarAlignment);
-  });
-});
-
-onBeforeUnmount(() => {
-  clearToolbarAlignTimer();
-  rootRef.value?.removeEventListener('mouseenter', scheduleToolbarAlignment);
-  rootRef.value?.removeEventListener('mousemove', scheduleToolbarAlignment);
-});
 </script>
 
 <template>

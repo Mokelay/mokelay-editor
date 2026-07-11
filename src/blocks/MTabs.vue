@@ -26,7 +26,9 @@ function readString(value: unknown) {
 }
 
 function normalizePageSource(value: unknown): MTabsTab['pageSource'] {
-  return value === 'system' ? 'system' : undefined;
+  if (value === 'system') return 'system';
+  if (value === 'user') return 'user';
+  return undefined;
 }
 
 export function normalizeTabs(value: unknown): MTabsTab[] {
@@ -122,12 +124,8 @@ function getTabsDataFields(): BlockDataField[] {
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "页签配置",
- *       "type": "textarea",
- *       "valueType": "json",
- *       "validationMessage": {
- *         "zh": "请输入有效页签 JSON。",
- *         "en": "Enter valid tabs JSON."
- *       }
+ *       "type": "component",
+ *       "component": "MTabsConfigEditor"
  *     },
  *     {
  *       "key": "activeTabId",
@@ -136,9 +134,8 @@ function getTabsDataFields(): BlockDataField[] {
  *       "source": "submodule/mokelay-editor/src/blocks/MTabs.vue",
  *       "line": 106,
  *       "declaredInProps": true,
- *       "configurable": true,
- *       "label": "激活页签 ID",
- *       "type": "text"
+ *       "configurable": false,
+ *       "label": "激活页签 ID"
  *     }
  *   ],
  *   "events": [],

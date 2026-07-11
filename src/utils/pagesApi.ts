@@ -36,8 +36,18 @@ export type UpdatePageLayoutPayload = {
 
 export type PageSource = 'user' | 'system';
 
+export type PageListItem = {
+  uuid: string;
+  name: string;
+  source: PageSource;
+};
+
 type PageResponse = {
   page?: unknown;
+};
+
+type PagesResponse = {
+  pages?: unknown;
 };
 
 type MokelaySuccessResponse<T> = {
@@ -76,6 +86,21 @@ export async function getSystemPage(uuid: string) {
     }
   });
   return normalizePageResponse(unwrapApiResponse(response.data));
+}
+
+export async function listPages(params: { page?: number; pageSize?: number } = {}) {
+  const response = await apiClient.get<MokelayApiResponse<PagesResponse>>('/api/mokelay/list_pages', {
+    params: {
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 100
+    }
+  });
+  return normalizePageList(unwrapApiResponse(response.data), 'user');
+}
+
+export async function listSystemPages() {
+  const response = await apiClient.get<MokelayApiResponse<PagesResponse>>('/api/mokelay/list_mokelay_page_jsons');
+  return normalizePageList(unwrapApiResponse(response.data), 'system');
 }
 
 export async function updatePage(uuid: string, payload: UpdatePagePayload) {
@@ -122,6 +147,22 @@ function normalizePageResponse(value: PageResponse): MokelayPage {
   }
 
   return normalizePage(page);
+}
+
+function normalizePageList(value: PagesResponse, source: PageSource): PageListItem[] {
+  if (!Array.isArray(value.pages)) return [];
+
+  return value.pages.flatMap((item): PageListItem[] => {
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) return [];
+    const record = item as Record<string, unknown>;
+    const uuid = readString(record.uuid)?.trim() ?? '';
+    if (!uuid) return [];
+    return [{
+      uuid,
+      name: readString(record.name)?.trim() ?? uuid,
+      source
+    }];
+  });
 }
 
 function normalizePage(page: unknown): MokelayPage {

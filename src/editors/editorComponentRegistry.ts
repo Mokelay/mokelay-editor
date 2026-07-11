@@ -216,6 +216,10 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     const module = await import('@/blocks/MTabs.vue');
     return { component: markRaw(module.default), ...module.mTabsEditorTool };
   },
+  MTabsConfigEditor: async () => {
+    const module = await import('@/editors/blocks/MTabsConfigEditor.vue');
+    return { component: markRaw(module.default), ...module.mTabsConfigEditorTool };
+  },
   MUploadImport: async () => {
     const module = await import('@/blocks/MUploadImport.vue');
     return { component: markRaw(module.default), ...module.mUploadImportEditorTool };

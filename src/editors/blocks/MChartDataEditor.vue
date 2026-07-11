@@ -429,11 +429,11 @@ const maxPreviewValue = computed(() => Math.max(
 ));
 const previewColors = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2'];
 
-function normalizeDataFromProps() {
+function normalizeDataFromProps(): MChartDataEditorData {
   const normalized = normalizeMChartDataEditorProps(props);
   return {
-    xAxis: cloneValue(normalized.xAxis ?? []),
-    series: cloneValue(normalized.series ?? []),
+    xAxis: cloneValue(normalized.xAxis ?? []) as string[],
+    series: cloneValue(normalized.series ?? []) as MChartDataEditorSeriesItem[],
     chartType: normalizeChartType(normalized.chartType),
     readonly: normalized.readonly === true
   };

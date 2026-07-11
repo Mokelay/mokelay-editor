@@ -10,6 +10,7 @@ const MActionEditor = defineAsyncComponent(() => import('@/editors/blocks/MActio
 const MAdvanceTableColumnsEditor = defineAsyncComponent(() => import('@/editors/blocks/MAdvanceTableColumnsEditor.vue'));
 const MChartDataEditor = defineAsyncComponent(() => import('@/editors/blocks/MChartDataEditor.vue'));
 const MDatasourceEditor = defineAsyncComponent(() => import('@/editors/blocks/MDatasourceEditor.vue'));
+const MTabsConfigEditor = defineAsyncComponent(() => import('@/editors/blocks/MTabsConfigEditor.vue'));
 const MVariableValueEditor = defineAsyncComponent(() => import('@/editors/blocks/MVariableValueEditor.vue'));
 
 type PropertyComponentBinding = Pick<EditorToolPropertyField, 'component' | 'getComponentProps'>;
@@ -123,6 +124,14 @@ const propertyComponentBindings: Record<string, PropertyComponentBinding> = {
       xAxis: cloneJsonValue(state.xAxis),
       series: cloneJsonValue(state.series),
       chartType: typeof state.type === 'string' ? state.type : 'line',
+      outputMode: 'patch'
+    })
+  },
+  'MTabs.tabs': {
+    component: MTabsConfigEditor,
+    getComponentProps: ({ state }) => ({
+      tabs: cloneJsonValue(state.tabs),
+      activeTabId: typeof state.activeTabId === 'string' ? state.activeTabId : '',
       outputMode: 'patch'
     })
   },

@@ -601,7 +601,7 @@ watch(
                   :data-testid="`m-block-playground-field-${field.key}`"
                   type="checkbox"
                   :checked="propertyCheckboxValue(field)"
-                  @[propertyInputEvent(field)]="updatePropertyField(field, $event)"
+                  @[propertyInputEvent(field)]="(event: Event) => updatePropertyField(field, event)"
                 >
                 <span>{{ field.label }}</span>
               </label>
@@ -615,7 +615,7 @@ watch(
                   class="m-block-playground__input"
                   :data-testid="`m-block-playground-field-${field.key}`"
                   :value="propertyFieldValue(field)"
-                  @[propertyInputEvent(field)]="updatePropertyField(field, $event)"
+                  @[propertyInputEvent(field)]="(event: Event) => updatePropertyField(field, event)"
                 >
                   <option
                     v-for="option in field.options ?? []"
@@ -633,7 +633,7 @@ watch(
                   :value="propertyFieldValue(field)"
                   :placeholder="field.placeholder"
                   :rows="field.valueType === 'json' ? 5 : 3"
-                  @[propertyInputEvent(field)]="updatePropertyField(field, $event)"
+                  @[propertyInputEvent(field)]="(event: Event) => updatePropertyField(field, event)"
                 />
                 <input
                   v-else
@@ -643,7 +643,7 @@ watch(
                   type="text"
                   :value="propertyFieldValue(field)"
                   :placeholder="field.placeholder"
-                  @[propertyInputEvent(field)]="updatePropertyField(field, $event)"
+                  @[propertyInputEvent(field)]="(event: Event) => updatePropertyField(field, event)"
                 >
                 <span
                   v-if="propertyError(field)"

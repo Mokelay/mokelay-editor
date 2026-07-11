@@ -24,6 +24,7 @@ import {
   normalizeMFormItem,
   normalizeMFormItems,
   normalizeMFormLayout,
+  normalizeMFormItemWidthMode,
   normalizeMFormActionBar,
   normalizeMFormValues,
   normalizeMFormSubmit,
@@ -90,6 +91,7 @@ const formProcessors = computed(() => normalizeMFormProcessors(props.processors)
 const runtimeValues = ref<Record<string, unknown>>({});
 const initialRuntimeValues = ref<Record<string, unknown>>({});
 const formLayout = computed(() => normalizeMFormLayout(props.layout));
+const formItemWidthMode = computed(() => normalizeMFormItemWidthMode(props.itemWidthMode));
 const formActionBar = computed(() => normalizeMFormActionBar(props.actionBar ?? props.toolbar));
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 
@@ -1124,7 +1126,8 @@ onBeforeUnmount(async () => {
     class="ce-form-tool"
     :class="{
       'ce-form-tool--edit': edit,
-      'ce-form-tool--horizontal': formLayout === 'Horizontal'
+      'ce-form-tool--horizontal': formLayout === 'Horizontal',
+      'ce-form-tool--compact-items': formLayout === 'Horizontal' && formItemWidthMode === 'compact'
     }"
     data-testid="editor-form-tool"
     @focusin="scheduleOuterToolbarAlignment"
@@ -1222,6 +1225,10 @@ onBeforeUnmount(async () => {
 .ce-form-tool--horizontal .ce-form-tool__preview > :deep(.ce-form-item-tool) {
   flex: 1 1 260px;
   min-width: min(100%, 240px);
+}
+
+.ce-form-tool--horizontal.ce-form-tool--compact-items .ce-form-tool__preview > :deep(.ce-form-item-tool) {
+  flex: 0 1 260px;
 }
 
 .ce-form-tool--horizontal .ce-form-tool__actions {

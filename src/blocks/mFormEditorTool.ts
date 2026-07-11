@@ -31,6 +31,7 @@ export interface MFormProps {
   edit: boolean;
   currentBlockId?: string;
   layout?: MFormLayout;
+  itemWidthMode?: MFormItemWidthMode;
   items?: MFormItemData[];
   actionBar?: MFormActionBarData;
   toolbar?: MFormActionBarData;
@@ -41,6 +42,7 @@ export interface MFormProps {
 }
 
 export type MFormLayout = 'Vertical' | 'Horizontal';
+export type MFormItemWidthMode = 'stretch' | 'compact';
 export type MFormActionBarData = Pick<MActionToolbarProps, 'align' | 'size' | 'mode' | 'buttons'>;
 
 export interface MFormSubmitData {
@@ -155,6 +157,10 @@ export function normalizeMFormLayout(value: unknown): MFormLayout {
   return value === 'Horizontal' ? 'Horizontal' : 'Vertical';
 }
 
+export function normalizeMFormItemWidthMode(value: unknown): MFormItemWidthMode {
+  return value === 'compact' ? 'compact' : 'stretch';
+}
+
 export function normalizeMFormActionBar(value: unknown): MFormActionBarData | undefined {
   if (!isRecord(value)) {
     return undefined;
@@ -200,6 +206,7 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *   },
  *   "defaultData": {
  *     "layout": "Vertical",
+ *     "itemWidthMode": "stretch",
  *     "items": []
  *   },
  *   "properties": [
@@ -226,6 +233,33 @@ export function normalizeMFormActionBar(value: unknown): MFormActionBarData | un
  *           "label": {
  *             "zh": "水平",
  *             "en": "Horizontal"
+ *           }
+ *         }
+ *       ]
+ *     },
+ *     {
+ *       "key": "itemWidthMode",
+ *       "optional": true,
+ *       "tsType": "MFormItemWidthMode",
+ *       "source": "submodule/mokelay-editor/src/blocks/mFormEditorTool.ts",
+ *       "line": 211,
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "横向项宽度",
+ *       "type": "select",
+ *       "options": [
+ *         {
+ *           "value": "stretch",
+ *           "label": {
+ *             "zh": "撑满",
+ *             "en": "Stretch"
+ *           }
+ *         },
+ *         {
+ *           "value": "compact",
+ *           "label": {
+ *             "zh": "紧凑",
+ *             "en": "Compact"
  *           }
  *         }
  *       ]
@@ -448,6 +482,7 @@ export const mFormEditorTool = defineEditorTool<MFormProps>({
     edit: props.edit ?? false,
     currentBlockId: props.currentBlockId,
     layout: normalizeMFormLayout(props.layout),
+    itemWidthMode: normalizeMFormItemWidthMode(props.itemWidthMode),
     items: normalizeMFormItems(props.items),
     actionBar: normalizeMFormActionBar(props.actionBar ?? props.toolbar),
     values: normalizeMFormValues(props.values),
@@ -457,6 +492,7 @@ export const mFormEditorTool = defineEditorTool<MFormProps>({
   }),
   serialize: (props) => {
     const layout = normalizeMFormLayout(props.layout);
+    const itemWidthMode = normalizeMFormItemWidthMode(props.itemWidthMode);
     const actionBar = normalizeMFormActionBar(props.actionBar ?? props.toolbar);
     const values = normalizeMFormValues(props.values);
     const defaultValues = normalizeMFormValues(props.defaultValues);
@@ -464,6 +500,7 @@ export const mFormEditorTool = defineEditorTool<MFormProps>({
     const processors = normalizeMFormProcessors(props.processors);
     return {
       ...(layout === 'Horizontal' ? { layout } : {}),
+      ...(itemWidthMode === 'compact' ? { itemWidthMode } : {}),
       items: normalizeMFormItems(props.items).map((item) => cloneFormItemData(item)),
       ...(actionBar ? { actionBar } : {}),
       ...(Object.keys(values).length ? { values } : {}),
