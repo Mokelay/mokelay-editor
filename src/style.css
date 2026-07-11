@@ -60,12 +60,33 @@ body {
 }
 
 .action-dialog-close {
-  border: 0;
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
   border-radius: 8px;
   background: rgb(226 232 240);
-  padding: 8px 12px;
+  padding: 0;
   color: rgb(51 65 85);
-  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.action-dialog-close:hover {
+  background: rgb(203 213 225);
+  color: rgb(15 23 42);
+}
+
+.action-dialog-close:focus-visible {
+  border-color: rgb(79 70 229);
+  box-shadow: 0 0 0 3px rgb(79 70 229 / 0.22);
+  outline: none;
+}
+
+.action-dialog-close-icon {
+  display: block;
 }
 
 .action-dialog-body {
@@ -87,4 +108,9 @@ body {
 .dark .action-dialog-close {
   background: rgb(51 65 85);
   color: rgb(241 245 249);
+}
+
+.dark .action-dialog-close:hover {
+  background: rgb(71 85 105);
+  color: rgb(248 250 252);
 }

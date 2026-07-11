@@ -137,8 +137,28 @@ const ActionDialogContent = {
             type: 'button',
             class: 'action-dialog-close',
             'data-testid': 'action-dialog-close',
+            'aria-label': '关闭',
+            title: '关闭',
             onClick: () => props.onClose()
-          }, 'Close')
+          }, [
+            h('svg', {
+              class: 'action-dialog-close-icon',
+              viewBox: '0 0 24 24',
+              width: '18',
+              height: '18',
+              'aria-hidden': 'true',
+              focusable: 'false'
+            }, [
+              h('path', {
+                d: 'M18 6 6 18M6 6l12 12',
+                fill: 'none',
+                stroke: 'currentColor',
+                'stroke-linecap': 'round',
+                'stroke-linejoin': 'round',
+                'stroke-width': '2'
+              })
+            ])
+          ])
         ]),
         h('div', {
           class: 'action-dialog-body',
