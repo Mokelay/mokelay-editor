@@ -30,19 +30,21 @@ export function useEditorBlockToolbarAlignment(
     if (!root) return;
 
     const target = getAlignmentTarget(root, options);
-    const block = root.closest('.ce-block') as HTMLElement | null;
     const editorRoot = root.closest('.codex-editor') as HTMLElement | null;
     const toolbar = editorRoot?.querySelector<HTMLElement>(':scope > .ce-toolbar')
       ?? editorRoot?.querySelector<HTMLElement>('.ce-toolbar');
     const plusButton = toolbar?.querySelector<HTMLElement>('.ce-toolbar__plus');
 
-    if (!block || !toolbar || !plusButton) return;
+    if (!editorRoot || !toolbar || !plusButton) return;
 
-    const blockRect = block.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     const toolbarButtonHeight = plusButton.getBoundingClientRect().height || 26;
-    const top = block.offsetTop +
-      (targetRect.top - blockRect.top) +
+    const offsetParent = toolbar.offsetParent instanceof HTMLElement
+      ? toolbar.offsetParent
+      : editorRoot;
+    const offsetParentRect = offsetParent.getBoundingClientRect();
+    const top = (targetRect.top - offsetParentRect.top) +
+      offsetParent.scrollTop +
       (targetRect.height - toolbarButtonHeight) / 2;
 
     toolbar.style.top = `${Math.max(0, Math.round(top))}px`;

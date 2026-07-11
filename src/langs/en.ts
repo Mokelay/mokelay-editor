@@ -258,6 +258,35 @@ export const enMessages = {
       xAxis: 'X-axis data',
       series: 'Series data'
     },
+    dataEditor: {
+      title: 'Chart Data Settings',
+      summary: '{categories} categories, {series} series',
+      categoryPrefix: 'Category ',
+      sections: {
+        grid: 'Data grid',
+        preview: 'Preview'
+      },
+      help: {
+        grid: 'Edit categories and series values. Saved data keeps every series aligned to the category count.'
+      },
+      columns: {
+        series: 'Series',
+        actions: 'Actions'
+      },
+      actions: {
+        settings: 'Edit chart data',
+        addCategory: 'Add category',
+        addSeries: 'Add series',
+        remove: 'Remove',
+        removeShort: 'Del'
+      },
+      validation: {
+        emptyCategory: 'Keep at least one non-empty category.',
+        emptySeries: 'Keep at least one series.',
+        emptySeriesName: 'Series name is required.',
+        invalidNumber: 'Every data cell must be a valid number.'
+      }
+    },
     validation: {
       invalidJson: 'Enter valid JSON.'
     }

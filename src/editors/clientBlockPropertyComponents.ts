@@ -8,6 +8,7 @@ const MFormItemsEditor = defineAsyncComponent(() => import('@/blocks/MFormItemsE
 const MActionToolBarEditor = defineAsyncComponent(() => import('@/blocks/MActionToolBarEditor.vue'));
 const MActionEditor = defineAsyncComponent(() => import('@/blocks/MActionEditor.vue'));
 const MAdvanceTableColumnsEditor = defineAsyncComponent(() => import('@/blocks/MAdvanceTableColumnsEditor.vue'));
+const MChartDataEditor = defineAsyncComponent(() => import('@/blocks/MChartDataEditor.vue'));
 const MDatasourceEditor = defineAsyncComponent(() => import('@/blocks/MDatasourceEditor.vue'));
 const MVariableValueEditor = defineAsyncComponent(() => import('@/blocks/MVariableValueEditor.vue'));
 
@@ -114,6 +115,15 @@ const propertyComponentBindings: Record<string, PropertyComponentBinding> = {
       value,
       matchingExternalFields: advanceTableMatchingFields(),
       showPageBreak: state.showPageBreak === true
+    })
+  },
+  'MChart.xAxis': {
+    component: MChartDataEditor,
+    getComponentProps: ({ state }) => ({
+      xAxis: cloneJsonValue(state.xAxis),
+      series: cloneJsonValue(state.series),
+      chartType: typeof state.type === 'string' ? state.type : 'line',
+      outputMode: 'patch'
     })
   },
   'MUploadImport.uploadAction': {

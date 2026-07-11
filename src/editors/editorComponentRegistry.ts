@@ -40,6 +40,10 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     const module = await import('@/blocks/MChart.vue');
     return { component: markRaw(module.default), ...module.mChartEditorTool };
   },
+  MChartDataEditor: async () => {
+    const module = await import('@/blocks/MChartDataEditor.vue');
+    return { component: markRaw(module.default), ...module.mChartDataEditorTool };
+  },
   MDateRangeField: async () => {
     const module = await import('@/blocks/MDateRangeField.vue');
     return { component: markRaw(module.default), ...module.mDateRangeFieldEditorTool };

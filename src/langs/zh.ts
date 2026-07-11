@@ -258,6 +258,35 @@ export const zhMessages = {
       xAxis: '横坐标数据',
       series: '图表数据'
     },
+    dataEditor: {
+      title: '图表数据设置',
+      summary: '{categories} 个分类，{series} 组数据',
+      categoryPrefix: '分类',
+      sections: {
+        grid: '数据表格',
+        preview: '预览'
+      },
+      help: {
+        grid: '维护横坐标和 series 数据，保存时会自动保持每组数据长度一致。'
+      },
+      columns: {
+        series: '系列',
+        actions: '操作'
+      },
+      actions: {
+        settings: '编辑图表数据',
+        addCategory: '新增分类',
+        addSeries: '新增系列',
+        remove: '删除',
+        removeShort: '删'
+      },
+      validation: {
+        emptyCategory: '请至少保留一个非空分类。',
+        emptySeries: '请至少保留一组数据。',
+        emptySeriesName: '系列名称不能为空。',
+        invalidNumber: '每个数据单元格都必须是有效数字。'
+      }
+    },
     validation: {
       invalidJson: '请输入有效 JSON。'
     }

@@ -209,13 +209,9 @@ export function normalizeChartProps(props: Partial<MChartProps>): Required<MChar
  *       "line": 127,
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "label": "横坐标数据",
- *       "type": "textarea",
- *       "valueType": "json",
- *       "validationMessage": {
- *         "zh": "请输入有效 JSON。",
- *         "en": "Enter valid JSON."
- *       }
+ *       "label": "图表数据",
+ *       "type": "component",
+ *       "component": "MChartDataEditor"
  *     },
  *     {
  *       "key": "series",
@@ -224,14 +220,8 @@ export function normalizeChartProps(props: Partial<MChartProps>): Required<MChar
  *       "source": "submodule/mokelay-editor/src/blocks/MChart.vue",
  *       "line": 134,
  *       "declaredInProps": true,
- *       "configurable": true,
- *       "label": "图表数据",
- *       "type": "textarea",
- *       "valueType": "json",
- *       "validationMessage": {
- *         "zh": "请输入有效 JSON。",
- *         "en": "Enter valid JSON."
- *       }
+ *       "configurable": false,
+ *       "label": "系列数据"
  *     }
  *   ],
  *   "events": [],
@@ -326,6 +316,7 @@ import type { EChartsCoreOption, EChartsType } from 'echarts/core';
 import { BarChart, LineChart, PieChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
+import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
 
 echarts.use([
   BarChart,
@@ -351,7 +342,8 @@ const chartOption = computed(() => buildChartOption(normalizedProps.value, isDar
 let chart: EChartsType | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let themeObserver: MutationObserver | null = null;
-let toolbarAlignTimer: number | null = null;
+
+useEditorBlockToolbarAlignment(rootRef, { target: chartRef });
 
 function getAlignedData(data: number[], length: number) {
   return Array.from({ length }, (_, index) => data[index] ?? 0);
@@ -496,39 +488,6 @@ async function scheduleRenderChart() {
   renderChart();
 }
 
-function clearToolbarAlignTimer() {
-  if (toolbarAlignTimer === null) return;
-  window.clearTimeout(toolbarAlignTimer);
-  toolbarAlignTimer = null;
-}
-
-function alignToolbarToChart() {
-  toolbarAlignTimer = null;
-
-  const root = rootRef.value;
-  if (!root) return;
-
-  const block = root.closest('.ce-block') as HTMLElement | null;
-  const toolbar = root.closest('.codex-editor')?.querySelector('.ce-toolbar') as HTMLElement | null;
-  const plusButton = toolbar?.querySelector('.ce-toolbar__plus') as HTMLElement | null;
-
-  if (!block || !toolbar || !plusButton) return;
-
-  const blockRect = block.getBoundingClientRect();
-  const chartRect = root.getBoundingClientRect();
-  const toolbarButtonHeight = plusButton.getBoundingClientRect().height || 26;
-  const top = block.offsetTop + (chartRect.top - blockRect.top) + (chartRect.height - toolbarButtonHeight) / 2;
-
-  toolbar.style.top = `${Math.max(0, Math.round(top))}px`;
-}
-
-function scheduleToolbarAlignment() {
-  clearToolbarAlignTimer();
-  toolbarAlignTimer = window.setTimeout(() => {
-    alignToolbarToChart();
-  }, 0);
-}
-
 onMounted(async () => {
   syncDarkMode();
   await scheduleRenderChart();
@@ -554,7 +513,6 @@ watch(chartOption, () => {
 });
 
 onBeforeUnmount(() => {
-  clearToolbarAlignTimer();
   resizeObserver?.disconnect();
   resizeObserver = null;
   themeObserver?.disconnect();
@@ -569,8 +527,6 @@ onBeforeUnmount(() => {
     ref="rootRef"
     class="ce-chart-tool"
     data-testid="editor-chart-tool"
-    @mouseenter="scheduleToolbarAlignment"
-    @mousemove="scheduleToolbarAlignment"
   >
     <div ref="chartRef" class="ce-chart-tool__canvas" data-testid="editor-chart-canvas"></div>
   </div>
