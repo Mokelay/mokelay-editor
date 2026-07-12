@@ -10,13 +10,15 @@ export interface MJsonProps {
   value?: unknown;
   height?: number;
   expandDepth?: number;
+  emptyText?: string;
 }
 
 const jsonDefaults = {
   label: 'JSON',
   value: {},
   height: 360,
-  expandDepth: 1
+  expandDepth: 1,
+  emptyText: '暂无 JSON 数据。'
 } as const;
 
 function clampInteger(value: unknown, fallback: number, min: number, max: number) {
@@ -40,7 +42,8 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
     label: stringValue(merged.label, jsonDefaults.label),
     value: cloneJsonValue(props.value, jsonDefaults.value),
     height: clampInteger(merged.height, jsonDefaults.height, 240, 900),
-    expandDepth: clampInteger(merged.expandDepth, jsonDefaults.expandDepth, 0, 8)
+    expandDepth: clampInteger(merged.expandDepth, jsonDefaults.expandDepth, 0, 8),
+    emptyText: stringValue(merged.emptyText, jsonDefaults.emptyText)
   };
 }
 
@@ -51,7 +54,7 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *   "blockType": "MJson",
  *   "displayName": "JSON 查看器",
  *   "category": "content",
- *   "description": "只读 JSON 查看器，使用 json-editor-vue 的树形模式展示 JSON，支持搜索、展开收起和格式化复制。",
+ *   "description": "只读 JSON 查看器，使用 json-editor-vue 的树形模式展示任意可 JSON 序列化值，支持键和值搜索、匹配项定位、展开收起和复制。setValue/clear 可接收 action 或 processor 的运行时结果，并通知依赖 blocks[blockId] 的模板刷新；运行时值不会写回静态 DSL。",
  *   "status": "active",
  *   "registration": {
  *     "sourceKind": "mokelay-editor",
@@ -70,7 +73,8 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *     "label": "JSON",
  *     "value": {},
  *     "height": 360,
- *     "expandDepth": 1
+ *     "expandDepth": 1,
+ *     "emptyText": "暂无 JSON 数据。"
  *   },
  *   "properties": [
  *     {
@@ -81,7 +85,9 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "标题",
- *       "type": "text"
+ *       "type": "text",
+ *       "defaultValue": "JSON",
+ *       "description": "查看器工具栏标题。"
  *     },
  *     {
  *       "key": "value",
@@ -93,6 +99,8 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *       "label": "JSON 值",
  *       "type": "textarea",
  *       "valueType": "json",
+ *       "defaultValue": {},
+ *       "description": "初始展示值，可为 object、array、string、number、boolean 或 null；setValue 成功调用后由运行时值覆盖。",
  *       "validationMessage": "请输入有效 JSON。"
  *     },
  *     {
@@ -103,7 +111,11 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "查看器高度",
- *       "type": "text"
+ *       "type": "text",
+ *       "defaultValue": 360,
+ *       "minimum": 240,
+ *       "maximum": 900,
+ *       "description": "像素高度，序列化和渲染时截断为 240 到 900 的整数。"
  *     },
  *     {
  *       "key": "expandDepth",
@@ -113,7 +125,23 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "默认展开层级",
- *       "type": "text"
+ *       "type": "text",
+ *       "defaultValue": 1,
+ *       "minimum": 0,
+ *       "maximum": 8,
+ *       "description": "首次渲染或 setValue 后自动展开的树深度；0 表示全部收起。"
+ *     },
+ *     {
+ *       "key": "emptyText",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJson.vue",
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "空态文案",
+ *       "type": "text",
+ *       "defaultValue": "暂无 JSON 数据。",
+ *       "description": "value 为 null/undefined 或无法序列化时显示。"
  *     }
  *   ],
  *   "events": [],
@@ -122,10 +150,48 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *       "name": "getData",
  *       "exposed": true,
  *       "async": false,
- *       "params": "not declared in defineExpose object",
- *       "returns": "unknown",
+ *       "params": [],
+ *       "returns": "{ value: unknown, json: unknown }",
  *       "source": "submodule/mokelay-editor/src/blocks/MJson.vue",
- *       "label": "获取数据"
+ *       "label": "获取当前 JSON",
+ *       "description": "返回当前展示的 JSON 值；如果已通过 setValue 写入运行时值，则优先返回运行时值。"
+ *     },
+ *     {
+ *       "name": "setValue",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": [
+ *         {
+ *           "name": "value",
+ *           "type": "unknown",
+ *           "optional": true,
+ *           "description": "支持直接传入 JSON 值，或传入 { args: { value } } / { inputs: { value } } 的 call_block_method 调用对象。缺省或不可用值归一化为 null。"
+ *         }
+ *       ],
+ *       "returns": "{ value: unknown, json: unknown }",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJson.vue",
+ *       "label": "设置 JSON",
+ *       "description": "深拷贝并写入运行时 JSON 值，重置搜索、高亮和展开状态，刷新查看器并通知 PreviewBlockRuntime。运行时值优先于后续 props.value 更新。"
+ *     },
+ *     {
+ *       "name": "clear",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": [],
+ *       "returns": "{ value: null, json: null }",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJson.vue",
+ *       "label": "清空 JSON",
+ *       "description": "把运行时值设为 null，清空搜索和高亮，查看器进入空态；不会恢复静态 props.value。"
+ *     },
+ *     {
+ *       "name": "copy",
+ *       "exposed": true,
+ *       "async": true,
+ *       "params": [],
+ *       "returns": "{ copied: boolean }",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJson.vue",
+ *       "label": "复制 JSON",
+ *       "description": "优先使用 Clipboard API，失败时回退到 document.execCommand；无有效 JSON 或两种复制方式都失败时返回 copied=false。"
  *     }
  *   ],
  *   "dataFields": [
@@ -133,14 +199,25 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *       "label": "JSON 值",
  *       "variable": "value",
  *       "dataType": "object",
- *       "source": "submodule/mokelay-editor/src/blocks/MJson.vue"
+ *       "source": "submodule/mokelay-editor/src/blocks/MJson.vue",
+ *       "description": "当前展示值；变量系统以 object 暴露，但运行时可以实际承载任意 JSON 类型。"
  *     }
  *   ],
  *   "saveRules": [
  *     {
  *       "key": "serialize",
  *       "type": "function",
- *       "description": "保存标题、JSON 值、查看器高度和默认展开层级到 EditorJS block.data。"
+ *       "description": "保存标题、JSON 值、查看器高度、默认展开层级和空态文案到 EditorJS block.data；运行时 setValue 写入的值不反向写入静态 DSL。"
+ *     },
+ *     {
+ *       "key": "runtimePrecedence",
+ *       "type": "behavior",
+ *       "description": "首次 setValue 或 clear 后进入运行时覆盖模式，后续 props.value 变化不会替换当前展示值，直到 Block 重新创建。"
+ *     },
+ *     {
+ *       "key": "searchLimit",
+ *       "type": "behavior",
+ *       "description": "搜索同时匹配 key 和标量 value，单次最多记录 200 个路径匹配。"
  *     }
  *   ],
  *   "examples": [
@@ -157,7 +234,34 @@ function normalizeMJsonProps(props: Partial<MJsonProps>): MJsonProps {
  *           ]
  *         },
  *         "height": 360,
- *         "expandDepth": 1
+ *         "expandDepth": 1,
+ *         "emptyText": "暂无 JSON 数据。"
+ *       }
+ *     },
+ *     {
+ *       "id": "MJson-runtime-result-example",
+ *       "type": "MJson",
+ *       "data": {
+ *         "label": "AI 生成结果",
+ *         "value": null,
+ *         "height": 520,
+ *         "expandDepth": 2,
+ *         "emptyText": "等待生成结果..."
+ *       }
+ *     },
+ *     {
+ *       "title": "展示 Action 输出",
+ *       "blockId": "generation-result",
+ *       "action": {
+ *         "action": "call_block_method",
+ *         "inputs": {
+ *           "blockId": "generation-result",
+ *           "method": "setValue",
+ *           "args": {
+ *             "value": { "template": "{{actions['generate-dsl'].outputs.data}}" }
+ *           }
+ *         },
+ *         "outputs": ["returnData"]
  *       }
  *     }
  *   ],
@@ -182,20 +286,22 @@ export const mJsonTool = defineEditorTool<MJsonProps>({
       label: normalized.label,
       value: cloneJsonValue(normalized.value),
       height: normalized.height,
-      expandDepth: normalized.expandDepth
+      expandDepth: normalized.expandDepth,
+      emptyText: normalized.emptyText
     };
   }
 });
 </script>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import JsonEditorVue from 'json-editor-vue';
 import { Mode } from 'vanilla-jsoneditor';
 import 'vanilla-jsoneditor/themes/jse-theme-dark.css';
 import PageDslBlock from '@/blocks/PageDslBlock.vue';
 import { themeValue } from '@/utils/globalSettings';
 import type { PageDslCallbacks } from '@/blocks/pageDslEditorTools';
+import { PreviewBlockRuntimeKey } from '@/utils/previewBlockRuntime';
 
 type JsonPath = Array<string | number>;
 
@@ -217,8 +323,12 @@ type SearchMatch = {
 
 const props = defineProps<MJsonProps & PageDslCallbacks<MJsonProps>>();
 
+const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 const jsonEditorRef = ref<JsonEditorVueInstance | null>(null);
-const viewerValue = ref<object>({});
+const viewerValue = ref<unknown>({});
+const displayedValue = ref<unknown>(cloneJsonValue(props.value, null));
+const runtimeValue = ref<unknown>(undefined);
+const hasRuntimeValue = ref(false);
 const hasValue = ref(false);
 const valueError = ref('');
 const formattedJson = ref('');
@@ -232,7 +342,12 @@ let highlightedElement: Element | undefined;
 const viewerLabel = computed(() => props.label || jsonDefaults.label);
 const viewerHeight = computed(() => clampInteger(props.height, jsonDefaults.height, 240, 900));
 const viewerExpandDepth = computed(() => clampInteger(props.expandDepth, jsonDefaults.expandDepth, 0, 8));
+const viewerEmptyText = computed(() => props.emptyText || jsonDefaults.emptyText);
 const isDark = computed(() => themeValue.value === 'dark');
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 function serializeJson(value: unknown) {
   if (value === undefined || value === null) {
@@ -247,6 +362,7 @@ function serializeJson(value: unknown) {
 }
 
 function updateViewerValue(value: unknown) {
+  displayedValue.value = cloneJsonValue(value, null);
   const serialized = serializeJson(value);
   formattedJson.value = serialized.value;
   valueError.value = serialized.error;
@@ -258,7 +374,7 @@ function updateViewerValue(value: unknown) {
   }
 
   try {
-    viewerValue.value = JSON.parse(serialized.value) as object;
+    viewerValue.value = JSON.parse(serialized.value) as unknown;
   } catch {
     valueError.value = '当前数据无法解析为 JSON。';
     hasValue.value = false;
@@ -268,6 +384,12 @@ function updateViewerValue(value: unknown) {
 
 function getJsonEditor() {
   return jsonEditorRef.value?.jsonEditor;
+}
+
+function notifyRuntimeDataChange() {
+  if (props.currentBlockId) {
+    previewRuntime?.notifyBlockDataChange(props.currentBlockId);
+  }
 }
 
 function applyExpandDepth() {
@@ -423,7 +545,7 @@ function fallbackCopy(text: string) {
 async function copyJson() {
   if (!formattedJson.value) {
     setCopyState('没有可复制的 JSON 数据。');
-    return;
+    return false;
   }
 
   try {
@@ -433,30 +555,81 @@ async function copyJson() {
       fallbackCopy(formattedJson.value);
     }
     setCopyState('JSON 已复制。');
+    return true;
   } catch {
     try {
       fallbackCopy(formattedJson.value);
       setCopyState('JSON 已复制。');
+      return true;
     } catch {
       setCopyState('复制 JSON 失败。');
+      return false;
     }
   }
 }
 
 function getData() {
+  const value = cloneJsonValue(displayedValue.value, null);
   return {
-    value: cloneJsonValue(props.value),
-    json: cloneJsonValue(props.value)
+    value,
+    json: cloneJsonValue(value, null)
   };
 }
 
+function readMethodValue(invocation: unknown) {
+  if (!isRecord(invocation)) return invocation;
+
+  if (isRecord(invocation.args) && Object.prototype.hasOwnProperty.call(invocation.args, 'value')) {
+    return invocation.args.value;
+  }
+
+  if (isRecord(invocation.inputs) && Object.prototype.hasOwnProperty.call(invocation.inputs, 'value')) {
+    return invocation.inputs.value;
+  }
+
+  return invocation;
+}
+
+function setValue(invocation?: unknown) {
+  const nextValue = readMethodValue(invocation);
+  runtimeValue.value = cloneJsonValue(nextValue, null);
+  hasRuntimeValue.value = true;
+  updateViewerValue(runtimeValue.value);
+  activeSearchIndex.value = 0;
+  searchQuery.value = '';
+  clearHighlight();
+  scheduleExpandDepth();
+  notifyRuntimeDataChange();
+  return getData();
+}
+
+function clear() {
+  runtimeValue.value = null;
+  hasRuntimeValue.value = true;
+  updateViewerValue(null);
+  activeSearchIndex.value = 0;
+  searchQuery.value = '';
+  clearHighlight();
+  notifyRuntimeDataChange();
+  return getData();
+}
+
+async function copy() {
+  const copied = await copyJson();
+  return { copied };
+}
+
 defineExpose({
-  getData
+  getData,
+  setValue,
+  clear,
+  copy
 });
 
 watch(
   () => props.value,
   (value) => {
+    if (hasRuntimeValue.value) return;
     updateViewerValue(value);
     activeSearchIndex.value = 0;
     clearHighlight();
@@ -539,7 +712,7 @@ onBeforeUnmount(() => {
       </header>
 
       <p v-if="valueError" class="m-json__state m-json__state--error" data-testid="m-json-viewer-error">{{ valueError }}</p>
-      <p v-else-if="!hasValue" class="m-json__state" data-testid="m-json-viewer-empty">暂无 JSON 数据。</p>
+      <p v-else-if="!hasValue" class="m-json__state" data-testid="m-json-viewer-empty">{{ viewerEmptyText }}</p>
       <div v-else class="m-json__content" data-testid="m-json-viewer-content">
         <JsonEditorVue
           ref="jsonEditorRef"

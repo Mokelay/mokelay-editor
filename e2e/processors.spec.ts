@@ -314,3 +314,206 @@ test('reports missing and invalid preview paths and propagates Processor errors'
   expect(result.invalid?.code).toBe('FIELD_PREVIEW_INVALID_PATH');
   expect(result.unsupported?.code).toBe('PROCESSOR_UNSUPPORTED');
 });
+
+test('builds an AI DSL payload from request JSON and the latest successful turns', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { applyProcessor, getProcessorDefinition } = await import('/src/processors/index.ts');
+    const response = (summary: string, marker: string) => ({
+      version: 1,
+      status: 'complete',
+      summary,
+      pages: [{ uuid: `${marker}_page`, name: `${marker} Page`, blocks: [{ type: 'paragraph' }] }],
+      apis: [{ uuid: `${marker}_api`, alias: `${marker} API`, method: 'POST', blocks: [{ functionName: 'create' }] }],
+      upgradePlan: {
+        processors: [{ functionName: 'trim' }],
+        blocks: [{ name: 'MPageState' }],
+        actions: [{ action: 'export_file' }],
+        controls: [{ type: 'switch_controller' }],
+        components: [{}]
+      }
+    });
+    const request = {
+      requirementDocument: '  增加批量导出。  ',
+      projectContext: { app: 'crm' },
+      dslContext: { availableBlocks: ['MAdvanceTable'] },
+      generationPreferences: { language: 'zh-CN' }
+    };
+    const history = [
+      { status: 'success', requirementDocument: 'latest', response: response('Latest', 'latest') },
+      { status: 'error', requirementDocument: 'failed', response: response('Failed', 'failed') },
+      { status: 'success', requirementDocument: 'previous', response: response('Previous', 'previous') },
+      { status: 'success', requirementDocument: 'oldest', response: response('Oldest', 'oldest') }
+    ];
+    const original = JSON.parse(JSON.stringify({ request, history }));
+    const payload = applyProcessor(request, {
+      processor: 'ai_dsl_request_context',
+      param: {
+        history,
+        historyLimit: 2
+      }
+    }) as {
+      requirementDocument: string;
+      dslContext: {
+        conversationHistory: Array<{
+          requirementDocument: string;
+          response: { pages: Array<Record<string, unknown>> };
+        }>;
+      };
+    };
+    const appendOrderedPayload = applyProcessor(request, {
+      processor: 'ai_dsl_request_context',
+      param: {
+        history: history.slice().reverse(),
+        historyOrder: 'oldest_first',
+        historyLimit: 2
+      }
+    }) as typeof payload;
+
+    return {
+      payload,
+      appendOrderedHistory: appendOrderedPayload.dslContext.conversationHistory
+        .map((turn) => turn.requirementDocument),
+      request,
+      history,
+      original,
+      registered: getProcessorDefinition('ai_dsl_request_context')?.supportedTypes,
+      promptOrder: {
+        previous: payload.requirementDocument.indexOf('previous'),
+        latest: payload.requirementDocument.indexOf('latest')
+      },
+      summarizedPage: payload.dslContext.conversationHistory[0]?.response.pages[0]
+    };
+  });
+
+  expect(result.registered).toEqual(['object']);
+  expect(result.payload.requirementDocument).toContain('这是一次连续对话');
+  expect(result.payload.requirementDocument).toContain('增加批量导出。');
+  expect(result.promptOrder.previous).toBeGreaterThanOrEqual(0);
+  expect(result.promptOrder.previous).toBeLessThan(result.promptOrder.latest);
+  expect(result.payload.dslContext).toMatchObject({
+    availableBlocks: ['MAdvanceTable'],
+    conversationHistory: [
+      {
+        requirementDocument: 'latest',
+        response: {
+          status: 'complete',
+          summary: 'Latest',
+          pages: [{ uuid: 'latest_page', name: 'latest Page' }],
+          apis: [{ uuid: 'latest_api', alias: 'latest API', method: 'POST' }],
+          upgradePlan: {
+            processors: ['trim'],
+            blocks: ['MPageState'],
+            actions: ['export_file'],
+            controls: ['switch_controller'],
+            components: ['component_1']
+          }
+        }
+      },
+      expect.objectContaining({ requirementDocument: 'previous' })
+    ]
+  });
+  expect(result.appendOrderedHistory).toEqual(['latest', 'previous']);
+  expect(result.summarizedPage).not.toHaveProperty('blocks');
+  expect(result.request).toEqual(result.original.request);
+  expect(result.history).toEqual(result.original.history);
+});
+
+test('resolves AI DSL history templates and reports stable request errors', async ({ page }) => {
+  const result = await page.evaluate(async () => {
+    const { resolveActionTemplates } = await import('/src/actions/template.ts');
+    const { applyProcessor } = await import('/src/processors/index.ts');
+    const history = [{
+      status: 'success',
+      requirementDocument: '生成客户列表。',
+      response: {
+        status: 'complete',
+        summary: 'Generated',
+        pages: [],
+        apis: [],
+        upgradePlan: {
+          processors: [],
+          blocks: [],
+          actions: [],
+          controls: [],
+          components: []
+        }
+      }
+    }];
+    const resolved = resolveActionTemplates({
+      template: "{{actions['read_ai_request'].outputs.returnData}}",
+      processors: [{
+        processor: 'ai_dsl_request_context',
+        param: {
+          history: {
+            template: "{{blocks['ai-chat-state'].turns}}"
+          },
+          historyLimit: 5
+        }
+      }]
+    }, {
+      actions: {
+        read_ai_request: {
+          inputs: {},
+          outputs: {
+            returnData: {
+              requirementDocument: '增加客户导出。',
+              dslContext: 'legacy-context'
+            }
+          }
+        }
+      },
+      blocks: {
+        'ai-chat-state': { turns: history }
+      },
+      event: null,
+      sourceBlock: { type: 'MButton', data: {} },
+      now: '2026-07-12T00:00:00.000Z'
+    });
+    const readError = (callback: () => unknown) => {
+      try {
+        callback();
+        return null;
+      } catch (error) {
+        return {
+          code: (error as { code?: string }).code,
+          processor: (error as { processor?: string }).processor
+        };
+      }
+    };
+
+    return {
+      resolved,
+      invalidRequest: readError(() => applyProcessor('invalid', 'ai_dsl_request_context')),
+      missingRequirement: readError(() => applyProcessor(
+        { requirementDocument: '   ' },
+        'ai_dsl_request_context'
+      )),
+      invalidParam: readError(() => applyProcessor(
+        { requirementDocument: 'valid' },
+        { processor: 'ai_dsl_request_context', param: { historyLimit: -1 } }
+      ))
+    };
+  });
+
+  expect(result.resolved).toMatchObject({
+    requirementDocument: expect.stringContaining('增加客户导出。'),
+    dslContext: {
+      value: 'legacy-context',
+      conversationHistory: [
+        expect.objectContaining({ requirementDocument: '生成客户列表。' })
+      ]
+    }
+  });
+  expect(result.invalidRequest).toEqual({
+    code: 'AI_DSL_REQUEST_INVALID',
+    processor: 'ai_dsl_request_context'
+  });
+  expect(result.missingRequirement).toEqual({
+    code: 'AI_DSL_REQUIREMENT_MISSING',
+    processor: 'ai_dsl_request_context'
+  });
+  expect(result.invalidParam).toEqual({
+    code: 'PROCESSOR_INVALID_CONFIG',
+    processor: 'ai_dsl_request_context'
+  });
+});

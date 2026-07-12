@@ -1,3 +1,7 @@
+import {
+  aiDslRequestContextProcessor,
+  readAiDslRequestContextParam
+} from '@/processors/executors/aiDslRequestContext';
 import { dateTimeFormatProcessor, validateDateTimeFormatParam } from '@/processors/executors/dateTimeFormat';
 import { filterProcessor } from '@/processors/executors/filter';
 import { mergeDataProcessor, readMergeDataParam } from '@/processors/executors/mergeData';
@@ -7,6 +11,24 @@ import { readFilterParam } from '@/processors/shared';
 import type { ProcessorDefinition } from '@/processors/types';
 
 export const processorDefinitions: ProcessorDefinition[] = [
+  {
+    name: 'ai_dsl_request_context',
+    titleKey: 'datasource.processors.aiDslRequestContext.title',
+    descriptionKey: 'datasource.processors.aiDslRequestContext.description',
+    supportedTypes: ['object'],
+    createDefault: () => ({
+      processor: 'ai_dsl_request_context',
+      param: {
+        history: [],
+        historyOrder: 'newest_first',
+        historyLimit: 5,
+        includeHistoryInRequirement: true,
+        includeHistoryInDslContext: true
+      }
+    }),
+    execute: aiDslRequestContextProcessor,
+    validateParam: readAiDslRequestContextParam
+  },
   {
     name: 'trim',
     titleKey: 'datasource.processors.trim.title',

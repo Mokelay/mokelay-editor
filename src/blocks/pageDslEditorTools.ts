@@ -10,6 +10,13 @@ export type PageDslOption = {
   imageUrl?: string;
 };
 
+export type PageDslOptionFieldMapping = {
+  labelField?: string;
+  valueField?: string;
+  descriptionField?: string;
+  imageUrlField?: string;
+};
+
 export type PageDslMatrixRow = {
   label: string;
   value: string;
@@ -64,15 +71,37 @@ export function normalizeButtonVariant(value: unknown, fallback: PageDslButtonVa
   return normalizeSelectValue(value, ['primary', 'secondary', 'ghost', 'danger', 'warning', 'text'] as const, fallback);
 }
 
-export function normalizeOptions(value: unknown, fallback: PageDslOption[]) {
+function readOptionField(source: Record<string, unknown>, path: string) {
+  return path.split('.').reduce<unknown>((current, segment) => {
+    if (typeof current !== 'object' || current === null || Array.isArray(current)) return undefined;
+    return (current as Record<string, unknown>)[segment];
+  }, source);
+}
+
+function optionText(value: unknown, fallback = '') {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return fallback;
+}
+
+export function normalizeOptions(
+  value: unknown,
+  fallback: PageDslOption[],
+  fieldMapping: PageDslOptionFieldMapping = {}
+) {
   const source = Array.isArray(value) ? value : fallback;
+  const labelField = stringValue(fieldMapping.labelField, 'label');
+  const valueField = stringValue(fieldMapping.valueField, 'value');
+  const descriptionField = stringValue(fieldMapping.descriptionField, 'description');
+  const imageUrlField = stringValue(fieldMapping.imageUrlField, 'imageUrl');
+
   return source
     .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null && !Array.isArray(item))
     .map((item, index) => ({
-      label: stringValue(item.label, `选项 ${index + 1}`),
-      value: stringValue(item.value, `option_${index + 1}`),
-      description: stringValue(item.description),
-      imageUrl: stringValue(item.imageUrl)
+      label: optionText(readOptionField(item, labelField), `选项 ${index + 1}`),
+      value: optionText(readOptionField(item, valueField), `option_${index + 1}`),
+      description: optionText(readOptionField(item, descriptionField)),
+      imageUrl: optionText(readOptionField(item, imageUrlField))
     }));
 }
 

@@ -1,7 +1,20 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { resetEditor } from './helpers/editor';
 
 const generatedPageUuid = '550e8400-e29b-41d4-a716-446655440000';
+const aiChatApp = {
+  id: 1,
+  uuid: '10000000-0000-4000-8000-000000000001',
+  alias: 'CRM',
+  description: '客户关系管理'
+};
+const aiChatDatasource = {
+  id: 1,
+  uuid: '20000000-0000-4000-8000-000000000001',
+  alias: 'Mokelay',
+  description: 'Mokelay 主数据源',
+  schema_data: []
+};
 const firstPageBlocks = [
   {
     id: 'customer-list-title',
@@ -48,16 +61,7 @@ const firstResponse = {
   upgradePlan: {
     processors: [],
     blocks: [],
-    actions: [
-      {
-        action: 'export_file',
-        reason: '现有 Action 没有文件导出语义。',
-        inputsSchema: {},
-        outputs: ['fileUrl'],
-        behavior: '触发文件导出。',
-        dslExample: { uuid: 'export_customers', action: 'export_file' }
-      }
-    ],
+    actions: [],
     controls: [],
     components: []
   },
@@ -65,13 +69,13 @@ const firstResponse = {
     {
       requirement: '客户列表',
       status: 'generated',
-      pageUuids: ['customer_list_page'],
+      pageUuids: [generatedPageUuid],
       apiUuids: ['list_customers'],
       upgradeRefs: []
     }
   ],
   assumptions: ['使用 Mokelay 数据源。'],
-  warnings: ['导出能力需要后续升级。']
+  warnings: []
 };
 
 const secondResponse = {
@@ -108,133 +112,204 @@ const secondResponse = {
   }
 };
 
-test('opens Chat AI from the top navigation', async ({ page }) => {
-  await resetEditor(page, { initialRoute: '/' });
+const firstRequest = {
+  requirementDocument: '客户管理：需要客户列表、创建客户、删除客户。',
+  projectContext: { app: 'CRM', datasource: 'Mokelay' }
+};
+
+type ResetEditorOptions = NonNullable<Parameters<typeof resetEditor>[1]>;
+
+async function resetAiChat(page: Page, options: ResetEditorOptions = {}) {
+  return await resetEditor(page, {
+    apps: [aiChatApp],
+    datasources: [aiChatDatasource],
+    ...options
+  });
+}
+
+function requestForm(page: Page) {
+  return page.getByTestId('editor-form-tool');
+}
+
+function requirementInput(page: Page) {
+  return requestForm(page).locator('textarea');
+}
+
+function appSelect(page: Page) {
+  return requestForm(page)
+    .getByTestId('editor-form-item-tool')
+    .filter({ hasText: 'APP' })
+    .locator('select');
+}
+
+function datasourceSelect(page: Page) {
+  return requestForm(page)
+    .getByTestId('editor-form-item-tool')
+    .filter({ hasText: '数据源' })
+    .locator('select');
+}
+
+async function fillRequest(page: Page, requirementDocument = firstRequest.requirementDocument) {
+  await requirementInput(page).fill(requirementDocument);
+  await expect(appSelect(page)).toContainText(aiChatApp.alias);
+  await expect(datasourceSelect(page)).toContainText(aiChatDatasource.alias);
+  await appSelect(page).selectOption(aiChatApp.alias);
+  await datasourceSelect(page).selectOption(aiChatDatasource.alias);
+}
+
+function responseViewer(page: Page) {
+  return page.getByTestId('m-json-viewer').filter({ hasText: '响应 JSON' });
+}
+
+function saveViewer(page: Page) {
+  return page.getByTestId('m-json-viewer').filter({ hasText: '保存摘要' });
+}
+
+function savedAssetList(page: Page, blockId: 'ai-chat-saved-pages' | 'ai-chat-saved-apis') {
+  return page.locator(`[data-testid="m-action-card-list"][data-block-id="${blockId}"]`);
+}
+
+async function triggerToolbarButton(page: Page, buttonId: string) {
+  await page.getByTestId(`m-action-toolbar-action-${buttonId}`).evaluate((element) => {
+    window.setTimeout(() => (element as HTMLButtonElement).click(), 0);
+  });
+}
+
+async function expandJsonViewer(viewer: ReturnType<typeof responseViewer>) {
+  await viewer.getByRole('button', { name: '展开', exact: true }).click();
+}
+
+test('opens the AI Chat system page DSL from the top navigation', async ({ page }) => {
+  await resetAiChat(page, { initialRoute: '/' });
 
   await page.getByRole('link', { name: 'AI Chat' }).click();
 
   await expect(page).toHaveURL(/#\/ai-chat$/);
-  await expect(page.getByTestId('app-header')).toHaveCount(0);
-  await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
   await expect(page.getByTestId('layout-top-nav').getByRole('link', { name: 'AI Chat' })).toHaveClass(/layout-top-nav__link--active/);
-  await expect(page.getByTestId('ai-chat-panel')).toBeVisible();
-  await expect(page.getByTestId('ai-chat-empty')).toBeVisible();
+  await expect(page.getByText('DSL JSON', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'AI DSL 生成' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '生成请求' })).toHaveCount(0);
+  await expect(requirementInput(page)).toBeVisible();
+  await expect(appSelect(page)).toContainText('CRM');
+  await expect(datasourceSelect(page)).toContainText('Mokelay');
+  await expect(page.getByTestId('m-json-editor-control')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'AI生成' })).toBeVisible();
+  await expect(responseViewer(page)).toBeVisible();
 });
 
-test('submits AI DSL fields, renders output, and sends conversation history on follow-up', async ({ page }) => {
-  const apiState = await resetEditor(page, {
+test('generates, saves, renders JSON, and carries history into a follow-up request', async ({ page }) => {
+  const apiState = await resetAiChat(page, {
     initialRoute: '/#/ai-chat',
     aiGenerateDslResponses: [
       { data: firstResponse },
       { data: secondResponse }
     ]
   });
-
-  await page.getByTestId('ai-chat-requirement').fill('客户管理：需要客户列表、创建客户、删除客户。');
-  await page.getByTestId('ai-chat-project-context').fill(JSON.stringify({ app: 'crm', datasource: 'Mokelay' }, null, 2));
-  await page.getByTestId('ai-chat-dsl-context').fill(JSON.stringify({ availableBlocks: ['MAdvanceTable', 'MForm'] }, null, 2));
-  await page.getByTestId('ai-chat-generation-preferences').fill(JSON.stringify({ language: 'zh-CN', naming: 'snake_case' }, null, 2));
-  await page.getByTestId('ai-chat-submit').click();
+  await fillRequest(page);
+  await triggerToolbarButton(page, 'generate');
 
   await expect.poll(() => apiState.aiGenerateDslRequests.length).toBe(1);
-  expect(apiState.aiGenerateDslRequests[0]).toEqual({
-    requirementDocument: '客户管理：需要客户列表、创建客户、删除客户。',
-    projectContext: { app: 'crm', datasource: 'Mokelay' },
-    dslContext: { availableBlocks: ['MAdvanceTable', 'MForm'] },
-    generationPreferences: { language: 'zh-CN', naming: 'snake_case' }
+  await expect.poll(() => apiState.saveAiDslAssetsRequests.length).toBe(1);
+  expect(apiState.aiGenerateDslRequests[0]).toEqual(firstRequest);
+  expect(apiState.saveAiDslAssetsRequests[0]).toMatchObject({
+    generationResult: firstResponse,
+    knownPageUuids: [],
+    knownApiUuids: [],
+    apiStatus: 'draft'
   });
-
-  await expect(page.getByTestId('ai-chat-summary').first()).toContainText('生成客户列表页');
-  await expect(page.getByTestId('ai-chat-pages').first()).toContainText('客户列表');
-  await expect(page.getByTestId('ai-chat-apis').first()).toContainText('list_customers');
-  await expect(page.getByTestId('ai-chat-upgrade-plan').first()).toContainText('export_file');
-  await expect(page.getByTestId('ai-chat-result-json').first()).toContainText(`"${generatedPageUuid}"`);
-  await expect.poll(() => apiState.apiSavePayloads.length).toBe(1);
-  await expect.poll(() => apiState.pageCreatePayloads.length).toBe(1);
-  expect(apiState.apiSavePayloads[0]).toMatchObject({
-    uuid: 'list_customers',
-    method: 'GET',
-    status: 'draft'
-  });
-  expect(apiState.pageCreatePayloads[0]).toMatchObject({
-    uuid: generatedPageUuid,
+  await expandJsonViewer(responseViewer(page));
+  await expandJsonViewer(saveViewer(page));
+  await expect(responseViewer(page)).toContainText(generatedPageUuid);
+  await expect(responseViewer(page)).toContainText('生成客户列表页');
+  await expect(saveViewer(page)).toContainText('complete');
+  await expect(saveViewer(page)).toContainText('savedCount');
+  await expect(saveViewer(page)).toContainText('failedCount');
+  await expect(saveViewer(page)).not.toContainText('knownPageUuids');
+  await expect(saveViewer(page)).not.toContainText(generatedPageUuid);
+  await expect(savedAssetList(page, 'ai-chat-saved-pages').getByTestId('m-action-card-list-item')).toContainText('客户列表');
+  await expect(savedAssetList(page, 'ai-chat-saved-apis').getByTestId('m-action-card-list-item')).toContainText('客户列表接口');
+  expect(apiState.pages.get(generatedPageUuid)).toMatchObject({
     name: '客户列表',
     blocks: firstPageBlocks
   });
-  await expect(page.getByTestId('ai-chat-page-link').first()).toHaveAttribute('href', `#/pages/${generatedPageUuid}`);
-  await expect(page.getByTestId('ai-chat-api-link').first()).toHaveAttribute('href', '#/apis/list_customers');
-
-  await page.getByTestId('ai-chat-requirement').fill('在刚才基础上增加批量导出。');
-  await page.getByTestId('ai-chat-submit').click();
-
-  await expect.poll(() => apiState.aiGenerateDslRequests.length).toBe(2);
-  expect(apiState.aiGenerateDslRequests[1]).toMatchObject({
-    projectContext: { app: 'crm', datasource: 'Mokelay' },
-    generationPreferences: { language: 'zh-CN', naming: 'snake_case' }
-  });
-  expect(apiState.aiGenerateDslRequests[1].requirementDocument).toEqual(expect.stringContaining('这是一次连续对话'));
-  expect(apiState.aiGenerateDslRequests[1].requirementDocument).toEqual(expect.stringContaining('客户管理：需要客户列表、创建客户、删除客户。'));
-  expect(apiState.aiGenerateDslRequests[1].requirementDocument).toEqual(expect.stringContaining('在刚才基础上增加批量导出。'));
-  expect(apiState.aiGenerateDslRequests[1].dslContext).toMatchObject({
-    availableBlocks: ['MAdvanceTable', 'MForm'],
-    conversationHistory: [
-      {
-        requirementDocument: '客户管理：需要客户列表、创建客户、删除客户。',
-        response: {
-          version: 1,
-          status: 'complete',
-          summary: '生成客户列表页、创建客户页及对应接口 DSL。'
-        }
-      }
-    ]
-  });
-  await expect.poll(() => apiState.apiSavePayloads.length).toBe(2);
-  await expect.poll(() => apiState.pageUpdatePayloads.length).toBe(1);
-  expect(apiState.apiSavePayloads[1]).toMatchObject({
-    uuid: 'list_customers',
-    originalUuid: 'list_customers',
+  expect(apiState.apis.get('list_customers')).toMatchObject({
+    name: '客户列表接口',
+    method: 'GET',
     status: 'draft'
   });
-  expect(apiState.pageUpdatePayloads[0]).toMatchObject({
-    uuid: generatedPageUuid,
+
+  await requirementInput(page).fill('在刚才基础上增加批量导出。');
+  await triggerToolbarButton(page, 'generate');
+
+  await expect.poll(() => apiState.aiGenerateDslRequests.length).toBe(2);
+  await expect.poll(() => apiState.saveAiDslAssetsRequests.length).toBe(2);
+  expect(apiState.aiGenerateDslRequests[1].requirementDocument).toEqual(expect.stringContaining('这是一次连续对话'));
+  expect(apiState.aiGenerateDslRequests[1].requirementDocument).toEqual(expect.stringContaining(firstRequest.requirementDocument));
+  expect(apiState.aiGenerateDslRequests[1].requirementDocument).toEqual(expect.stringContaining('在刚才基础上增加批量导出。'));
+  expect(apiState.aiGenerateDslRequests[1].projectContext).toEqual(firstRequest.projectContext);
+  expect(apiState.aiGenerateDslRequests[1]).not.toHaveProperty('dslContext');
+  expect(apiState.aiGenerateDslRequests[1]).not.toHaveProperty('generationPreferences');
+  expect(apiState.saveAiDslAssetsRequests[1]).toMatchObject({
+    knownPageUuids: [generatedPageUuid],
+    knownApiUuids: ['list_customers']
+  });
+  await expect(responseViewer(page)).toContainText('增加批量导出升级计划');
+  expect(apiState.pages.get(generatedPageUuid)).toMatchObject({
     name: '客户管理',
     blocks: secondPageBlocks
   });
-  await expect(page.getByTestId('ai-chat-summary').first()).toContainText('增加批量导出');
+  expect(apiState.apis.get('list_customers')).toMatchObject({ name: '客户列表接口 v2' });
+  await savedAssetList(page, 'ai-chat-saved-pages').getByTestId('m-action-card-list-item').click();
+  await expect(page).toHaveURL(new RegExp(`#\/pages\/${generatedPageUuid}$`));
 });
 
-test('blocks submit when optional JSON fields are invalid', async ({ page }) => {
-  const apiState = await resetEditor(page, { initialRoute: '/#/ai-chat' });
+test('blocks generation when required request fields are missing', async ({ page }) => {
+  const apiState = await resetAiChat(page, { initialRoute: '/#/ai-chat' });
 
-  await page.getByTestId('ai-chat-requirement').fill('客户管理：需要客户列表。');
-  await page.getByTestId('ai-chat-dsl-context').fill('{ invalid json');
-  await page.getByTestId('ai-chat-submit').click();
+  await requirementInput(page).fill('');
+  await triggerToolbarButton(page, 'generate');
 
-  await expect(page.getByTestId('ai-chat-dsl-context-error')).toContainText(/JSON/);
+  expect(await requirementInput(page).evaluate((element) => (element as HTMLTextAreaElement).checkValidity())).toBe(false);
+  expect(await appSelect(page).evaluate((element) => (element as HTMLSelectElement).checkValidity())).toBe(false);
+  expect(await datasourceSelect(page).evaluate((element) => (element as HTMLSelectElement).checkValidity())).toBe(false);
   expect(apiState.aiGenerateDslRequests).toHaveLength(0);
-  expect(apiState.apiSavePayloads).toHaveLength(0);
-  expect(apiState.pageCreatePayloads).toHaveLength(0);
+  expect(apiState.saveAiDslAssetsRequests).toHaveLength(0);
 });
 
-test('shows API errors in the current conversation turn', async ({ page }) => {
-  const apiState = await resetEditor(page, {
+test('only sends requirementDocument and the selected projectContext', async ({ page }) => {
+  const apiState = await resetAiChat(page, { initialRoute: '/#/ai-chat' });
+  const requirementDocument = '生成一个包含客户列表的 CRM 页面。';
+
+  await fillRequest(page, requirementDocument);
+  await triggerToolbarButton(page, 'generate');
+
+  await expect.poll(() => apiState.aiGenerateDslRequests.length).toBe(1);
+  expect(apiState.aiGenerateDslRequests[0]).toEqual({
+    requirementDocument,
+    projectContext: firstRequest.projectContext
+  });
+});
+
+test('renders generation errors and restores toolbar actions', async ({ page }) => {
+  const apiState = await resetAiChat(page, {
     initialRoute: '/#/ai-chat',
     aiGenerateDslResponses: [
       { type: 'error', code: 'BLOCK_AI_PROVIDER_FAILED', message: 'AI 服务调用失败。' }
     ]
   });
 
-  await page.getByTestId('ai-chat-requirement').fill('客户管理：需要客户列表。');
-  await page.getByTestId('ai-chat-submit').click();
+  await fillRequest(page);
+  await triggerToolbarButton(page, 'generate');
 
   await expect.poll(() => apiState.aiGenerateDslRequests.length).toBe(1);
-  await expect(page.getByTestId('ai-chat-error')).toContainText('AI 服务调用失败。');
-  expect(apiState.apiSavePayloads).toHaveLength(0);
-  expect(apiState.pageCreatePayloads).toHaveLength(0);
+  await expect(saveViewer(page)).toContainText('AI 服务调用失败。');
+  await expect(page.getByRole('button', { name: 'AI生成' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '清空会话' })).toBeEnabled();
+  expect(apiState.saveAiDslAssetsRequests).toHaveLength(0);
 });
 
-test('shows generated JSON when saving a generated page fails', async ({ page }) => {
-  const apiState = await resetEditor(page, {
+test('keeps generated JSON visible when the aggregate save is partial', async ({ page }) => {
+  const apiState = await resetAiChat(page, {
     initialRoute: '/#/ai-chat',
     pages: [
       {
@@ -243,18 +318,63 @@ test('shows generated JSON when saving a generated page fails', async ({ page })
         blocks: []
       }
     ],
-    aiGenerateDslResponses: [
-      { data: firstResponse }
-    ]
+    aiGenerateDslResponses: [{ data: firstResponse }]
   });
 
-  await page.getByTestId('ai-chat-requirement').fill('客户管理：需要客户列表。');
-  await page.getByTestId('ai-chat-submit').click();
+  await fillRequest(page);
+  await triggerToolbarButton(page, 'generate');
 
-  await expect.poll(() => apiState.aiGenerateDslRequests.length).toBe(1);
-  await expect.poll(() => apiState.apiSavePayloads.length).toBe(1);
-  await expect.poll(() => apiState.pageCreatePayloads.length).toBe(1);
-  await expect(page.getByTestId('ai-chat-save-error')).toContainText('页面标识已存在。');
-  await expect(page.getByTestId('ai-chat-result-json').first()).toContainText(`"${generatedPageUuid}"`);
-  await expect(page.getByTestId('ai-chat-api-link').first()).toHaveAttribute('href', '#/apis/list_customers');
+  await expect.poll(() => apiState.saveAiDslAssetsRequests.length).toBe(1);
+  await expect(responseViewer(page)).toContainText(firstResponse.summary);
+  await expect(saveViewer(page)).toContainText('partial');
+  await expect(saveViewer(page)).toContainText('AI_DSL_ASSET_UUID_EXISTS');
+  await expect(saveViewer(page)).not.toContainText('#/apis/list_customers');
+  await expect(savedAssetList(page, 'ai-chat-saved-pages').getByTestId('m-action-card-list-item')).toHaveCount(0);
+  await expect(savedAssetList(page, 'ai-chat-saved-apis').getByTestId('m-action-card-list-item')).toContainText('客户列表接口');
+});
+
+test('clears response and save state while preserving the request form', async ({ page }) => {
+  await resetAiChat(page, {
+    initialRoute: '/#/ai-chat',
+    aiGenerateDslResponses: [{ data: firstResponse }]
+  });
+  await fillRequest(page);
+  await triggerToolbarButton(page, 'generate');
+  await expect.poll(() => responseViewer(page).getByTestId('m-json-viewer-empty').count()).toBe(0);
+  await expandJsonViewer(responseViewer(page));
+  await expect(responseViewer(page)).toContainText(generatedPageUuid);
+  await triggerToolbarButton(page, 'clear');
+
+  await expect(responseViewer(page).getByTestId('m-json-viewer-empty')).toBeVisible();
+  await expect(saveViewer(page).getByTestId('m-json-viewer-empty')).toBeVisible();
+  await expect(savedAssetList(page, 'ai-chat-saved-pages').getByTestId('m-action-card-list-item')).toHaveCount(0);
+  await expect(savedAssetList(page, 'ai-chat-saved-apis').getByTestId('m-action-card-list-item')).toHaveCount(0);
+  await expect(requirementInput(page)).toHaveValue(firstRequest.requirementDocument);
+  await expect(appSelect(page)).toHaveValue(aiChatApp.alias);
+  await expect(datasourceSelect(page)).toHaveValue(aiChatDatasource.alias);
+});
+
+test('keeps the JSON workspace ordered without overlap on desktop and mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await resetAiChat(page, { initialRoute: '/#/ai-chat' });
+  const requestArea = page.getByTestId('m-layout-grid-area-request');
+  const resultArea = page.getByTestId('m-layout-grid-area-result');
+  const desktopRequestBox = await requestArea.boundingBox();
+  const desktopResultBox = await resultArea.boundingBox();
+
+  expect(desktopRequestBox).not.toBeNull();
+  expect(desktopResultBox).not.toBeNull();
+  expect(desktopRequestBox!.x + desktopRequestBox!.width).toBeLessThanOrEqual(desktopResultBox!.x);
+  await page.screenshot({ path: 'test-results/ai-chat-desktop.png', fullPage: true });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileRequestBox = await requestArea.boundingBox();
+  const mobileResultBox = await resultArea.boundingBox();
+
+  expect(mobileRequestBox).not.toBeNull();
+  expect(mobileResultBox).not.toBeNull();
+  expect(mobileRequestBox!.y + mobileRequestBox!.height).toBeLessThanOrEqual(mobileResultBox!.y);
+  expect(mobileRequestBox!.width).toBeLessThanOrEqual(390);
+  expect(mobileResultBox!.width).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: 'test-results/ai-chat-mobile.png', fullPage: true });
 });

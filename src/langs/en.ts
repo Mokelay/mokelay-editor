@@ -10,92 +10,8 @@ export const enMessages = {
     apps: 'Apps',
     datasources: 'Datasources',
     pageList: 'Pages',
-    aiChat: 'AI Chat',
     chinese: '中文',
     english: 'English'
-  },
-  aiChat: {
-    title: 'AI DSL Generator',
-    subtitle: 'Enter a requirement document and context to generate page DSL, API DSL, and upgrade plans for capabilities that cannot be expressed directly.',
-    empty: 'No conversation yet. Generated DSL results will appear here.',
-    turn: 'Turn',
-    loading: 'AI is generating DSL...',
-    copySuccess: 'JSON copied',
-    copyFailed: 'Copy failed. Please copy the JSON manually.',
-    fields: {
-      requirementDocument: 'Requirement document',
-      projectContext: 'projectContext JSON',
-      dslContext: 'dslContext JSON',
-      generationPreferences: 'generationPreferences JSON'
-    },
-    placeholders: {
-      requirementDocument: 'Example: Customer management needs a customer list, create customer, and delete customer with confirmation.',
-      projectContext: '{\n  "app": "crm",\n  "datasource": "Mokelay"\n}',
-      dslContext: '{\n  "availableBlocks": ["MAdvanceTable", "MForm", "MButton"]\n}',
-      generationPreferences: '{\n  "language": "en",\n  "naming": "snake_case"\n}'
-    },
-    actions: {
-      generate: 'Generate DSL',
-      generating: 'Generating...',
-      clear: 'Clear conversation',
-      copyJson: 'Copy JSON'
-    },
-    save: {
-      openPage: 'Open page',
-      openApi: 'Open API',
-      pageFailed: 'Failed to save page.',
-      apiFailed: 'Failed to save API.',
-      invalidPage: 'Generated page DSL is not a valid object.',
-      invalidPageUuid: 'Page uuid must be a valid UUID.',
-      invalidApi: 'Generated API DSL is not a valid object.',
-      invalidApiUuid: 'API uuid is required.',
-      invalidApiMethod: 'API method is required.',
-      itemStatus: {
-        saving: 'Saving',
-        success: 'Saved',
-        error: 'Save failed'
-      },
-      summary: {
-        saving: 'Saving generated results: {saved}/{total} complete.',
-        complete: 'Generated results saved: {total} items.',
-        partial: 'Generated results partially saved: {saved} succeeded, {failed} failed.',
-        error: 'Failed to save generated results: {failed} failed.'
-      }
-    },
-    errors: {
-      requirementRequired: 'Enter a requirement document.',
-      invalidJson: 'Enter valid JSON, or leave this field empty.',
-      requestFailed: 'AI DSL generation failed.'
-    },
-    status: {
-      pending: 'Generating',
-      success: 'Complete',
-      error: 'Failed'
-    },
-    generated: {
-      summary: 'Summary',
-      pages: 'Pages',
-      apis: 'APIs',
-      upgradePlan: 'Upgrade Plan',
-      traceability: 'Traceability',
-      notes: 'Warnings / Assumptions',
-      fullJson: 'Full JSON',
-      emptySummary: 'No summary returned.',
-      noPages: 'No page DSL generated.',
-      noApis: 'No API DSL generated.',
-      noUpgrades: 'No capability upgrades required.',
-      pageFallback: 'Page {index}',
-      apiFallback: 'API {index}',
-      traceFallback: 'Requirement {index}',
-      upgradeFallback: 'Upgrade {index}'
-    },
-    upgrade: {
-      processors: 'Processors',
-      blocks: 'Blocks',
-      actions: 'Actions',
-      controls: 'Controls',
-      components: 'Components'
-    }
   },
   editor: {
     placeholder: 'Start typing your content...',
@@ -142,6 +58,17 @@ export const enMessages = {
     androidQrCode: 'Android preview QR code',
     iosQrCodeDescription: 'Scan with the Mokelay iOS app to open the current preview page.',
     androidQrCodeDescription: 'This is a temporary QR code and will be replaced when Android preview is live.'
+  },
+  pageState: {
+    keyCount: '{count} fields',
+    readonly: 'Read only',
+    errors: {
+      readonly: 'Page state is read only and cannot be changed.',
+      invalidPath: 'The state path is invalid.',
+      pathRequired: 'A state path is required.',
+      invalidValue: 'The state value must be JSON serializable.',
+      objectRequired: 'The root state value must be a JSON object.'
+    }
   },
   notFound: {
     title: 'Page not found',
@@ -692,6 +619,25 @@ export const enMessages = {
       trim: {
         title: 'Trim whitespace',
         description: 'Trims leading and trailing whitespace from strings and leaves other values unchanged.'
+      },
+      aiDslRequestContext: {
+        title: 'Build AI DSL request context',
+        description: 'Combines request JSON with recent successful turns into an AI DSL generation payload.',
+        fields: {
+          history: 'Conversation history (JSON array or template)',
+          historyOrder: 'Conversation history order',
+          historyLimit: 'Recent turn limit',
+          includeHistoryInRequirement: 'Include history summary in requirement',
+          includeHistoryInDslContext: 'Include history summary in DSL context'
+        },
+        historyOrders: {
+          newestFirst: 'Newest to oldest',
+          oldestFirst: 'Oldest to newest'
+        },
+        errors: {
+          invalidHistory: 'Enter valid JSON.',
+          invalidLimit: 'The history limit must be a number greater than or equal to 0.'
+        }
       },
       mergeData: {
         title: 'Merge data',

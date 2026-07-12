@@ -1,4 +1,7 @@
 export type {
+  AiDslConversationHistoryTurn,
+  AiDslGenerationPayload,
+  AiDslRequestContextParam,
   FilterCondition,
   FilterConditionType,
   FilterParam,

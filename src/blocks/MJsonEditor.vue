@@ -14,6 +14,9 @@ export interface MJsonEditorProps {
   readonly?: boolean;
   recordUuid?: string;
   recordName?: string;
+  schema?: Record<string, unknown>;
+  requireObject?: boolean;
+  allowArray?: boolean;
 }
 
 const jsonEditorDefaults = {
@@ -21,7 +24,9 @@ const jsonEditorDefaults = {
   value: {},
   placeholder: '{\n  \"schemaVersion\": 1\n}',
   rows: 18,
-  readonly: false
+  readonly: false,
+  requireObject: true,
+  allowArray: false
 } as const;
 
 function cloneValue<T>(value: T): T {
@@ -54,7 +59,12 @@ function normalizeJsonEditorProps(props: Partial<MJsonEditorProps>): MJsonEditor
     rows: numberValue(merged.rows, jsonEditorDefaults.rows),
     readonly: booleanValue(merged.readonly, jsonEditorDefaults.readonly),
     recordUuid: stringValue(merged.recordUuid),
-    recordName: stringValue(merged.recordName)
+    recordName: stringValue(merged.recordName),
+    schema: typeof merged.schema === 'object' && merged.schema !== null && !Array.isArray(merged.schema)
+      ? cloneValue(merged.schema as Record<string, unknown>)
+      : undefined,
+    requireObject: booleanValue(merged.requireObject, jsonEditorDefaults.requireObject),
+    allowArray: booleanValue(merged.allowArray, jsonEditorDefaults.allowArray)
   };
 }
 
@@ -91,7 +101,7 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *   "blockType": "MJsonEditor",
  *   "displayName": "JSON 编辑器",
  *   "category": "content",
- *   "description": "可编辑 JSON 编辑器，提供格式化、校验和只读模式；用于布局等需要修改 JSON 的 DSL 场景。",
+ *   "description": "页面 DSL 的多行 JSON 文本编辑器。它保留原始文本，同时向变量和 action 暴露解析值、对象型 layoutJson、校验状态与错误；支持运行时 setValue/clear/format、根节点类型约束、只读模式及 JSON Schema 元信息。schema 在 v1 仅供描述和 AI 上下文使用，不执行关键字级 Schema 校验。",
  *   "status": "active",
  *   "registration": {
  *     "sourceKind": "mokelay-editor",
@@ -111,7 +121,9 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *     "value": {},
  *     "placeholder": "{\n  \"schemaVersion\": 1\n}",
  *     "rows": 18,
- *     "readonly": false
+ *     "readonly": false,
+ *     "requireObject": true,
+ *     "allowArray": false
  *   },
  *   "properties": [
  *     {
@@ -119,23 +131,25 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 103,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "标题",
- *       "type": "text"
+ *       "type": "text",
+ *       "defaultValue": "JSON",
+ *       "description": "编辑器上方显示的字段标题。"
  *     },
  *     {
  *       "key": "value",
  *       "optional": true,
  *       "tsType": "unknown",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 104,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "JSON 值",
  *       "type": "textarea",
  *       "valueType": "json",
+ *       "defaultValue": {},
+ *       "description": "初始 JSON 值。非 string 值按两空格缩进序列化；string 被视为待编辑的原始 JSON 文本。",
  *       "validationMessage": "请输入有效 JSON。"
  *     },
  *     {
@@ -143,52 +157,92 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *       "optional": true,
  *       "tsType": "number",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 105,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "行数",
- *       "type": "text"
+ *       "type": "text",
+ *       "defaultValue": 18,
+ *       "description": "textarea rows；渲染时非有限数或小于等于 0 使用默认值 18。"
  *     },
  *     {
  *       "key": "readonly",
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 106,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "只读",
- *       "type": "checkbox"
+ *       "type": "checkbox",
+ *       "defaultValue": false,
+ *       "description": "禁止用户输入以及 setValue/clear；getData/getJson/getLayoutJson 仍可读取，format 仍可格式化当前有效文本。"
  *     },
  *     {
  *       "key": "placeholder",
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 18,
  *       "declaredInProps": true,
  *       "configurable": false,
- *       "label": "占位提示"
+ *       "label": "占位提示",
+ *       "defaultValue": "{\n  \"schemaVersion\": 1\n}",
+ *       "description": "编辑器为空时显示，不参与 JSON 解析。"
  *     },
  *     {
  *       "key": "recordUuid",
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 21,
  *       "declaredInProps": true,
  *       "configurable": false,
- *       "label": "记录 UUID"
+ *       "label": "记录 UUID",
+ *       "description": "可选显式记录标识；getData 优先返回该值，否则读取对象 JSON 顶层 uuid。"
  *     },
  *     {
  *       "key": "recordName",
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 22,
  *       "declaredInProps": true,
  *       "configurable": false,
- *       "label": "记录名称"
+ *       "label": "记录名称",
+ *       "description": "可选显式记录名称；getData 优先返回该值，否则读取对象 JSON 顶层 name。"
+ *     },
+ *     {
+ *       "key": "schema",
+ *       "optional": true,
+ *       "tsType": "Record<string, unknown>",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "JSON Schema",
+ *       "type": "textarea",
+ *       "valueType": "json",
+ *       "description": "随 DSL 保存并可被外部工具读取的 JSON Schema 元信息。v1 不执行 type、required、properties 等 Schema 关键字校验。",
+ *       "validationMessage": "请输入有效 JSON Schema。"
+ *     },
+ *     {
+ *       "key": "requireObject",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "要求根对象",
+ *       "type": "checkbox",
+ *       "defaultValue": true,
+ *       "description": "true 时仅接受非数组 object，优先级高于 allowArray。要允许数组必须设为 false。"
+ *     },
+ *     {
+ *       "key": "allowArray",
+ *       "optional": true,
+ *       "tsType": "boolean",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "允许根数组",
+ *       "type": "checkbox",
+ *       "defaultValue": false,
+ *       "description": "仅在 requireObject=false 时生效。false 拒绝数组但允许 JSON 标量；true 允许数组和标量。"
  *     }
  *   ],
  *   "events": [],
@@ -197,21 +251,82 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *       "name": "getData",
  *       "exposed": true,
  *       "async": false,
- *       "params": "not declared in defineExpose object",
- *       "returns": "unknown",
+ *       "params": [],
+ *       "returns": "{ value: string, layoutJson: object | null, json: unknown, valid: boolean, error: string, recordUuid: string, recordName: string }",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 233,
- *       "label": "获取数据"
+ *       "label": "获取编辑器数据",
+ *       "description": "返回原始文本 value、解析结果 json、仅 object 时存在的 layoutJson、valid/error 以及记录标识。无效 JSON 不抛错，而是返回 json=null、layoutJson=null 和 valid=false。"
+ *     },
+ *     {
+ *       "name": "getJson",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": [
+ *         {
+ *           "name": "strict",
+ *           "optional": true,
+ *           "type": "boolean",
+ *           "description": "默认 true；传 false 时 JSON 语法或根节点校验失败返回 null，不抛出异常。支持直接字段、args.strict 或 inputs.strict。"
+ *         }
+ *       ],
+ *       "returns": "unknown | null",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "label": "获取 JSON",
+ *       "description": "解析并深拷贝返回当前 JSON，可返回对象、数组或标量；会遵守 requireObject 和 allowArray。strict=true 时失败会更新可见错误并抛出 Error。"
  *     },
  *     {
  *       "name": "getLayoutJson",
  *       "exposed": true,
  *       "async": false,
- *       "params": "not declared in defineExpose object",
- *       "returns": "unknown",
+ *       "params": [
+ *         {
+ *           "name": "patch",
+ *           "optional": true,
+ *           "type": "Record<string, unknown>",
+ *           "description": "可选对象补丁，支持直接字段、args.patch 或 inputs.patch，会浅合并到解析出的对象 JSON；非 object 补丁按 {} 处理。"
+ *         }
+ *       ],
+ *       "returns": "Record<string, unknown>",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 234,
- *       "label": "获取布局 JSON"
+ *       "label": "获取布局 JSON",
+ *       "description": "严格要求当前 JSON 为对象，解析失败或根节点不是对象时更新可见错误并抛出 Error；返回值不会修改编辑器文本。"
+ *     },
+ *     {
+ *       "name": "setValue",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": [
+ *         {
+ *           "name": "value",
+ *           "optional": true,
+ *           "type": "unknown",
+ *           "description": "支持直接传入 JSON 值或原始文本字符串，或传入 { args: { value } } / { inputs: { value } }。readonly=true 时抛出 Error。"
+ *         }
+ *       ],
+ *       "returns": "{ value: string, layoutJson: object | null, json: unknown, valid: boolean, error: string, recordUuid: string, recordName: string }",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "label": "设置 JSON",
+ *       "description": "把非 string 值格式化为 JSON 文本，写入编辑器、刷新语法和根节点校验、同步 onChange/onToolChange，并通知 PreviewBlockRuntime。方法返回完整 getData 结果，即使写入内容无效也不抛错。"
+ *     },
+ *     {
+ *       "name": "clear",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": [],
+ *       "returns": "{ value: string, layoutJson: object | null, json: unknown, valid: boolean, error: string, recordUuid: string, recordName: string }",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "label": "清空 JSON",
+ *       "description": "将编辑器重置为默认空对象 {}，触发校验和运行时通知；readonly=true 时抛出 Error。"
+ *     },
+ *     {
+ *       "name": "format",
+ *       "exposed": true,
+ *       "async": false,
+ *       "params": [],
+ *       "returns": "{ value: string }",
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
+ *       "label": "格式化 JSON",
+ *       "description": "语法和根节点校验通过后把当前 JSON 文本格式化为两空格缩进并通知运行时；失败时更新可见错误并抛出 Error。"
  *     }
  *   ],
  *   "dataFields": [
@@ -222,55 +337,51 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue"
  *     },
  *     {
- *       "label": {
- *         "raw": "'JSON 对象'",
- *         "zh": "JSON 对象",
- *         "en": "JSON 对象"
- *       },
+ *       "label": "JSON 对象",
  *       "variable": "layoutJson",
  *       "dataType": "object",
  *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 70
+ *       "description": "当前文本解析成功且根值为 object 时返回；否则为 null。"
  *     },
  *     {
- *       "label": {
- *         "raw": "'记录 UUID'",
- *         "zh": "记录 UUID",
- *         "en": "记录 UUID"
- *       },
+ *       "label": "记录 UUID",
  *       "variable": "recordUuid",
  *       "dataType": "string",
- *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 75
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue"
  *     },
  *     {
- *       "label": {
- *         "raw": "'记录名称'",
- *         "zh": "记录名称",
- *         "en": "记录名称"
- *       },
+ *       "label": "记录名称",
  *       "variable": "recordName",
  *       "dataType": "string",
- *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 80
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue"
  *     },
  *     {
- *       "label": {
- *         "raw": "'校验状态'",
- *         "zh": "校验状态",
- *         "en": "校验状态"
- *       },
+ *       "label": "校验状态",
  *       "variable": "valid",
  *       "dataType": "boolean",
- *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue",
- *       "line": 85
+ *       "source": "submodule/mokelay-editor/src/blocks/MJsonEditor.vue"
  *     }
  *   ],
  *   "saveRules": [
  *     {
  *       "key": "serialize",
  *       "type": "function",
- *       "description": "保存时调用该 block 的 serialize(props)，只返回可写入 EditorJS block.data 的字段。"
+ *       "description": "保存标题、JSON 值、占位提示和行数；readonly、recordUuid、recordName、schema、requireObject、allowArray 只在有值或偏离默认值时写入 EditorJS block.data。"
+ *     },
+ *     {
+ *       "key": "schemaMetadataOnly",
+ *       "type": "behavior",
+ *       "description": "schema 会深拷贝保存，但组件 v1 只执行 JSON.parse 与根节点类型校验，不把 schema 交给 JSON Schema validator。"
+ *     },
+ *     {
+ *       "key": "rootValidation",
+ *       "type": "validation",
+ *       "description": "requireObject=true 时只允许 object；requireObject=false 且 allowArray=false 时拒绝数组；两者分别为 false/true 时接受所有合法 JSON 根类型。"
+ *     },
+ *     {
+ *       "key": "runtimeNotification",
+ *       "type": "behavior",
+ *       "description": "用户输入、setValue、clear、format 和外部 props.value 变化都会使 blocks[blockId] 变量依赖重新求值。"
  *     }
  *   ],
  *   "examples": [
@@ -282,7 +393,49 @@ function getJsonEditorDataFields(): BlockDataField[] {
  *         "value": {},
  *         "placeholder": "{\n  \"schemaVersion\": 1\n}",
  *         "rows": 18,
- *         "readonly": false
+ *         "readonly": false,
+ *         "requireObject": true,
+ *         "allowArray": false
+ *       }
+ *     },
+ *     {
+ *       "id": "MJsonEditor-ai-chat-request-example",
+ *       "type": "MJsonEditor",
+ *       "data": {
+ *         "label": "AI DSL 请求 JSON",
+ *         "value": {
+ *           "requirementDocument": "生成一个 CRM：包括客户管理，列表，添加，修改，删除",
+ *           "projectContext": { "app": "crm", "datasource": "Mokelay" }
+ *         },
+ *         "placeholder": "{\n  \"requirementDocument\": \"...\"\n}",
+ *         "rows": 24,
+ *         "readonly": false,
+ *         "schema": {
+ *           "type": "object",
+ *           "required": [
+ *             "requirementDocument"
+ *           ],
+ *           "properties": {
+ *             "requirementDocument": {
+ *               "type": "string"
+ *             },
+ *             "projectContext": { "type": "object" }
+ *           }
+ *         },
+ *         "requireObject": true,
+ *         "allowArray": false
+ *       }
+ *     },
+ *     {
+ *       "id": "MJsonEditor-readonly-response-example",
+ *       "type": "MJsonEditor",
+ *       "data": {
+ *         "label": "响应 JSON",
+ *         "value": { "status": "complete", "pages": [], "apis": [] },
+ *         "rows": 18,
+ *         "readonly": true,
+ *         "requireObject": true,
+ *         "allowArray": false
  *       }
  *     }
  *   ],
@@ -314,7 +467,10 @@ export const mJsonEditorTool = defineEditorTool<MJsonEditorProps>({
       rows: normalized.rows,
       ...(normalized.readonly ? { readonly: true } : {}),
       ...(normalized.recordUuid ? { recordUuid: normalized.recordUuid } : {}),
-      ...(normalized.recordName ? { recordName: normalized.recordName } : {})
+      ...(normalized.recordName ? { recordName: normalized.recordName } : {}),
+      ...(normalized.schema ? { schema: cloneValue(normalized.schema) } : {}),
+      ...(normalized.requireObject !== jsonEditorDefaults.requireObject ? { requireObject: normalized.requireObject } : {}),
+      ...(normalized.allowArray !== jsonEditorDefaults.allowArray ? { allowArray: normalized.allowArray } : {})
     };
   }
 });
@@ -342,22 +498,48 @@ const editorRows = computed(() => {
 });
 const editorLabel = computed(() => props.label || jsonEditorDefaults.label);
 const editorPlaceholder = computed(() => props.placeholder || jsonEditorDefaults.placeholder);
+const requiresObjectRoot = computed(() => props.requireObject !== false);
+const allowsArrayRoot = computed(() => props.allowArray === true);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function rootValidationError(value: unknown) {
+  if (requiresObjectRoot.value && !isRecord(value)) {
+    return 'JSON 必须是对象。';
+  }
+
+  if (Array.isArray(value) && !allowsArrayRoot.value) {
+    return 'JSON 不允许使用数组作为根节点。';
+  }
+
+  return '';
+}
 
 function parseEditorText(reportError: boolean) {
   try {
     const parsed = JSON.parse(editorText.value) as unknown;
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      throw new Error('JSON 必须是对象。');
+    const rootError = rootValidationError(parsed);
+    if (rootError) {
+      throw new Error(rootError);
     }
     if (reportError) {
       validationError.value = '';
     }
-    return parsed as Record<string, unknown>;
+    return {
+      ok: true as const,
+      value: parsed
+    };
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'JSON 无效。';
     if (reportError) {
-      validationError.value = error instanceof Error ? error.message : 'JSON 无效。';
+      validationError.value = message;
     }
-    return null;
+    return {
+      ok: false as const,
+      error: message
+    };
   }
 }
 
@@ -377,7 +559,10 @@ function emitChange() {
     rows: props.rows,
     readonly: props.readonly,
     recordUuid: props.recordUuid,
-    recordName: props.recordName
+    recordName: props.recordName,
+    schema: props.schema,
+    requireObject: props.requireObject,
+    allowArray: props.allowArray
   });
   props.onToolChange?.(payload);
   props.onChange?.(payload);
@@ -393,28 +578,116 @@ function handleInput(event: Event) {
 }
 
 function getData() {
-  const layoutJson = parseEditorText(false);
+  const parsed = parseEditorText(false);
+  const json = parsed.ok ? parsed.value : null;
+  const objectJson = isRecord(json) ? json : null;
 
   return {
     value: editorText.value,
-    layoutJson,
-    json: layoutJson,
-    valid: Boolean(layoutJson),
-    error: layoutJson ? '' : validationError.value || 'JSON 无效。',
-    recordUuid: props.recordUuid || readString(layoutJson?.uuid),
-    recordName: props.recordName || readString(layoutJson?.name)
+    layoutJson: objectJson,
+    json,
+    valid: parsed.ok,
+    error: parsed.ok ? '' : parsed.error || validationError.value || 'JSON 无效。',
+    recordUuid: props.recordUuid || readString(objectJson?.uuid),
+    recordName: props.recordName || readString(objectJson?.name)
   };
 }
 
 function getLayoutJson(invocation?: BlockMethodInvocation) {
-  const layoutJson = parseEditorText(true);
-  if (!layoutJson) {
+  const parsed = parseEditorText(true);
+  if (!parsed.ok) {
     throw new Error(validationError.value || 'JSON 无效。');
   }
 
+  if (!isRecord(parsed.value)) {
+    validationError.value = 'JSON 必须是对象。';
+    throw new Error(validationError.value);
+  }
+
   return {
-    ...layoutJson,
-    ...normalizePatch(invocation?.inputs?.patch)
+    ...parsed.value,
+    ...normalizePatch(readInvocationValue(invocation, 'patch'))
+  };
+}
+
+function getJson(invocation?: BlockMethodInvocation) {
+  const parsed = parseEditorText(true);
+  const strictValue = readInvocationValue(invocation, 'strict');
+  const strict = strictValue === undefined ? true : strictValue !== false;
+
+  if (!parsed.ok) {
+    if (!strict) return null;
+    throw new Error(validationError.value || parsed.error || 'JSON 无效。');
+  }
+
+  return cloneValue(parsed.value);
+}
+
+function readInvocationValue(invocation: unknown, key: string) {
+  if (!isRecord(invocation)) return undefined;
+
+  if (isRecord(invocation.args) && Object.prototype.hasOwnProperty.call(invocation.args, key)) {
+    return invocation.args[key];
+  }
+
+  if (isRecord(invocation.inputs) && Object.prototype.hasOwnProperty.call(invocation.inputs, key)) {
+    return invocation.inputs[key];
+  }
+
+  if (Object.prototype.hasOwnProperty.call(invocation, key)) {
+    return invocation[key];
+  }
+
+  return undefined;
+}
+
+function readSetValueInput(invocation: unknown) {
+  if (!isRecord(invocation)) return invocation;
+
+  if (isRecord(invocation.args) && Object.prototype.hasOwnProperty.call(invocation.args, 'value')) {
+    return invocation.args.value;
+  }
+
+  if (isRecord(invocation.inputs) && Object.prototype.hasOwnProperty.call(invocation.inputs, 'value')) {
+    return invocation.inputs.value;
+  }
+
+  return invocation;
+}
+
+function ensureWritable() {
+  if (props.readonly) {
+    throw new Error('JSON 编辑器为只读状态，不能修改。');
+  }
+}
+
+function setEditorText(value: unknown) {
+  editorText.value = formatJsonValue(value);
+  parseEditorText(true);
+  emitChange();
+  return getData();
+}
+
+function setValue(invocation?: unknown) {
+  ensureWritable();
+  return setEditorText(readSetValueInput(invocation));
+}
+
+function clear() {
+  ensureWritable();
+  return setEditorText(jsonEditorDefaults.value);
+}
+
+function format() {
+  const parsed = parseEditorText(true);
+  if (!parsed.ok) {
+    throw new Error(validationError.value || parsed.error || 'JSON 无效。');
+  }
+
+  editorText.value = formatJsonValue(parsed.value);
+  emitChange();
+  return {
+    value: editorText.value
   };
 }
 
@@ -424,7 +697,11 @@ function readString(value: unknown) {
 
 defineExpose({
   getData,
-  getLayoutJson
+  getJson,
+  getLayoutJson,
+  setValue,
+  clear,
+  format
 });
 
 watch(

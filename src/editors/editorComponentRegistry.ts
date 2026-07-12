@@ -130,6 +130,10 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     const module = await import('@/blocks/MJsonEditor.vue');
     return { component: markRaw(module.default), ...module.mJsonEditorTool };
   },
+  MPageState: async () => {
+    const module = await import('@/blocks/MPageState.vue');
+    return { component: markRaw(module.default), ...module.mPageStateTool };
+  },
   MLayoutGrid: async () => {
     const module = await import('@/blocks/MLayoutGrid.vue');
     return { component: markRaw(module.default), ...module.mLayoutGridEditorTool };

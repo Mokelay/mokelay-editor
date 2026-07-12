@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
+import AiDslRequestContextProcessorEditor from '@/processors/components/AiDslRequestContextProcessorEditor.vue';
 import DateTimeFormatProcessorEditor from '@/processors/components/DateTimeFormatProcessorEditor.vue';
 import FilterProcessorEditor from '@/processors/components/FilterProcessorEditor.vue';
 import MergeDataProcessorEditor from '@/processors/components/MergeDataProcessorEditor.vue';
@@ -84,6 +85,7 @@ function moveProcessor(index: number, offset: number) {
 
 function editorComponent(config: ProcessorConfig) {
   const name = processorName(config);
+  if (name === 'ai_dsl_request_context') return AiDslRequestContextProcessorEditor;
   if (name === 'trim') return TrimProcessorEditor;
   if (name === 'merge_data') return MergeDataProcessorEditor;
   if (name === 'filter') return FilterProcessorEditor;

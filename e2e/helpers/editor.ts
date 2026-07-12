@@ -175,6 +175,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const apiBuilderSampleRequests: string[] = [];
   const systemApiReadRequests: string[] = [];
   const aiGenerateDslRequests: Record<string, unknown>[] = [];
+  const saveAiDslAssetsRequests: Record<string, unknown>[] = [];
   let aiGenerateDslResponseIndex = 0;
   const corsHeaders = {
     'access-control-allow-origin': '*',
@@ -313,6 +314,100 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       }
 
       await fulfillAiGenerateDsl(route, responseConfig.data, corsHeaders);
+      return;
+    }
+
+    if (method === 'POST' && url.pathname === '/api/mokelay/save_ai_dsl_assets') {
+      const payload = readJsonPayload(request.postDataJSON());
+      saveAiDslAssetsRequests.push(payload);
+      const generationResult = readJsonPayload(payload.generationResult);
+      const knownPageUuids = new Set(readStringArray(payload.knownPageUuids));
+      const knownApiUuids = new Set(readStringArray(payload.knownApiUuids));
+      const pageItems = (Array.isArray(generationResult.pages) ? generationResult.pages : []).map((value, index) => {
+        const pageJson = readJsonPayload(value);
+        const uuid = readString(pageJson.uuid);
+        const title = readString(pageJson.name) || uuid || `页面 ${index + 1}`;
+        if (!uuid || (pages.has(uuid) && !knownPageUuids.has(uuid))) {
+          return {
+            type: 'page',
+            title,
+            sourceUuid: uuid,
+            status: 'error',
+            error: 'AI_DSL_ASSET_UUID_EXISTS: 页面 uuid 已存在且不属于当前会话。'
+          };
+        }
+
+        pages.set(uuid, {
+          uuid,
+          name: title,
+          blocks: Array.isArray(pageJson.blocks) ? pageJson.blocks as SavedBlock[] : [],
+          createdAt: pages.get(uuid)?.createdAt ?? now,
+          updatedAt: now
+        });
+        knownPageUuids.add(uuid);
+        return {
+          type: 'page',
+          title,
+          sourceUuid: uuid,
+          savedUuid: uuid,
+          href: `#/pages/${encodeURIComponent(uuid)}`,
+          status: 'success'
+        };
+      });
+      const apiItems = (Array.isArray(generationResult.apis) ? generationResult.apis : []).map((value, index) => {
+        const apiJson = readJsonPayload(value);
+        const uuid = readString(apiJson.uuid);
+        const title = readString(apiJson.alias) || uuid || `API ${index + 1}`;
+        if (!uuid || (apis.has(uuid) && !knownApiUuids.has(uuid))) {
+          return {
+            type: 'api',
+            title,
+            sourceUuid: uuid,
+            status: 'error',
+            error: 'AI_DSL_ASSET_UUID_EXISTS: API uuid 已存在且不属于当前会话。'
+          };
+        }
+
+        const status = payload.apiStatus === 'published' ? 'published' : 'draft';
+        const methodName = (readString(apiJson.method) || 'GET').toUpperCase();
+        apis.set(uuid, {
+          uuid,
+          name: title,
+          method: methodName,
+          status,
+          apiJson: { ...apiJson, uuid, method: methodName },
+          layout: defaultApiLayout(),
+          createdAt: apis.get(uuid)?.createdAt ?? now,
+          updatedAt: now
+        });
+        knownApiUuids.add(uuid);
+        return {
+          type: 'api',
+          title,
+          sourceUuid: uuid,
+          savedUuid: uuid,
+          href: `#/apis/${encodeURIComponent(uuid)}`,
+          status: 'success'
+        };
+      });
+      const items = [...apiItems, ...pageItems];
+      const savedCount = items.filter((item) => item.status === 'success').length;
+      const failedCount = items.length - savedCount;
+      const saveSummary = {
+        status: failedCount === 0 ? 'complete' : savedCount === 0 ? 'error' : 'partial',
+        pages: pageItems,
+        apis: apiItems,
+        savedCount,
+        failedCount,
+        knownPageUuids: [...knownPageUuids],
+        knownApiUuids: [...knownApiUuids]
+      };
+
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({ ok: true, data: { saveSummary } })
+      });
       return;
     }
 
@@ -813,7 +908,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, systemPages, apps, layouts, systemLayouts, datasources, apis, systemApis, apiDomains, apiBuilderSamples, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, pageLayoutUpdatePayloads, layoutDeletePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, apiBuilderSampleRequests, systemApiReadRequests, aiGenerateDslRequests };
+  return { pages, systemPages, apps, layouts, systemLayouts, datasources, apis, systemApis, apiDomains, apiBuilderSamples, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, pageLayoutUpdatePayloads, layoutDeletePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, apiBuilderSampleRequests, systemApiReadRequests, aiGenerateDslRequests, saveAiDslAssetsRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -974,6 +1069,12 @@ function readString(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
 
+function readStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
 function readNullableString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
@@ -1001,6 +1102,7 @@ function getSeedSystemPages(overrides: MockMokelayPage[] = []) {
   return mergeByUuid(
     [
       readSystemPageAsset('home'),
+      readSystemPageAsset('ai-chat'),
       readSystemPageAsset('mokelay_app_create_page'),
       readSystemPageAsset('mokelay_app_edit_page')
     ],
@@ -1030,6 +1132,7 @@ function readSystemPageAsset(uuid: string): MockMokelayPage {
     uuid: readString(value.uuid),
     name: readString(value.name),
     blocks: Array.isArray(value.blocks) ? value.blocks as SavedBlock[] : [],
+    dataSources: Array.isArray(value.dataSources) ? value.dataSources as PageDataSourceConfig[] : [],
     appUuid: readNullableString(value.appUuid ?? value.app_uuid),
     layoutUuid: readNullableString(value.layoutUuid ?? value.layout_uuid),
     createdAt: readString(value.createdAt ?? value.created_at),

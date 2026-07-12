@@ -144,6 +144,7 @@ const propertyComponentBindings: Record<string, PropertyComponentBinding> = {
   'MPhoneField.value': variableValueBinding({ valueType: 'string' }),
   'MLinkField.value': variableValueBinding({ valueType: 'string' }),
   'MTextareaField.value': variableValueBinding({ valueType: 'string', multiline: true }),
+  'MSelectField.options': variableValueBinding({ valueType: 'array', multiline: true }),
   'MDateRangeField.value': variableValueBinding({
     valueType: 'object',
     multiline: true,

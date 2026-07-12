@@ -28,7 +28,6 @@ import {
 
 const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
-const ChatAiPanel = defineAsyncComponent(() => import('@/components/ChatAiPanel.vue'));
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 const NotFoundPage = defineAsyncComponent(() => import('@/components/NotFoundPage.vue'));
 
@@ -40,7 +39,6 @@ type ParsedRoute = {
   apiUuid: string | null;
   apiBuilder: boolean;
   apiSource: 'user' | 'system';
-  aiChat: boolean;
   preview: boolean;
   runtimePage: boolean;
   notFound: boolean;
@@ -84,7 +82,6 @@ const routePageSource = computed(() => parsedRoute.value.pageSource);
 const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
 const routeApiSource = computed(() => parsedRoute.value.apiSource);
-const isAiChatPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.aiChat);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
 const isRuntimePage = computed(() => !isApiBuilderPage.value && parsedRoute.value.runtimePage);
 const isNotFoundPage = computed(() => !isApiBuilderPage.value && (parsedRoute.value.notFound || runtimePageLoadFailed.value));
@@ -94,7 +91,7 @@ const pageRuntimeContext = computed<PageRuntimeContext>(() => ({
     query: parseRouteQuery(routeLocation.value.rawPath)
   }
 }));
-const usesSourceLayout = computed(() => isApiBuilderPage.value || isAiChatPage.value || isEditorPage.value);
+const usesSourceLayout = computed(() => isApiBuilderPage.value || isEditorPage.value);
 const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
 const isLayoutFramedPage = computed(() => isStandalonePage.value || usesSourceLayout.value);
 const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
@@ -144,7 +141,6 @@ function createParsedRoute(overrides: Partial<ParsedRoute> = {}): ParsedRoute {
     apiUuid: null,
     apiBuilder: false,
     apiSource: 'user',
-    aiChat: false,
     preview: false,
     runtimePage: false,
     notFound: false,
@@ -174,10 +170,6 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
       apiBuilder: true,
       apiSource
     });
-  }
-
-  if (path === '/ai-chat') {
-    return createParsedRoute({ aiChat: true });
   }
 
   if (pageMatch) {
@@ -453,10 +445,6 @@ function getSourceLayoutPageUuid() {
     return routeApiUuid.value ? `apis/${routeApiUuid.value}` : 'apis';
   }
 
-  if (isAiChatPage.value) {
-    return 'ai-chat';
-  }
-
   if (isEditorPage.value) {
     return currentPageUuid.value ? `pages/${currentPageUuid.value}` : 'page-editor';
   }
@@ -467,10 +455,6 @@ function getSourceLayoutPageUuid() {
 function getSourceLayoutPageName() {
   if (isApiBuilderPage.value) {
     return 'API Builder';
-  }
-
-  if (isAiChatPage.value) {
-    return t('app.aiChat');
   }
 
   if (isEditorPage.value) {
@@ -491,9 +475,9 @@ onUnmounted(() => {
 });
 
 watch(
-  [routePageUuid, routePageSource, isApiBuilderPage, isAiChatPage, isRuntimePage, isNotFoundPage],
-  ([uuid, source, apiBuilder, aiChat, runtimePage, notFound]) => {
-    if (apiBuilder || aiChat || runtimePage || notFound) {
+  [routePageUuid, routePageSource, isApiBuilderPage, isRuntimePage, isNotFoundPage],
+  ([uuid, source, apiBuilder, runtimePage, notFound]) => {
+    if (apiBuilder || runtimePage || notFound) {
       loadRequestId += 1;
       return;
     }
@@ -700,7 +684,6 @@ function backToPagesPage() {
           :route-uuid="routeApiUuid"
           :route-source="routeApiSource"
         />
-        <ChatAiPanel v-else-if="isAiChatPage" />
         <div v-else-if="isEditorPage" class="flex flex-1 flex-col gap-4">
           <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div class="flex flex-wrap items-center justify-between gap-3">

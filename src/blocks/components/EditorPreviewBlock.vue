@@ -15,6 +15,7 @@ import {
   PageRuntimeVariableContextKey
 } from '@/utils/pageRuntimeContext';
 import {
+  isVariableValueConfig,
   readRuntimePath,
   resolveRuntimeValue,
   type VariableValueResolveContext
@@ -119,13 +120,37 @@ function resolveBlockData(data: unknown, blockType: string) {
         key,
         shouldKeepDatasourceRuntimeConfig(blockType, key, value)
           ? value
-          : resolveRuntimeValue(value, getVariableResolveContext())
+          : resolveBlockRuntimeValue(value)
       ])
     );
   }
 
-  const resolved = resolveRuntimeValue(data, getVariableResolveContext());
+  const resolved = resolveBlockRuntimeValue(data);
   return isRecord(resolved) ? resolved : {};
+}
+
+function resolveBlockRuntimeValue(value: unknown): unknown {
+  if (isVariableValueConfig(value)) {
+    return resolveRuntimeValue(value, getVariableResolveContext());
+  }
+
+  if (Array.isArray(value)) {
+    if (isNestedBlockArray(value)) return value;
+    return value.map((item) => resolveBlockRuntimeValue(item));
+  }
+
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        key === 'blocks' && isNestedBlockArray(item)
+          ? item
+          : resolveBlockRuntimeValue(item)
+      ])
+    );
+  }
+
+  return value;
 }
 
 function getResolvedBlockData(block: OutputData['blocks'][number]) {
@@ -295,8 +320,18 @@ function collectReferencedBlockIds(value: unknown, result = new Set<string>()) {
     result.add(value.blockId.trim());
   }
 
-  Object.values(value).forEach((item) => collectReferencedBlockIds(item, result));
+  Object.entries(value).forEach(([key, item]) => {
+    // Nested preview blocks register their own dependencies; the container must stay stable.
+    if (key === 'blocks' && isNestedBlockArray(item)) return;
+    collectReferencedBlockIds(item, result);
+  });
   return result;
+}
+
+function isNestedBlockArray(value: unknown) {
+  return Array.isArray(value) && value.some((item) => (
+    isRecord(item) && typeof item.type === 'string' && isRecord(item.data)
+  ));
 }
 
 function getReferencedBlockIdsSignature() {
