@@ -1,0 +1,1 @@
+import{q as r}from"./index-CTNw-lHR.js";import{s as m,n as i}from"./mFormItemProps-NR2wJ1qT.js";import"./vue-vendor-B9whQc6c.js";import"./json-editor-B52tXTfP.js";import"./qrcode-BD_Spdmc.js";import"./element-plus-BJC8NeUU.js";import"./mEditorSelectorEditorTool-DZ8Ms_7s.js";const z=r({normalizeProps:o=>i(o),serialize:m});export{z as mFormItemEditorTool};
