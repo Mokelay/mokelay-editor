@@ -125,6 +125,7 @@ type MockPagesApiOptions = {
   systemApis?: MockMokelayApi[];
   apiDomains?: MockApiDomain[];
   apiBuilderSamples?: MockApiBuilderSample[];
+  clientBlockDocs?: Record<string, unknown>[];
   aiGenerateDslResponses?: MockAiGenerateDslResponse[];
   seedDefaultPage?: boolean;
   apiDelays?: {
@@ -295,6 +296,28 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
           data: {
             loggedIn: Boolean(user),
             user
+          }
+        })
+      });
+      return;
+    }
+
+    if (method === 'GET' && url.pathname === '/api/mokelay/list_client_block_docs' && options.clientBlockDocs) {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            docs: options.clientBlockDocs,
+            pagination: {
+              page: 1,
+              pageSize: options.clientBlockDocs.length,
+              total: options.clientBlockDocs.length,
+              totalPages: 1,
+              hasPreviousPage: false,
+              hasNextPage: false
+            }
           }
         })
       });

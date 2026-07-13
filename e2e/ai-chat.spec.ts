@@ -116,6 +116,40 @@ const firstRequest = {
   requirementDocument: '客户管理：需要客户列表、创建客户、删除客户。',
   projectContext: { app: 'CRM', datasource: 'Mokelay' }
 };
+const aiChatClientBlockDocs = [
+  clientBlockDoc('MPageState', 'mPageStateTool'),
+  clientBlockDoc('MLayoutGrid', 'mLayoutGridEditorTool'),
+  clientBlockDoc('MForm', 'mFormEditorTool'),
+  clientBlockDoc('MTextareaField', 'mTextareaFieldEditorTool'),
+  clientBlockDoc('MSelectField', 'mSelectFieldEditorTool'),
+  clientBlockDoc('MActionToolbar', 'mActionToolbarEditorTool'),
+  clientBlockDoc('MHeading', 'mHeadingEditorTool'),
+  clientBlockDoc('MJson', 'mJsonTool'),
+  clientBlockDoc('MActionCardList', 'mActionCardListEditorTool')
+];
+
+function clientBlockDoc(blockType: string, toolSymbol: string) {
+  return {
+    uuid: `ai-chat-${blockType}`,
+    block_type: blockType,
+    display_name: blockType,
+    category: 'ai-chat',
+    status: 'active',
+    editor_enabled: true,
+    toolbox_visible: true,
+    sort_order: 0,
+    registration: {
+      componentName: blockType,
+      toolSymbol,
+      editorEnabled: true,
+      toolboxVisible: true,
+      sortOrder: 0
+    },
+    toolbox: { title: blockType },
+    default_data: {},
+    property_schema: []
+  };
+}
 
 type ResetEditorOptions = NonNullable<Parameters<typeof resetEditor>[1]>;
 
@@ -123,6 +157,7 @@ async function resetAiChat(page: Page, options: ResetEditorOptions = {}) {
   return await resetEditor(page, {
     apps: [aiChatApp],
     datasources: [aiChatDatasource],
+    clientBlockDocs: aiChatClientBlockDocs,
     ...options
   });
 }
@@ -195,6 +230,19 @@ test('opens the AI Chat system page DSL from the top navigation', async ({ page 
   await expect(page.getByTestId('m-json-editor-control')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'AI生成' })).toBeVisible();
   await expect(responseViewer(page)).toBeVisible();
+});
+
+test('mounts each AI Chat layout area once in the system page editor', async ({ page }) => {
+  await resetAiChat(page, { initialRoute: '/#/pages/ai-chat?source=system' });
+
+  const requestArea = page.getByTestId('m-layout-grid-area-request');
+  const resultArea = page.getByTestId('m-layout-grid-area-result');
+
+  await expect(page.getByTestId('m-layout-grid')).toHaveCount(1);
+  await expect(requestArea.locator(':scope > .m-layout-grid__editor > .codex-editor')).toHaveCount(1);
+  await expect(resultArea.locator(':scope > .m-layout-grid__editor > .codex-editor')).toHaveCount(1);
+  await expect(requestForm(page)).toHaveCount(1);
+  await expect(page.getByRole('heading', { name: '生成结果', exact: true })).toHaveCount(1);
 });
 
 test('generates, saves, renders JSON, and carries history into a follow-up request', async ({ page }) => {

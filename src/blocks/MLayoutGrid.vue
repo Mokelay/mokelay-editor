@@ -454,6 +454,8 @@ const gridState = ref<MLayoutGridProps>(normalizeMLayoutGridProps(props));
 const viewportWidth = ref(typeof window === 'undefined' ? 1024 : window.innerWidth);
 const areaHolders = new Map<string, HTMLElement>();
 const areaEditors: AreaEditorRegistry = new Map();
+// Ref callbacks and lifecycle reconciliation can request the same mount before imports resolve.
+const areaEditorMounts = new Map<string, Promise<void>>();
 const areaMutationObservers = new Map<string, MutationObserver>();
 const scheduledAreaSyncs = new Map<string, number>();
 const areaSyncListeners = new Map<string, AreaSyncListener[]>();
@@ -668,47 +670,76 @@ function stopAreaSyncListeners(areaId: string) {
 
 async function mountAreaEditor(areaId: string) {
   if (!gridState.value.edit || areaEditors.has(areaId)) return;
-  const holder = areaHolders.get(areaId);
-  const area = findArea(areaId);
-  if (!holder || !area) return;
+  const existingMount = areaEditorMounts.get(areaId);
+  if (existingMount) {
+    await existingMount;
+    if (gridState.value.edit && !areaEditors.has(areaId) && areaHolders.has(areaId)) {
+      await mountAreaEditor(areaId);
+    }
+    return;
+  }
 
-  const [
-    { default: EditorJSConstructor },
-    { default: EditorJsColumns },
-    { default: Table }
-  ] = await Promise.all([
-    import('@editorjs/editorjs'),
-    import('@calumk/editorjs-columns'),
-    import('@editorjs/table')
-  ]);
-  const editor = new EditorJSConstructor({
-    holder,
-    placeholder: t('editor.placeholder'),
-    tools: createNestedTools(
-      EditorJSConstructor,
-      EditorJsColumns as unknown as ToolSettings['class'],
-      Table as unknown as ToolSettings['class']
-    ),
-    data: prepareEditorOutputWithEvents(buildAreaOutput(area)),
-    minHeight: 0,
-    i18n: {
-      messages: getEditorJsI18nMessages(localeValue.value)
-    },
-    onChange: async () => {
-      const currentEditor = areaEditors.get(areaId);
-      if (!currentEditor) return;
-      const output = await saveEditorJsInstance(currentEditor);
-      if (output) {
-        syncAreaBlocks(areaId, output);
+  const requestedHolder = areaHolders.get(areaId);
+  if (!requestedHolder || !findArea(areaId)) return;
+
+  let mountPromise: Promise<void>;
+  mountPromise = (async () => {
+    const [
+      { default: EditorJSConstructor },
+      { default: EditorJsColumns },
+      { default: Table }
+    ] = await Promise.all([
+      import('@editorjs/editorjs'),
+      import('@calumk/editorjs-columns'),
+      import('@editorjs/table')
+    ]);
+    const holder = areaHolders.get(areaId);
+    const area = findArea(areaId);
+    if (
+      !gridState.value.edit
+      || areaEditors.has(areaId)
+      || !holder
+      || holder !== requestedHolder
+      || !area
+    ) return;
+
+    const editor = new EditorJSConstructor({
+      holder,
+      placeholder: t('editor.placeholder'),
+      tools: createNestedTools(
+        EditorJSConstructor,
+        EditorJsColumns as unknown as ToolSettings['class'],
+        Table as unknown as ToolSettings['class']
+      ),
+      data: prepareEditorOutputWithEvents(buildAreaOutput(area)),
+      minHeight: 0,
+      i18n: {
+        messages: getEditorJsI18nMessages(localeValue.value)
+      },
+      onChange: async () => {
+        const currentEditor = areaEditors.get(areaId);
+        if (!currentEditor) return;
+        const output = await saveEditorJsInstance(currentEditor);
+        if (output) {
+          syncAreaBlocks(areaId, output);
+        }
       }
+    });
+
+    areaEditors.set(areaId, editor);
+    startAreaSyncListeners(areaId);
+  })().finally(() => {
+    if (areaEditorMounts.get(areaId) === mountPromise) {
+      areaEditorMounts.delete(areaId);
     }
   });
 
-  areaEditors.set(areaId, editor);
-  startAreaSyncListeners(areaId);
+  areaEditorMounts.set(areaId, mountPromise);
+  await mountPromise;
 }
 
 async function unmountAreaEditor(areaId: string) {
+  await areaEditorMounts.get(areaId)?.catch(() => undefined);
   const editor = areaEditors.get(areaId);
   if (!editor) return;
   areaEditors.delete(areaId);
@@ -733,8 +764,9 @@ async function reconcileAreaEditors() {
   }
 
   const areaIds = new Set(areas.value.map((area) => area.id));
+  const mountedAreaIds = new Set([...areaEditors.keys(), ...areaEditorMounts.keys()]);
   await Promise.all(
-    [...areaEditors.keys()]
+    [...mountedAreaIds]
       .filter((areaId) => !areaIds.has(areaId))
       .map((areaId) => unmountAreaEditor(areaId))
   );
@@ -744,7 +776,8 @@ async function reconcileAreaEditors() {
 }
 
 async function unmountAllAreaEditors() {
-  await Promise.all([...areaEditors.keys()].map((areaId) => unmountAreaEditor(areaId)));
+  const areaIds = new Set([...areaEditors.keys(), ...areaEditorMounts.keys()]);
+  await Promise.all([...areaIds].map((areaId) => unmountAreaEditor(areaId)));
 }
 
 function setAreaHolder(areaId: string, element: unknown) {
