@@ -457,6 +457,7 @@ import {
   type PreviewRuntimeBlock
 } from '@/utils/previewBlockRuntime';
 import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
+import { $message } from '@/utils/globalCalls';
 import type { PageDslCallbacks } from '@/blocks/pageDslEditorTools';
 
 type ButtonEventPayload = {
@@ -624,11 +625,18 @@ async function trigger(buttonIdOrInvocation: unknown) {
 async function handleButtonClick(button: ToolbarButton, event: MouseEvent) {
   if (props.edit || isButtonDisabled(button)) return;
   emit('click', { buttonId: button.id, button, nativeEvent: event });
-  await runButtonEvent(button, 'click', {
-    buttonId: button.id,
-    button,
-    nativeEvent: event
-  }).catch(() => undefined);
+  try {
+    await runButtonEvent(button, 'click', {
+      buttonId: button.id,
+      button,
+      nativeEvent: event
+    });
+  } catch (error) {
+    const message = error instanceof Error && error.message
+      ? error.message
+      : '操作失败。';
+    void $message({ type: 'error', content: message }).catch(() => undefined);
+  }
   closeMenus();
 }
 

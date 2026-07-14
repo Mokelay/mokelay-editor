@@ -168,6 +168,55 @@ test('executes toolbar button events through external trigger', async ({ page })
   await expect(targetInput).toBeFocused();
 });
 
+test('shows toolbar action errors and stops the remaining action graph', async ({ page }) => {
+  await seedSavedConfig(page, createSeededOutput([
+    actionToolbarBlock('toolbar', [
+      toolbarButton('batch_delete', 'Batch delete', {
+        showLoading: true,
+        loadingLabel: 'Deleting...',
+        events: clickEvents([
+          {
+            uuid: 'batch_delete_request',
+            action: 'execute_ds',
+            inputs: {
+              dsConfig: {
+                type: 'JSON',
+                rawData: {
+                  ok: false,
+                  error: {
+                    code: 'BLOCK_PAGE_DELETE_REFERENCED',
+                    message: '页面仍被批次外的页面引用，不能删除。'
+                  }
+                }
+              }
+            },
+            outputs: ['rawResponse'],
+            nextAction: 'focus_after_delete'
+          },
+          callBlockMethodAction('focus_after_delete', {
+            blockId: 'target-input',
+            method: 'focus'
+          })
+        ])
+      })
+    ]),
+    inputBlock('target-input', 'Target input')
+  ]));
+
+  await openPreview(page);
+  const batchButton = page.getByTestId('m-action-toolbar-action-batch_delete');
+  const targetInput = page.getByTestId('target-input');
+
+  await batchButton.click();
+
+  const message = page.getByTestId('global-call-message');
+  await expect(message).toBeVisible();
+  await expect(message).toHaveAttribute('data-type', 'error');
+  await expect(message).toContainText('页面仍被批次外的页面引用，不能删除。');
+  await expect(batchButton).toContainText('Batch delete');
+  await expect(targetInput).not.toBeFocused();
+});
+
 test('updates toolbar disabled state from table selection events in preview', async ({ page }) => {
   await page.route('**/toolbar-table-data', async (route) => {
     await route.fulfill({
