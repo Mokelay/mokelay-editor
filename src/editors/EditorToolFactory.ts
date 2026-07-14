@@ -1,4 +1,4 @@
-import { createApp, type App } from 'vue';
+import { computed, createApp, type App } from 'vue';
 import { i18n } from '@/i18n';
 import type { MenuConfig } from '@editorjs/editorjs/types/tools';
 import type {
@@ -19,6 +19,7 @@ import {
   PreviewBlockRuntimeKey,
   type PreviewBlockRuntime
 } from '@/utils/previewBlockRuntime';
+import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
 import {
   attachInternalBlockEventsToData,
   cloneBlockEvents,
@@ -264,6 +265,12 @@ export default class EditorToolFactory {
                 : {}),
               ...(typeof this.pendingInput.getAvailablePageVariableSources === 'function'
                 ? { getAvailablePageVariableSources: this.pendingInput.getAvailablePageVariableSources }
+                : {}),
+              ...(this.pendingInput.pageEditor
+                ? { pageEditor: this.pendingInput.pageEditor as EditorToolComponentProps['pageEditor'] }
+                : {}),
+              ...(Array.isArray(this.pendingInput.pageReferenceAncestry)
+                ? { pageReferenceAncestry: [...this.pendingInput.pageReferenceAncestry] as string[] }
                 : {})
             };
             if (!this.wrapper || !this.contentRoot) return;
@@ -310,8 +317,13 @@ export default class EditorToolFactory {
       }
 
       private provideRuntime(app: App<Element>) {
-        if (!this.previewRuntime) return;
-        app.provide(PreviewBlockRuntimeKey, this.previewRuntime);
+        const ancestry = Array.isArray(this.state?.pageReferenceAncestry)
+          ? [...this.state.pageReferenceAncestry]
+          : [];
+        app.provide(PageReferenceAncestryKey, computed<readonly string[]>(() => ancestry));
+        if (this.previewRuntime) {
+          app.provide(PreviewBlockRuntimeKey, this.previewRuntime);
+        }
       }
 
      private getCurrentBlockId() {
@@ -349,8 +361,11 @@ export default class EditorToolFactory {
        return {
          id: this.getCurrentBlockId(),
          type: toolName,
-          data: definition && state ? definition.serialize(state) : { ...this.rawData },
-         events: cloneBlockEvents(this.events)
+         data: definition && state ? definition.serialize(state) : { ...this.rawData },
+         events: cloneBlockEvents(this.events),
+         _pageAncestry: Array.isArray(state?.pageReferenceAncestry)
+           ? [...state.pageReferenceAncestry]
+           : []
        };
       }
 
@@ -427,7 +442,8 @@ export default class EditorToolFactory {
           setEvents: (events) => {
             this.events = cloneBlockEvents(events);
             this.blockApi?.dispatchChange();
-          }
+          },
+          pageEditor: this.state?.pageEditor
         });
         this.eventsDialog.mount();
       }
@@ -653,6 +669,7 @@ export default class EditorToolFactory {
           currentBlockId: typeof state.currentBlockId === 'string' ? state.currentBlockId : undefined,
           getAvailableBlockDataSources: state.getAvailableBlockDataSources,
           getAvailablePageVariableSources: state.getAvailablePageVariableSources,
+          pageEditor: state.pageEditor,
           value,
           ...(field.getComponentProps?.({ value, state, edit }) ?? {})
         };

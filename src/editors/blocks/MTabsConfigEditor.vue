@@ -91,7 +91,11 @@ function normalizeTabsInput(value: unknown): MTabsTab[] {
 
     const id = readString(item.id);
     const name = readString(item.name);
-    const pageUUID = readString(item.pageUUID);
+    const hasCanonical = Object.prototype.hasOwnProperty.call(item, 'pageUUID');
+    const hasLegacy = Object.prototype.hasOwnProperty.call(item, 'pageUuid');
+    const canonicalPageUUID = readString(item.pageUUID);
+    const legacyPageUuid = readString(item.pageUuid);
+    const pageUUID = canonicalPageUUID || legacyPageUuid;
 
     if (!id || !name || !pageUUID || seenIds.has(id)) return;
 
@@ -100,6 +104,7 @@ function normalizeTabsInput(value: unknown): MTabsTab[] {
       id,
       name,
       pageUUID,
+      ...(hasCanonical && hasLegacy ? { pageUuid: legacyPageUuid } : {}),
       pageSource: normalizePageSource(item.pageSource)
     });
   });
@@ -130,6 +135,7 @@ export function normalizeMTabsConfigEditorProps(
     getAvailableBlockDataSources: props.getAvailableBlockDataSources,
     getAvailablePageVariableSources: props.getAvailablePageVariableSources,
     previewRuntime: props.previewRuntime,
+    pageEditor: props.pageEditor,
     value: {
       tabs,
       activeTabId: normalizeActiveTabId(props.activeTabId ?? valueData.activeTabId, tabs),
@@ -327,7 +333,9 @@ const validationMessage = ref('');
 const pageOptions = ref<PageListItem[]>([]);
 const pagesLoading = ref(false);
 const pagesError = ref('');
-const pageListId = `tabs-config-pages-${Math.random().toString(36).slice(2)}`;
+const pageSearch = ref('');
+const pageKindFilter = ref<'all' | 'main' | 'sub'>('all');
+const relationNotice = ref('');
 let pagesLoadId = 0;
 
 const isReadOnly = computed(() => !props.edit || props.readonly === true || committedValue.value.readonly === true);
@@ -368,6 +376,7 @@ function createDraftFromCommittedValue() {
   draftTabs.value = toEditableTabs(committedValue.value.tabs);
   draftActiveTabId.value = committedValue.value.activeTabId;
   validationMessage.value = '';
+  relationNotice.value = '';
 }
 
 function createTabId() {
@@ -438,7 +447,23 @@ function pageOptionLabel(page: PageListItem) {
   const sourceLabel = page.source === 'system'
     ? t('tabs.configEditor.sources.system')
     : t('tabs.configEditor.sources.user');
-  return `${page.name || page.uuid} · ${sourceLabel}`;
+  const blocked = !isPageReferenceAllowed(page);
+  return `${page.name || page.uuid} · ${sourceLabel} · ${page.subPage ? '子页面' : '主页面'}${blocked ? ' · 循环引用' : ''}`;
+}
+
+function isPageReferenceAllowed(page: Pick<PageListItem, 'uuid' | 'source'>) {
+  return props.pageEditor?.canReference({ uuid: page.uuid, source: page.source }).allowed ?? true;
+}
+
+function filteredPageOptions(tab: EditableTab) {
+  const query = pageSearch.value.trim().toLowerCase();
+  return pageOptions.value.filter((page) => {
+    if (page.source !== tab.pageSource) return false;
+    if (pageKindFilter.value === 'sub' && !page.subPage) return false;
+    if (pageKindFilter.value === 'main' && page.subPage) return false;
+    if (!query) return true;
+    return page.name.toLowerCase().includes(query) || page.uuid.toLowerCase().includes(query);
+  });
 }
 
 function getPageOption(tab: EditableTab) {
@@ -455,6 +480,60 @@ function updateTabPageUUID(index: number, pageUUID: string) {
     pageUUID: normalizedPageUUID,
     name: !tab.name.trim() && page?.name ? page.name : tab.name
   });
+}
+
+async function createSubPage(index: number) {
+  const tab = draftTabs.value[index];
+  if (!tab || !props.pageEditor || isReadOnly.value) return;
+  validationMessage.value = '';
+  if (!props.pageEditor.canCreateSubPage) {
+    validationMessage.value = '当前为临时编排会话，不能创建子页面。';
+    return;
+  }
+  try {
+    const result = await props.pageEditor.createUserSubPage({
+      kind: 'tabs',
+      blockId: props.currentBlockId,
+      itemId: tab.id || `tab_${index + 1}`
+    }, {
+      name: tab.name
+    });
+    if (result.status !== 'saved') return;
+    const page: PageListItem = {
+      uuid: result.page.uuid,
+      name: result.page.name,
+      source: 'user',
+      subPage: result.page.subPage,
+      quotes: result.page.quotes,
+      dependencies: result.page.dependencies
+    };
+    pageOptions.value = [
+      page,
+      ...pageOptions.value.filter((item) => `${item.source}:${item.uuid}` !== `user:${page.uuid}`)
+    ];
+    updateTab(index, { pageUUID: page.uuid, pageSource: 'user' });
+    relationNotice.value = '子页面已保存；待当前页面保存后建立引用关系。';
+  } catch (error) {
+    validationMessage.value = error instanceof Error ? error.message : '无法打开子页面编排器。';
+  }
+}
+
+async function editSubPage(index: number) {
+  const tab = draftTabs.value[index];
+  if (!tab || !tab.pageUUID.trim() || !props.pageEditor) return;
+  validationMessage.value = '';
+  try {
+    await props.pageEditor.openExisting({
+      uuid: tab.pageUUID.trim(),
+      source: tab.pageSource
+    }, {
+      kind: 'tabs',
+      blockId: props.currentBlockId,
+      itemId: tab.id || `tab_${index + 1}`
+    });
+  } catch (error) {
+    validationMessage.value = error instanceof Error ? error.message : '无法打开子页面编排器。';
+  }
 }
 
 function validateTabsValue(tabs: EditableTab[], activeTabId: string): MTabsConfigEditorValidateResult {
@@ -567,7 +646,7 @@ async function refreshPages() {
 
   try {
     const [userPages, systemPages] = await Promise.allSettled([
-      listPages({ page: 1, pageSize: 100 }),
+      listPages({ page: 1, pageSize: 1000 }),
       listSystemPages()
     ]);
     if (loadId !== pagesLoadId) return;
@@ -712,15 +791,24 @@ defineExpose({
           <p v-if="pagesError" class="tabs-config-editor__notice tabs-config-editor__notice--warning">
             {{ pagesError }}
           </p>
+          <div class="tabs-config-editor__page-filters">
+            <input
+              v-model="pageSearch"
+              class="tabs-config-editor__input"
+              type="search"
+              placeholder="按页面名称或 UUID 搜索"
+              data-testid="tabs-config-page-search"
+            >
+            <select v-model="pageKindFilter" class="tabs-config-editor__input" data-testid="tabs-config-page-kind-filter">
+              <option value="all">全部页面</option>
+              <option value="main">主页面</option>
+              <option value="sub">子页面</option>
+            </select>
+          </div>
 
-          <datalist :id="pageListId">
-            <option
-              v-for="page in pageOptions"
-              :key="`${page.source}-${page.uuid}`"
-              :value="page.uuid"
-              :label="pageOptionLabel(page)"
-            />
-          </datalist>
+          <p v-if="relationNotice" class="tabs-config-editor__notice tabs-config-editor__notice--info" data-testid="tabs-config-relation-notice">
+            {{ relationNotice }}
+          </p>
 
           <p
             v-if="!draftTabs.length"
@@ -781,22 +869,36 @@ defineExpose({
                 :value="tab.pageSource"
                 :disabled="isReadOnly"
                 :data-testid="`tabs-config-source-${index}`"
-                @change="updateTab(index, { pageSource: ($event.target as HTMLSelectElement).value === 'system' ? 'system' : 'user' })"
+                @change="updateTab(index, { pageSource: ($event.target as HTMLSelectElement).value === 'system' ? 'system' : 'user', pageUUID: '' })"
               >
                 <option value="user">{{ t('tabs.configEditor.sources.user') }}</option>
                 <option value="system">{{ t('tabs.configEditor.sources.system') }}</option>
               </select>
 
               <div class="tabs-config-editor__page-cell">
-                <input
+                <select
                   class="tabs-config-editor__input"
-                  type="text"
-                  :list="pageListId"
                   :value="tab.pageUUID"
-                  :readonly="isReadOnly"
+                  :disabled="isReadOnly || pagesLoading"
                   :data-testid="`tabs-config-page-uuid-${index}`"
-                  @input="updateTabPageUUID(index, ($event.target as HTMLInputElement).value)"
+                  @change="updateTabPageUUID(index, ($event.target as HTMLSelectElement).value)"
                 >
+                  <option value="">请选择页面</option>
+                  <option
+                    v-if="tab.pageUUID && !pageOptions.some((page) => page.source === tab.pageSource && page.uuid === tab.pageUUID)"
+                    :value="tab.pageUUID"
+                  >
+                    {{ tab.pageUUID }}（当前配置）
+                  </option>
+                  <option
+                    v-for="page in filteredPageOptions(tab)"
+                    :key="`${page.source}:${page.uuid}`"
+                    :value="page.uuid"
+                    :disabled="!isPageReferenceAllowed(page)"
+                  >
+                    {{ pageOptionLabel(page) }}
+                  </option>
+                </select>
                 <span
                   v-if="getPageOption(tab)"
                   class="tabs-config-editor__page-name"
@@ -807,6 +909,24 @@ defineExpose({
               </div>
 
               <div class="tabs-config-editor__actions">
+                <button
+                  class="tabs-config-editor__secondary-button"
+                  type="button"
+                  :disabled="isReadOnly || !pageEditor || !pageEditor.canCreateSubPage"
+                  :data-testid="`tabs-config-create-page-${index}`"
+                  @click="createSubPage(index)"
+                >
+                  新建子页面
+                </button>
+                <button
+                  class="tabs-config-editor__secondary-button"
+                  type="button"
+                  :disabled="!pageEditor || !tab.pageUUID"
+                  :data-testid="`tabs-config-edit-page-${index}`"
+                  @click="editSubPage(index)"
+                >
+                  {{ tab.pageSource === 'system' || !pageEditor?.canPersist ? '临时编排页面' : '编排页面' }}
+                </button>
                 <button
                   class="tabs-config-editor__icon-button"
                   type="button"
@@ -1028,16 +1148,28 @@ defineExpose({
   color: rgb(185 28 28);
 }
 
+.tabs-config-editor__notice--info {
+  border-color: rgb(165 243 252);
+  background: rgb(236 254 255);
+  color: rgb(14 116 144);
+}
+
+.tabs-config-editor__page-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 150px;
+  gap: 8px;
+}
+
 .tabs-config-editor__table {
   display: grid;
-  min-width: 820px;
+  min-width: 1040px;
   gap: 8px;
 }
 
 .tabs-config-editor__table-head,
 .tabs-config-editor__row {
   display: grid;
-  grid-template-columns: 64px minmax(120px, 0.9fr) minmax(140px, 1fr) 118px minmax(180px, 1.25fr) 156px;
+  grid-template-columns: 64px minmax(120px, 0.9fr) minmax(140px, 1fr) 118px minmax(180px, 1.25fr) 360px;
   align-items: center;
   gap: 8px;
 }
@@ -1105,6 +1237,7 @@ defineExpose({
 .tabs-config-editor__actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 

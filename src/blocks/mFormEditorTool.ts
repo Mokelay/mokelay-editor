@@ -11,6 +11,7 @@ import { cloneBlockEvents, type BlockEvent } from '@/utils/blockEvents';
 import { normalizeVariableDataType } from '@/utils/variableValue';
 import { normalizeProcessorConfig } from '@/processors/shared';
 import type { ProcessorConfig } from '@/processors/types';
+import type { PageEditorBridge } from '@/editors/pageEditor';
 import {
   normalizeFormItemProps,
   type MFormItemLayout,
@@ -30,6 +31,7 @@ export interface MFormItemData {
 export interface MFormProps {
   edit: boolean;
   currentBlockId?: string;
+  pageEditor?: PageEditorBridge;
   layout?: MFormLayout;
   itemWidthMode?: MFormItemWidthMode;
   items?: MFormItemData[];

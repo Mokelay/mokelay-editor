@@ -93,6 +93,16 @@ function optionalRecord(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+function sourcePageAncestry(value: unknown): string[] {
+  const source = readRecord(value);
+  const ancestry = source._pageAncestry;
+  if (!Array.isArray(ancestry)) return [];
+  return ancestry
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function hasOwn(value: Record<string, unknown>, key: string) {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
@@ -325,12 +335,13 @@ export const confirmAction: ActionExecutor = async ({ inputs }) => {
  *   "examples": [{"action":{"uuid":"open","action":"open_dialog","inputs":{"title":"编辑","pageUUID":"page_settings","pageSource":"user"},"outputs":["close_result"]}}]
  * }
  */
-export const openDialogAction: ActionExecutor = async ({ inputs }) => {
+export const openDialogAction: ActionExecutor = async ({ inputs, state }) => {
   const closeResult = await showActionPageDialog({
     title: stringInput(inputs.title),
     pageUUID: stringInput(inputs.pageUUID ?? inputs.pageUuid),
     pageSource: inputs.pageSource === 'system' ? 'system' : 'user',
-    context: optionalRecord(inputs.context)
+    context: optionalRecord(inputs.context),
+    ancestry: sourcePageAncestry(state.sourceBlock)
   });
   return {
     close_result: closeResult

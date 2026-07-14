@@ -407,6 +407,7 @@ import {
 import {
   PageRuntimeVariableContextKey
 } from '@/utils/pageRuntimeContext';
+import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
 import { resolveRuntimeValue, type VariableValueResolveContext } from '@/utils/variableValue';
 
 const props = defineProps<MAdvanceTableProps & {
@@ -432,6 +433,7 @@ type PaginationState = {
 
 const { t } = useI18n();
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
+const pageReferenceAncestry = inject(PageReferenceAncestryKey, computed<readonly string[]>(() => []));
 const pageVariableContext = inject(PageRuntimeVariableContextKey, computed<VariableValueResolveContext>(() => ({})));
 const rootRef = ref<HTMLElement | null>(null);
 const selectedRows = ref(new Set<number>());
@@ -981,7 +983,8 @@ function getCellBlockEventListeners(block: StoredBlock) {
       previousListener?.(event);
       previewRuntime?.invokeBlockActions(eventConfig, {
         ...block,
-        data: getBoundCellBlockData(block)
+        data: getBoundCellBlockData(block),
+        _pageAncestry: [...pageReferenceAncestry.value]
       } as PreviewRuntimeBlock, event);
     };
   });

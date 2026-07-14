@@ -1,19 +1,25 @@
 <script setup lang="ts">
 import type { OutputData } from '@editorjs/editorjs';
-import { defineAsyncComponent, ref } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import { useI18n } from '@/i18n';
 import type { MokelayLayoutRecord } from '@/utils/layoutsApi';
+import type { PageDataSourceConfig } from '@/utils/pageRuntimeContext';
+import type { PageEditorBridge } from '@/editors/pageEditor';
 
 type EditorPanelProps = {
   blocks?: OutputData['blocks'];
+  dataSources?: PageDataSourceConfig[];
   pageUuid?: string | null;
   pageName?: string;
+  pageEditor?: PageEditorBridge;
   layoutUuid?: string | null;
   layoutOptions?: MokelayLayoutRecord[];
   layoutLoading?: boolean;
   layoutSaving?: boolean;
   layoutError?: string;
   canEditLayoutBinding?: boolean;
+  showLayoutBinding?: boolean;
+  editable?: boolean;
   loading?: boolean;
   error?: string;
 };
@@ -26,6 +32,7 @@ const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
 
 const props = withDefaults(defineProps<EditorPanelProps>(), {
   blocks: () => [],
+  dataSources: () => [],
   pageUuid: null,
   pageName: '',
   layoutUuid: null,
@@ -34,6 +41,8 @@ const props = withDefaults(defineProps<EditorPanelProps>(), {
   layoutSaving: false,
   layoutError: '',
   canEditLayoutBinding: true,
+  showLayoutBinding: true,
+  editable: true,
   loading: false,
   error: ''
 });
@@ -46,6 +55,11 @@ const emit = defineEmits<{
 
 const pageRef = ref<MPageExpose | null>(null);
 const { t } = useI18n();
+const missingLayoutUuid = computed(() => {
+  const currentUuid = props.layoutUuid?.trim();
+  if (!currentUuid) return '';
+  return props.layoutOptions.some((layout) => layout.uuid === currentUuid) ? '' : currentUuid;
+});
 
 async function save() {
   const output: OutputData = (await pageRef.value?.saveEditor()) ?? { blocks: props.blocks };
@@ -85,12 +99,13 @@ defineExpose({
         data-testid="page-name-input"
         class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
         :value="pageName"
+        :readonly="!editable"
         placeholder="请输入页面标题"
         @input="emit('name-change', ($event.target as HTMLInputElement).value)"
       />
     </label>
 
-    <label v-if="!loading" class="mb-4 flex flex-col gap-1.5 text-sm">
+    <label v-if="!loading && showLayoutBinding" class="mb-4 flex flex-col gap-1.5 text-sm">
       <span class="font-medium text-slate-700 dark:text-slate-200">页面布局</span>
       <select
         data-testid="page-layout-select"
@@ -100,6 +115,9 @@ defineExpose({
         @change="handleLayoutChange"
       >
         <option value="">无布局</option>
+        <option v-if="missingLayoutUuid" :value="missingLayoutUuid" disabled>
+          {{ missingLayoutUuid }}
+        </option>
         <option v-for="layout in layoutOptions" :key="layout.uuid" :value="layout.uuid">
           {{ layout.name || layout.uuid }}
         </option>
@@ -111,9 +129,11 @@ defineExpose({
     <MPage
       v-if="!loading"
       ref="pageRef"
-      :edit="true"
+      :edit="editable"
       :value="blocks"
       :page-id="pageUuid ?? undefined"
+      :data-sources="dataSources"
+      :page-editor="pageEditor"
       @change="handlePageChange"
     />
   </section>

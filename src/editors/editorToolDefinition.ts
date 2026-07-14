@@ -5,6 +5,7 @@ import type {
   GetAvailablePageVariableSources
 } from '@/utils/variableValue';
 import type { PreviewBlockRuntime } from '@/utils/previewBlockRuntime';
+import type { PageEditorBridge } from '@/editors/pageEditor';
 
 // 所有编辑器工具组件共享的基础 props。
 export type EditorToolComponentProps = {
@@ -13,6 +14,8 @@ export type EditorToolComponentProps = {
   getAvailableBlockDataSources?: GetAvailableBlockDataSources;
   getAvailablePageVariableSources?: GetAvailablePageVariableSources;
   previewRuntime?: PreviewBlockRuntime;
+  pageEditor?: PageEditorBridge;
+  pageReferenceAncestry?: readonly string[];
 };
 
 export type EditorToolPropertyField = {

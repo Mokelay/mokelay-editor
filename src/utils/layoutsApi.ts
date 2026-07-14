@@ -101,6 +101,9 @@ export type RenderBundlePage = {
   dataSources?: PageDataSourceConfig[];
   appUuid?: string | null;
   layoutUuid?: string | null;
+  subPage: boolean;
+  quotes: string[];
+  dependencies: string[];
   createdAt?: string;
   updatedAt?: string;
 };
@@ -234,6 +237,15 @@ export async function listLayouts(params: ListLayoutsParams) {
     params
   });
   return normalizeLayoutsResponse(unwrapApiResponse(response.data));
+}
+
+export async function listSystemLayouts(): Promise<MokelayLayoutRecord[]> {
+  const response = await apiClient.get<MokelayApiResponse<LayoutsResponse>>('/api/mokelay/list_mokelay_layout_jsons');
+  const data = unwrapApiResponse(response.data);
+
+  return Array.isArray(data.layouts)
+    ? data.layouts.map((layout) => normalizeLayoutRecord(layout))
+    : [];
 }
 
 export async function deleteLayout(uuid: string) {
@@ -446,9 +458,34 @@ function normalizeBundlePage(value: unknown): RenderBundlePage | null {
     dataSources: normalizePageDataSources(value.dataSources ?? value.data_sources),
     appUuid: readString(value.appUuid) ?? readString(value.app_uuid) ?? null,
     layoutUuid: readString(value.layoutUuid) ?? readString(value.layout_uuid) ?? null,
+    subPage: readBoolean(value.subPage ?? value.sub_page),
+    quotes: normalizeStringArray(value.quotes),
+    dependencies: normalizeStringArray(value.dependencies),
     createdAt: readString(value.createdAt) ?? readString(value.created_at),
     updatedAt: readString(value.updatedAt) ?? readString(value.updated_at)
   };
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  let source = value;
+  if (typeof source === 'string') {
+    try {
+      source = JSON.parse(source) as unknown;
+    } catch {
+      source = [];
+    }
+  }
+  if (!Array.isArray(source)) return [];
+  return [...new Set(source
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean))];
+}
+
+function readBoolean(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  return typeof value === 'string' && ['1', 'true', 'yes'].includes(value.trim().toLowerCase());
 }
 
 function normalizePagination(value: unknown): LayoutsPagination {

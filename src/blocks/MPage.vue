@@ -5,6 +5,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, provide, ref, w
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
 import { getEditorComponentDefinition } from '@/editors/editorComponentRuntimeRegistry';
+import type { PageEditorBridge } from '@/editors/pageEditor';
 import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
 import {
   finalizeEditorBlocksWithEvents,
@@ -41,6 +42,10 @@ import {
   loadClientBlockDocs,
   type NormalizedClientBlockDoc
 } from '@/utils/clientBlockDocs';
+import {
+  appendPageReferenceAncestry,
+  PageReferenceAncestryKey
+} from '@/utils/pageReferenceRuntime';
 
 // MPage 作为容器块，既支持 EditorJS 编辑态，也支持组件化预览态。
 export interface MPageProps {
@@ -50,6 +55,7 @@ export interface MPageProps {
   dataSources?: PageDataSourceConfig[];
   runtimeContext?: PageRuntimeContext;
   context?: PageRuntimeContext;
+  pageEditor?: PageEditorBridge;
   onToolChange?: (payload: { edit: boolean; value: OutputData['blocks'] }) => void;
 }
 
@@ -83,6 +89,11 @@ const pageDataLoading = ref(false);
 const pageDataError = ref('');
 const parentPreviewRuntime = inject(PreviewBlockRuntimeKey, null);
 const previewRuntime = parentPreviewRuntime ?? createPreviewBlockRuntime();
+const parentPageReferenceAncestry = inject(PageReferenceAncestryKey, computed<readonly string[]>(() => []));
+const pageReferenceAncestry = computed(() => appendPageReferenceAncestry(
+  parentPageReferenceAncestry.value,
+  props.pageId
+));
 const pageVariableRuntimeContext = computed<VariableValueResolveContext>(() => {
   const pageId = getPageRuntimeId();
   const currentPage = {
@@ -108,6 +119,7 @@ provide(PreviewBlockRuntimeKey, previewRuntime);
 provide(PageRuntimeContextKey, pageRuntimeContext);
 provide(PageRuntimeDataKey, computed(() => pageRuntimeData.value));
 provide(PageRuntimeVariableContextKey, pageVariableRuntimeContext);
+provide(PageReferenceAncestryKey, pageReferenceAncestry);
 
 type EditorBlock = OutputData['blocks'][number];
 type EditorColumnData = { blocks?: OutputData['blocks'] };
@@ -364,7 +376,9 @@ async function mountEditor() {
       edit: true,
       getAvailableBlockDataSources,
       getAvailablePageVariableSources,
-      previewRuntime
+      previewRuntime,
+      pageEditor: props.pageEditor,
+      pageReferenceAncestry: pageReferenceAncestry.value
     }, {
       docs: clientBlockDocsCache
     }) as Record<string, ToolSettings>),

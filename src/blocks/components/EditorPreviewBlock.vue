@@ -14,6 +14,7 @@ import {
 import {
   PageRuntimeVariableContextKey
 } from '@/utils/pageRuntimeContext';
+import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
 import {
   isVariableValueConfig,
   readRuntimePath,
@@ -36,6 +37,7 @@ const tableClass = computed(() =>
 
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 const pageVariableContext = inject(PageRuntimeVariableContextKey, computed<VariableValueResolveContext>(() => ({})));
+const pageReferenceAncestry = inject(PageReferenceAncestryKey, computed<readonly string[]>(() => []));
 const componentInstance = shallowRef<unknown | null>(null);
 const loadedDefinition = shallowRef<ResolvedEditorToolDefinition | undefined>();
 const componentLoadError = ref('');
@@ -276,8 +278,9 @@ const blockEventListeners = computed(() => {
       previousListener?.(event);
       previewRuntime?.invokeBlockActions(eventConfig, {
         ...props.block,
-        data: resolvedBlockData.value
-      } as PreviewRuntimeBlock, event);
+        data: resolvedBlockData.value,
+        _pageAncestry: [...pageReferenceAncestry.value]
+      } as PreviewRuntimeBlock & { _pageAncestry: string[] }, event);
     };
   });
 

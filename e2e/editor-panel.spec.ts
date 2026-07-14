@@ -90,15 +90,20 @@ test('loads an existing page from the UUID route and updates name and blocks', a
 test('shows backend error message when loading a page fails through the API envelope', async ({ page }) => {
   const uuid = '33333333-3333-4333-8333-333333333333';
   await page.route('**/api/mokelay/read_page_by_uuid**', async (route) => {
-    await fulfillPageApiFailure(route, 'PAGE_READ_FAILED', 'Cannot read page.');
+    await fulfillPageApiFailure(route, 'PAGE_READ_FAILED', 'Cannot read page.', {
+      pageUuid: uuid,
+      path: 'blocks[0].events[0]'
+    });
   });
 
   await page.goto(`/#/pages/${uuid}`);
 
   await expect(page.getByTestId('editor-error-state')).toContainText('Cannot read page.');
+  await expect(page.getByTestId('editor-error-state')).toContainText(`页面 UUID: ${uuid}`);
+  await expect(page.getByTestId('editor-error-state')).toContainText('路径: blocks[0].events[0]');
 });
 
-async function fulfillPageApiFailure(route: Route, code: string, message: string) {
+async function fulfillPageApiFailure(route: Route, code: string, message: string, details?: unknown) {
   await route.fulfill({
     status: 200,
     headers: pageApiHeaders,
@@ -106,7 +111,8 @@ async function fulfillPageApiFailure(route: Route, code: string, message: string
       ok: false,
       error: {
         code,
-        message
+        message,
+        details
       }
     })
   });

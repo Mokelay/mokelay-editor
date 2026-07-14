@@ -6,12 +6,14 @@ import {
   normalizeBlockEvents,
   type BlockEvent
 } from '@/utils/blockEvents';
+import type { PageEditorBridge } from '@/editors/pageEditor';
 
 type BlockEventsDialogOptions = {
   owner: HTMLElement;
   toolName: string;
   getEvents: () => BlockEvent[];
   setEvents: (events: BlockEvent[]) => void;
+  pageEditor?: PageEditorBridge;
 };
 
 const eventFieldNames = ['event'] as const;
@@ -183,6 +185,8 @@ export class BlockEventsDialogController {
       if (!Number.isInteger(index)) return;
 
       const app = createApp(MActionEditor, {
+        edit: true,
+        pageEditor: this.options.pageEditor,
         modelValue: this.draftEvents[index]?.actions ?? [],
         'onUpdate:modelValue': (actions: BlockEvent['actions']) => {
           this.draftEvents[index] = {

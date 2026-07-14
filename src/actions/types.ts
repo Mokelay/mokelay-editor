@@ -46,11 +46,13 @@ export type ActionContext = {
   }>;
   blocks: Record<string, Record<string, unknown>>;
   event: unknown;
-  sourceBlock: OutputData['blocks'][number] | {
+  sourceBlock: (OutputData['blocks'][number] | {
     id?: string;
     type: string;
     data: Record<string, unknown>;
     events?: unknown;
+  }) & {
+    _pageAncestry?: readonly string[];
   };
   now: string;
 };

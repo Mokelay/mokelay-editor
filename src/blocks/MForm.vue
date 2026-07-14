@@ -44,6 +44,8 @@ import {
 } from '@/utils/previewBlockRuntime';
 import MActionToolbar from '@/blocks/MActionToolbar.vue';
 import type { ProcessorConfig } from '@/processors/types';
+import type { PageEditorBridge } from '@/editors/pageEditor';
+import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
 
 type FormItemToolOptions = {
   data?: Record<string, unknown>;
@@ -94,6 +96,7 @@ const formLayout = computed(() => normalizeMFormLayout(props.layout));
 const formItemWidthMode = computed(() => normalizeMFormItemWidthMode(props.itemWidthMode));
 const formActionBar = computed(() => normalizeMFormActionBar(props.actionBar ?? props.toolbar));
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
+const pageReferenceAncestry = inject(PageReferenceAncestryKey, computed<readonly string[]>(() => []));
 
 let editor: EditorJS | null = null;
 let isSyncingFromProps = false;
@@ -178,12 +181,14 @@ function createFormItemTool(
     private hidden = false;
     private toolbarAlignTimer: number | null = null;
     private readonly blockApi?: FormItemToolOptions['block'];
+    private readonly pageEditor?: PageEditorBridge;
     private readonly handleToolbarPointer = () => {
       this.scheduleToolbarAlignment();
     };
 
     constructor({ data, config, block }: FormItemToolOptions) {
       this.blockApi = block;
+      this.pageEditor = config?.pageEditor as PageEditorBridge | undefined;
       const edit = typeof config?.edit === 'boolean' ? config.edit : true;
       const existingEditor = normalizeSelectorBlock(data?.editor);
       this.events = cloneBlockEvents(data?.events);
@@ -368,7 +373,8 @@ function createFormItemTool(
         setEvents: (events) => {
           this.events = cloneBlockEvents(events);
           this.blockApi?.dispatchChange();
-        }
+        },
+        pageEditor: this.pageEditor
       });
       this.eventsDialog.mount();
       return this.eventsDialog;
@@ -500,7 +506,7 @@ function isAllowedFormItemToolName(toolName: string) {
   return Boolean(toolName) && !INTERNAL_FORM_TOOL_NAMES.has(toolName) && toolName.startsWith('M');
 }
 
-async function createFormItemEditorTools() {
+async function createFormItemEditorTools(pageEditor?: PageEditorBridge) {
   const { createInitialFormItemEditorBlock, getFormItemToolNames, getFormItemToolbox } =
     await import('@/blocks/mFormItemTools');
   const formItemDefinition = await loadEditorComponentDefinition('MFormItem');
@@ -517,7 +523,8 @@ async function createFormItemEditorTools() {
           createInitialFormItemEditorBlock(toolName)
         ),
         config: {
-          edit: true
+          edit: true,
+          pageEditor
         }
       }
     ]];
@@ -753,7 +760,8 @@ function getFormItemRuntimeBlock(item: MFormItemData, index: number): PreviewRun
     id: `form-item-${item.variableName || index}`,
     type: 'MFormItem',
     data: cloneFormItemData(item),
-    events: cloneBlockEvents(item.events)
+    events: cloneBlockEvents(item.events),
+    _pageAncestry: [...pageReferenceAncestry.value]
   };
 }
 
@@ -896,7 +904,7 @@ async function mountEditor() {
   editorDataCache = buildOutput(previewItems.value);
   const [{ default: EditorJSConstructor }, tools] = await Promise.all([
     import('@editorjs/editorjs'),
-    createFormItemEditorTools()
+    createFormItemEditorTools(props.pageEditor)
   ]);
   if (!props.edit || !holderRef.value || editor) return;
 

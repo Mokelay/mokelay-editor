@@ -7,6 +7,8 @@ export type MTabsTab = {
   id: string;
   name: string;
   pageUUID: string;
+  /** Preserved only when both aliases exist so validation can block ambiguity. */
+  pageUuid?: string;
   pageSource?: 'user' | 'system';
 };
 
@@ -42,7 +44,11 @@ export function normalizeTabs(value: unknown): MTabsTab[] {
 
     const id = readString(item.id);
     const name = readString(item.name);
-    const pageUUID = readString(item.pageUUID);
+    const hasCanonical = Object.prototype.hasOwnProperty.call(item, 'pageUUID');
+    const hasLegacy = Object.prototype.hasOwnProperty.call(item, 'pageUuid');
+    const canonicalPageUUID = readString(item.pageUUID);
+    const legacyPageUuid = readString(item.pageUuid);
+    const pageUUID = canonicalPageUUID || legacyPageUuid;
     if (!id || !name || !pageUUID || seenIds.has(id)) return;
 
     seenIds.add(id);
@@ -50,6 +56,7 @@ export function normalizeTabs(value: unknown): MTabsTab[] {
       id,
       name,
       pageUUID,
+      ...(hasCanonical && hasLegacy ? { pageUuid: legacyPageUuid } : {}),
       ...(normalizePageSource(item.pageSource) ? { pageSource: normalizePageSource(item.pageSource) } : {})
     });
   });
@@ -263,6 +270,7 @@ import {
 import {
   PreviewBlockRuntimeKey
 } from '@/utils/previewBlockRuntime';
+import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
 
 const props = defineProps<MTabsProps & {
   onChange?: (payload: MTabsProps) => void;
@@ -271,6 +279,7 @@ const props = defineProps<MTabsProps & {
 
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 const parentRuntimeContext = inject(PageRuntimeContextKey, computed<PageRuntimeContext>(() => ({})));
+const pageReferenceAncestry = inject(PageReferenceAncestryKey, computed<readonly string[]>(() => []));
 const normalizedTabs = computed(() => normalizeTabs(props.tabs));
 const internalActiveTabId = ref('');
 const activePage = shallowRef<MokelayPage | null>(null);
@@ -378,6 +387,12 @@ async function loadActivePage() {
     return;
   }
 
+  if (pageReferenceAncestry.value.includes(tab.pageUUID)) {
+    pageLoading.value = false;
+    pageError.value = `检测到循环页面引用：${tab.pageUUID}`;
+    return;
+  }
+
   pageLoading.value = true;
   try {
     const page = tab.pageSource === 'system'
@@ -411,7 +426,11 @@ watch(
 );
 
 watch(
-  () => activeTab.value?.pageUUID ?? '',
+  () => [
+    activeTab.value?.pageUUID ?? '',
+    activeTab.value?.pageSource ?? 'user',
+    pageReferenceAncestry.value.join('|')
+  ],
   () => {
     void loadActivePage();
   },

@@ -607,6 +607,7 @@ import {
   PreviewBlockRuntimeKey,
   type PreviewRuntimeBlock
 } from '@/utils/previewBlockRuntime';
+import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
 
 type RuntimeFile = MUploadImportUploadedFile & {
   id: string;
@@ -623,6 +624,7 @@ const emit = defineEmits<{
 }>();
 
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
+const pageReferenceAncestry = inject(PageReferenceAncestryKey, computed<readonly string[]>(() => []));
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const dragActive = ref(false);
 const uploading = ref(false);
@@ -884,7 +886,8 @@ function createSourceBlock(): PreviewRuntimeBlock {
   return {
     id: props.currentBlockId,
     type: 'MUploadImport',
-    data: getSerializedData()
+    data: getSerializedData(),
+    _pageAncestry: [...pageReferenceAncestry.value]
   };
 }
 

@@ -3,6 +3,7 @@ import type { Locator, Page, Route } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { PageDataSourceConfig } from '../../src/utils/pageRuntimeContext';
+import { validatePageSlug } from '../../src/utils/pageSlug';
 
 export const storageKey = 'mokelay-editor-config';
 export const defaultPageUuid = '00000000-0000-4000-8000-000000000000';
@@ -110,7 +111,6 @@ export type MockAiGenerateDslResponse =
     };
 
 type MockPagesApiOptions = {
-  createUuid?: string;
   initialRoute?: string;
   pages?: MockMokelayPage[];
   systemPages?: MockMokelayPage[];
@@ -437,15 +437,21 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     if (method === 'POST' && url.pathname === '/api/mokelay/create_page') {
       const payload = readJsonPayload(request.postDataJSON());
       pageCreatePayloads.push(payload);
-      const requestedUuid = readString(payload.uuid);
+      const slug = validatePageSlug(payload.uuid);
 
-      if (requestedUuid && pages.has(requestedUuid)) {
+      if (!slug.valid) {
+        await fulfillApiError(route, 'BLOCK_PAGE_UUID_INVALID', slug.message, corsHeaders);
+        return;
+      }
+      const requestedUuid = slug.value;
+
+      if (pages.has(requestedUuid) || systemPages.has(requestedUuid)) {
         await fulfillApiError(route, 'BLOCK_DUPLICATE_RECORD', '页面标识已存在。', corsHeaders);
         return;
       }
 
       const pageRecord: MockMokelayPage = {
-        uuid: requestedUuid || options.createUuid || defaultPageUuid,
+        uuid: requestedUuid,
         name: typeof payload.name === 'string' ? payload.name : '',
         blocks: Array.isArray(payload.blocks) ? payload.blocks as SavedBlock[] : [],
         createdAt: now,

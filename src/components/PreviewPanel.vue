@@ -48,7 +48,10 @@ const previewPage = computed<RenderBundlePage>(() => ({
   uuid: props.pageUuid ?? '',
   name: props.pageName,
   blocks: props.blocks,
-  dataSources: props.dataSources
+  dataSources: props.dataSources,
+  subPage: false,
+  quotes: [],
+  dependencies: []
 }));
 const isAppPreviewMode = computed(() => previewMode.value === 'ios' || previewMode.value === 'android');
 const qrCodeValue = computed(() => {

@@ -1,33 +1,48 @@
 <script setup lang="ts">
 import type { OutputData } from '@editorjs/editorjs';
 import { TooltipProvider } from 'reka-ui';
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Component } from 'vue';
 import { useI18n } from '@/i18n';
+import PageEditorHost from '@/editors/page/PageEditorHost.vue';
+import {
+  createPageEditorBridge,
+  type PageEditorOpenRequest,
+  type PageEditorResult
+} from '@/editors/pageEditor';
+import { formatPageReferenceIssue, validatePageReferences } from '@/editors/pageReferenceValidator';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 import { $message } from '@/utils/globalCalls';
 import { getInitialEditorBlocks } from '@/utils/editorData';
 import SourceLayoutShell from '@/layouts/SourceLayoutShell.vue';
 import {
   createPage,
+  formatMokelayApiError,
   getPage,
   getSystemPage,
   updatePage,
   updatePageLayout,
   type MokelayPage,
-  type PageSource
+  type PageSource,
+  type UpdatePagePayload
 } from '@/utils/pagesApi';
-import type { PageDataSourceConfig, PageRuntimeContext } from '@/utils/pageRuntimeContext';
+import { generatePageSlug } from '@/utils/pageSlug';
+import {
+  normalizePageDataSources,
+  type PageDataSourceConfig,
+  type PageRuntimeContext
+} from '@/utils/pageRuntimeContext';
 import {
   getPageRenderBundle,
   getSystemLayout,
   listLayouts,
+  listSystemLayouts,
   type MokelayLayout,
   type MokelayLayoutRecord,
   type RenderBundlePage
 } from '@/utils/layoutsApi';
 
-const EditorPanel = defineAsyncComponent(() => import('@/components/EditorPanel.vue'));
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
+const MPageEditorBlock = defineAsyncComponent(() => import('@/editors/page/MPageEditorBlock.vue')) as Component;
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 const NotFoundPage = defineAsyncComponent(() => import('@/components/NotFoundPage.vue'));
 
@@ -48,10 +63,18 @@ type RouteLocation = {
   rawPath: string;
 };
 
+type PageEditorBlockHandle = {
+  flush: () => Promise<unknown>;
+};
+
 const routeLocation = ref(readRouteLocation());
 const { t } = useI18n();
-const editorPanelRef = ref<InstanceType<typeof EditorPanel> | null>(null);
+const pageEditorBlockRef = ref<PageEditorBlockHandle | null>(null);
+const pageEditorHostRef = ref<{
+  open: (request: PageEditorOpenRequest) => Promise<PageEditorResult>;
+} | null>(null);
 const currentPageUuid = ref<string | null>(null);
+const draftPageSlug = ref(generatePageSlug());
 const currentPageName = ref(formatPageName(new Date()));
 const currentPageSource = ref<PageSource>('user');
 const currentPageAppUuid = ref<string | null>(null);
@@ -70,11 +93,28 @@ const pageError = ref('');
 const pageLayoutError = ref('');
 const sourceLayoutError = ref('');
 const runtimePageLoadFailed = ref(false);
+const systemPageDraftBaseline = ref<string | null>(null);
 let loadRequestId = 0;
 let layoutLoadRequestId = 0;
 let pageLayoutOptionsRequestId = 0;
 let runtimePageLoadRequestId = 0;
 let sourceLayoutLoadRequestId = 0;
+
+const pageEditorBridge = createPageEditorBridge(
+  (request) => {
+    if (!pageEditorHostRef.value) {
+      return Promise.reject(new Error('页面编排器尚未就绪。'));
+    }
+    return pageEditorHostRef.value.open(request);
+  },
+  () => currentPageUuid.value
+    ? [{ uuid: currentPageUuid.value, source: currentPageSource.value }]
+    : [],
+  () => ({
+    canPersist: currentPageSource.value === 'user',
+    canCreateSubPage: currentPageSource.value === 'user'
+  })
+);
 
 const parsedRoute = computed(() => parseRouteLocation(routeLocation.value));
 const routePageUuid = computed(() => parsedRoute.value.pageUuid);
@@ -94,18 +134,62 @@ const pageRuntimeContext = computed<PageRuntimeContext>(() => ({
 const usesSourceLayout = computed(() => isApiBuilderPage.value || isEditorPage.value);
 const isStandalonePage = computed(() => isPreviewPage.value || isRuntimePage.value || isNotFoundPage.value);
 const isLayoutFramedPage = computed(() => isStandalonePage.value || usesSourceLayout.value);
-const isEditorReady = computed(() => editorPanelRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
+const isEditorReady = computed(() => pageEditorBlockRef.value !== null && !isLoadingPage.value && !isSavingPage.value);
 const isSaveReady = computed(() => isEditorReady.value && currentPageSource.value === 'user');
+const isSystemPageDraftDirty = computed(() => (
+  currentPageSource.value === 'system'
+  && systemPageDraftBaseline.value !== null
+  && systemPageDraftBaseline.value !== pageDraftFingerprint(
+    currentPageName.value,
+    pageBlocks.value,
+    pageDataSources.value
+  )
+));
 const sourceLayoutPage = computed<RenderBundlePage>(() => ({
   uuid: getSourceLayoutPageUuid(),
   name: getSourceLayoutPageName(),
   blocks: [],
   dataSources: [],
-  layoutUuid: 'mokelay_layout'
+  layoutUuid: 'mokelay_layout',
+  subPage: false,
+  quotes: [],
+  dependencies: []
 }));
 
 function syncRoute() {
-  routeLocation.value = readRouteLocation();
+  const nextLocation = readRouteLocation();
+
+  if (
+    isSystemPageDraftDirty.value
+    && !isSameSystemDraftRoute(nextLocation)
+    && !window.confirm('放弃内置页面的临时修改？')
+  ) {
+    const restoredUrl = new URL(window.location.href);
+    restoredUrl.hash = `#${routeLocation.value.rawPath}`;
+    window.history.replaceState(window.history.state, '', restoredUrl);
+    return;
+  }
+
+  if (isSystemPageDraftDirty.value && !isSameSystemDraftRoute(nextLocation)) {
+    systemPageDraftBaseline.value = null;
+  }
+  routeLocation.value = nextLocation;
+}
+
+function isSameSystemDraftRoute(location: RouteLocation) {
+  if (currentPageSource.value !== 'system' || !currentPageUuid.value) return false;
+  const route = parseRouteLocation(location);
+  return route.pageUuid === currentPageUuid.value
+    && route.pageSource === 'system'
+    && !route.apiBuilder
+    && !route.runtimePage
+    && !route.notFound;
+}
+
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+  if (!isSystemPageDraftDirty.value) return;
+  event.preventDefault();
+  event.returnValue = '';
 }
 
 function readRouteLocation(): RouteLocation {
@@ -230,8 +314,17 @@ function persistDraftBlocks(blocks: OutputData['blocks']) {
   localStorage.setItem(MOKELAY_CONFIG_STORAGE_KEY, JSON.stringify({ blocks }));
 }
 
-function applyPage(page: MokelayPage) {
+function pageDraftFingerprint(
+  name: string,
+  blocks: unknown,
+  dataSources: unknown
+) {
+  return JSON.stringify({ name, blocks, dataSources });
+}
+
+function applyPage(page: MokelayPage, source: PageSource = currentPageSource.value) {
   currentPageUuid.value = page.uuid;
+  currentPageSource.value = source;
   currentPageName.value = page.name || formatPageName(new Date());
   currentPageAppUuid.value = page.appUuid ?? null;
   currentPageLayoutUuid.value = page.layoutUuid ?? null;
@@ -239,7 +332,16 @@ function applyPage(page: MokelayPage) {
   pageDataSources.value = page.dataSources ?? [];
   pageError.value = '';
   pageLayoutError.value = '';
-  persistDraftBlocks(page.blocks);
+  if (source === 'system') {
+    systemPageDraftBaseline.value = pageDraftFingerprint(
+      currentPageName.value,
+      pageBlocks.value,
+      pageDataSources.value
+    );
+  } else {
+    systemPageDraftBaseline.value = null;
+    persistDraftBlocks(page.blocks);
+  }
 }
 
 function applyRuntimePage(page: RenderBundlePage, layout: MokelayLayout | null) {
@@ -251,6 +353,7 @@ function applyRuntimePage(page: RenderBundlePage, layout: MokelayLayout | null) 
   pageBlocks.value = page.blocks;
   pageDataSources.value = page.dataSources ?? [];
   currentLayout.value = layout;
+  systemPageDraftBaseline.value = null;
   pageError.value = '';
   pageLayoutError.value = '';
 }
@@ -258,6 +361,7 @@ function applyRuntimePage(page: RenderBundlePage, layout: MokelayLayout | null) 
 function resetToLocalDraft() {
   loadRequestId += 1;
   currentPageUuid.value = null;
+  draftPageSlug.value = generatePageSlug();
   currentPageSource.value = 'user';
   currentPageName.value = formatPageName(new Date());
   currentPageAppUuid.value = null;
@@ -268,6 +372,7 @@ function resetToLocalDraft() {
   pageBlocks.value = getInitialEditorBlocks(t);
   pageDataSources.value = [];
   currentLayout.value = null;
+  systemPageDraftBaseline.value = null;
 }
 
 function resetRuntimePageState(uuid: string | null) {
@@ -279,6 +384,7 @@ function resetRuntimePageState(uuid: string | null) {
   pageBlocks.value = [];
   pageDataSources.value = [];
   currentLayout.value = null;
+  systemPageDraftBaseline.value = null;
   pageError.value = '';
   pageLayoutError.value = '';
 }
@@ -298,7 +404,7 @@ async function loadPage(uuid: string, source: PageSource) {
     if (requestId !== loadRequestId) {
       return;
     }
-    applyPage(page);
+    applyPage(page, source);
   } catch (error) {
     if (requestId !== loadRequestId) {
       return;
@@ -308,6 +414,7 @@ async function loadPage(uuid: string, source: PageSource) {
     currentPageName.value = formatPageName(new Date());
     pageBlocks.value = [];
     pageDataSources.value = [];
+    systemPageDraftBaseline.value = null;
     pageError.value = toErrorMessage(error) || t('page.loadFailed');
     void $message('error', t('page.loadFailed'));
   } finally {
@@ -335,10 +442,12 @@ async function loadPreviewLayout(uuid: string, source: PageSource) {
         dataSources: bundle.page.dataSources,
         appUuid: bundle.page.appUuid,
         layoutUuid: bundle.page.layoutUuid,
+        subPage: bundle.page.subPage ?? false,
+        quotes: bundle.page.quotes ?? [],
+        dependencies: bundle.page.dependencies ?? [],
         createdAt: bundle.page.createdAt,
         updatedAt: bundle.page.updatedAt
-      });
-      currentPageSource.value = source;
+      }, source);
     }
   } catch {
     if (requestId !== layoutLoadRequestId) return;
@@ -401,20 +510,22 @@ async function loadSourceLayout() {
   }
 }
 
-async function loadPageLayoutOptions() {
+async function loadPageLayoutOptions(source: PageSource) {
   const requestId = pageLayoutOptionsRequestId + 1;
   pageLayoutOptionsRequestId = requestId;
   isLoadingPageLayouts.value = true;
   pageLayoutError.value = '';
 
   try {
-    const result = await listLayouts({
-      page: 1,
-      pageSize: 100
-    });
+    const layouts = source === 'system'
+      ? await listSystemLayouts()
+      : (await listLayouts({
+          page: 1,
+          pageSize: 100
+        })).layouts;
 
     if (requestId !== pageLayoutOptionsRequestId) return;
-    pageLayoutOptions.value = result.layouts;
+    pageLayoutOptions.value = layouts;
   } catch (error) {
     if (requestId !== pageLayoutOptionsRequestId) return;
     pageLayoutOptions.value = [];
@@ -427,7 +538,7 @@ async function loadPageLayoutOptions() {
 }
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : '';
+  return formatMokelayApiError(error);
 }
 
 function formatPageName(date: Date) {
@@ -467,11 +578,13 @@ function getSourceLayoutPageName() {
 onMounted(() => {
   window.addEventListener('hashchange', syncRoute);
   window.addEventListener('popstate', syncRoute);
+  window.addEventListener('beforeunload', handleBeforeUnload);
 });
 
 onUnmounted(() => {
   window.removeEventListener('hashchange', syncRoute);
   window.removeEventListener('popstate', syncRoute);
+  window.removeEventListener('beforeunload', handleBeforeUnload);
 });
 
 watch(
@@ -538,7 +651,7 @@ watch(
 watch(
   [isEditorPage, routePageSource],
   ([editorPage, source]) => {
-    if (!editorPage || source !== 'user') {
+    if (!editorPage) {
       pageLayoutOptionsRequestId += 1;
       pageLayoutOptions.value = [];
       isLoadingPageLayouts.value = false;
@@ -546,7 +659,7 @@ watch(
       return;
     }
 
-    void loadPageLayoutOptions();
+    void loadPageLayoutOptions(source);
   },
   { immediate: true }
 );
@@ -568,18 +681,20 @@ watch(
 
 function handleEditorChange(blocks: OutputData['blocks']) {
   pageBlocks.value = blocks;
-  persistDraftBlocks(blocks);
+  if (currentPageSource.value === 'user') persistDraftBlocks(blocks);
 }
 
 function handlePageNameChange(name: string) {
   currentPageName.value = name;
 }
 
-async function readEditorBlocks() {
-  const output = await editorPanelRef.value?.save();
-  const blocks = output?.blocks ?? pageBlocks.value;
+async function readEditorBlocks(): Promise<OutputData['blocks']> {
+  const draft = await pageEditorBlockRef.value?.flush();
+  const blocks: OutputData['blocks'] = typeof draft === 'object' && draft !== null && 'blocks' in draft && Array.isArray(draft.blocks)
+    ? draft.blocks as OutputData['blocks']
+    : pageBlocks.value;
   pageBlocks.value = blocks;
-  persistDraftBlocks(blocks);
+  if (currentPageSource.value === 'user') persistDraftBlocks(blocks);
 
   return blocks;
 }
@@ -594,14 +709,30 @@ async function saveEditorContent() {
 
   try {
     const blocks = await readEditorBlocks();
+    const validation = validatePageReferences(blocks, currentPageUuid.value
+      ? [{ uuid: currentPageUuid.value, source: currentPageSource.value }]
+      : []);
+    if (!validation.valid) {
+      throw new Error(validation.issues[0]
+        ? formatPageReferenceIssue(validation.issues[0])
+        : '页面引用配置无效。');
+    }
     const uuid = currentPageUuid.value;
     const name = currentPageName.value.trim() || formatPageName(new Date());
     currentPageName.value = name;
-    const page = uuid
-      ? await updatePage(uuid, { name, blocks })
-      : await createPage({ name, blocks });
+    const payload = { name, blocks } as UpdatePagePayload;
+    payload.dataSources = normalizePageDataSources(pageDataSources.value as unknown);
+    let page: MokelayPage;
+    if (uuid) {
+      page = await updatePage(uuid, payload);
+    } else {
+      page = await createPage({
+        ...payload,
+        uuid: draftPageSlug.value
+      });
+    }
 
-    applyPage(page);
+    applyPage(page, 'user');
     void $message('success', t('editor.saveSuccess'));
 
     if (!uuid) {
@@ -635,7 +766,7 @@ async function handlePageLayoutChange(layoutUuid: string | null) {
       layoutUuid
     });
 
-    applyPage(page);
+    applyPage(page, 'user');
     void $message('success', layoutUuid ? '页面布局已绑定。' : '页面布局已清除。');
   } catch (error) {
     pageLayoutError.value = toErrorMessage(error) || '页面布局保存失败。';
@@ -717,11 +848,24 @@ function backToPagesPage() {
             </div>
           </section>
 
-          <EditorPanel
-            ref="editorPanelRef"
-            :blocks="pageBlocks"
+          <p
+            v-if="currentPageSource === 'system'"
+            data-testid="system-page-ephemeral-notice"
+            class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-100"
+          >
+            内置页面处于临时编排模式：修改不会保存，也不能创建或保存子页面。
+          </p>
+
+          <MPageEditorBlock
+            ref="pageEditorBlockRef"
+            mode="edit"
+            context="standalone"
             :page-uuid="currentPageUuid"
             :page-name="currentPageName"
+            :blocks="pageBlocks"
+            :data-sources="pageDataSources"
+            :page-editor="pageEditorBridge"
+            :show-layout-binding="true"
             :layout-uuid="currentPageLayoutUuid"
             :layout-options="pageLayoutOptions"
             :layout-loading="isLoadingPageLayouts"
@@ -780,6 +924,7 @@ function backToPagesPage() {
           </button>
         </template>
       </PreviewPanel>
+      <PageEditorHost ref="pageEditorHostRef" />
     </main>
   </TooltipProvider>
 </template>

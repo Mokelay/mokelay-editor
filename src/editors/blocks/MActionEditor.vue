@@ -1,12 +1,11 @@
 <script lang="ts">
-import { defineEditorTool } from '@/editors/editorToolDefinition';
+import { defineEditorTool, type EditorToolComponentProps } from '@/editors/editorToolDefinition';
 import {
   cloneActions as cloneEditorActions,
   type ActionConfig as EditorActionConfig
 } from '@/actions';
 
-export interface MActionEditorProps {
-  edit: boolean;
+export interface MActionEditorProps extends EditorToolComponentProps {
   value?: EditorActionConfig[];
   modelValue?: EditorActionConfig[];
 }
@@ -14,6 +13,11 @@ export interface MActionEditorProps {
 function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActionEditorProps {
   return {
     edit: props.edit ?? false,
+    currentBlockId: props.currentBlockId,
+    getAvailableBlockDataSources: props.getAvailableBlockDataSources,
+    getAvailablePageVariableSources: props.getAvailablePageVariableSources,
+    previewRuntime: props.previewRuntime,
+    pageEditor: props.pageEditor,
     value: cloneEditorActions(props.value ?? props.modelValue)
   };
 }
@@ -145,6 +149,12 @@ import {
   type ActionConfig,
   type ActionNode
 } from '@/actions';
+import type { PageReference } from '@/editors/pageEditor';
+import {
+  listPages,
+  listSystemPages,
+  type PageListItem
+} from '@/utils/pagesApi';
 
 const actionDefinitions = [
   {
@@ -244,8 +254,25 @@ const selectedUuid = ref('');
 const draftActions = ref<ActionConfig[]>(cloneActions(props.modelValue ?? props.value));
 const inputsError = ref('');
 const outputsError = ref('');
+const pageOptions = ref<PageListItem[]>([]);
+const pagesLoading = ref(false);
+const pagesError = ref('');
+const pageSearch = ref('');
+const pageKindFilter = ref<'all' | 'main' | 'sub'>('all');
+const relationNotice = ref('');
+let pagesLoadId = 0;
 
 const selectedAction = computed(() => draftActions.value.find((action) => action.uuid === selectedUuid.value) ?? draftActions.value[0] ?? null);
+const selectedOpenDialogTarget = computed(() => readOpenDialogTarget(selectedAction.value));
+const filteredPageOptions = computed(() => {
+  const query = pageSearch.value.trim().toLowerCase();
+  return pageOptions.value.filter((page) => {
+    if (pageKindFilter.value === 'sub' && !page.subPage) return false;
+    if (pageKindFilter.value === 'main' && page.subPage) return false;
+    if (!query) return true;
+    return page.name.toLowerCase().includes(query) || page.uuid.toLowerCase().includes(query);
+  });
+});
 const targetOptions = computed(() => draftActions.value.map((action) => ({
   uuid: action.uuid,
   label: `${action.alias || action.action} / ${action.uuid}`
@@ -302,7 +329,11 @@ function openDialog() {
   selectedUuid.value = draftActions.value[0]?.uuid ?? '';
   inputsError.value = '';
   outputsError.value = '';
+  relationNotice.value = '';
   isOpen.value = true;
+  if (!pageOptions.value.length) {
+    void refreshPageOptions();
+  }
 }
 
 function closeDialog() {
@@ -406,6 +437,169 @@ function updateSelectedUuid(value: string) {
   });
   selectedUuid.value = nextUuid;
   emitChanges();
+}
+
+function hasOwn(value: Record<string, unknown>, key: string) {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function readOpenDialogTarget(action: ActionConfig | null): {
+  target: PageReference | null;
+  error: string;
+  rawUuid: unknown;
+} {
+  if (!action || action.action !== 'open_dialog') {
+    return { target: null, error: '', rawUuid: undefined };
+  }
+  const inputs = isRecord(action.inputs) ? action.inputs : {};
+  const hasCanonical = hasOwn(inputs, 'pageUUID');
+  const hasLegacy = hasOwn(inputs, 'pageUuid');
+  if (hasCanonical && hasLegacy) {
+    return {
+      target: null,
+      error: '页面目标不能同时配置 pageUUID 和 pageUuid，请重新选择固定页面。',
+      rawUuid: inputs.pageUUID
+    };
+  }
+  const rawUuid = hasCanonical ? inputs.pageUUID : inputs.pageUuid;
+  if (typeof rawUuid !== 'string' || !rawUuid.trim() || rawUuid.includes('{{') || rawUuid.includes('}}')) {
+    return {
+      target: null,
+      error: rawUuid === undefined || rawUuid === ''
+        ? '请选择固定页面。'
+        : '不支持动态页面目标，请重新选择固定页面。',
+      rawUuid
+    };
+  }
+  if (inputs.pageSource !== undefined && inputs.pageSource !== 'user' && inputs.pageSource !== 'system') {
+    return { target: null, error: '页面来源配置无效。', rawUuid };
+  }
+  return {
+    target: {
+      uuid: rawUuid.trim(),
+      source: inputs.pageSource === 'system' ? 'system' : 'user'
+    },
+    error: '',
+    rawUuid
+  };
+}
+
+function pageOptionValue(page: Pick<PageListItem, 'source' | 'uuid'>) {
+  return `${page.source}:${page.uuid}`;
+}
+
+function isPageReferenceAllowed(page: Pick<PageListItem, 'source' | 'uuid'>) {
+  return props.pageEditor?.canReference({ uuid: page.uuid, source: page.source }).allowed ?? true;
+}
+
+function selectedPageOptionValue() {
+  const target = selectedOpenDialogTarget.value.target;
+  return target ? pageOptionValue(target) : '';
+}
+
+function updateOpenDialogInputs(patch: Record<string, unknown>) {
+  const action = selectedAction.value;
+  if (!action || action.action !== 'open_dialog') return;
+  const inputs = isRecord(action.inputs) ? { ...action.inputs } : {};
+  Object.assign(inputs, patch);
+  if (Object.prototype.hasOwnProperty.call(patch, 'pageUUID')) {
+    delete inputs.pageUuid;
+  }
+  action.inputs = inputs;
+  inputsError.value = '';
+  relationNotice.value = '';
+  emitChanges();
+}
+
+function selectOpenDialogPage(value: string) {
+  const separatorIndex = value.indexOf(':');
+  if (separatorIndex < 0) return;
+  const source = value.slice(0, separatorIndex) === 'system' ? 'system' : 'user';
+  const uuid = value.slice(separatorIndex + 1).trim();
+  if (!uuid) return;
+  updateOpenDialogInputs({ pageUUID: uuid, pageSource: source });
+}
+
+function updateOpenDialogContext(value: string) {
+  try {
+    const parsed = JSON.parse(value);
+    if (!isRecord(parsed)) throw new Error('context must be an object');
+    inputsError.value = '';
+    updateOpenDialogInputs({ context: parsed });
+  } catch {
+    inputsError.value = '请输入有效的 context JSON 对象。';
+  }
+}
+
+async function refreshPageOptions() {
+  const loadId = ++pagesLoadId;
+  pagesLoading.value = true;
+  pagesError.value = '';
+  try {
+    const [userPages, systemPages] = await Promise.allSettled([
+      listPages({ page: 1, pageSize: 1000 }),
+      listSystemPages()
+    ]);
+    if (loadId !== pagesLoadId) return;
+    pageOptions.value = [
+      ...(userPages.status === 'fulfilled' ? userPages.value : []),
+      ...(systemPages.status === 'fulfilled' ? systemPages.value : [])
+    ];
+    if (userPages.status === 'rejected' && systemPages.status === 'rejected') {
+      pagesError.value = '页面列表加载失败。';
+    }
+  } finally {
+    if (loadId === pagesLoadId) pagesLoading.value = false;
+  }
+}
+
+async function createOpenDialogPage() {
+  const action = selectedAction.value;
+  if (!action || !props.pageEditor) return;
+  pagesError.value = '';
+  if (!props.pageEditor.canCreateSubPage) {
+    pagesError.value = '当前为临时编排会话，不能创建子页面。';
+    return;
+  }
+  try {
+    const result = await props.pageEditor.createUserSubPage({
+      kind: 'open_dialog',
+      blockId: props.currentBlockId,
+      actionUuid: action.uuid
+    }, {
+      name: typeof action.inputs?.title === 'string' ? action.inputs.title : undefined
+    });
+    if (result.status !== 'saved') return;
+    const page: PageListItem = {
+      uuid: result.page.uuid,
+      name: result.page.name,
+      source: 'user',
+      subPage: result.page.subPage,
+      quotes: result.page.quotes,
+      dependencies: result.page.dependencies
+    };
+    pageOptions.value = [page, ...pageOptions.value.filter((item) => pageOptionValue(item) !== pageOptionValue(page))];
+    updateOpenDialogInputs({ pageUUID: page.uuid, pageSource: 'user' });
+    relationNotice.value = '子页面已保存；待当前页面保存后建立引用关系。';
+  } catch (error) {
+    pagesError.value = error instanceof Error ? error.message : '无法打开子页面编排器。';
+  }
+}
+
+async function editOpenDialogPage() {
+  const action = selectedAction.value;
+  const target = selectedOpenDialogTarget.value.target;
+  if (!action || !target || !props.pageEditor) return;
+  pagesError.value = '';
+  try {
+    await props.pageEditor.openExisting(target, {
+      kind: 'open_dialog',
+      blockId: props.currentBlockId,
+      actionUuid: action.uuid
+    });
+  } catch (error) {
+    pagesError.value = error instanceof Error ? error.message : '无法打开子页面编排器。';
+  }
 }
 
 function updateInputs(value: string) {
@@ -641,15 +835,95 @@ function cloneValue<T>(value: T): T {
                 <input :value="selectedAction.action" disabled />
               </label>
 
-              <label>
-                <span>inputs</span>
-                <textarea
-                  :value="formatJson(selectedAction.inputs)"
-                  rows="8"
-                  data-testid="m-action-inputs"
-                  @change="updateInputs(($event.target as HTMLTextAreaElement).value)"
-                ></textarea>
-              </label>
+              <div v-if="selectedAction.action === 'open_dialog'" class="m-action-editor__page-reference" data-testid="m-action-open-dialog-fields">
+                <label>
+                  <span>弹窗标题</span>
+                  <input
+                    :value="typeof selectedAction.inputs?.title === 'string' ? selectedAction.inputs.title : ''"
+                    data-testid="m-action-dialog-title"
+                    @input="updateOpenDialogInputs({ title: ($event.target as HTMLInputElement).value })"
+                  />
+                </label>
+
+                <div class="m-action-editor__page-filters">
+                  <input v-model="pageSearch" type="search" placeholder="按名称或 UUID 搜索" data-testid="m-action-page-search" />
+                  <select v-model="pageKindFilter" data-testid="m-action-page-kind-filter">
+                    <option value="all">全部页面</option>
+                    <option value="main">主页面</option>
+                    <option value="sub">子页面</option>
+                  </select>
+                </div>
+
+                <label>
+                  <span>固定页面目标</span>
+                  <select
+                    :value="selectedPageOptionValue()"
+                    data-testid="m-action-dialog-page"
+                    @change="selectOpenDialogPage(($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="">请选择页面</option>
+                    <option
+                      v-if="selectedOpenDialogTarget.target && !pageOptions.some((page) => pageOptionValue(page) === selectedPageOptionValue())"
+                      :value="selectedPageOptionValue()"
+                    >
+                      {{ selectedOpenDialogTarget.target.uuid }}（当前配置）
+                    </option>
+                    <option
+                      v-for="page in filteredPageOptions"
+                      :key="pageOptionValue(page)"
+                      :value="pageOptionValue(page)"
+                      :disabled="!isPageReferenceAllowed(page)"
+                    >
+                      {{ page.name || page.uuid }} · {{ page.source === 'system' ? '系统' : '用户' }} · {{ page.subPage ? '子页面' : '主页面' }}{{ isPageReferenceAllowed(page) ? '' : ' · 循环引用' }}
+                    </option>
+                  </select>
+                </label>
+
+                <p v-if="selectedOpenDialogTarget.error" class="m-action-editor__error" data-testid="m-action-page-target-error">
+                  {{ selectedOpenDialogTarget.error }}
+                </p>
+
+                <div class="m-action-editor__page-actions">
+                  <button type="button" :disabled="!pageEditor || !edit || !pageEditor.canCreateSubPage" data-testid="m-action-create-subpage" @click="createOpenDialogPage">
+                    新建子页面
+                  </button>
+                  <button
+                    type="button"
+                    :disabled="!pageEditor || !selectedOpenDialogTarget.target"
+                    data-testid="m-action-edit-subpage"
+                    @click="editOpenDialogPage"
+                  >
+                    {{ selectedOpenDialogTarget.target?.source === 'system' || !pageEditor?.canPersist ? '临时编排页面' : '编排页面' }}
+                  </button>
+                  <button type="button" :disabled="pagesLoading" data-testid="m-action-refresh-pages" @click="refreshPageOptions">
+                    {{ pagesLoading ? '加载中…' : '刷新列表' }}
+                  </button>
+                </div>
+
+                <label>
+                  <span>context</span>
+                  <textarea
+                    :value="formatJson(selectedAction.inputs?.context)"
+                    rows="5"
+                    data-testid="m-action-dialog-context"
+                    @change="updateOpenDialogContext(($event.target as HTMLTextAreaElement).value)"
+                  ></textarea>
+                </label>
+                <p v-if="pagesError" class="m-action-editor__error">{{ pagesError }}</p>
+                <p v-if="relationNotice" class="m-action-editor__notice" data-testid="m-action-relation-notice">{{ relationNotice }}</p>
+              </div>
+
+              <template v-else>
+                <label>
+                  <span>inputs</span>
+                  <textarea
+                    :value="formatJson(selectedAction.inputs)"
+                    rows="8"
+                    data-testid="m-action-inputs"
+                    @change="updateInputs(($event.target as HTMLTextAreaElement).value)"
+                  ></textarea>
+                </label>
+              </template>
               <p v-if="inputsError" class="m-action-editor__error">{{ inputsError }}</p>
 
               <label>
@@ -936,6 +1210,30 @@ function cloneValue<T>(value: T): T {
 
 .m-action-editor__remove-node {
   color: rgb(190 18 60);
+}
+
+.m-action-editor__page-reference {
+  margin-bottom: 12px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.m-action-editor__page-filters,
+.m-action-editor__page-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.m-action-editor__page-actions button {
+  flex: 1;
+}
+
+.m-action-editor__notice {
+  margin: 0 0 10px;
+  color: rgb(13 116 144);
+  font-size: 12px;
 }
 
 .m-action-editor__error {

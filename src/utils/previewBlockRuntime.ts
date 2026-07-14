@@ -5,11 +5,13 @@ import type { ActionConfig, ActionContext } from '@/actions';
 import { runActionGraph } from '@/actions';
 import { $message } from '@/utils/globalCalls';
 
-export type PreviewRuntimeBlock = OutputData['blocks'][number] | {
+export type PreviewRuntimeBlock = (OutputData['blocks'][number] | {
   id?: string;
   type: string;
   data: Record<string, unknown>;
   events?: BlockEvent[];
+}) & {
+  _pageAncestry?: readonly string[];
 };
 
 export type BlockRuntimeHandle = {

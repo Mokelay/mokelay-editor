@@ -128,7 +128,10 @@ const samplePage = computed<RenderBundlePage>(() => ({
       }
     }
   ],
-  dataSources: []
+  dataSources: [],
+  subPage: false,
+  quotes: [],
+  dependencies: []
 }));
 const normalizedLayout = computed(() => normalizeLayout(props.layout));
 const previewTitle = computed(() => props.title || '布局预览');

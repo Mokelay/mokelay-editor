@@ -1,13 +1,15 @@
-import { createApp, defineAsyncComponent, h, type App as VueApp } from 'vue';
+import { computed, createApp, defineAsyncComponent, h, type App as VueApp } from 'vue';
 import { getPage, getSystemPage } from '@/utils/pagesApi';
 import type { PageDataSourceConfig, PageRuntimeContext } from '@/utils/pageRuntimeContext';
 import type { OutputData } from '@editorjs/editorjs';
+import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
 
 type DialogRequest = {
   title: string;
   pageUUID: string;
   pageSource?: 'user' | 'system';
   context?: PageRuntimeContext;
+  ancestry?: string[];
 };
 
 type DialogHandle = {
@@ -16,36 +18,39 @@ type DialogHandle = {
 
 const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
 
-let dialogApp: VueApp<Element> | null = null;
-let dialogContainer: HTMLElement | null = null;
-
-function clearDialogHost() {
-  dialogApp?.unmount();
-  dialogContainer?.remove();
-  dialogApp = null;
-  dialogContainer = null;
-}
-
 export async function showActionPageDialog(request: DialogRequest): Promise<unknown> {
   if (typeof document === 'undefined') {
     return null;
   }
 
-  const page = request.pageSource === 'system'
-    ? await getSystemPage(request.pageUUID)
-    : await getPage(request.pageUUID);
-  clearDialogHost();
+  const pageUUID = request.pageUUID.trim();
+  const ancestry = (request.ancestry ?? []).map((item) => item.trim()).filter(Boolean);
+  if (!pageUUID) {
+    throw new Error('请选择要打开的页面。');
+  }
+  if (ancestry.includes(pageUUID)) {
+    return await showActionPageReferenceError(
+      request.title,
+      `检测到循环页面引用：${[...ancestry, pageUUID].join(' → ')}`
+    );
+  }
 
+  const page = request.pageSource === 'system'
+    ? await getSystemPage(pageUUID)
+    : await getPage(pageUUID);
   return await new Promise((resolve) => {
     let closed = false;
+    let dialogApp: VueApp<Element> | null = null;
+    const dialogContainer = document.createElement('div');
     const close = (result?: unknown) => {
       if (closed) return;
       closed = true;
-      clearDialogHost();
+      dialogApp?.unmount();
+      dialogContainer.remove();
+      dialogApp = null;
       resolve(result ?? null);
     };
 
-    dialogContainer = document.createElement('div');
     dialogContainer.setAttribute('data-testid', 'action-dialog-host-container');
     document.body.appendChild(dialogContainer);
 
@@ -69,9 +74,99 @@ export async function showActionPageDialog(request: DialogRequest): Promise<unkn
         });
       }
     });
+    dialogApp.provide(PageReferenceAncestryKey, computed(() => ancestry));
     dialogApp.mount(dialogContainer);
   });
 }
+
+function showActionPageReferenceError(title: string, message: string): Promise<unknown> {
+  return new Promise((resolve) => {
+    let closed = false;
+    let dialogApp: VueApp<Element> | null = null;
+    const dialogContainer = document.createElement('div');
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      dialogApp?.unmount();
+      dialogContainer.remove();
+      dialogApp = null;
+      resolve(null);
+    };
+
+    dialogContainer.setAttribute('data-testid', 'action-dialog-host-container');
+    document.body.appendChild(dialogContainer);
+    dialogApp = createApp({
+      setup() {
+        const handleKeydown = (event: KeyboardEvent) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            close();
+          }
+        };
+        return () => h(ActionDialogErrorContent, {
+          title,
+          message,
+          onClose: close,
+          onKeydown: handleKeydown
+        });
+      }
+    });
+    dialogApp.mount(dialogContainer);
+  });
+}
+
+const ActionDialogErrorContent = {
+  props: {
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    onClose: { type: Function, required: true },
+    onKeydown: { type: Function, required: true }
+  },
+  setup(props: {
+    title: string;
+    message: string;
+    onClose: DialogHandle['close'];
+    onKeydown: (event: KeyboardEvent) => void;
+  }) {
+    return () => h('div', {
+      class: 'action-dialog-overlay',
+      'data-testid': 'action-dialog-overlay'
+    }, [
+      h('section', {
+        class: 'action-dialog-panel',
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-labelledby': 'action-dialog-error-title',
+        tabindex: -1,
+        'data-testid': 'action-dialog',
+        onKeydown: props.onKeydown
+      }, [
+        h('div', { class: 'action-dialog-header' }, [
+          h('h2', {
+            id: 'action-dialog-error-title',
+            class: 'action-dialog-title',
+            'data-testid': 'action-dialog-title'
+          }, props.title || '页面引用错误'),
+          h('button', {
+            type: 'button',
+            class: 'action-dialog-close',
+            'data-testid': 'action-dialog-close',
+            'aria-label': '关闭',
+            title: '关闭',
+            onClick: () => props.onClose()
+          }, '×')
+        ]),
+        h('div', {
+          class: 'action-dialog-body action-dialog-error',
+          'data-testid': 'action-dialog-body'
+        }, [
+          h('strong', {}, '无法打开引用页面'),
+          h('p', { 'data-testid': 'action-dialog-reference-error' }, props.message)
+        ])
+      ])
+    ]);
+  }
+};
 
 const ActionDialogContent = {
   props: {

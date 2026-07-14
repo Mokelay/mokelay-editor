@@ -48,6 +48,7 @@ export function normalizeMActionToolBarEditorProps(
     getAvailableBlockDataSources: props.getAvailableBlockDataSources,
     getAvailablePageVariableSources: props.getAvailablePageVariableSources,
     previewRuntime: props.previewRuntime,
+    pageEditor: props.pageEditor,
     value: normalizeActionToolbarEditorValue(props.value),
     allowEmpty: props.allowEmpty === true,
     outputMode: props.outputMode === 'patch' ? 'patch' : 'value'
@@ -528,6 +529,8 @@ watch(
                     <MActionEditor
                       :edit="edit"
                       :model-value="getClickActions(button)"
+                      :current-block-id="currentBlockId"
+                      :page-editor="pageEditor"
                       @update:model-value="updateButtonActions(index, $event)"
                       @change="updateButtonActions(index, $event)"
                     />

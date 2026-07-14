@@ -456,6 +456,7 @@ import {
   PreviewBlockRuntimeKey,
   type PreviewRuntimeBlock
 } from '@/utils/previewBlockRuntime';
+import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
 import type { PageDslCallbacks } from '@/blocks/pageDslEditorTools';
 
 type ButtonEventPayload = {
@@ -473,6 +474,7 @@ const emit = defineEmits<{
 
 const rootRef = ref<HTMLElement | null>(null);
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
+const pageReferenceAncestry = inject(PageReferenceAncestryKey, computed<readonly string[]>(() => []));
 const loadingState = ref<Record<string, boolean>>({});
 const disabledState = ref<Record<string, boolean>>({});
 const openMenuId = ref('');
@@ -581,7 +583,8 @@ function createButtonSourceBlock(button: ToolbarButton): PreviewRuntimeBlock {
     id: button.id,
     type: 'MButton',
     data: getButtonData(button),
-    events: cloneBlockEvents(button.events)
+    events: cloneBlockEvents(button.events),
+    _pageAncestry: [...pageReferenceAncestry.value]
   };
 }
 
