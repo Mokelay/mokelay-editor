@@ -1,0 +1,1 @@
+import{e as i,aG as a}from"./index-e9kRLvJQ.js";import"./vue-vendor-B8WiHlX6.js";import"./json-editor-BOVa45nb.js";import"./element-plus-8Jd4JuGa.js";import"./editorjs-CARcuwen.js";const s=i({normalizeProps:e=>({edit:e.edit??!1,value:Array.isArray(e.value)?e.value:[]}),serialize:e=>({value:a(Array.isArray(e.value)?e.value:[])})});export{s as mPageEditorTool};
