@@ -8,6 +8,7 @@ export type MokelayApiRecord = {
   uuid: string;
   name: string;
   method: string;
+  fragment: boolean;
   status: ApiBuilderStatus;
   source: MokelayApiSource;
   apiJson?: ApiJson;
@@ -20,6 +21,7 @@ export type ListApisParams = {
   page: number;
   pageSize: number;
   source?: MokelayApiSource;
+  fragment?: boolean;
 };
 
 export type MokelayApisPagination = {
@@ -141,7 +143,12 @@ type MokelayApiResponse<T> = MokelaySuccessResponse<T> | MokelayErrorResponse;
 export async function listApis(params: ListApisParams) {
   if (params.source === 'system') {
     const response = await apiClient.get<MokelayApiResponse<BuiltInApisResponse>>(
-      '/api/mokelay/list_mokelay_api_jsons'
+      '/api/mokelay/list_mokelay_api_jsons',
+      {
+        params: params.fragment === undefined
+          ? undefined
+          : { fragment: params.fragment }
+      }
     );
     return normalizeBuiltInApisResponse(unwrapApiResponse(response.data), params);
   }
@@ -170,10 +177,15 @@ export async function getApi(uuid: string) {
   return normalizeApiResponse(unwrapApiResponse(response.data));
 }
 
-export async function getBuiltInApi(uuid: string) {
+export async function getBuiltInApi(uuid: string, options: { fragment?: boolean } = {}) {
   const response = await apiClient.get<MokelayApiResponse<ApiResponse>>(
     '/api/mokelay/read_mokelay_api_json',
-    { params: { uuid } }
+    {
+      params: {
+        uuid,
+        ...(options.fragment === undefined ? {} : { fragment: options.fragment })
+      }
+    }
   );
   const data = unwrapApiResponse(response.data);
 
@@ -182,6 +194,14 @@ export async function getBuiltInApi(uuid: string) {
   }
 
   return normalizeBuiltInApiRecord(data.api);
+}
+
+export async function getApiBySource(
+  uuid: string,
+  source: MokelayApiSource,
+  options: { fragment?: boolean } = {}
+) {
+  return source === 'system' ? await getBuiltInApi(uuid, options) : await getApi(uuid);
 }
 
 export async function listApifoxProjects() {
@@ -202,11 +222,13 @@ export function getMokelayApiBaseUrl() {
 
 export async function saveApi(payload: SaveApiPayload) {
   const apiJson = payload.apiJson;
+  const fragment = apiJson.fragment === true;
   const response = await apiClient.post<MokelayApiResponse<ApiResponse>>('/api/mokelay/save_api', {
     uuid: apiJson.uuid,
     ...(payload.originalUuid ? { originalUuid: payload.originalUuid } : {}),
     name: apiJson.alias || '未命名 API',
-    method: String(apiJson.method || 'GET').toUpperCase(),
+    method: fragment ? 'FRAGMENT' : String(apiJson.method || 'GET').toUpperCase(),
+    fragment,
     status: payload.status,
     apiJson,
     layout: payload.layout ?? normalizeApiBuilderLayout(undefined)
@@ -263,10 +285,14 @@ function normalizeApisResponse(value: ApisResponse): ListApisResult {
 }
 
 function normalizeBuiltInApisResponse(value: BuiltInApisResponse, params: ListApisParams): ListApisResult {
-  const allApis = Array.isArray(value.apis) ? value.apis.map((api) => normalizeBuiltInApiRecord(api)) : [];
+  const allApis = (Array.isArray(value.apis) ? value.apis.map((api) => normalizeBuiltInApiRecord(api)) : [])
+    .filter((api) => params.fragment === undefined || api.fragment === params.fragment);
   const page = Math.max(1, Math.trunc(params.page) || 1);
   const pageSize = Math.max(1, Math.trunc(params.pageSize) || 20);
-  const total = readNumber(value.count, allApis.length);
+  // Built-in assets are returned as one complete collection. Use the locally
+  // filtered length as well so this client remains safe with older servers
+  // that ignore the fragment query parameter.
+  const total = allApis.length;
   const totalPages = Math.ceil(total / pageSize);
   const start = (page - 1) * pageSize;
 
@@ -323,7 +349,7 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
 
   const uuid = readString(value.uuid);
   const name = readString(value.name) || '未命名 API';
-  const method = readString(value.method).toUpperCase() || 'GET';
+  const rawMethod = readString(value.method).toUpperCase();
   const status = value.status === 'published' ? 'published' : 'draft';
   const source = value.source === 'system' ? 'system' : 'user';
   const apiJsonValue = isRecord(value.apiJson)
@@ -331,6 +357,8 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
     : isRecord(value.api_json)
       ? value.api_json
       : undefined;
+  const fragment = value.fragment === true || apiJsonValue?.fragment === true || rawMethod === 'FRAGMENT';
+  const method = fragment ? 'FRAGMENT' : rawMethod || 'GET';
   const layout = Object.prototype.hasOwnProperty.call(value, 'layout')
     ? normalizeApiBuilderLayout(value.layout)
     : undefined;
@@ -343,6 +371,7 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
     uuid,
     name,
     method,
+    fragment,
     status,
     source,
     apiJson: apiJsonValue as ApiJson | undefined,
@@ -361,6 +390,8 @@ function normalizeBuiltInApiRecord(value: unknown): MokelayApiRecord {
     uuid: value.uuid,
     name: value.alias,
     method: value.method,
+    fragment: value.fragment === true,
+    status: 'published',
     source: 'system',
     apiJson: value
   });

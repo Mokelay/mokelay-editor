@@ -4,6 +4,7 @@ import {
   getBlockDefinition,
   hasDefaultResponse,
   isControllerBlock,
+  isFragmentApiJson,
   isStandardBlock,
   isStarterBlock,
   processorName,
@@ -55,25 +56,21 @@ export function validateApiJson(apiJson: ApiJson): ValidationIssue[] {
     add('error', 'API 标识只能包含字母、数字、下划线和连字符，长度 1-128。', 'api');
   }
 
-  if (!methods.has(String(apiJson.method).toUpperCase())) {
-    add('error', '请求方法必须是 GET 或 POST。', 'api');
-  }
-
-  for (const location of ['header', 'query', 'body'] as const) {
-    const declarations = apiJson.request?.[location] ?? [];
-    const seen = new Set<string>();
-
-    declarations.forEach((declaration, index) => {
-      const key = declarationKey(declaration);
-      if (!key.trim()) {
-        add('error', `${location} 第 ${index + 1} 个参数名不能为空。`, 'request');
-      }
-      if (seen.has(key)) {
-        add('warning', `${location}.${key} 重复声明，建议只保留一个。`, 'request');
-      }
-      seen.add(key);
-      validateProcessors(typeof declaration === 'string' ? [] : declaration.processors ?? [], add, 'request');
-    });
+  if (isFragmentApiJson(apiJson)) {
+    if ('method' in apiJson || 'request' in apiJson) {
+      add('error', 'Fragment DSL 不能包含 method 或 request。', 'api');
+    }
+    validateDeclarations(apiJson.params ?? [], 'params', add);
+  } else {
+    if (!methods.has(String(apiJson.method).toUpperCase())) {
+      add('error', '请求方法必须是 GET 或 POST。', 'api');
+    }
+    if ('params' in apiJson) {
+      add('error', '普通 API DSL 不能包含 params。', 'api');
+    }
+    for (const location of ['header', 'query', 'body'] as const) {
+      validateDeclarations(apiJson.request?.[location] ?? [], location, add);
+    }
   }
 
   const blockUuids = new Set<string>();
@@ -137,7 +134,10 @@ export function validateApiJson(apiJson: ApiJson): ValidationIssue[] {
     }
 
     validateNextBlock(block.uuid, block.nextBlock, executableUuids, nodeUuids, add, target);
-    validateStandardBlock(block, add, target);
+    if (Object.prototype.hasOwnProperty.call(block, 'errorNextBlock')) {
+      validateNextBlock(block.uuid, block.errorNextBlock, executableUuids, nodeUuids, add, target, 'errorNextBlock');
+    }
+    validateStandardBlock(block, apiJson, add, target);
   }
 
   validateGraph(apiJson, executableUuids, add);
@@ -157,6 +157,7 @@ export function hasDangerWarnings(issues: ValidationIssue[]) {
 
 function validateStandardBlock(
   block: ApiStandardBlock,
+  apiJson: ApiJson,
   add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void,
   target: ValidationIssue['target']
 ) {
@@ -169,15 +170,67 @@ function validateStandardBlock(
     validateOutputs(block.outputs, block.functionName, add, target);
 
     const inputs = block.inputs ?? {};
-    if (['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update'].includes(block.functionName)) {
+    if (block.functionName === 'executeFragment') {
+      if (isFragmentApiJson(apiJson)) {
+        add('error', 'Fragment V1 不支持嵌套执行 Fragment。', target);
+      }
+      if (typeof inputs.fragmentUuid !== 'string' || !inputs.fragmentUuid.trim()) {
+        add('error', 'ExecuteFragment 必须选择 Fragment。', target);
+      } else if (!apiUuidPattern.test(inputs.fragmentUuid) || /\{\{/.test(inputs.fragmentUuid)) {
+        add('error', 'ExecuteFragment 的 fragmentUuid 必须是合法的字面量 UUID。', target);
+      }
+      if (!isRecord(inputs.params)) {
+        add('error', 'ExecuteFragment inputs.params 必须是对象。', target);
+      }
+      const outputKeys = (block.outputs ?? []).map(declarationKey);
+      if (outputKeys.length !== 1 || outputKeys[0] !== 'result') {
+        add('error', 'ExecuteFragment outputs 必须固定为 ["result"]。', target);
+      }
+      return;
+    }
+
+    if (['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update', 'assertUnique', 'createSchema'].includes(block.functionName)) {
       const datasource = inputs.datasource;
       if (typeof datasource !== 'string' || !datasource.trim()) {
         add('error', '数据库 Block 必须选择数据源。', target);
       } else if (!datasourcePattern.test(datasource)) {
         add('error', '数据源只能包含字母、数字、下划线，且不能以数字开头。', target);
       }
-      if (typeof inputs.table !== 'string' || !inputs.table.trim()) {
+      if (block.functionName !== 'createSchema' && (typeof inputs.table !== 'string' || !inputs.table.trim())) {
         add('error', '数据库 Block 必须填写表名。', target);
+      }
+    }
+
+    if (block.functionName === 'assertUnique') {
+      if (typeof inputs.fieldName !== 'string' || !inputs.fieldName.trim()) {
+        add('error', '唯一性校验必须配置 fieldName。', target);
+      }
+      if (!Object.prototype.hasOwnProperty.call(inputs, 'value')) {
+        add('error', '唯一性校验必须配置 value。', target);
+      }
+    }
+
+    if (block.functionName === 'createSchema' && !Object.prototype.hasOwnProperty.call(inputs, 'schema')) {
+      add('error', '创建 Schema 必须配置 schema。', target);
+    }
+
+    if (block.functionName === 'randomId') {
+      if (inputs.prefix !== undefined && typeof inputs.prefix !== 'string') {
+        add('error', 'randomId prefix 必须是字符串。', target);
+      }
+      if (inputs.length !== undefined && (
+        typeof inputs.length !== 'number'
+        || !Number.isInteger(inputs.length)
+        || inputs.length < 1
+        || inputs.length > 32
+      )) {
+        add('error', 'randomId length 必须是 1 到 32 的整数。', target);
+      }
+      if (inputs.alphabet !== undefined && (typeof inputs.alphabet !== 'string' || !inputs.alphabet.length)) {
+        add('error', 'randomId alphabet 必须是非空字符串。', target);
+      }
+      if (inputs.lowerCase !== undefined && typeof inputs.lowerCase !== 'boolean') {
+        add('error', 'randomId lowerCase 必须是 boolean。', target);
       }
     }
 
@@ -230,33 +283,54 @@ function validateStandardBlock(
     }
 }
 
+function validateDeclarations(
+  declarations: ProcessableKey[],
+  location: string,
+  add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void
+) {
+  const seen = new Set<string>();
+
+  declarations.forEach((declaration, index) => {
+    const key = declarationKey(declaration);
+    if (!key.trim()) {
+      add('error', `${location} 第 ${index + 1} 个参数名不能为空。`, 'request');
+    }
+    if (seen.has(key)) {
+      add('error', `${location}.${key} 重复声明。`, 'request');
+    }
+    seen.add(key);
+    validateProcessors(typeof declaration === 'string' ? [] : declaration.processors ?? [], add, 'request');
+  });
+}
+
 function validateNextBlock(
   sourceUuid: string,
   nextBlock: string | null | undefined,
   executableUuids: Set<string>,
   nodeUuids: Set<string>,
   add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void,
-  target: ValidationIssue['target']
+  target: ValidationIssue['target'],
+  fieldName = 'nextBlock'
 ) {
   if (nextBlock === undefined) {
-    add('error', `${sourceUuid}.nextBlock 缺失。`, target);
+    add('error', `${sourceUuid}.${fieldName} 缺失。`, target);
     return;
   }
   if (nextBlock === null) return;
   if (!nextBlock.trim()) {
-    add('error', `${sourceUuid}.nextBlock 不能为空字符串。`, target);
+    add('error', `${sourceUuid}.${fieldName} 不能为空字符串。`, target);
     return;
   }
   if (nextBlock === 'starter') {
-    add('error', `${sourceUuid}.nextBlock 不能指向 starter。`, target);
+    add('error', `${sourceUuid}.${fieldName} 不能指向 starter。`, target);
     return;
   }
   if (nodeUuids.has(nextBlock)) {
-    add('error', `${sourceUuid}.nextBlock 不能指向 Controller node：${nextBlock}。`, target);
+    add('error', `${sourceUuid}.${fieldName} 不能指向 Controller node：${nextBlock}。`, target);
     return;
   }
   if (!executableUuids.has(nextBlock)) {
-    add('error', `${sourceUuid}.nextBlock 指向不存在的 block：${nextBlock}。`, target);
+    add('error', `${sourceUuid}.${fieldName} 指向不存在的 block：${nextBlock}。`, target);
   }
 }
 
@@ -363,6 +437,9 @@ function walkBranch(
 
   if (isStandardBlock(block)) {
     walkBranch(block.nextBlock, blockMap, reached, nextPath, add);
+    if (Object.prototype.hasOwnProperty.call(block, 'errorNextBlock')) {
+      walkBranch(block.errorNextBlock, blockMap, reached, nextPath, add);
+    }
   }
 }
 
@@ -389,6 +466,29 @@ function validateResponses(
   apiJson: ApiJson,
   add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void
 ) {
+  if (isFragmentApiJson(apiJson)) {
+    const responseValues = [
+      ...(Object.prototype.hasOwnProperty.call(apiJson, 'response') ? [apiJson.response] : []),
+      ...Object.values(apiJson.responses ?? {})
+    ];
+    if (!responseValues.length) {
+      add('error', 'Fragment 必须配置 outputs（response 或 responses）。', 'response');
+    }
+    for (const response of responseValues) {
+      if (!isNonEmptyRecord(response)) {
+        add('error', 'Fragment outputs 必须是非空对象。', 'response');
+      } else if (Object.prototype.hasOwnProperty.call(response, 'redirect')) {
+        add('error', 'Fragment outputs 不能包含顶层 redirect。', 'response');
+      }
+    }
+    const responseKeySets = responseValues
+      .filter(isNonEmptyRecord)
+      .map((response) => Object.keys(response as Record<string, unknown>).sort().join('\u0000'));
+    if (new Set(responseKeySets).size > 1) {
+      add('error', 'Fragment 的所有终点必须返回相同的顶层 output keys。', 'response');
+    }
+  }
+
   if (!apiJson.responses) return;
 
   const terminals = collectResponseTerminals(apiJson);
@@ -397,7 +497,7 @@ function validateResponses(
 
   for (const responseUuid of responseUuids) {
     if (!terminalUuids.has(responseUuid)) {
-      add('error', `responses.${responseUuid} 必须对应一个 nextBlock 为 null 的终点。`, 'response');
+      add('error', `responses.${responseUuid} 必须对应一个成功或错误终点。`, 'response');
     }
   }
 
@@ -500,11 +600,15 @@ function validateTemplateReferences(
   apiJson: ApiJson,
   add: (severity: ValidationIssue['severity'], message: string, target: ValidationIssue['target']) => void
 ) {
-  const requestKeys = {
-    header: new Set((apiJson.request?.header ?? []).map(declarationKey)),
-    query: new Set((apiJson.request?.query ?? []).map(declarationKey)),
-    body: new Set((apiJson.request?.body ?? []).map(declarationKey))
-  };
+  const fragment = isFragmentApiJson(apiJson);
+  const requestKeys = fragment
+    ? { header: new Set<string>(), query: new Set<string>(), body: new Set<string>() }
+    : {
+        header: new Set((apiJson.request?.header ?? []).map(declarationKey)),
+        query: new Set((apiJson.request?.query ?? []).map(declarationKey)),
+        body: new Set((apiJson.request?.body ?? []).map(declarationKey))
+      };
+  const paramKeys = new Set(fragment ? (apiJson.params ?? []).map(declarationKey) : []);
   const blockOutputs = new Map<string, Set<string>>();
   for (const block of apiJson.blocks ?? []) {
     if (!isStandardBlock(block)) {
@@ -518,10 +622,23 @@ function validateTemplateReferences(
     for (const path of extractTemplatePaths(template.value)) {
       const requestMatch = path.match(/^(request\.)?(header|query|body)\.([A-Za-z0-9_.$[\]'-]+)/);
       if (requestMatch) {
+        if (fragment) {
+          add('error', `Fragment 不能引用 request 变量：${path}。`, template.target);
+          continue;
+        }
         const location = requestMatch[2] as keyof typeof requestKeys;
         const key = requestMatch[3].split(/[.[\]]/)[0];
         if (!requestKeys[location].has(key)) {
           add('warning', `变量 ${path} 未在 request 中声明。`, template.target);
+        }
+      }
+
+      const paramsMatch = path.match(/^params\.([A-Za-z0-9_]+)/);
+      if (paramsMatch) {
+        if (!fragment) {
+          add('error', `普通 API 不能引用 params 变量：${path}。`, template.target);
+        } else if (!paramKeys.has(paramsMatch[1])) {
+          add('error', `变量 ${path} 未在 params 中声明。`, template.target);
         }
       }
 

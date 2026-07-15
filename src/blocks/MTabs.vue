@@ -10,6 +10,12 @@ export type MTabsTab = {
   /** Preserved only when both aliases exist so validation can block ambiguity. */
   pageUuid?: string;
   pageSource?: 'user' | 'system';
+  /**
+   * Optional route-query mapping used to select this tab. The first value is
+   * written when the tab is clicked; `null` removes the query parameter. Extra
+   * values are accepted aliases, for example `[null, 'false']`.
+   */
+  query?: Record<string, string | null | Array<string | null>>;
 };
 
 export interface MTabsProps {
@@ -33,6 +39,39 @@ function normalizePageSource(value: unknown): MTabsTab['pageSource'] {
   return undefined;
 }
 
+function normalizeQueryMapping(value: unknown): MTabsTab['query'] {
+  if (!isRecord(value)) return undefined;
+
+  const query: NonNullable<MTabsTab['query']> = {};
+  Object.entries(value).forEach(([rawKey, rawValue]) => {
+    const key = rawKey.trim();
+    if (!key) return;
+
+    if (rawValue === null) {
+      query[key] = null;
+      return;
+    }
+
+    if (typeof rawValue === 'string') {
+      query[key] = rawValue.trim();
+      return;
+    }
+
+    if (!Array.isArray(rawValue)) return;
+    const values: Array<string | null> = [];
+    rawValue.forEach((item) => {
+      const normalized = item === null
+        ? null
+        : typeof item === 'string' ? item.trim() : undefined;
+      if (normalized === undefined || values.includes(normalized)) return;
+      values.push(normalized);
+    });
+    if (values.length) query[key] = values;
+  });
+
+  return Object.keys(query).length ? query : undefined;
+}
+
 export function normalizeTabs(value: unknown): MTabsTab[] {
   if (!Array.isArray(value)) return [];
 
@@ -49,6 +88,7 @@ export function normalizeTabs(value: unknown): MTabsTab[] {
     const canonicalPageUUID = readString(item.pageUUID);
     const legacyPageUuid = readString(item.pageUuid);
     const pageUUID = canonicalPageUUID || legacyPageUuid;
+    const query = normalizeQueryMapping(item.query);
     if (!id || !name || !pageUUID || seenIds.has(id)) return;
 
     seenIds.add(id);
@@ -57,7 +97,8 @@ export function normalizeTabs(value: unknown): MTabsTab[] {
       name,
       pageUUID,
       ...(hasCanonical && hasLegacy ? { pageUuid: legacyPageUuid } : {}),
-      ...(normalizePageSource(item.pageSource) ? { pageSource: normalizePageSource(item.pageSource) } : {})
+      ...(normalizePageSource(item.pageSource) ? { pageSource: normalizePageSource(item.pageSource) } : {}),
+      ...(query ? { query } : {})
     });
   });
 
@@ -258,7 +299,7 @@ export const mTabsEditorTool = defineEditorTool<MTabsProps>({
 </script>
 
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import PageDslBlock from '@/blocks/PageDslBlock.vue';
 import MPage from '@/blocks/MPage.vue';
 import { i18n as runtimeI18n } from '@/i18n';
@@ -309,9 +350,64 @@ function emitChange() {
   }
 }
 
-function setActiveTabId(tabId: unknown, notify = true) {
+function readHashLocation() {
+  const rawHash = window.location.hash.replace(/^#/, '') || '/';
+  const queryIndex = rawHash.indexOf('?');
+  return {
+    path: queryIndex >= 0 ? rawHash.slice(0, queryIndex) : rawHash,
+    searchParams: new URLSearchParams(queryIndex >= 0 ? rawHash.slice(queryIndex + 1) : '')
+  };
+}
+
+function acceptedQueryValues(value: NonNullable<MTabsTab['query']>[string]) {
+  return Array.isArray(value) ? value : [value];
+}
+
+function findQuerySelectedTab() {
+  const { searchParams } = readHashLocation();
+  return normalizedTabs.value.find((tab) => {
+    if (!tab.query || !Object.keys(tab.query).length) return false;
+    return Object.entries(tab.query).every(([key, value]) => {
+      const currentValue = searchParams.has(key) ? searchParams.get(key) : null;
+      return acceptedQueryValues(value).includes(currentValue);
+    });
+  });
+}
+
+function syncActiveTabFromQuery() {
+  if (!normalizedTabs.value.some((tab) => tab.query && Object.keys(tab.query).length)) {
+    return;
+  }
+  const querySelectedTab = findQuerySelectedTab();
+  const nextTabId = querySelectedTab?.id
+    ?? normalizeActiveTabId(props.activeTabId, normalizedTabs.value);
+  setActiveTabId(nextTabId, false, false);
+}
+
+function syncHashQuery(tab: MTabsTab) {
+  if (!tab.query || !Object.keys(tab.query).length) return;
+
+  const { path, searchParams } = readHashLocation();
+  Object.entries(tab.query).forEach(([key, value]) => {
+    const canonicalValue = acceptedQueryValues(value)[0] ?? null;
+    if (canonicalValue === null) {
+      searchParams.delete(key);
+    } else {
+      searchParams.set(key, canonicalValue);
+    }
+  });
+
+  const query = searchParams.toString();
+  const nextHash = `${path}${query ? `?${query}` : ''}`;
+  if (nextHash !== window.location.hash.replace(/^#/, '')) {
+    window.location.hash = nextHash;
+  }
+}
+
+function setActiveTabId(tabId: unknown, notify = true, updateQuery = notify) {
   const nextTabId = typeof tabId === 'string' ? tabId.trim() : '';
-  if (!nextTabId || !normalizedTabs.value.some((tab) => tab.id === nextTabId)) {
+  const nextTab = normalizedTabs.value.find((tab) => tab.id === nextTabId);
+  if (!nextTabId || !nextTab) {
     return false;
   }
 
@@ -320,6 +416,10 @@ function setActiveTabId(tabId: unknown, notify = true) {
     if (notify) {
       emitChange();
     }
+  }
+
+  if (updateQuery) {
+    syncHashQuery(nextTab);
   }
 
   return true;
@@ -421,6 +521,7 @@ watch(
   () => [props.activeTabId, getTabsSignature()],
   () => {
     internalActiveTabId.value = normalizeActiveTabId(props.activeTabId, normalizedTabs.value);
+    syncActiveTabFromQuery();
   },
   { immediate: true }
 );
@@ -439,6 +540,12 @@ watch(
 
 onBeforeUnmount(() => {
   pageLoadId += 1;
+  window.removeEventListener('hashchange', syncActiveTabFromQuery);
+});
+
+onMounted(() => {
+  window.addEventListener('hashchange', syncActiveTabFromQuery);
+  syncActiveTabFromQuery();
 });
 </script>
 

@@ -64,6 +64,7 @@ export type MockMokelayApi = {
   uuid: string;
   name: string;
   method: string;
+  fragment?: boolean;
   status: 'draft' | 'published';
   apiJson: Record<string, unknown>;
   layout?: Record<string, unknown>;
@@ -123,6 +124,7 @@ type MockPagesApiOptions = {
   datasourceSyncErrors?: string[];
   apis?: MockMokelayApi[];
   systemApis?: MockMokelayApi[];
+  systemFragments?: MockMokelayApi[];
   apiDomains?: MockApiDomain[];
   apiBuilderSamples?: MockApiBuilderSample[];
   clientBlockDocs?: Record<string, unknown>[];
@@ -163,6 +165,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const datasources = new Map<string, MockMokelayDatasource>();
   const apis = new Map<string, MockMokelayApi>();
   const systemApis = new Map<string, MockMokelayApi>();
+  const systemFragments = new Map<string, MockMokelayApi>();
   const apiDomains = new Map<string, MockApiDomain>();
   const apiBuilderSamples = new Map<string, MockApiBuilderSample>();
   const apiSnapshots: MockApiSnapshot[] = [];
@@ -258,6 +261,14 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   for (const apiRecord of options.systemApis ?? []) {
     systemApis.set(apiRecord.uuid, {
       ...apiRecord,
+      source: 'system'
+    });
+  }
+
+  for (const apiRecord of options.systemFragments ?? []) {
+    systemFragments.set(apiRecord.uuid, {
+      ...apiRecord,
+      fragment: true,
       source: 'system'
     });
   }
@@ -758,7 +769,9 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       apiListRequests.push(request.url());
       const pageNumber = Number(url.searchParams.get('page') ?? 1);
       const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
+      const fragmentFilter = url.searchParams.get('fragment');
       const apiRecords = Array.from(apis.values())
+        .filter((apiRecord) => fragmentFilter === null || Boolean(apiRecord.fragment ?? apiRecord.apiJson.fragment) === (fragmentFilter === 'true'))
         .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
       const start = Math.max(pageNumber - 1, 0) * pageSize;
       const pageItems = apiRecords.slice(start, start + pageSize);
@@ -773,7 +786,18 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
 
     if (method === 'GET' && url.pathname === '/api/mokelay/list_mokelay_api_jsons') {
       apiListRequests.push(request.url());
-      const apiRecords = Array.from(systemApis.values());
+      const fragmentFilter = url.searchParams.get('fragment');
+      const recordsByUuid = new Map<string, MockMokelayApi>();
+      const sourceRecords = fragmentFilter === 'true'
+        ? [
+            ...Array.from(systemApis.values()).filter((apiRecord) => Boolean(apiRecord.fragment ?? apiRecord.apiJson.fragment)),
+            ...systemFragments.values()
+          ]
+        : Array.from(systemApis.values());
+      for (const apiRecord of sourceRecords) recordsByUuid.set(apiRecord.uuid, apiRecord);
+      const apiRecords = Array.from(recordsByUuid.values())
+        .filter((apiRecord) => fragmentFilter === null
+          || Boolean(apiRecord.fragment ?? apiRecord.apiJson.fragment) === (fragmentFilter === 'true'));
       await delay(options.apiDelays?.listApis);
       await route.fulfill({
         status: 200,
@@ -799,6 +823,10 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     if (method === 'GET' && url.pathname === '/api/mokelay/read_mokelay_api_json') {
       systemApiReadRequests.push(request.url());
       const uuid = url.searchParams.get('uuid') ?? '';
+      const fragment = url.searchParams.get('fragment') === 'true';
+      const apiRecord = fragment
+        ? systemFragments.get(uuid) ?? (Boolean(systemApis.get(uuid)?.fragment ?? systemApis.get(uuid)?.apiJson.fragment) ? systemApis.get(uuid) : undefined)
+        : systemApis.get(uuid);
       await delay(options.apiDelays?.readApi);
       await route.fulfill({
         status: 200,
@@ -806,7 +834,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
         body: JSON.stringify({
           ok: true,
           data: {
-            api: systemApis.get(uuid)?.apiJson ?? null
+            api: apiRecord?.apiJson ?? null
           }
         })
       });
@@ -892,18 +920,20 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
         return;
       }
 
-      const methodName = (readString(payload.method) || readString(apiJson.method) || 'GET').toUpperCase();
+      const fragment = payload.fragment === true || apiJson.fragment === true;
+      const methodName = fragment ? 'FRAGMENT' : (readString(payload.method) || readString(apiJson.method) || 'GET').toUpperCase();
       const status = payload.status === 'published' ? 'published' : 'draft';
       const layout = normalizeMockApiLayout(payload.layout);
       const apiRecord: MockMokelayApi = {
         uuid,
         name: readString(payload.name) || readString(apiJson.alias) || '未命名 API',
         method: methodName,
+        fragment,
         status,
         apiJson: {
           ...apiJson,
           uuid,
-          method: methodName
+          ...(fragment ? { fragment: true } : { fragment: false, method: methodName })
         },
         layout,
         createdAt: existingApi?.createdAt ?? now,
@@ -937,7 +967,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, systemPages, apps, layouts, systemLayouts, datasources, apis, systemApis, apiDomains, apiBuilderSamples, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, pageLayoutUpdatePayloads, layoutDeletePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, apiBuilderSampleRequests, systemApiReadRequests, aiGenerateDslRequests, saveAiDslAssetsRequests };
+  return { pages, systemPages, apps, layouts, systemLayouts, datasources, apis, systemApis, systemFragments, apiDomains, apiBuilderSamples, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, layoutDeletePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, apiBuilderSampleRequests, systemApiReadRequests, aiGenerateDslRequests, saveAiDslAssetsRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -1133,7 +1163,14 @@ function getSeedSystemPages(overrides: MockMokelayPage[] = []) {
       readSystemPageAsset('home'),
       readSystemPageAsset('ai-chat'),
       readSystemPageAsset('mokelay_app_create_page'),
-      readSystemPageAsset('mokelay_app_edit_page')
+      readSystemPageAsset('mokelay_app_edit_page'),
+      readSystemPageAsset('apis'),
+      readSystemPageAsset('mokelay_apis_user_tabs_page'),
+      readSystemPageAsset('mokelay_apis_system_tabs_page'),
+      readSystemPageAsset('mokelay_apis_user_page'),
+      readSystemPageAsset('mokelay_apis_user_fragment_page'),
+      readSystemPageAsset('mokelay_apis_system_page'),
+      readSystemPageAsset('mokelay_apis_system_fragment_page')
     ],
     overrides
   );
@@ -1707,6 +1744,7 @@ function serializeApi(apiRecord: MockMokelayApi, includeApiJson: boolean) {
     uuid: apiRecord.uuid,
     name: apiRecord.name,
     method: apiRecord.method,
+    fragment: apiRecord.fragment ?? apiRecord.apiJson.fragment === true,
     ...(source === 'system' ? { source } : {}),
     ...(source === 'user' ? { status: apiRecord.status } : {}),
     ...(includeApiJson || source === 'system' ? { apiJson: apiRecord.apiJson } : {}),

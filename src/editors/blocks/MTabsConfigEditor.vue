@@ -71,6 +71,32 @@ function normalizePageSource(value: unknown): MTabsTab['pageSource'] {
   return 'user';
 }
 
+function normalizeQueryMapping(value: unknown): MTabsTab['query'] {
+  if (!isRecord(value)) return undefined;
+
+  const query: NonNullable<MTabsTab['query']> = {};
+  Object.entries(value).forEach(([rawKey, rawValue]) => {
+    const key = rawKey.trim();
+    if (!key) return;
+    if (rawValue === null || typeof rawValue === 'string') {
+      query[key] = rawValue === null ? null : rawValue.trim();
+      return;
+    }
+    if (!Array.isArray(rawValue)) return;
+
+    const values: Array<string | null> = [];
+    rawValue.forEach((item) => {
+      const normalized = item === null
+        ? null
+        : typeof item === 'string' ? item.trim() : undefined;
+      if (normalized === undefined || values.includes(normalized)) return;
+      values.push(normalized);
+    });
+    if (values.length) query[key] = values;
+  });
+  return Object.keys(query).length ? query : undefined;
+}
+
 function normalizeActiveTabId(value: unknown, tabs: MTabsTab[]) {
   const activeTabId = readString(value);
   if (activeTabId && tabs.some((tab) => tab.id === activeTabId)) {
@@ -96,6 +122,7 @@ function normalizeTabsInput(value: unknown): MTabsTab[] {
     const canonicalPageUUID = readString(item.pageUUID);
     const legacyPageUuid = readString(item.pageUuid);
     const pageUUID = canonicalPageUUID || legacyPageUuid;
+    const query = normalizeQueryMapping(item.query);
 
     if (!id || !name || !pageUUID || seenIds.has(id)) return;
 
@@ -105,7 +132,8 @@ function normalizeTabsInput(value: unknown): MTabsTab[] {
       name,
       pageUUID,
       ...(hasCanonical && hasLegacy ? { pageUuid: legacyPageUuid } : {}),
-      pageSource: normalizePageSource(item.pageSource)
+      pageSource: normalizePageSource(item.pageSource),
+      ...(query ? { query } : {})
     });
   });
 
@@ -368,7 +396,8 @@ function fromEditableTabs(tabs: EditableTab[]): MTabsTab[] {
     id: tab.id.trim(),
     name: tab.name.trim(),
     pageUUID: tab.pageUUID.trim(),
-    pageSource: tab.pageSource === 'system' ? 'system' : 'user'
+    pageSource: tab.pageSource === 'system' ? 'system' : 'user',
+    ...(tab.query ? { query: cloneValue(tab.query) } : {})
   }));
 }
 

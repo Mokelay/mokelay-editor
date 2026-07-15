@@ -69,6 +69,9 @@ export function buildDatasourceFromMokelayApi(
   if (!apiJson) {
     throw new DatasourceApiImportError('missingApiJson', 'Mokelay API detail is missing apiJson.');
   }
+  if (api.fragment || apiJson.fragment === true) {
+    throw new DatasourceApiImportError('unsupportedMethod', 'Fragment cannot be imported as an HTTP datasource.');
+  }
 
   const method = normalizeImportedMethod(apiJson.method || api.method);
   const responseExamples = getMokelayResponseExamples(apiJson);

@@ -54,6 +54,43 @@ test('renders the configured active tab and switches by click', async ({ page })
   await expect(page.getByTestId('editor-tabs-active-panel')).toContainText('User create page');
 });
 
+test('selects tabs from route query aliases and keeps the URL in sync', async ({ page }) => {
+  await seedTabsPreview(page, {
+    tabs: [
+      {
+        id: 'api',
+        name: 'API',
+        pageUUID: userPageUuid,
+        query: { fragment: [null, 'false'] }
+      },
+      {
+        id: 'fragment',
+        name: 'Fragment',
+        pageUUID: systemPageUuid,
+        query: { fragment: 'true' }
+      }
+    ],
+    activeTabId: 'api'
+  });
+
+  await openPreview(page);
+  await page.evaluate(() => {
+    window.location.hash = `${window.location.hash}?fragment=true`;
+  });
+
+  await expect(page.getByTestId('editor-tabs-tab-fragment')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('editor-tabs-active-panel')).toContainText('System builtin page');
+
+  await page.getByTestId('editor-tabs-tab-api').click();
+  await expect(page).toHaveURL(new RegExp(`#\\/pages\\/${defaultPageUuid}\\/preview$`));
+  await expect(page.getByTestId('editor-tabs-tab-api')).toHaveAttribute('aria-selected', 'true');
+
+  await page.evaluate(() => {
+    window.location.hash = `${window.location.hash}?fragment=false`;
+  });
+  await expect(page.getByTestId('editor-tabs-tab-api')).toHaveAttribute('aria-selected', 'true');
+});
+
 test('falls back to the first tab when activeTabId is invalid', async ({ page }) => {
   await seedTabsPreview(page, {
     tabs: tabsConfig(),
@@ -180,7 +217,13 @@ test('shows an error state when the active tab page fails to load', async ({ pag
 async function seedTabsPreview(
   page: Page,
   options: {
-    tabs: Array<{ id: string; name: string; pageUUID: string; pageSource?: 'user' | 'system' }>;
+    tabs: Array<{
+      id: string;
+      name: string;
+      pageUUID: string;
+      pageSource?: 'user' | 'system';
+      query?: Record<string, string | null | Array<string | null>>;
+    }>;
     activeTabId?: string;
     extraBlocks?: SavedBlock[];
   }

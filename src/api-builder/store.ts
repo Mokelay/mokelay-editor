@@ -1,4 +1,9 @@
-import { cloneValue, collectResponseTerminals, createEmptyApiJson, createStarterBlock } from '@/api-builder/registry';
+import {
+  cloneValue,
+  collectResponseTerminals,
+  createEmptyApiJson,
+  createStarterBlock
+} from '@/api-builder/registry';
 import { normalizeProcessors } from '@/processors';
 import type {
   ApiBlock,
@@ -10,6 +15,8 @@ import type {
   ApiBuilderNodePosition,
   ApiStandardBlock,
   ControllerNode,
+  EndpointApiJson,
+  FragmentApiJson,
   ResponseConfig,
   StarterBlock
 } from '@/api-builder/types';
@@ -75,13 +82,23 @@ export function normalizeApiJson(value: unknown): ApiJson {
     return createEmptyApiJson();
   }
 
-  const normalized: ApiJson = {
-    uuid: readString(value.uuid) || `api_${randomToken()}`,
-    alias: readString(value.alias) || '未命名 API',
-    method: readString(value.method).toUpperCase() === 'POST' ? 'POST' : 'GET',
-    request: normalizeRequest(value.request),
-    blocks: normalizeBlocks(value.blocks),
+  const common = {
+    uuid: readString(value.uuid) || `${value.fragment === true ? 'fragment' : 'api'}_${randomToken()}`,
+    alias: readString(value.alias) || (value.fragment === true ? '未命名 Fragment' : '未命名 API'),
+    blocks: normalizeBlocks(value.blocks)
   };
+  const normalized: ApiJson = value.fragment === true
+    ? {
+        ...common,
+        fragment: true,
+        params: normalizeProcessableKeys(value.params)
+      } satisfies FragmentApiJson
+    : {
+        ...common,
+        ...(value.fragment === false ? { fragment: false as const } : {}),
+        method: readString(value.method).toUpperCase() === 'POST' ? 'POST' : 'GET',
+        request: normalizeRequest(value.request)
+      } satisfies EndpointApiJson;
   if (Object.prototype.hasOwnProperty.call(value, 'response')) {
     normalized.response = normalizeResponseConfig(value.response) ?? null;
   }
@@ -211,7 +228,8 @@ function normalizeStandardBlock(value: Record<string, unknown>): ApiStandardBloc
     type: readString(value.type) || undefined,
     inputs: isRecord(value.inputs) ? cloneValue(value.inputs) : {},
     outputs: Array.isArray(value.outputs) ? normalizeProcessableKeys(value.outputs) : value.outputs === null ? null : undefined,
-    ...(Object.prototype.hasOwnProperty.call(value, 'nextBlock') ? { nextBlock: normalizeNextBlock(value.nextBlock) } : {})
+    ...(Object.prototype.hasOwnProperty.call(value, 'nextBlock') ? { nextBlock: normalizeNextBlock(value.nextBlock) } : {}),
+    ...(Object.prototype.hasOwnProperty.call(value, 'errorNextBlock') ? { errorNextBlock: normalizeNextBlock(value.errorNextBlock) } : {})
   };
 }
 
@@ -276,9 +294,13 @@ function clearDisabledReferences(blocks: ApiBlock[], disabled: Set<string>) {
       };
     }
 
+    const standardBlock = block as ApiStandardBlock;
     return {
-      ...block,
-      nextBlock: normalizeTarget(block.nextBlock)
+      ...standardBlock,
+      nextBlock: normalizeTarget(standardBlock.nextBlock),
+      ...(Object.prototype.hasOwnProperty.call(standardBlock, 'errorNextBlock')
+        ? { errorNextBlock: normalizeTarget(standardBlock.errorNextBlock) }
+        : {})
     };
   });
 }

@@ -2,6 +2,8 @@ import type {
   ApiBlock,
   ApiController,
   ApiJson,
+  EndpointApiJson,
+  FragmentApiJson,
   ApiStandardBlock,
   BlockFunctionName,
   Condition,
@@ -14,7 +16,7 @@ import type {
   ResponseTerminal
 } from '@/api-builder/types';
 
-export type BlockGroup = 'query' | 'write' | 'session';
+export type BlockGroup = 'query' | 'write' | 'session' | 'utility' | 'fragment';
 
 export type BlockDefinition = {
   functionName: BlockFunctionName;
@@ -197,6 +199,47 @@ export const blockDefinitions: BlockDefinition[] = [
     })
   },
   {
+    functionName: 'assertUnique',
+    title: '唯一性检查',
+    shortTitle: '唯一检查',
+    group: 'write',
+    description: '检查字段值是否冲突，冲突时中断流程。',
+    outputs: [],
+    defaultInputs: () => ({
+      datasource: 'Mokelay',
+      table: 'employees',
+      fieldName: 'email',
+      value: { template: '{{request.body.email}}' },
+      message: '记录已存在。'
+    })
+  },
+  {
+    functionName: 'createSchema',
+    title: '创建 Postgres Schema',
+    shortTitle: '建 Schema',
+    group: 'write',
+    description: '在指定 Postgres 数据源创建 schema。',
+    outputs: ['schema', 'created', 'exists'],
+    defaultInputs: () => ({
+      datasource: 'MokelayFree',
+      schema: { template: "{{blocks['random_schema'].outputs.value}}" }
+    })
+  },
+  {
+    functionName: 'randomId',
+    title: '生成随机 ID',
+    shortTitle: '随机 ID',
+    group: 'utility',
+    description: '按前缀、长度和字符表生成随机字符串。',
+    outputs: ['value'],
+    defaultInputs: () => ({
+      prefix: '',
+      length: 6,
+      alphabet: 'abcdefghijklmnopqrstuvwxyz0123456789',
+      lowerCase: true
+    })
+  },
+  {
     functionName: 'addSession',
     title: '写入 Session',
     shortTitle: '写入会话',
@@ -228,6 +271,18 @@ export const blockDefinitions: BlockDefinition[] = [
     outputs: [],
     defaultInputs: () => ({
       key: 'user'
+    })
+  },
+  {
+    functionName: 'executeFragment',
+    title: '执行 Fragment',
+    shortTitle: 'Fragment',
+    group: 'fragment',
+    description: '执行一个已发布的逻辑片段，并通过 result 返回结果。',
+    outputs: ['result'],
+    defaultInputs: () => ({
+      fragmentUuid: '',
+      params: {}
     })
   }
 ];
@@ -290,16 +345,27 @@ export function isStandardBlock(block: ApiBlock): block is ApiStandardBlock {
   return block.uuid !== 'starter' && (!('type' in block) || block.type !== 'controller');
 }
 
+export function isFragmentApiJson(apiJson: ApiJson): apiJson is FragmentApiJson {
+  return apiJson.fragment === true;
+}
+
+export function isEndpointApiJson(apiJson: ApiJson): apiJson is EndpointApiJson {
+  return apiJson.fragment !== true;
+}
+
 export function collectResponseTerminals(apiJson: ApiJson): ResponseTerminal[] {
   const terminals: ResponseTerminal[] = [];
+  const terminalUuids = new Set<string>();
+  const addTerminal = (uuid: string, label: string) => {
+    if (terminalUuids.has(uuid)) return;
+    terminalUuids.add(uuid);
+    terminals.push({ uuid, label });
+  };
 
   for (const block of apiJson.blocks ?? []) {
     if (isStarterBlock(block)) {
       if (block.nextBlock === null) {
-        terminals.push({
-          uuid: 'starter',
-          label: 'Starter'
-        });
+        addTerminal('starter', 'Starter');
       }
       continue;
     }
@@ -307,20 +373,17 @@ export function collectResponseTerminals(apiJson: ApiJson): ResponseTerminal[] {
     if (isControllerBlock(block)) {
       for (const node of block.nodes) {
         if (node.nextBlock === null) {
-          terminals.push({
-            uuid: node.uuid,
-            label: `${block.alias || block.uuid} / ${controllerNodeLabel(node)}`
-          });
+          addTerminal(node.uuid, `${block.alias || block.uuid} / ${controllerNodeLabel(node)}`);
         }
       }
       continue;
     }
 
-    if (block.nextBlock === null) {
-      terminals.push({
-        uuid: block.uuid,
-        label: block.alias || block.uuid
-      });
+    const successTerminal = block.nextBlock === null;
+    const errorTerminal = Object.prototype.hasOwnProperty.call(block, 'errorNextBlock') && block.errorNextBlock === null;
+    if (successTerminal || errorTerminal) {
+      const suffix = errorTerminal && !successTerminal ? ' / 错误' : errorTerminal ? ' / 成功或错误' : '';
+      addTerminal(block.uuid, `${block.alias || block.uuid}${suffix}`);
     }
   }
 
@@ -346,21 +409,22 @@ export function createStarterBlock(nextBlock: string | null = null): ApiBlock {
   };
 }
 
-export function createBlock(functionName: BlockFunctionName, uuid?: string, alias?: string): ApiStandardBlock {
+export function createBlock(functionName: BlockFunctionName, uuid?: string, alias?: string, apiJson?: ApiJson): ApiStandardBlock {
   const definition = getBlockDefinition(functionName);
   const blockUuid = uuid || `${functionName}_${randomToken()}`;
+  const defaultInputs = cloneValue(definition?.defaultInputs() ?? {});
 
   return {
     uuid: blockUuid,
     alias: alias || definition?.title,
     functionName,
-    inputs: cloneValue(definition?.defaultInputs() ?? {}),
+    inputs: apiJson && isFragmentApiJson(apiJson) ? neutralizeRequestTemplates(defaultInputs) : defaultInputs,
     outputs: (definition?.outputs ?? []).map((key) => key),
     nextBlock: null
   };
 }
 
-export function createController(functionName: ControllerFunctionName, uuid?: string, alias?: string): ApiController {
+export function createController(functionName: ControllerFunctionName, uuid?: string, alias?: string, apiJson?: ApiJson): ApiController {
   const definition = getControllerDefinition(functionName);
   const controllerUuid = uuid || `${functionName.replace(/_controller$/, '')}_${randomToken()}`;
 
@@ -369,7 +433,9 @@ export function createController(functionName: ControllerFunctionName, uuid?: st
     alias: alias || definition?.title,
     functionName,
     type: 'controller',
-    inputs: cloneValue(definition?.defaultInputs() ?? {}),
+    inputs: apiJson && isFragmentApiJson(apiJson)
+      ? neutralizeRequestTemplates(cloneValue(definition?.defaultInputs() ?? {}))
+      : cloneValue(definition?.defaultInputs() ?? {}),
     nodes: functionName === 'if_controller'
       ? [
           {
@@ -402,10 +468,11 @@ export function createController(functionName: ControllerFunctionName, uuid?: st
   };
 }
 
-export function createEmptyApiJson(): ApiJson {
+export function createEmptyApiJson(): EndpointApiJson {
   return {
     uuid: `api_${randomToken()}`,
     alias: '未命名 API',
+    fragment: false,
     method: 'GET',
     request: {
       header: [],
@@ -414,6 +481,17 @@ export function createEmptyApiJson(): ApiJson {
     },
     blocks: [createStarterBlock()],
     response: null
+  };
+}
+
+export function createEmptyFragmentJson(): FragmentApiJson {
+  return {
+    uuid: `fragment_${randomToken()}`,
+    alias: '未命名 Fragment',
+    fragment: true,
+    params: [],
+    blocks: [createStarterBlock()],
+    response: {}
   };
 }
 
@@ -432,6 +510,18 @@ export function cloneValue<T>(value: T): T {
 
 function randomToken() {
   return Math.random().toString(36).slice(2, 8);
+}
+
+function neutralizeRequestTemplates<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(neutralizeRequestTemplates) as T;
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    if (typeof record.template === 'string' && /\{\{\s*(?:request\.|header\.|query\.|body\.)/.test(record.template)) {
+      return null as T;
+    }
+    return Object.fromEntries(Object.entries(record).map(([key, item]) => [key, neutralizeRequestTemplates(item)])) as T;
+  }
+  return value;
 }
 
 function controllerNodeLabel(node: { alias?: string; type?: 'DEFAULT'; value?: string | number | boolean }) {

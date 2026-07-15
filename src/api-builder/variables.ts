@@ -1,5 +1,6 @@
 import {
   declarationKey,
+  isFragmentApiJson,
   isControllerBlock,
   isStarterBlock,
   isStandardBlock,
@@ -10,15 +11,27 @@ import type { ApiJson, VariableOption } from '@/api-builder/types';
 export function buildVariableOptions(apiJson: ApiJson, beforeBlockUuid?: string): VariableOption[] {
   const options: VariableOption[] = [];
 
-  for (const location of ['header', 'query', 'body'] as const) {
-    for (const declaration of apiJson.request?.[location] ?? []) {
+  if (isFragmentApiJson(apiJson)) {
+    for (const declaration of apiJson.params ?? []) {
       const key = declarationKey(declaration);
       options.push({
-        id: `request-${location}-${key}`,
-        label: `请求 ${location}.${key}`,
-        path: `request.${location}.${key}`,
-        source: 'request'
+        id: `params-${key}`,
+        label: `Fragment 参数 ${key}`,
+        path: `params.${key}`,
+        source: 'params'
       });
+    }
+  } else {
+    for (const location of ['header', 'query', 'body'] as const) {
+      for (const declaration of apiJson.request?.[location] ?? []) {
+        const key = declarationKey(declaration);
+        options.push({
+          id: `request-${location}-${key}`,
+          label: `请求 ${location}.${key}`,
+          path: `request.${location}.${key}`,
+          source: 'request'
+        });
+      }
     }
   }
 

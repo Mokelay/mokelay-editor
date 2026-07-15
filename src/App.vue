@@ -54,6 +54,7 @@ type ParsedRoute = {
   apiUuid: string | null;
   apiBuilder: boolean;
   apiSource: 'user' | 'system';
+  apiFragment: boolean;
   preview: boolean;
   runtimePage: boolean;
   notFound: boolean;
@@ -122,6 +123,7 @@ const routePageSource = computed(() => parsedRoute.value.pageSource);
 const isApiBuilderPage = computed(() => parsedRoute.value.apiBuilder);
 const routeApiUuid = computed(() => parsedRoute.value.apiUuid);
 const routeApiSource = computed(() => parsedRoute.value.apiSource);
+const routeApiFragment = computed(() => parsedRoute.value.apiFragment);
 const isPreviewPage = computed(() => !isApiBuilderPage.value && parsedRoute.value.preview);
 const isRuntimePage = computed(() => !isApiBuilderPage.value && parsedRoute.value.runtimePage);
 const isNotFoundPage = computed(() => !isApiBuilderPage.value && (parsedRoute.value.notFound || runtimePageLoadFailed.value));
@@ -225,6 +227,7 @@ function createParsedRoute(overrides: Partial<ParsedRoute> = {}): ParsedRoute {
     apiUuid: null,
     apiBuilder: false,
     apiSource: 'user',
+    apiFragment: false,
     preview: false,
     runtimePage: false,
     notFound: false,
@@ -236,7 +239,9 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
   const rawPath = location.rawPath || '/';
   const normalizedPath = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
   const [path, rawQuery = ''] = normalizedPath.split('?', 2);
-  const apiSource = new URLSearchParams(rawQuery).get('source') === 'system' ? 'system' : 'user';
+  const query = new URLSearchParams(rawQuery);
+  const apiSource = query.get('source') === 'system' ? 'system' : 'user';
+  const apiFragment = query.get('fragment') === 'true' || query.get('type') === 'fragment';
   const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
   if (path === '/apis') {
     return createParsedRoute({
@@ -252,7 +257,8 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
     return createParsedRoute({
       apiUuid: safeDecodeURIComponent(apiMatch[1]),
       apiBuilder: true,
-      apiSource
+      apiSource,
+      apiFragment
     });
   }
 
@@ -814,6 +820,7 @@ function backToPagesPage() {
           v-if="isApiBuilderPage"
           :route-uuid="routeApiUuid"
           :route-source="routeApiSource"
+          :route-fragment="routeApiFragment"
         />
         <div v-else-if="isEditorPage" class="flex flex-1 flex-col gap-4">
           <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">

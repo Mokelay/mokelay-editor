@@ -328,8 +328,236 @@ test('loads a system API from a direct source-aware URL', async ({ page }) => {
   await expect(page.getByText('系统内置', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '返回 API 列表' }).click();
   await expect(page).toHaveURL(/#\/apis\?source=system$/);
-  await expect(page.getByTestId('api-source-system')).toHaveClass(/bg-white/);
-  await expect(page.getByTestId('api-builder-new')).toHaveCount(0);
+});
+
+test('loads a system Fragment from a direct fragment-aware URL and returns to its list tab', async ({ page }) => {
+  const apiState = await resetEditor(page, {
+    systemApis: [
+      {
+        uuid: 'shared_system_uuid',
+        name: '同 UUID 内置 API',
+        method: 'GET',
+        status: 'published',
+        apiJson: {
+          uuid: 'shared_system_uuid',
+          alias: '同 UUID 内置 API',
+          method: 'GET',
+          blocks: [{ uuid: 'starter', nextBlock: null }]
+        }
+      }
+    ],
+    systemFragments: [
+      {
+        uuid: 'shared_system_uuid',
+        name: '同 UUID 内置 Fragment',
+        method: 'FRAGMENT',
+        fragment: true,
+        status: 'published',
+        apiJson: {
+          uuid: 'shared_system_uuid',
+          alias: '同 UUID 内置 Fragment',
+          fragment: true,
+          params: ['email'],
+          blocks: [{ uuid: 'starter', nextBlock: null }],
+          response: { email: { template: '{{params.email}}' } }
+        }
+      }
+    ]
+  });
+
+  const expectSystemFragmentList = async () => {
+    await expect(page.getByTestId('editor-tabs-tab-system-built-in')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('editor-tabs-tab-system-fragment')).toHaveAttribute('aria-selected', 'true');
+    const fragmentRow = page.getByRole('row', { name: /shared_system_uuid/ });
+    await expect(fragmentRow).toContainText('同 UUID 内置 Fragment');
+    await expect(fragmentRow).not.toContainText('同 UUID 内置 API');
+  };
+
+  await page.goto('/#/apis?source=system&fragment=true');
+  await expectSystemFragmentList();
+
+  await page.goto('/#/apis/shared_system_uuid?source=system&fragment=true');
+
+  await expect.poll(() => apiState.systemApiReadRequests.some((requestUrl) => {
+    const url = new URL(requestUrl);
+    return url.searchParams.get('uuid') === 'shared_system_uuid'
+      && url.searchParams.get('fragment') === 'true';
+  })).toBe(true);
+  await expect(page.getByRole('heading', { name: '同 UUID 内置 Fragment' })).toBeVisible();
+  await expect(page.getByText('Fragment', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: '返回 API 列表' }).click();
+  await expect(page).toHaveURL(/#\/apis\?source=system&fragment=true$/);
+  await expectSystemFragmentList();
+});
+
+test('isolates user and built-in Fragment references and blocks copying a built-in caller', async ({ page }) => {
+  const apiState = await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'user_registration_fragment',
+        name: '用户注册 Fragment',
+        method: 'FRAGMENT',
+        fragment: true,
+        status: 'published',
+        apiJson: {
+          uuid: 'user_registration_fragment',
+          alias: '用户注册 Fragment',
+          fragment: true,
+          params: ['user_email'],
+          blocks: [{ uuid: 'starter', nextBlock: null }],
+          response: { email: { template: '{{params.user_email}}' } }
+        }
+      },
+      {
+        uuid: 'user_fragment_caller',
+        name: '用户 Fragment 调用方',
+        method: 'POST',
+        status: 'draft',
+        apiJson: {
+          uuid: 'user_fragment_caller',
+          alias: '用户 Fragment 调用方',
+          method: 'POST',
+          request: { header: [], query: [], body: ['email'] },
+          blocks: linearBlocks([
+            {
+              uuid: 'run_user_fragment',
+              functionName: 'executeFragment',
+              inputs: {
+                fragmentUuid: 'user_registration_fragment',
+                params: { user_email: { template: '{{request.body.email}}' } }
+              },
+              outputs: ['result']
+            }
+          ]),
+          response: { result: { template: "{{blocks['run_user_fragment'].outputs.result}}" } }
+        }
+      },
+      {
+        uuid: 'invalid_cross_source_caller',
+        name: '错误跨来源调用方',
+        method: 'POST',
+        status: 'draft',
+        apiJson: {
+          uuid: 'invalid_cross_source_caller',
+          alias: '错误跨来源调用方',
+          method: 'POST',
+          request: { header: [], query: [], body: [] },
+          blocks: linearBlocks([
+            {
+              uuid: 'run_cross_source_fragment',
+              functionName: 'executeFragment',
+              inputs: { fragmentUuid: 'system_registration_fragment', params: {} },
+              outputs: ['result']
+            }
+          ]),
+          response: { result: { template: "{{blocks['run_cross_source_fragment'].outputs.result}}" } }
+        }
+      }
+    ],
+    systemApis: [
+      {
+        uuid: 'system_registration_fragment',
+        name: '同 UUID 根 API',
+        method: 'GET',
+        status: 'published',
+        apiJson: {
+          uuid: 'system_registration_fragment',
+          alias: '同 UUID 根 API',
+          method: 'GET',
+          blocks: [{ uuid: 'starter', nextBlock: null }],
+          response: { root: true }
+        }
+      },
+      {
+        uuid: 'system_fragment_caller',
+        name: '内置 Fragment 调用方',
+        method: 'POST',
+        status: 'published',
+        apiJson: {
+          uuid: 'system_fragment_caller',
+          alias: '内置 Fragment 调用方',
+          method: 'POST',
+          request: { header: [], query: [], body: ['token'] },
+          blocks: linearBlocks([
+            {
+              uuid: 'run_system_fragment',
+              functionName: 'executeFragment',
+              inputs: {
+                fragmentUuid: 'system_registration_fragment',
+                params: { system_token: { template: '{{request.body.token}}' } }
+              },
+              outputs: ['result']
+            }
+          ]),
+          response: { result: { template: "{{blocks['run_system_fragment'].outputs.result}}" } }
+        }
+      }
+    ],
+    systemFragments: [
+      {
+        uuid: 'system_registration_fragment',
+        name: '内置注册 Fragment',
+        method: 'FRAGMENT',
+        fragment: true,
+        status: 'published',
+        apiJson: {
+          uuid: 'system_registration_fragment',
+          alias: '内置注册 Fragment',
+          fragment: true,
+          params: ['system_token'],
+          blocks: [{ uuid: 'starter', nextBlock: null }],
+          response: { token: { template: '{{params.system_token}}' } }
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis/user_fragment_caller');
+  await page.locator('[data-block-uuid="run_user_fragment"]').click();
+  const userPicker = page.getByTestId('execute-fragment-picker');
+  await expect(userPicker.locator('option[value="user_registration_fragment"]')).toHaveCount(1);
+  await expect(userPicker.locator('option[value="system_registration_fragment"]')).toHaveCount(0);
+  await expect(page.getByTestId('execute-fragment-param-user_email')).toBeVisible();
+  await expect(page.getByTestId('execute-fragment-param-system_token')).toHaveCount(0);
+
+  await page.goto('/#/apis/invalid_cross_source_caller');
+  await page.locator('[data-block-uuid="run_cross_source_fragment"]').click();
+  await expect(page.getByTestId('execute-fragment-picker').locator('option[value="system_registration_fragment"]')).toHaveCount(0);
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.getByText(/用户 API 只能引用同来源 Fragment：system_registration_fragment/)).toBeVisible();
+  expect(apiState.apiSavePayloads).toHaveLength(0);
+
+  await page.goto('/#/apis/system_fragment_caller?source=system');
+  await page.locator('[data-block-uuid="run_system_fragment"]').click();
+  const systemPicker = page.getByTestId('execute-fragment-picker');
+  await expect(systemPicker).toBeDisabled();
+  await expect(systemPicker.locator('option[value="system_registration_fragment"]')).toHaveCount(1);
+  await expect(systemPicker.locator('option[value="user_registration_fragment"]')).toHaveCount(0);
+  await expect(page.getByTestId('execute-fragment-param-system_token')).toBeDisabled();
+  await expect(page.getByRole('button', { name: '新建 Fragment' })).toHaveCount(0);
+  await expect.poll(() => apiState.apiListRequests.some((requestUrl) => {
+    const url = new URL(requestUrl);
+    return url.pathname === '/api/mokelay/list_mokelay_api_jsons'
+      && url.searchParams.get('fragment') === 'true';
+  })).toBe(true);
+
+  await page.getByTestId('view-system-fragment').click();
+  const dialog = page.getByRole('dialog', { name: '内置注册 Fragment' });
+  await expect(dialog).toContainText('内置 Fragment · 只读');
+  await expect(dialog.getByRole('button', { name: '保存草稿' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: '发布' })).toHaveCount(0);
+  await expect(dialog.getByTestId('fragment-editor-param-system_token')).toBeDisabled();
+  await expect.poll(() => apiState.systemApiReadRequests.some((requestUrl) => (
+    new URL(requestUrl).searchParams.get('uuid') === 'system_registration_fragment'
+      && new URL(requestUrl).searchParams.get('fragment') === 'true'
+  ))).toBe(true);
+  await dialog.getByRole('button', { name: '取消' }).click();
+
+  await page.getByRole('button', { name: '复制 API' }).click();
+  await expect(page.getByText('该内置 API 引用了内置 Fragment，不能复制为用户 API。请先在用户空间重建对应 Fragment 和调用关系。')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(apiState.apiSavePayloads).toHaveLength(0);
 });
 
 test('keeps API detail blocks when the list response finishes after detail refresh', async ({ page }) => {
@@ -511,6 +739,331 @@ test('creates an API from a sample, configures response, and dry-runs it', async
 
   await expect(page.getByText('Dry-run 通过')).toBeVisible();
   await expect(page.getByText('命中分支：password_true_node')).toBeVisible();
+});
+
+test('edits Fragment params without emitting HTTP request fields', async ({ page }) => {
+  const apiState = await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'shared_registration',
+        name: '共享注册逻辑',
+        method: 'FRAGMENT',
+        fragment: true,
+        status: 'published',
+        apiJson: {
+          uuid: 'shared_registration',
+          alias: '共享注册逻辑',
+          fragment: true,
+          params: ['email'],
+          blocks: linearBlocks([
+            {
+              uuid: 'make_schema_id',
+              functionName: 'randomId',
+              inputs: { prefix: 'e_', length: 5, alphabet: 'abc123', lowerCase: true },
+              outputs: ['value']
+            },
+            {
+              uuid: 'assert_schema_id',
+              functionName: 'assertUnique',
+              inputs: {
+                datasource: 'Mokelay',
+                table: 'datasources',
+                fieldName: 'uuid',
+                value: { template: "{{blocks['make_schema_id'].outputs.value}}" }
+              },
+              outputs: []
+            },
+            {
+              uuid: 'create_schema',
+              functionName: 'createSchema',
+              inputs: {
+                datasource: 'MokelayFree',
+                schema: { template: "{{blocks['make_schema_id'].outputs.value}}" }
+              },
+              outputs: ['schema', 'created', 'exists']
+            }
+          ]),
+          response: { schema: { template: "{{blocks['create_schema'].outputs.schema}}" } }
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis/shared_registration');
+  await expect(page.getByText('Fragment 配置')).toBeVisible();
+  await expect(page.getByTestId('api-add-execute-fragment')).toHaveCount(0);
+  await expect(page.getByText('0 错误')).toBeVisible();
+  await page.getByRole('button', { name: '测试' }).click();
+  await page.getByRole('button', { name: '运行 Dry-run' }).click();
+  await expect(page.getByText('Dry-run 通过')).toBeVisible();
+  await page.getByRole('button', { name: 'Params' }).click();
+  await page.getByTestId('fragment-add-param').click();
+  await expect(page.getByTestId('fragment-param-key')).toHaveCount(2);
+  await page.getByRole('button', { name: /读取单条/ }).click();
+  await page.getByRole('button', { name: 'JSON 预览' }).click();
+
+  const apiJsonText = await page.getByTestId('api-builder-json').innerText();
+  const apiJson = JSON.parse(apiJsonText) as Record<string, unknown>;
+  expect(apiJson.fragment).toBe(true);
+  expect(apiJson).not.toHaveProperty('method');
+  expect(apiJson).not.toHaveProperty('request');
+  expect(apiJsonText).not.toContain('{{request.');
+
+  await page.getByRole('button', { name: '发布', exact: true }).click();
+  await expect.poll(() => apiState.apiSavePayloads.length).toBeGreaterThan(0);
+  expect(apiState.apiSavePayloads.at(-1)).toMatchObject({
+    fragment: true,
+    method: 'FRAGMENT',
+    apiJson: expect.objectContaining({ fragment: true })
+  });
+  expect(apiState.apiSavePayloads.at(-1)?.apiJson).not.toHaveProperty('method');
+});
+
+test('configures ExecuteFragment and opens the reusable Fragment editor modal', async ({ page }) => {
+  await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'shared_registration',
+        name: '共享注册逻辑',
+        method: 'FRAGMENT',
+        fragment: true,
+        status: 'published',
+        apiJson: {
+          uuid: 'shared_registration',
+          alias: '共享注册逻辑',
+          fragment: true,
+          params: ['email'],
+          blocks: [{ uuid: 'starter', nextBlock: null }],
+          response: { user: { template: '{{params.email}}' } }
+        }
+      },
+      {
+        uuid: 'shared_registration_v2',
+        name: '共享注册逻辑 V2',
+        method: 'FRAGMENT',
+        fragment: true,
+        status: 'published',
+        apiJson: {
+          uuid: 'shared_registration_v2',
+          alias: '共享注册逻辑 V2',
+          fragment: true,
+          params: ['email', 'name'],
+          blocks: [{ uuid: 'starter', nextBlock: null }],
+          response: { user: { template: '{{params.email}}' } }
+        }
+      },
+      {
+        uuid: 'register_entry',
+        name: '注册入口',
+        method: 'POST',
+        status: 'draft',
+        apiJson: {
+          uuid: 'register_entry',
+          alias: '注册入口',
+          method: 'POST',
+          request: { body: ['email'] },
+          blocks: linearBlocks([
+            {
+              uuid: 'run_registration',
+              alias: '执行共享注册',
+              functionName: 'executeFragment',
+              inputs: {
+                fragmentUuid: 'shared_registration',
+                params: {
+                  email: { template: '{{request.body.email}}' },
+                  legacy: 'must be pruned'
+                }
+              },
+              outputs: ['result']
+            }
+          ]),
+          response: { user: { template: "{{blocks['run_registration'].outputs.result.user}}" } }
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis/register_entry');
+  await page.locator('[data-block-uuid="run_registration"]').click();
+  await expect(page.getByTestId('execute-fragment-picker')).toHaveValue('shared_registration');
+  await expect(page.getByTestId('execute-fragment-param-email')).toBeVisible();
+  await expect.poll(async () => (await page.getByTestId('api-builder-json').innerText()).includes('legacy')).toBe(false);
+  await page.getByTestId('execute-fragment-picker').selectOption('shared_registration_v2');
+  await expect(page.getByTestId('execute-fragment-param-name')).toBeVisible();
+  await expect(page.getByTestId('execute-fragment-param-email')).toHaveValue('{{request.body.email}}');
+  await page.getByTestId('execute-fragment-picker').selectOption('shared_registration');
+  await page.getByRole('button', { name: '编排 Fragment' }).click();
+
+  const dialog = page.getByRole('dialog', { name: '共享注册逻辑' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('orchestration-editor-block')).toBeVisible();
+  await expect(dialog.getByText('Fragment 编排')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '执行 Fragment' })).toHaveCount(0);
+  const flowRoots = page.locator('[data-flow-id]');
+  await expect(flowRoots).toHaveCount(2);
+  const flowInstanceIds = await flowRoots.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-flow-id') || ''));
+  expect(new Set(flowInstanceIds).size).toBe(2);
+  await dialog.getByRole('button', { name: '取消' }).click();
+
+  await page.getByTestId('api-add-execute-fragment').click();
+  await expect(page.getByTestId('execute-fragment-picker')).toHaveValue('');
+  await expect(page.getByTestId('execute-fragment-picker').locator('option')).toHaveCount(3);
+});
+
+test('preserves errorNextBlock and dry-runs target, terminal, and uncaught error modes', async ({ page }) => {
+  await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'invalid_email_fragment',
+        name: '邮箱校验 Fragment',
+        method: 'FRAGMENT',
+        fragment: true,
+        status: 'published',
+        apiJson: {
+          uuid: 'invalid_email_fragment',
+          alias: '邮箱校验 Fragment',
+          fragment: true,
+          params: [{ key: 'email', processors: ['email_check'] }],
+          blocks: [{ uuid: 'starter', nextBlock: null }],
+          response: { accepted: true }
+        }
+      },
+      {
+        uuid: 'error_routing_api',
+        name: '错误路由接口',
+        method: 'POST',
+        status: 'draft',
+        apiJson: {
+          uuid: 'error_routing_api',
+          alias: '错误路由接口',
+          method: 'POST',
+          request: { header: [], query: [], body: [] },
+          blocks: [
+            { uuid: 'starter', nextBlock: 'run_invalid_fragment' },
+            {
+              uuid: 'run_invalid_fragment',
+              alias: '执行失败 Fragment',
+              functionName: 'executeFragment',
+              inputs: {
+                fragmentUuid: 'invalid_email_fragment',
+                params: { email: 'not-an-email' }
+              },
+              outputs: ['result'],
+              nextBlock: 'success_marker',
+              errorNextBlock: 'handled_error'
+            },
+            {
+              uuid: 'success_marker',
+              functionName: 'randomId',
+              inputs: { prefix: 'ok_', length: 4 },
+              outputs: ['value'],
+              nextBlock: 'handled_error'
+            },
+            {
+              uuid: 'handled_error',
+              functionName: 'randomId',
+              inputs: { prefix: 'handled_', length: 4 },
+              outputs: ['value'],
+              nextBlock: null
+            }
+          ],
+          response: { branch: 'terminal' },
+          responses: {
+            handled_error: { branch: 'handled' }
+          }
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis/error_routing_api');
+  await expect(page.getByText('0 错误')).toBeVisible();
+  await expect(page.locator('.vue-flow__edge').filter({ hasText: '错误' })).toBeVisible();
+  await page.locator('[data-block-uuid="run_invalid_fragment"]').click();
+  const errorTarget = page.getByTestId('block-error-next-block');
+  await expect(errorTarget).toHaveValue('handled_error');
+
+  await page.getByRole('button', { name: '测试' }).click();
+  await page.getByRole('button', { name: '运行 Dry-run' }).click();
+  await expect(page.getByText('Dry-run 通过')).toBeVisible();
+  await expect(page.getByText(/已进入错误分支 handled_error/)).toBeVisible();
+  await expect(page.locator('pre').filter({ hasText: '"branch": "handled"' })).toBeVisible();
+
+  await errorTarget.selectOption('__terminal__');
+  await page.getByRole('button', { name: '测试' }).click();
+  await page.getByRole('button', { name: '运行 Dry-run' }).click();
+  await expect(page.getByText('Dry-run 通过')).toBeVisible();
+  await expect(page.getByText(/已进入错误终点/)).toBeVisible();
+  await expect(page.locator('pre').filter({ hasText: '"branch": "terminal"' })).toBeVisible();
+
+  await errorTarget.selectOption('__unhandled__');
+  await page.getByRole('button', { name: 'JSON 预览' }).click();
+  await expect(page.getByTestId('api-builder-json')).not.toContainText('errorNextBlock');
+  await page.getByRole('button', { name: '测试' }).click();
+  await page.getByRole('button', { name: '运行 Dry-run' }).click();
+  await expect(page.getByText(/Fragment invalid_email_fragment 执行失败/).first()).toBeVisible();
+});
+
+test('migrates terminal responses when the Fragment popup appends and removes a block', async ({ page }) => {
+  await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'terminal_fragment',
+        name: '终点迁移 Fragment',
+        method: 'FRAGMENT',
+        fragment: true,
+        status: 'published',
+        apiJson: {
+          uuid: 'terminal_fragment',
+          alias: '终点迁移 Fragment',
+          fragment: true,
+          params: [],
+          blocks: [{ uuid: 'starter', nextBlock: null }],
+          responses: { starter: { result: 'kept' } }
+        }
+      },
+      {
+        uuid: 'terminal_fragment_host',
+        name: '终点迁移宿主',
+        method: 'POST',
+        status: 'draft',
+        apiJson: {
+          uuid: 'terminal_fragment_host',
+          alias: '终点迁移宿主',
+          method: 'POST',
+          request: { header: [], query: [], body: [] },
+          blocks: linearBlocks([{
+            uuid: 'execute_terminal_fragment',
+            functionName: 'executeFragment',
+            inputs: { fragmentUuid: 'terminal_fragment', params: {} },
+            outputs: ['result']
+          }]),
+          response: { result: { template: "{{blocks['execute_terminal_fragment'].outputs.result}}" } }
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis/terminal_fragment_host');
+  await page.locator('[data-block-uuid="execute_terminal_fragment"]').click();
+  await page.getByRole('button', { name: '编排 Fragment' }).click();
+  const dialog = page.getByRole('dialog', { name: '终点迁移 Fragment' });
+  await dialog.getByRole('button', { name: '读取单条' }).click();
+  await dialog.getByRole('button', { name: 'JSON', exact: true }).click();
+  let popupJson = JSON.parse(await dialog.locator('textarea').inputValue()) as {
+    blocks: Array<Record<string, unknown>>;
+    responses: Record<string, unknown>;
+  };
+  const addedUuid = String(popupJson.blocks.find((block) => block.uuid !== 'starter')?.uuid);
+  expect(popupJson.responses).toHaveProperty(addedUuid);
+  expect(popupJson.responses).not.toHaveProperty('starter');
+
+  await dialog.locator(`[data-block-uuid="${addedUuid}"]`).click();
+  await dialog.getByRole('button', { name: '删除步骤' }).click();
+  await dialog.getByRole('button', { name: 'JSON', exact: true }).click();
+  popupJson = JSON.parse(await dialog.locator('textarea').inputValue());
+  expect(popupJson.blocks).toEqual([{ uuid: 'starter', nextBlock: null }]);
+  expect(popupJson.responses).toEqual({ starter: { result: 'kept' } });
 });
 
 test('adds graph blocks and controllers with starter nextBlock JSON', async ({ page }) => {

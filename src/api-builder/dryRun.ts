@@ -2,6 +2,7 @@ import {
   declarationKey,
   getResponseForTerminal,
   isControllerBlock,
+  isFragmentApiJson,
   isStandardBlock,
   isStarterBlock,
   processorName,
@@ -15,6 +16,7 @@ import type {
   ControllerNode,
   DryRunBlockLog,
   DryRunResult,
+  FragmentResolver,
   ProcessableKey,
   ProcessorConfig,
   RequestLocation,
@@ -23,6 +25,7 @@ import type {
 
 type DryRunContext = {
   request: RequestSnapshot;
+  params: Record<string, unknown>;
   header: Record<string, unknown>;
   query: Record<string, unknown>;
   body: Record<string, unknown>;
@@ -37,14 +40,31 @@ const wholeTemplatePattern = /^\s*\{\{\s*([^}]+?)\s*\}\}\s*$/;
 const templatePattern = /\{\{\s*([^}]+?)\s*\}\}/g;
 
 export function createRequestSnapshot(apiJson: ApiJson, current?: RequestSnapshot): RequestSnapshot {
+  const params: Record<string, unknown> = {};
+  if (isFragmentApiJson(apiJson)) {
+    for (const declaration of apiJson.params ?? []) {
+      const key = declarationKey(declaration);
+      params[key] = current?.params?.[key] ?? defaultValueForKey(key);
+    }
+  }
+
   return {
     header: createLocationSnapshot(apiJson, 'header', current),
     query: createLocationSnapshot(apiJson, 'query', current),
-    body: createLocationSnapshot(apiJson, 'body', current)
+    body: createLocationSnapshot(apiJson, 'body', current),
+    params
   };
 }
 
-export function runDryApiTest(apiJson: ApiJson, request: RequestSnapshot): DryRunResult {
+export type DryRunOptions = {
+  resolveFragment?: FragmentResolver;
+};
+
+export async function runDryApiTest(
+  apiJson: ApiJson,
+  request: RequestSnapshot,
+  options: DryRunOptions = {}
+): Promise<DryRunResult> {
   const errors: string[] = [];
   const issues = validateApiJson(apiJson);
   for (const issue of issues) {
@@ -56,6 +76,7 @@ export function runDryApiTest(apiJson: ApiJson, request: RequestSnapshot): DryRu
   const normalizedRequest = createRequestSnapshot(apiJson, request);
   const context: DryRunContext = {
     request: normalizedRequest,
+    params: normalizedRequest.params,
     header: normalizedRequest.header,
     query: normalizedRequest.query,
     body: normalizedRequest.body,
@@ -66,7 +87,7 @@ export function runDryApiTest(apiJson: ApiJson, request: RequestSnapshot): DryRu
   let terminalUuid = 'starter';
 
   try {
-    applyRequestProcessors(apiJson, context);
+    applyInputProcessors(apiJson, context);
   } catch (error) {
     errors.push(readErrorMessage(error));
   }
@@ -85,7 +106,7 @@ export function runDryApiTest(apiJson: ApiJson, request: RequestSnapshot): DryRu
       });
     }
   } else {
-    terminalUuid = executeDryRunGraph(apiJson, context, logs, errors);
+    terminalUuid = await executeDryRunGraph(apiJson, context, logs, errors, options);
   }
 
   let data: unknown = null;
@@ -110,6 +131,7 @@ export function runDryApiTest(apiJson: ApiJson, request: RequestSnapshot): DryRu
 
 function createLocationSnapshot(apiJson: ApiJson, location: RequestLocation, current?: RequestSnapshot) {
   const snapshot: Record<string, unknown> = {};
+  if (isFragmentApiJson(apiJson)) return snapshot;
   for (const declaration of apiJson.request?.[location] ?? []) {
     const key = declarationKey(declaration);
     snapshot[key] = current?.[location]?.[key] ?? defaultValueForKey(key);
@@ -117,7 +139,26 @@ function createLocationSnapshot(apiJson: ApiJson, location: RequestLocation, cur
   return snapshot;
 }
 
-function applyRequestProcessors(apiJson: ApiJson, context: DryRunContext) {
+function applyInputProcessors(apiJson: ApiJson, context: DryRunContext) {
+  if (isFragmentApiJson(apiJson)) {
+    const declared = new Set((apiJson.params ?? []).map(declarationKey));
+    for (const key of Object.keys(context.params)) {
+      if (!declared.has(key)) {
+        throw new Error(`Fragment 未声明参数 params.${key}`);
+      }
+    }
+    for (const declaration of apiJson.params ?? []) {
+      const key = declarationKey(declaration);
+      const value = context.params[key];
+      if (typeof declaration === 'string') {
+        if (isEmpty(value)) throw new Error(`请填写 params.${key}`);
+        continue;
+      }
+      context.params[key] = applyProcessors(value, declaration.processors ?? [], `params.${key}`, context);
+    }
+    return;
+  }
+
   for (const location of ['header', 'query', 'body'] as const) {
     for (const declaration of apiJson.request?.[location] ?? []) {
       const key = declarationKey(declaration);
@@ -133,11 +174,12 @@ function applyRequestProcessors(apiJson: ApiJson, context: DryRunContext) {
   }
 }
 
-function executeDryRunGraph(
+async function executeDryRunGraph(
   apiJson: ApiJson,
   context: DryRunContext,
   logs: DryRunBlockLog[],
-  errors: string[]
+  errors: string[],
+  options: DryRunOptions
 ) {
   const blocks = apiJson.blocks ?? [];
   const starter = blocks.find(isStarterBlock);
@@ -168,7 +210,7 @@ function executeDryRunGraph(
     }
 
     if (isStandardBlock(block)) {
-      nextBlock = executeDryRunBlock(block, context, logs, errors);
+      nextBlock = await executeDryRunBlock(block, context, logs, errors, options);
       if (errors.length) return terminalUuid;
       terminalUuid = block.uuid;
     }
@@ -177,15 +219,18 @@ function executeDryRunGraph(
   return terminalUuid;
 }
 
-function executeDryRunBlock(
+async function executeDryRunBlock(
   block: ApiStandardBlock,
   context: DryRunContext,
   logs: DryRunBlockLog[],
-  errors: string[]
+  errors: string[],
+  options: DryRunOptions
 ) {
   try {
     const inputs = resolveTemplates(block.inputs ?? {}, context) as Record<string, unknown>;
-    const outputs = createMockOutputs(block, inputs);
+    const outputs = block.functionName === 'executeFragment'
+      ? await executeDryFragment(inputs, options)
+      : createMockOutputs(block, inputs);
     context.blocks[block.uuid] = { inputs, outputs };
     logs.push({
       uuid: block.uuid,
@@ -198,7 +243,10 @@ function executeDryRunBlock(
     });
   } catch (error) {
     const message = readErrorMessage(error);
-    errors.push(message);
+    const catchesError = Object.prototype.hasOwnProperty.call(block, 'errorNextBlock');
+    if (!catchesError) {
+      errors.push(message);
+    }
     context.blocks[block.uuid] = { inputs: block.inputs ?? {}, outputs: {} };
     logs.push({
       uuid: block.uuid,
@@ -207,8 +255,11 @@ function executeDryRunBlock(
       inputs: block.inputs ?? {},
       outputs: {},
       status: 'error',
-      message
+      message: catchesError
+        ? `${message}；已进入${block.errorNextBlock === null ? '错误终点' : `错误分支 ${block.errorNextBlock}`}`
+        : message
     });
+    return catchesError ? block.errorNextBlock ?? null : null;
   }
 
   return block.nextBlock ?? null;
@@ -316,6 +367,21 @@ function createMockOutputs(block: ApiStandardBlock, inputs: Record<string, unkno
   if (block.functionName === 'update' || block.functionName === 'delete') {
     return { affected: 1 };
   }
+  if (block.functionName === 'randomId') {
+    const prefix = typeof inputs.prefix === 'string' ? inputs.prefix : '';
+    const length = typeof inputs.length === 'number' && Number.isInteger(inputs.length) ? inputs.length : 6;
+    const alphabet = typeof inputs.alphabet === 'string' && inputs.alphabet.length ? inputs.alphabet : 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const seed = Array.from({ length }, (_, index) => alphabet[index % alphabet.length]).join('');
+    const value = `${prefix}${seed}`;
+    return { value: inputs.lowerCase === false ? value : value.toLowerCase() };
+  }
+  if (block.functionName === 'assertUnique') {
+    return {};
+  }
+  if (block.functionName === 'createSchema') {
+    const schema = typeof inputs.schema === 'string' ? inputs.schema : 'mock_schema';
+    return { schema, created: true, exists: true };
+  }
   if (block.functionName === 'readSession') {
     return {
       value: {
@@ -326,6 +392,31 @@ function createMockOutputs(block: ApiStandardBlock, inputs: Record<string, unkno
     };
   }
   return {};
+}
+
+async function executeDryFragment(inputs: Record<string, unknown>, options: DryRunOptions) {
+  const fragmentUuid = inputs.fragmentUuid;
+  if (typeof fragmentUuid !== 'string' || !fragmentUuid.trim()) {
+    throw new Error('ExecuteFragment 缺少 fragmentUuid');
+  }
+  if (!isRecord(inputs.params)) {
+    throw new Error('ExecuteFragment params 必须是对象');
+  }
+  if (!options.resolveFragment) {
+    throw new Error(`Dry-run 无法解析 Fragment：${fragmentUuid}`);
+  }
+
+  const fragment = await options.resolveFragment(fragmentUuid);
+  if (!isFragmentApiJson(fragment)) {
+    throw new Error(`${fragmentUuid} 不是 Fragment`);
+  }
+  const childRequest = createRequestSnapshot(fragment);
+  childRequest.params = { ...inputs.params };
+  const result = await runDryApiTest(fragment, childRequest, options);
+  if (!result.ok) {
+    throw new Error(`Fragment ${fragmentUuid} 执行失败：${result.errors.join('；')}`);
+  }
+  return { result: result.data };
 }
 
 function resolveTemplates(value: unknown, context: DryRunContext): unknown {

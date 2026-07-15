@@ -3,10 +3,7 @@ import { computed, nextTick, reactive, ref, watch } from 'vue';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 import {
-  Handle,
   MarkerType,
-  Position,
-  VueFlow,
   useVueFlow,
   type Connection,
   type Edge,
@@ -21,6 +18,8 @@ import {
   conditionTypes,
   createBlock,
   createController,
+  createEmptyApiJson,
+  createEmptyFragmentJson,
   createStarterBlock,
   declarationKey,
   getBlockDefinition,
@@ -28,6 +27,8 @@ import {
   getProcessorDefinition,
   hasDefaultResponse,
   isControllerBlock,
+  isEndpointApiJson,
+  isFragmentApiJson,
   isStandardBlock,
   isStarterBlock,
   processorDefinitions,
@@ -43,13 +44,19 @@ import {
 } from '@/api-builder/store';
 import { hasBlockingErrors, hasDangerWarnings, validateApiJson } from '@/api-builder/validation';
 import { buildVariableOptions, makeTemplate } from '@/api-builder/variables';
+import MApiOrchestrationEditorBlock from '@/api-builder/MApiOrchestrationEditorBlock.vue';
+import MApiOrchestrationFlowCanvas from '@/api-builder/MApiOrchestrationFlowCanvas.vue';
 import {
   deleteApi,
   getApi,
+  getApiBySource,
   getBuiltInApi,
+  listApis,
+  listApiBuilderSamples,
   saveApi,
   type MokelayApiRecord,
-  type MokelayApiSource
+  type MokelayApiSource,
+  type ApiBuilderSampleRecord
 } from '@/utils/apisApi';
 import type {
   ApiBlock,
@@ -77,12 +84,17 @@ import type {
 type ApiBuilderShellProps = {
   routeUuid?: string | null;
   routeSource?: MokelayApiSource;
+  routeFragment?: boolean;
 };
 
 const props = withDefaults(defineProps<ApiBuilderShellProps>(), {
   routeUuid: '',
-  routeSource: 'user'
+  routeSource: 'user',
+  routeFragment: false
 });
+
+const editorRoot = ref<HTMLElement | null>(null);
+const flowId = `api-builder-flow-${Math.random().toString(36).slice(2, 10)}`;
 
 const drafts = ref<ApiBuilderDraft[]>([]);
 const activeDraftId = ref(props.routeUuid || '');
@@ -97,10 +109,30 @@ const isSavingApiInfo = ref(false);
 const apiInfoSourceJson = ref<ApiJson | null>(null);
 const apiInfoSourceLayout = ref<ApiBuilderLayout | null>(null);
 const apiInfoError = ref('');
+const apiInfoDialogMode = ref<'create' | 'copy'>('copy');
+const apiList = ref<MokelayApiRecord[]>([]);
+const apiSamples = ref<ApiBuilderSampleRecord[]>([]);
+const apiListSource = ref<MokelayApiSource>(props.routeSource);
+const isApiListLoading = ref(false);
 const serverDraftIds = ref(new Set<string>());
 const selectedResponseTerminalUuid = ref('');
-const testRequest = ref<RequestSnapshot>({ header: {}, query: {}, body: {} });
+const testRequest = ref<RequestSnapshot>({ header: {}, query: {}, body: {}, params: {} });
 const lastTestResult = ref<DryRunResult | null>(null);
+const fragmentOptionsBySource = ref<Record<MokelayApiSource, MokelayApiRecord[]>>({
+  user: [],
+  system: []
+});
+const fragmentDetails = ref(new Map<string, MokelayApiRecord>());
+const fragmentLoadingBySource = ref<Record<MokelayApiSource, boolean>>({
+  user: false,
+  system: false
+});
+const isFragmentEditorOpen = ref(false);
+const isSavingFragment = ref(false);
+const fragmentEditorError = ref('');
+const fragmentEditorDraft = ref<ApiBuilderDraft | null>(null);
+const fragmentEditorOriginalUuid = ref('');
+const fragmentEditorRef = ref<InstanceType<typeof MApiOrchestrationEditorBlock> | null>(null);
 const apiInfoForm = reactive({
   name: '',
   uuid: '',
@@ -108,6 +140,7 @@ const apiInfoForm = reactive({
 });
 
 const activeDraft = computed(() => drafts.value.find((draft) => draft.id === activeDraftId.value) ?? null);
+const isListMode = computed(() => !props.routeUuid);
 const activeApiJson = computed(() => activeDraft.value ? generateApiJson(activeDraft.value) : null);
 const validationIssues = computed(() => activeApiJson.value ? validateApiJson(activeApiJson.value) : []);
 const activeBlocks = computed(() => activeDraft.value?.apiJson.blocks ?? []);
@@ -120,6 +153,21 @@ const activeBlock = computed(() => {
   return block && !isStarterBlock(block) ? block : null;
 });
 const activeStandardBlock = computed(() => activeBlock.value && isStandardBlock(activeBlock.value) ? activeBlock.value : null);
+const activeExecuteFragmentBlock = computed(() => activeStandardBlock.value?.functionName === 'executeFragment'
+  ? activeStandardBlock.value
+  : null);
+const activeFragmentSource = computed<MokelayApiSource>(() => activeDraft.value?.source ?? 'user');
+const fragmentOptions = computed(() => fragmentOptionsBySource.value[activeFragmentSource.value]);
+const isLoadingFragments = computed(() => fragmentLoadingBySource.value[activeFragmentSource.value]);
+const selectedFragmentUuid = computed(() => {
+  const value = activeExecuteFragmentBlock.value?.inputs?.fragmentUuid;
+  return typeof value === 'string' ? value : '';
+});
+const selectedFragmentParams = computed(() => {
+  const record = fragmentDetails.value.get(fragmentDetailKey(activeFragmentSource.value, selectedFragmentUuid.value))
+    ?? fragmentOptions.value.find((item) => item.uuid === selectedFragmentUuid.value);
+  return record?.apiJson && isFragmentApiJson(record.apiJson) ? record.apiJson.params ?? [] : [];
+});
 const activeController = computed(() => activeBlock.value && isControllerBlock(activeBlock.value) ? activeBlock.value : null);
 const responseTerminals = computed(() => activeDraft.value ? collectResponseTerminals(activeDraft.value.apiJson) : []);
 const usesTerminalResponses = computed(() => Boolean(activeDraft.value?.apiJson.responses) || responseTerminals.value.length > 1);
@@ -129,31 +177,36 @@ const variableOptions = computed(() => {
   return buildVariableOptions(activeDraft.value.apiJson, beforeBlockUuid);
 });
 const isActiveApiReadonly = computed(() => activeDraft.value?.source === 'system');
+const isActiveFragment = computed(() => Boolean(activeDraft.value && isFragmentApiJson(activeDraft.value.apiJson)));
 const groupedBlocks = computed(() => ({
   query: blockDefinitions.filter((definition) => definition.group === 'query'),
   write: blockDefinitions.filter((definition) => definition.group === 'write'),
-  session: blockDefinitions.filter((definition) => definition.group === 'session')
+  session: blockDefinitions.filter((definition) => definition.group === 'session'),
+  utility: blockDefinitions.filter((definition) => definition.group === 'utility'),
+  fragment: blockDefinitions.filter((definition) => definition.group === 'fragment')
 }));
 const groupedControllers = computed(() => controllerDefinitions);
 const graphNodes = computed<Node[]>(() => buildGraphNodes());
 const graphEdges = computed<Edge[]>(() => buildGraphEdges());
-const { fitView } = useVueFlow('api-builder-flow');
+const { fitView } = useVueFlow(flowId);
 const apiUuidPattern = /^[A-Za-z0-9_-]{1,128}$/;
 let apiDetailRequestId = 0;
 
 watch(
-  () => [props.routeUuid, props.routeSource] as const,
-  ([uuid, source]) => {
+  () => [props.routeUuid, props.routeSource, props.routeFragment] as const,
+  ([uuid, source, fragment]) => {
     if (!uuid) {
       apiDetailRequestId += 1;
       activeDraftId.value = '';
       apiBuilderError.value = '';
       isApiDetailLoading.value = false;
+      apiListSource.value = source;
+      void loadApiList(source);
       return;
     }
     activeDraftId.value = uuid;
     selection.value = { type: 'api' };
-    void loadApiDetail(uuid, source);
+    void loadApiDetail(uuid, source, fragment);
   },
   { immediate: true }
 );
@@ -183,6 +236,67 @@ watch(
   },
   { immediate: true }
 );
+
+watch(
+  () => [Boolean(activeExecuteFragmentBlock.value), selectedFragmentUuid.value, activeFragmentSource.value] as const,
+  ([hasExecuteFragment, uuid, source]) => {
+    if (hasExecuteFragment) {
+      void loadFragmentOptions(source);
+    }
+    if (uuid && !fragmentDetails.value.has(fragmentDetailKey(source, uuid))) {
+      void loadFragmentDetail(uuid, source);
+    }
+  },
+  { immediate: true }
+);
+
+function fragmentDetailKey(source: MokelayApiSource, uuid: string) {
+  return `${source}:${uuid}`;
+}
+
+async function loadFragmentOptions(source: MokelayApiSource = activeFragmentSource.value) {
+  if (fragmentLoadingBySource.value[source]) return;
+  fragmentLoadingBySource.value = { ...fragmentLoadingBySource.value, [source]: true };
+  try {
+    const records: MokelayApiRecord[] = [];
+    let page = 1;
+    let hasNextPage = true;
+    while (hasNextPage) {
+      const result = await listApis({ page, pageSize: 200, source, fragment: true });
+      records.push(...result.apis);
+      hasNextPage = result.pagination.hasNextPage && page < result.pagination.totalPages;
+      page += 1;
+    }
+    const sourceOptions = [...new Map(records
+      .filter((record) => record.source === source && record.fragment && record.status === 'published')
+      .map((record) => [record.uuid, record])).values()];
+    fragmentOptionsBySource.value = {
+      ...fragmentOptionsBySource.value,
+      [source]: sourceOptions
+    };
+  } catch (error) {
+    apiBuilderError.value = error instanceof Error ? error.message : '加载 Fragment 列表失败。';
+  } finally {
+    fragmentLoadingBySource.value = { ...fragmentLoadingBySource.value, [source]: false };
+  }
+}
+
+async function loadFragmentDetail(uuid: string, source: MokelayApiSource = activeFragmentSource.value) {
+  try {
+    const record = await getApiBySource(uuid, source, { fragment: true });
+    if (record.source !== source || !record.fragment || !record.apiJson || !isFragmentApiJson(record.apiJson)) {
+      throw new Error(`${source === 'system' ? '内置' : '用户'} Fragment ${uuid} 不存在或类型不正确。`);
+    }
+    const next = new Map(fragmentDetails.value);
+    next.set(fragmentDetailKey(source, uuid), record);
+    fragmentDetails.value = next;
+    if (activeFragmentSource.value === source) reconcileFragmentParamMappings(uuid, record);
+  } catch (error) {
+    apiBuilderError.value = error instanceof Error
+      ? `${source === 'system' ? '内置' : '用户'} Fragment 读取失败：${error.message}`
+      : '加载 Fragment 详情失败。';
+  }
+}
 
 function buildGraphNodes(): Node[] {
   if (!activeDraft.value) return [];
@@ -230,7 +344,7 @@ function buildGraphNodes(): Node[] {
 function buildGraphEdges(): Edge[] {
   const blocks = activeDraft.value?.apiJson.blocks ?? [];
   const edges: Edge[] = [];
-  const addEdge = (source: string, sourceHandle: string, target: string | null | undefined, label?: string) => {
+  const addEdge = (source: string, sourceHandle: string, target: string | null | undefined, label?: string, errorEdge = false) => {
     if (!target) return;
     edges.push({
       id: `${source}:${sourceHandle}->${target}`,
@@ -240,7 +354,9 @@ function buildGraphEdges(): Edge[] {
       label,
       type: 'smoothstep',
       animated: false,
-      markerEnd: MarkerType.ArrowClosed
+      markerEnd: MarkerType.ArrowClosed,
+      style: errorEdge ? { stroke: '#e11d48', strokeDasharray: '6 4' } : undefined,
+      labelStyle: errorEdge ? { fill: '#be123c', fontWeight: 600 } : undefined
     });
   };
 
@@ -258,26 +374,39 @@ function buildGraphEdges(): Edge[] {
     }
 
     addEdge(block.uuid, 'next', block.nextBlock);
+    addEdge(block.uuid, 'error', block.errorNextBlock, '错误', true);
   }
 
   return edges;
 }
 
 function draftFromApiRecord(record: MokelayApiRecord, currentDraft?: ApiBuilderDraft | null): ApiBuilderDraft {
-  const apiJson = record.apiJson ?? currentDraft?.apiJson ?? {
-    uuid: record.uuid,
-    alias: record.name,
-    method: record.method,
-    request: { header: [], query: [], body: [] },
-    blocks: [],
-    response: null
-  };
+  const apiJson = record.apiJson ?? currentDraft?.apiJson ?? (record.fragment
+    ? {
+        uuid: record.uuid,
+        alias: record.name,
+        fragment: true,
+        params: [],
+        blocks: [],
+        response: {}
+      }
+    : {
+        uuid: record.uuid,
+        alias: record.name,
+        fragment: false,
+        method: record.method,
+        request: { header: [], query: [], body: [] },
+        blocks: [],
+        response: null
+      });
   const draft = createDraft(apiJson, record.layout ?? currentDraft?.layout);
 
   draft.id = record.uuid;
   draft.apiJson.uuid = record.uuid;
   draft.apiJson.alias = draft.apiJson.alias || record.name;
-  draft.apiJson.method = record.method;
+  if (isEndpointApiJson(draft.apiJson)) {
+    draft.apiJson.method = record.method;
+  }
   draft.status = record.status;
   draft.source = record.source;
   draft.createdAt = record.createdAt || draft.createdAt;
@@ -312,7 +441,11 @@ function replaceDraft(draft: ApiBuilderDraft) {
   drafts.value = next;
 }
 
-async function loadApiDetail(uuid: string, source: MokelayApiSource = props.routeSource) {
+async function loadApiDetail(
+  uuid: string,
+  source: MokelayApiSource = props.routeSource,
+  fragment = props.routeFragment
+) {
   if (!uuid) return;
 
   const requestId = ++apiDetailRequestId;
@@ -320,7 +453,9 @@ async function loadApiDetail(uuid: string, source: MokelayApiSource = props.rout
   apiBuilderError.value = '';
 
   try {
-    const api = source === 'system' ? await getBuiltInApi(uuid) : await getApi(uuid);
+    const api = source === 'system'
+      ? await getBuiltInApi(uuid, fragment ? { fragment: true } : {})
+      : await getApi(uuid);
     if (requestId !== apiDetailRequestId) return;
     const currentDraft = drafts.value.find((draft) => draft.id === uuid);
     const draft = mergeDraftSessionState(draftFromApiRecord(api, currentDraft), currentDraft);
@@ -340,19 +475,92 @@ async function loadApiDetail(uuid: string, source: MokelayApiSource = props.rout
   }
 }
 
-function apiListHash(source: MokelayApiSource) {
-  return source === 'system' ? '/apis?source=system' : '/apis';
+function apiRouteQuery(source: MokelayApiSource, fragment = false) {
+  const query = new URLSearchParams();
+  if (source === 'system') query.set('source', 'system');
+  if (fragment) query.set('fragment', 'true');
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : '';
+}
+
+function apiListHash(source: MokelayApiSource, fragment = false) {
+  return `/apis${apiRouteQuery(source, fragment)}`;
+}
+
+function apiDetailHash(uuid: string, source: MokelayApiSource, fragment = false) {
+  return `/apis/${encodeURIComponent(uuid)}${apiRouteQuery(source, fragment)}`;
 }
 
 function navigateToList() {
-  window.location.hash = apiListHash(activeDraft.value?.source ?? props.routeSource);
+  window.location.hash = apiListHash(
+    activeDraft.value?.source ?? props.routeSource,
+    isActiveFragment.value || props.routeFragment
+  );
+}
+
+async function loadApiList(source: MokelayApiSource = apiListSource.value) {
+  isApiListLoading.value = true;
+  apiBuilderError.value = '';
+  try {
+    const [result, samples] = await Promise.all([
+      listApis({ page: 1, pageSize: 200, source }),
+      source === 'user' ? listApiBuilderSamples({ page: 1, pageSize: 100 }) : Promise.resolve({ samples: [] })
+    ]);
+    if (source !== apiListSource.value) return;
+    apiList.value = result.apis;
+    apiSamples.value = samples.samples;
+  } catch (error) {
+    apiBuilderError.value = error instanceof Error ? error.message : '加载 API 列表失败。';
+  } finally {
+    isApiListLoading.value = false;
+  }
+}
+
+function switchApiListSource(source: MokelayApiSource) {
+  apiListSource.value = source;
+  window.location.hash = apiListHash(source);
+  void loadApiList(source);
+}
+
+function openApiRecord(record: MokelayApiRecord) {
+  window.location.hash = apiDetailHash(record.uuid, record.source, record.fragment);
+}
+
+function openCreateDialog(fragment = false, sample?: ApiBuilderSampleRecord) {
+  const apiJson = sample
+    ? cloneValue(sample.apiJson)
+    : fragment
+      ? createEmptyFragmentJson()
+      : createEmptyApiJson();
+  apiInfoDialogMode.value = 'create';
+  apiInfoSourceJson.value = apiJson;
+  apiInfoSourceLayout.value = normalizeApiBuilderLayout(undefined);
+  fillApiInfoForm(apiJson);
+  apiInfoError.value = '';
+  isApiInfoDialogOpen.value = true;
+}
+
+async function removeApiRecord(record: MokelayApiRecord) {
+  if (record.source === 'system' || !window.confirm(`删除 ${record.name}？`)) return;
+  try {
+    await deleteApi(record.uuid);
+    await loadApiList();
+  } catch (error) {
+    apiBuilderError.value = error instanceof Error ? error.message : '删除失败。';
+  }
 }
 
 function openDuplicateApiDialog() {
   if (!activeDraft.value) return;
 
+  if (activeDraft.value.source === 'system' && executeFragmentTargets(activeDraft.value.apiJson).length > 0) {
+    apiBuilderError.value = '该内置 API 引用了内置 Fragment，不能复制为用户 API。请先在用户空间重建对应 Fragment 和调用关系。';
+    return;
+  }
+
   const draft = duplicateDraft(activeDraft.value);
 
+  apiInfoDialogMode.value = 'copy';
   apiInfoSourceJson.value = generateApiJson(draft);
   apiInfoSourceLayout.value = normalizeApiBuilderLayout(draft.layout);
   fillApiInfoForm(draft.apiJson);
@@ -366,9 +574,11 @@ function closeApiInfoDialog() {
 }
 
 function fillApiInfoForm(apiJson: ApiJson) {
-  apiInfoForm.name = apiJson.alias || '未命名 API';
+  apiInfoForm.name = apiJson.alias || (isFragmentApiJson(apiJson) ? '未命名 Fragment' : '未命名 API');
   apiInfoForm.uuid = apiJson.uuid || '';
-  apiInfoForm.method = String(apiJson.method || 'GET').toUpperCase() === 'POST' ? 'POST' : 'GET';
+  apiInfoForm.method = isFragmentApiJson(apiJson)
+    ? 'FRAGMENT'
+    : String(apiJson.method || 'GET').toUpperCase() === 'POST' ? 'POST' : 'GET';
 }
 
 function buildApiJsonFromInfo(source: ApiJson) {
@@ -376,7 +586,9 @@ function buildApiJsonFromInfo(source: ApiJson) {
 
   apiJson.alias = apiInfoForm.name.trim();
   apiJson.uuid = apiInfoForm.uuid.trim();
-  apiJson.method = apiInfoForm.method === 'POST' ? 'POST' : 'GET';
+  if (isEndpointApiJson(apiJson)) {
+    apiJson.method = apiInfoForm.method === 'POST' ? 'POST' : 'GET';
+  }
 
   return apiJson;
 }
@@ -391,14 +603,18 @@ function validateApiInfo(name: string, uuid: string, method: string) {
   if (!apiUuidPattern.test(uuid.trim())) {
     return 'API 标识只能包含字母、数字、下划线和连字符，长度 1-128。';
   }
-  if (method !== 'GET' && method !== 'POST') {
+  if (method !== 'GET' && method !== 'POST' && method !== 'FRAGMENT') {
     return '请求方法必须是 GET 或 POST。';
   }
   return '';
 }
 
 function validateApiInfoFromJson(apiJson: ApiJson) {
-  return validateApiInfo(apiJson.alias || '未命名 API', apiJson.uuid, String(apiJson.method || 'GET').toUpperCase());
+  return validateApiInfo(
+    apiJson.alias || (isFragmentApiJson(apiJson) ? '未命名 Fragment' : '未命名 API'),
+    apiJson.uuid,
+    isFragmentApiJson(apiJson) ? 'FRAGMENT' : String(apiJson.method || 'GET').toUpperCase()
+  );
 }
 
 async function submitApiInfoDialog() {
@@ -430,6 +646,7 @@ async function submitApiInfoDialog() {
 }
 
 async function saveApiJsonAsDraft(apiJson: ApiJson, layout: ApiBuilderLayout = normalizeApiBuilderLayout(undefined)) {
+  await assertFragmentReferencesForSource(apiJson, 'user');
   const api = await saveApi({
     apiJson,
     layout,
@@ -441,7 +658,7 @@ async function saveApiJsonAsDraft(apiJson: ApiJson, layout: ApiBuilderLayout = n
   serverDraftIds.value = new Set([...serverDraftIds.value, savedDraft.id]);
   activeDraftId.value = savedDraft.id;
   selection.value = { type: 'api' };
-  window.location.hash = `/apis/${encodeURIComponent(savedDraft.id)}`;
+  window.location.hash = apiDetailHash(savedDraft.id, savedDraft.source, isFragmentApiJson(savedDraft.apiJson));
 }
 
 function duplicateCurrentDraft() {
@@ -464,9 +681,11 @@ async function saveDraftToServer(status: ApiBuilderDraft['status'], sourceDraftI
   try {
     const currentDraft = activeDraft.value;
     const currentDraftId = sourceDraftId || currentDraft.id;
+    const apiJson = generateApiJson(currentDraft);
+    await assertFragmentReferencesForSource(apiJson, currentDraft.source);
     const shouldDeletePreviousServerRecord = currentDraftId !== currentDraft.apiJson.uuid && serverDraftIds.value.has(currentDraftId);
     const api = await saveApi({
-      apiJson: generateApiJson(currentDraft),
+      apiJson,
       layout: currentDraft.layout,
       status,
       originalUuid: serverDraftIds.value.has(currentDraftId) ? currentDraftId : undefined
@@ -484,7 +703,7 @@ async function saveDraftToServer(status: ApiBuilderDraft['status'], sourceDraftI
     replaceDraft(savedDraft);
     serverDraftIds.value = new Set([...serverDraftIds.value, savedDraft.id]);
     activeDraftId.value = savedDraft.id;
-    window.location.hash = `/apis/${encodeURIComponent(savedDraft.id)}`;
+    window.location.hash = apiDetailHash(savedDraft.id, savedDraft.source, isFragmentApiJson(savedDraft.apiJson));
     return true;
   } catch (error) {
     apiBuilderError.value = error instanceof Error ? error.message : '保存 API 失败。';
@@ -495,7 +714,8 @@ async function saveDraftToServer(status: ApiBuilderDraft['status'], sourceDraftI
 }
 
 async function saveActiveDraft() {
-  await saveDraftToServer('draft');
+  const status = activeDraft.value?.status === 'published' && isActiveFragment.value ? 'published' : 'draft';
+  await saveDraftToServer(status);
 }
 
 async function publishApi() {
@@ -514,19 +734,20 @@ async function publishApi() {
 function addBlock(functionName: BlockFunctionName) {
   if (!activeDraft.value) return;
   ensureStarterBlock();
-  const block = createBlock(functionName);
+  const block = createBlock(functionName, undefined, undefined, activeDraft.value.apiJson);
   activeDraft.value.apiJson.blocks = [...(activeDraft.value.apiJson.blocks ?? []), block];
   attachNewBlockToOpenSource(block.uuid);
   selection.value = { type: 'block', uuid: block.uuid };
+  if (functionName === 'executeFragment') void loadFragmentOptions();
   nextTick(() => {
-    document.querySelector(`[data-block-uuid="${block.uuid}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    editorRoot.value?.querySelector(`[data-block-uuid="${block.uuid}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   });
 }
 
 function addController(functionName: ControllerFunctionName) {
   if (!activeDraft.value) return;
   ensureStarterBlock();
-  const controller = createController(functionName);
+  const controller = createController(functionName, undefined, undefined, activeDraft.value.apiJson);
   activeDraft.value.apiJson.blocks = [...(activeDraft.value.apiJson.blocks ?? []), controller];
   attachNewBlockToOpenSource(controller.uuid);
   selection.value = { type: 'block', uuid: controller.uuid };
@@ -603,12 +824,51 @@ function duplicateBlock(block: ApiBlock) {
 function removeBlock(block: ApiBlock) {
   if (!activeDraft.value) return;
   if (isStarterBlock(block)) return;
-  removeBlockResponseTerminals(block);
+  const incomingTerminalUuids = collectIncomingTerminalUuids(block.uuid);
+  const responseFallback = responseFallbackForRemoval(block);
   activeDraft.value.apiJson.blocks = (activeDraft.value.apiJson.blocks ?? []).filter((item) => item.uuid !== block.uuid);
   clearReferencesToBlock(block.uuid);
+  removeBlockResponseTerminals(block);
+  if (responseFallback !== undefined && !hasDefaultResponse(activeDraft.value.apiJson)) {
+    activeDraft.value.apiJson.responses ??= {};
+    const currentTerminals = new Set(collectResponseTerminals(activeDraft.value.apiJson).map((terminal) => terminal.uuid));
+    for (const terminalUuid of incomingTerminalUuids) {
+      if (currentTerminals.has(terminalUuid) && !Object.prototype.hasOwnProperty.call(activeDraft.value.apiJson.responses, terminalUuid)) {
+        activeDraft.value.apiJson.responses[terminalUuid] = cloneValue(responseFallback);
+      }
+    }
+  }
   activeDraft.value.disabledBlockIds = activeDraft.value.disabledBlockIds.filter((uuid) => uuid !== block.uuid);
   removeNodePosition(block.uuid);
   selection.value = { type: 'api' };
+}
+
+function collectIncomingTerminalUuids(targetUuid: string) {
+  const terminalUuids = new Set<string>();
+  for (const candidate of activeDraft.value?.apiJson.blocks ?? []) {
+    if (isStarterBlock(candidate)) {
+      if (candidate.nextBlock === targetUuid) terminalUuids.add('starter');
+    } else if (isControllerBlock(candidate)) {
+      for (const node of candidate.nodes) if (node.nextBlock === targetUuid) terminalUuids.add(node.uuid);
+    } else if (candidate.nextBlock === targetUuid || candidate.errorNextBlock === targetUuid) {
+      terminalUuids.add(candidate.uuid);
+    }
+  }
+  return [...terminalUuids];
+}
+
+function responseFallbackForRemoval(block: Exclude<ApiBlock, { uuid: 'starter' }>) {
+  if (!activeDraft.value) return undefined;
+  const apiJson = activeDraft.value.apiJson;
+  const preferredUuids = isControllerBlock(block) ? block.nodes.map((node) => node.uuid) : [block.uuid];
+  for (const uuid of preferredUuids) {
+    if (apiJson.responses && Object.prototype.hasOwnProperty.call(apiJson.responses, uuid)) {
+      return cloneValue(apiJson.responses[uuid]);
+    }
+  }
+  if (hasDefaultResponse(apiJson)) return cloneValue(apiJson.response);
+  const fallback = Object.values(apiJson.responses ?? {})[0];
+  return fallback === undefined ? undefined : cloneValue(fallback);
 }
 
 function removeBlockResponseTerminals(block: ApiBlock) {
@@ -652,19 +912,104 @@ function setNextBlock(sourceUuid: string, sourceHandle: string | null | undefine
   if (targetUuid && !blocks.some((block) => block.uuid === targetUuid && !isStarterBlock(block))) return;
 
   if (isStarterBlock(source)) {
+    const response = readTerminalResponse('starter');
     source.nextBlock = targetUuid;
+    migrateTerminalResponse('starter', targetUuid, response);
+    if (targetUuid === null) ensureTerminalResponse('starter');
     return;
   }
 
   if (isControllerBlock(source)) {
     const node = source.nodes.find((item) => item.uuid === sourceHandle);
     if (node) {
+      const response = readTerminalResponse(node.uuid);
       node.nextBlock = targetUuid;
+      migrateTerminalResponse(node.uuid, targetUuid, response);
+      if (targetUuid === null) ensureTerminalResponse(node.uuid);
     }
     return;
   }
 
+  if (sourceHandle === 'error') {
+    const response = readTerminalResponse(source.uuid);
+    source.errorNextBlock = targetUuid;
+    migrateTerminalResponse(source.uuid, targetUuid, response);
+    if (targetUuid === null) ensureTerminalResponse(source.uuid);
+    return;
+  }
+
+  const response = readTerminalResponse(source.uuid);
   source.nextBlock = targetUuid;
+  migrateTerminalResponse(source.uuid, targetUuid, response);
+  if (targetUuid === null) ensureTerminalResponse(source.uuid);
+}
+
+function readTerminalResponse(uuid: string) {
+  const responses = activeDraft.value?.apiJson.responses;
+  return responses && Object.prototype.hasOwnProperty.call(responses, uuid)
+    ? cloneValue(responses[uuid])
+    : undefined;
+}
+
+function responseTerminalsFromTarget(targetUuid: string | null, visited = new Set<string>()): string[] {
+  if (!targetUuid || visited.has(targetUuid) || !activeDraft.value) return [];
+  visited.add(targetUuid);
+  const block = activeDraft.value.apiJson.blocks?.find((candidate) => candidate.uuid === targetUuid);
+  if (!block || isStarterBlock(block)) return [];
+  if (isControllerBlock(block)) {
+    return [...new Set(block.nodes.flatMap((node) => node.nextBlock === null
+      ? [node.uuid]
+      : responseTerminalsFromTarget(node.nextBlock ?? null, new Set(visited))))];
+  }
+  const terminals = block.nextBlock === null
+    ? [block.uuid]
+    : responseTerminalsFromTarget(block.nextBlock ?? null, new Set(visited));
+  if (Object.prototype.hasOwnProperty.call(block, 'errorNextBlock')) {
+    if (block.errorNextBlock === null) terminals.push(block.uuid);
+    else terminals.push(...responseTerminalsFromTarget(block.errorNextBlock ?? null, new Set(visited)));
+  }
+  return [...new Set(terminals)];
+}
+
+function migrateTerminalResponse(previousTerminal: string, targetUuid: string | null, response: ResponseConfig | undefined) {
+  if (!activeDraft.value || response === undefined) return;
+  const apiJson = activeDraft.value.apiJson;
+  apiJson.responses ??= {};
+  for (const terminalUuid of responseTerminalsFromTarget(targetUuid)) {
+    if (!Object.prototype.hasOwnProperty.call(apiJson.responses, terminalUuid)) {
+      apiJson.responses[terminalUuid] = cloneValue(response);
+    }
+  }
+  const remainsTerminal = collectResponseTerminals(apiJson).some((terminal) => terminal.uuid === previousTerminal);
+  if (!remainsTerminal) delete apiJson.responses[previousTerminal];
+}
+
+function ensureTerminalResponse(uuid: string) {
+  if (!activeDraft.value || hasDefaultResponse(activeDraft.value.apiJson)) return;
+  const apiJson = activeDraft.value.apiJson;
+  apiJson.responses ??= {};
+  if (Object.prototype.hasOwnProperty.call(apiJson.responses, uuid)) return;
+  const fallback = Object.values(apiJson.responses)[0];
+  if (fallback !== undefined) apiJson.responses[uuid] = cloneValue(fallback);
+}
+
+function errorNextBlockSelectValue(block: ApiStandardBlock) {
+  if (!Object.prototype.hasOwnProperty.call(block, 'errorNextBlock')) return '__unhandled__';
+  return block.errorNextBlock === null ? '__terminal__' : block.errorNextBlock;
+}
+
+function updateErrorNextBlock(block: ApiStandardBlock, value: string) {
+  const response = readTerminalResponse(block.uuid);
+  if (value === '__unhandled__') {
+    delete block.errorNextBlock;
+    migrateTerminalResponse(block.uuid, null, response);
+  } else if (value === '__terminal__') {
+    block.errorNextBlock = null;
+    ensureTerminalResponse(block.uuid);
+  } else {
+    block.errorNextBlock = value;
+    migrateTerminalResponse(block.uuid, value, response);
+  }
 }
 
 function clearReferencesToBlock(uuid: string) {
@@ -684,6 +1029,9 @@ function clearReferencesToBlock(uuid: string) {
 
     if (block.nextBlock === uuid) {
       block.nextBlock = null;
+    }
+    if (block.errorNextBlock === uuid) {
+      block.errorNextBlock = null;
     }
   }
 }
@@ -716,10 +1064,13 @@ function onBlockDrop(targetBlock: ApiBlock) {
 
 function selectBlock(block: ApiBlock) {
   selection.value = isStarterBlock(block) ? { type: 'starter' } : { type: 'block', uuid: block.uuid };
+  if (isStandardBlock(block) && block.functionName === 'executeFragment') void loadFragmentOptions();
 }
 
 function selectGraphNode(uuid: string) {
   selection.value = uuid === 'starter' ? { type: 'starter' } : { type: 'block', uuid };
+  const block = activeDraft.value?.apiJson.blocks?.find((item) => item.uuid === uuid);
+  if (block && isStandardBlock(block) && block.functionName === 'executeFragment') void loadFragmentOptions();
 }
 
 function onFlowConnect(connection: Connection) {
@@ -772,7 +1123,7 @@ async function autoArrangeGraph() {
       ? [block.nextBlock]
       : isControllerBlock(block)
         ? block.nodes.map((node) => node.nextBlock)
-        : [block.nextBlock];
+        : [block.nextBlock, block.errorNextBlock];
     outgoing.set(uuid, [...new Set(targets.filter((target): target is string => (
       typeof target === 'string' && nodeUuidSet.has(target)
     )))]);
@@ -1031,8 +1382,68 @@ function ensureRequest() {
   if (!activeDraft.value) {
     throw new Error('No active draft');
   }
+  if (!isEndpointApiJson(activeDraft.value.apiJson)) {
+    throw new Error('Fragment does not have request declarations');
+  }
   activeDraft.value.apiJson.request ??= {};
   return activeDraft.value.apiJson.request;
+}
+
+function getFragmentParams() {
+  if (!activeDraft.value || !isFragmentApiJson(activeDraft.value.apiJson)) return [];
+  activeDraft.value.apiJson.params ??= [];
+  return activeDraft.value.apiJson.params;
+}
+
+function addFragmentParam() {
+  getFragmentParams().push({ key: 'param', processors: ['is_not_null'] });
+}
+
+function removeFragmentParam(index: number) {
+  getFragmentParams().splice(index, 1);
+}
+
+function updateFragmentParamKey(index: number, key: string) {
+  const list = getFragmentParams();
+  const item = list[index];
+  if (typeof item === 'string') list[index] = key;
+  else if (item) item.key = key;
+}
+
+function updateFragmentParamProcessors(index: number, processors: ProcessorConfig[]) {
+  const list = getFragmentParams();
+  const item = list[index];
+  if (typeof item === 'string') list[index] = { key: item, processors };
+  else if (item) item.processors = processors;
+}
+
+function toggleFragmentParamRequired(index: number) {
+  const item = getFragmentParams()[index];
+  if (!item) return;
+  const processors = getRequestProcessors(item);
+  const next = processors.some((processor) => processorName(processor) === 'is_not_null')
+    ? processors.filter((processor) => processorName(processor) !== 'is_not_null')
+    : ['is_not_null', ...processors];
+  updateFragmentParamProcessors(index, next);
+}
+
+function addFragmentParamProcessor(index: number, name: string) {
+  if (!name) return;
+  const item = getFragmentParams()[index];
+  if (!item) return;
+  const definition = getProcessorDefinition(name);
+  const processor: ProcessorConfig = definition?.needsParam
+    ? { processor: name, param: cloneValue(definition.defaultParam ?? []) }
+    : name;
+  updateFragmentParamProcessors(index, [...getRequestProcessors(item), processor]);
+}
+
+function removeFragmentParamProcessor(index: number, processorIndex: number) {
+  const item = getFragmentParams()[index];
+  if (!item) return;
+  const processors = getRequestProcessors(item);
+  processors.splice(processorIndex, 1);
+  updateFragmentParamProcessors(index, processors);
 }
 
 function blockInputs(block: ApiBlock | null = activeBlock.value) {
@@ -1045,6 +1456,115 @@ function blockInputs(block: ApiBlock | null = activeBlock.value) {
 function updateBlockInput(key: string, value: unknown) {
   if (!activeBlock.value) return;
   blockInputs()[key] = value;
+}
+
+async function selectFragment(uuid: string) {
+  if (!activeExecuteFragmentBlock.value || isActiveApiReadonly.value) return;
+  if (uuid && !fragmentOptions.value.some((record) => record.uuid === uuid)) {
+    apiBuilderError.value = `${activeFragmentSource.value === 'system' ? '内置' : '用户'} Fragment ${uuid} 不在可用列表中。`;
+    return;
+  }
+  const currentParams = isRecord(activeExecuteFragmentBlock.value.inputs?.params)
+    ? activeExecuteFragmentBlock.value.inputs.params
+    : {};
+  activeExecuteFragmentBlock.value.inputs = {
+    ...(activeExecuteFragmentBlock.value.inputs ?? {}),
+    fragmentUuid: uuid,
+    params: { ...currentParams }
+  };
+  activeExecuteFragmentBlock.value.outputs = ['result'];
+  if (uuid) await loadFragmentDetail(uuid, activeFragmentSource.value);
+  else activeExecuteFragmentBlock.value.inputs.params = {};
+}
+
+function reconcileFragmentParamMappings(uuid: string, record: MokelayApiRecord) {
+  const block = activeExecuteFragmentBlock.value;
+  if (!block || block.inputs?.fragmentUuid !== uuid || !record.apiJson || !isFragmentApiJson(record.apiJson)) return;
+  const current = isRecord(block.inputs.params) ? block.inputs.params : {};
+  const next: Record<string, unknown> = {};
+  for (const declaration of record.apiJson.params ?? []) {
+    const key = declarationKey(declaration);
+    if (Object.prototype.hasOwnProperty.call(current, key)) next[key] = current[key];
+  }
+  block.inputs.params = next;
+}
+
+function fragmentParamMappings() {
+  if (!activeExecuteFragmentBlock.value) return {};
+  const inputs = activeExecuteFragmentBlock.value.inputs ??= {};
+  if (!isRecord(inputs.params)) inputs.params = {};
+  return inputs.params as Record<string, unknown>;
+}
+
+function updateFragmentParamMapping(key: string, value: unknown) {
+  fragmentParamMappings()[key] = value;
+}
+
+async function openFragmentEditor(uuid = selectedFragmentUuid.value) {
+  fragmentEditorError.value = '';
+  const source = activeFragmentSource.value;
+  if (!uuid && source === 'system') {
+    apiBuilderError.value = '系统内置 API 不能创建用户 Fragment。';
+    return;
+  }
+  try {
+    const record = uuid ? await getApiBySource(uuid, source, { fragment: true }) : null;
+    if (record && (record.source !== source || !record.fragment || !record.apiJson || !isFragmentApiJson(record.apiJson))) {
+      throw new Error(`${source === 'system' ? '内置' : '用户'} Fragment ${uuid} 不存在或类型不正确。`);
+    }
+    fragmentEditorDraft.value = record ? draftFromApiRecord(record) : createDraft(createEmptyFragmentJson());
+    fragmentEditorOriginalUuid.value = record?.uuid ?? '';
+    isFragmentEditorOpen.value = true;
+  } catch (error) {
+    apiBuilderError.value = error instanceof Error ? error.message : '打开 Fragment 编辑器失败。';
+  }
+}
+
+function closeFragmentEditor() {
+  if (isSavingFragment.value) return;
+  isFragmentEditorOpen.value = false;
+  fragmentEditorDraft.value = null;
+  fragmentEditorOriginalUuid.value = '';
+  fragmentEditorError.value = '';
+}
+
+async function saveFragmentFromModal(status: ApiBuilderDraft['status']) {
+  const draft = fragmentEditorDraft.value;
+  if (!draft || draft.source === 'system') return;
+  isSavingFragment.value = true;
+  fragmentEditorError.value = '';
+  try {
+    const flushed = await fragmentEditorRef.value?.flush();
+    if (flushed) {
+      draft.apiJson = flushed.apiJson;
+      draft.layout = flushed.layout;
+      draft.disabledBlockIds = flushed.disabledBlockIds;
+      draft.testCases = flushed.testCases;
+    }
+    const apiJson = generateApiJson(draft);
+    const issues = validateApiJson(apiJson);
+    if (status === 'published' && hasBlockingErrors(issues)) {
+      throw new Error(issues.find((issue) => issue.severity === 'error')?.message || 'Fragment 校验失败。');
+    }
+    const record = await saveApi({
+      apiJson,
+      layout: draft.layout,
+      status,
+      originalUuid: fragmentEditorOriginalUuid.value || undefined
+    });
+    fragmentEditorDraft.value = draftFromApiRecord(record);
+    fragmentEditorOriginalUuid.value = record.uuid;
+    const details = new Map(fragmentDetails.value);
+    details.set(record.uuid, record);
+    fragmentDetails.value = details;
+    await loadFragmentOptions('user');
+    if (status === 'published' && activeExecuteFragmentBlock.value) await selectFragment(record.uuid);
+    isFragmentEditorOpen.value = false;
+  } catch (error) {
+    fragmentEditorError.value = error instanceof Error ? error.message : '保存 Fragment 失败。';
+  } finally {
+    isSavingFragment.value = false;
+  }
 }
 
 function updateActiveBlockUuid(value: string) {
@@ -1066,6 +1586,7 @@ function updateActiveBlockUuid(value: string) {
       continue;
     }
     if (block.nextBlock === previous) block.nextBlock = next;
+    if (block.errorNextBlock === previous) block.errorNextBlock = next;
   }
 
   renameResponseTerminal(previous, next);
@@ -1399,6 +1920,35 @@ function processorLabel(processor: ProcessorConfig) {
   return getProcessorDefinition(name)?.title ?? name;
 }
 
+function executeFragmentTargets(apiJson: ApiJson) {
+  return [...new Set((apiJson.blocks ?? [])
+    .filter((block): block is ApiStandardBlock => isStandardBlock(block) && block.functionName === 'executeFragment')
+    .map((block) => block.inputs?.fragmentUuid)
+    .filter((uuid): uuid is string => typeof uuid === 'string' && Boolean(uuid.trim()))
+    .map((uuid) => uuid.trim()))];
+}
+
+async function assertFragmentReferencesForSource(apiJson: ApiJson, source: MokelayApiSource) {
+  for (const uuid of executeFragmentTargets(apiJson)) {
+    const key = fragmentDetailKey(source, uuid);
+    let record = fragmentDetails.value.get(key);
+    if (!record) {
+      try {
+        record = await getApiBySource(uuid, source, { fragment: true });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '目标不存在';
+        throw new Error(`${source === 'system' ? '内置' : '用户'} API 只能引用同来源 Fragment：${uuid}（${message}）`);
+      }
+    }
+    if (record.source !== source || !record.fragment || !record.apiJson || !isFragmentApiJson(record.apiJson)) {
+      throw new Error(`${source === 'system' ? '内置' : '用户'} API 只能引用同来源 Fragment：${uuid}`);
+    }
+    const next = new Map(fragmentDetails.value);
+    next.set(key, record);
+    fragmentDetails.value = next;
+  }
+}
+
 function stringifyJson(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
@@ -1418,10 +1968,29 @@ function updateTestValue(location: RequestLocation, key: string, value: string) 
   };
 }
 
-function runTest() {
+function updateTestParam(key: string, value: string) {
+  testRequest.value = {
+    ...testRequest.value,
+    params: {
+      ...testRequest.value.params,
+      [key]: parseLooseValue(value)
+    }
+  };
+}
+
+async function runTest() {
   if (!activeDraft.value) return;
   const apiJson = generateApiJson(activeDraft.value);
-  const result = runDryApiTest(apiJson, testRequest.value);
+  const source = activeDraft.value.source;
+  const result = await runDryApiTest(apiJson, testRequest.value, {
+    resolveFragment: async (uuid) => {
+      const record = await getApiBySource(uuid, source, { fragment: true });
+      if (record.source !== source || !record.fragment || !record.apiJson || !isFragmentApiJson(record.apiJson)) {
+        throw new Error(`${source === 'system' ? '内置' : '用户'} Fragment ${uuid} 不存在或类型不正确。`);
+      }
+      return record.apiJson;
+    }
+  });
   lastTestResult.value = result;
   appendTestCase(activeDraft.value, {
     id: `test_${Date.now()}`,
@@ -1449,25 +2018,89 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 </script>
 
 <template>
-  <section data-testid="api-builder-shell" class="flex min-h-[calc(100vh-112px)] flex-1 flex-col gap-4">
-    <div v-if="activeDraft && activeApiJson" class="flex flex-1 flex-col gap-4">
+  <section ref="editorRoot" data-testid="api-builder-shell" class="flex min-h-[calc(100vh-112px)] flex-1 flex-col gap-4">
+    <div v-if="isListMode" class="flex flex-1 flex-col gap-4">
+      <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-medium text-teal-700 dark:text-teal-300">API Builder</p>
+            <h2 class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">可视化搭建内部数据 API</h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">API 与 Fragment 共用同一套编排能力；Fragment 只能通过 ExecuteFragment 调用。</p>
+          </div>
+          <div v-if="apiListSource === 'user'" class="flex gap-2">
+            <button data-testid="api-builder-new-fragment" class="builder-secondary-button" @click="openCreateDialog(true)">新建 Fragment</button>
+            <button data-testid="api-builder-new" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white" @click="openCreateDialog(false)">新建 API</button>
+          </div>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <button data-testid="api-source-user" class="builder-nav-button" :class="{ 'builder-nav-button-active': apiListSource === 'user' }" @click="switchApiListSource('user')">用户编排</button>
+          <button data-testid="api-source-system" class="builder-nav-button" :class="{ 'builder-nav-button-active': apiListSource === 'system' }" @click="switchApiListSource('system')">系统内置</button>
+        </div>
+      </section>
+
+      <p v-if="apiBuilderError" class="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{{ apiBuilderError }}</p>
+
+      <section v-if="apiListSource === 'user' && apiSamples.length" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <h3 class="text-base font-semibold text-slate-950 dark:text-white">内置样例</h3>
+        <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <button v-for="sample in apiSamples" :key="sample.uuid" class="rounded-lg border border-slate-200 p-3 text-left hover:border-teal-400 dark:border-slate-700" @click="openCreateDialog(false, sample)">
+            <strong class="block">{{ sample.title }}</strong>
+            <small class="mt-1 block text-slate-500">{{ sample.description }}</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <p v-if="isApiListLoading" class="p-6 text-center text-sm text-slate-500">正在加载...</p>
+        <table v-else class="w-full text-left text-sm">
+          <thead class="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-800">
+            <tr>
+              <th class="px-4 py-3">名称</th>
+              <th class="px-4 py-3">UUID</th>
+              <th class="px-4 py-3">类型</th>
+              <th v-if="apiListSource === 'user'" class="px-4 py-3">状态</th>
+              <th v-if="apiListSource === 'user'" class="px-4 py-3">最近编辑</th>
+              <th class="px-4 py-3 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+            <tr v-for="record in apiList" :key="record.uuid">
+              <td class="px-4 py-3 font-medium">{{ record.name }}</td>
+              <td class="px-4 py-3 font-mono text-xs">{{ record.uuid }}</td>
+              <td class="px-4 py-3"><span class="rounded bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800">{{ record.fragment ? 'Fragment' : record.method }}</span></td>
+              <td v-if="apiListSource === 'user'" class="px-4 py-3">{{ record.status === 'published' ? '已发布' : '草稿' }}</td>
+              <td v-if="apiListSource === 'user'" class="px-4 py-3 text-slate-500">{{ record.updatedAt || '-' }}</td>
+              <td class="px-4 py-3 text-right">
+                <button class="builder-small-button" @click="openApiRecord(record)">打开</button>
+                <button v-if="record.source !== 'system'" class="ml-2 text-xs text-rose-600" @click="removeApiRecord(record)">删除</button>
+              </td>
+            </tr>
+            <tr v-if="!apiList.length">
+              <td :colspan="apiListSource === 'user' ? 6 : 4" class="px-4 py-8 text-center text-slate-500">暂无 API 或 Fragment。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <div v-else-if="activeDraft && activeApiJson" class="flex flex-1 flex-col gap-4">
       <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <p v-if="apiBuilderError" class="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderError }}</p>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <button class="mb-2 text-sm font-medium text-teal-700 hover:text-teal-500 dark:text-teal-300" @click="navigateToList">返回 API 列表</button>
             <div class="flex flex-wrap items-center gap-3">
-              <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ activeDraft.apiJson.alias || '未命名 API' }}</h2>
-              <span class="rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-100">{{ activeDraft.apiJson.method }}</span>
+              <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ activeDraft.apiJson.alias || (isActiveFragment ? '未命名 Fragment' : '未命名 API') }}</h2>
+              <span class="rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-100">{{ isActiveFragment ? 'Fragment' : activeDraft.apiJson.method }}</span>
               <span v-if="!isActiveApiReadonly" class="rounded-md px-2 py-1 text-xs font-semibold" :class="activeDraft.status === 'published' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-100' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-100'">
                 {{ activeDraft.status === 'published' ? '已发布' : '草稿' }}
               </span>
               <span v-else class="rounded-md bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-800 dark:bg-violet-500/20 dark:text-violet-100">系统内置</span>
-              <code class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">/api/mokelay/{{ activeDraft.apiJson.uuid }}</code>
+              <code class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ isActiveFragment ? activeDraft.apiJson.uuid : `/api/mokelay/${activeDraft.apiJson.uuid}` }}</code>
             </div>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button class="builder-secondary-button" @click="duplicateCurrentDraft">复制 API</button>
+            <button class="builder-secondary-button" @click="duplicateCurrentDraft">复制{{ isActiveFragment ? ' Fragment' : ' API' }}</button>
             <button v-if="!isActiveApiReadonly" class="builder-secondary-button disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="saveActiveDraft">{{ isSavingApi ? '保存中...' : '保存' }}</button>
             <button v-if="!isActiveApiReadonly" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="publishApi">发布</button>
           </div>
@@ -1478,8 +2111,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         <aside class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="grid grid-cols-3 gap-2">
             <button class="builder-nav-button" :class="{ 'builder-nav-button-active': selection.type === 'api' }" @click="selection = { type: 'api' }">入口</button>
-            <button class="builder-nav-button" :class="{ 'builder-nav-button-active': selection.type === 'request' }" @click="selection = { type: 'request' }">请求</button>
-            <button class="builder-nav-button" :class="{ 'builder-nav-button-active': selection.type === 'response' }" @click="selection = { type: 'response' }">响应</button>
+            <button class="builder-nav-button" :class="{ 'builder-nav-button-active': selection.type === 'request' }" @click="selection = { type: 'request' }">{{ isActiveFragment ? 'Params' : '请求' }}</button>
+            <button class="builder-nav-button" :class="{ 'builder-nav-button-active': selection.type === 'response' }" @click="selection = { type: 'response' }">{{ isActiveFragment ? 'Outputs' : '响应' }}</button>
           </div>
 
           <div>
@@ -1513,6 +2146,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           </div>
 
           <div>
+            <h3 class="text-sm font-semibold text-slate-900 dark:text-white">工具</h3>
+            <div class="mt-2 grid gap-2">
+              <button v-for="block in groupedBlocks.utility" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
+                <span>{{ block.title }}</span>
+                <small>{{ block.description }}</small>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="!isActiveFragment">
+            <h3 class="text-sm font-semibold text-slate-900 dark:text-white">逻辑片段</h3>
+            <div class="mt-2 grid gap-2">
+              <button v-for="block in groupedBlocks.fragment" :key="block.functionName" data-testid="api-add-execute-fragment" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
+                <span>{{ block.title }}</span>
+                <small>{{ block.description }}</small>
+              </button>
+            </div>
+          </div>
+
+          <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">控制器</h3>
             <div class="mt-2 grid gap-2">
               <button v-for="controller in groupedControllers" :key="controller.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addController(controller.functionName)">
@@ -1538,84 +2191,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             </div>
           </div>
 
-          <div class="mt-4 h-[560px] overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-950">
-            <VueFlow
-              id="api-builder-flow"
-              :nodes="graphNodes"
-              :edges="graphEdges"
-              :fit-view-on-init="false"
-              :default-viewport="{ zoom: 0.72, x: 0, y: 0 }"
-              :min-zoom="0.4"
-              :max-zoom="1"
-              :nodes-draggable="true"
-              :nodes-connectable="!isActiveApiReadonly"
-              class="api-flow"
-              @connect="onFlowConnect"
-              @edge-click="onFlowEdgeClick"
-              @node-click="onFlowNodeClick"
-              @node-drag-stop="onFlowNodeDragStop"
-            >
-              <template #node-starterNode="{ data }">
-                <div class="flow-node flow-node-starter" data-testid="api-flow-starter">
-                  <Handle id="next" type="source" :position="Position.Right" />
-                  <p class="text-xs font-semibold uppercase text-teal-700 dark:text-teal-200">Starter</p>
-                  <h4 class="mt-1 font-semibold text-slate-950 dark:text-white">流程入口</h4>
-                  <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">nextBlock: {{ data.nextBlock || 'null' }}</p>
-                </div>
-              </template>
-
-              <template #node-blockNode="{ data }">
-                <div
-                  class="flow-node"
-                  :class="[
-                    data.selected ? 'flow-node-selected' : '',
-                    data.disabled ? 'opacity-55' : ''
-                  ]"
-                  :data-block-uuid="data.block.uuid"
-                >
-                  <Handle type="target" :position="Position.Left" />
-                  <Handle id="next" type="source" :position="Position.Right" />
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                      <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">{{ data.block.functionName }}</p>
-                      <h4 class="mt-1 truncate font-semibold text-slate-950 dark:text-white">{{ data.block.alias || getBlockDefinition(data.block.functionName)?.title || data.block.functionName }}</h4>
-                      <p class="mt-1 truncate font-mono text-xs text-slate-500 dark:text-slate-400">{{ data.block.uuid }}</p>
-                    </div>
-                    <span v-if="data.disabled" class="rounded-md bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">禁用</span>
-                  </div>
-                  <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">输出：{{ (data.block.outputs || []).map(declarationKey).join(', ') || '-' }}</p>
-                </div>
-              </template>
-
-              <template #node-controllerNode="{ data }">
-                <div class="flow-node flow-node-controller" :class="{ 'flow-node-selected': data.selected }" :data-block-uuid="data.block.uuid">
-                  <Handle type="target" :position="Position.Left" />
-                  <div
-                    v-for="(node, index) in data.block.nodes"
-                    :key="node.uuid"
-                    class="flow-branch-handle"
-                    :style="{ top: `${28 + index * 28}px` }"
-                  >
-                    <span>{{ nodeLabel(node) }}</span>
-                    <Handle :id="node.uuid" type="source" :position="Position.Right" />
-                  </div>
-                  <p class="text-xs font-semibold text-violet-700 dark:text-violet-200">{{ getControllerDefinition(data.block.functionName)?.shortTitle || data.block.functionName }}</p>
-                  <h4 class="mt-1 truncate font-semibold text-slate-950 dark:text-white">{{ data.block.alias || getControllerDefinition(data.block.functionName)?.title || data.block.functionName }}</h4>
-                  <p class="mt-1 truncate font-mono text-xs text-slate-500 dark:text-slate-400">{{ data.block.uuid }}</p>
-                  <div class="mt-3 space-y-1 text-xs text-slate-500 dark:text-slate-400">
-                    <p v-for="node in data.block.nodes" :key="node.uuid">{{ nodeLabel(node) }} -> {{ node.nextBlock || 'null' }}</p>
-                  </div>
-                </div>
-              </template>
-            </VueFlow>
-          </div>
+          <MApiOrchestrationFlowCanvas
+            class="mt-4 h-[560px]"
+            :flow-id="flowId"
+            :nodes="graphNodes"
+            :edges="graphEdges"
+            :nodes-draggable="true"
+            :nodes-connectable="!isActiveApiReadonly"
+            @connect="onFlowConnect"
+            @edge-click="onFlowEdgeClick"
+            @node-click="onFlowNodeClick"
+            @node-drag-stop="onFlowNodeDragStop"
+          />
         </main>
 
         <aside class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <p v-if="isActiveApiReadonly" class="mb-4 rounded-lg bg-violet-50 p-3 text-sm text-violet-800 dark:bg-violet-500/10 dark:text-violet-100">系统内置接口为只读，可以查看、测试或复制为用户接口。</p>
           <fieldset :disabled="isActiveApiReadonly" class="contents">
           <template v-if="selection.type === 'api'">
-            <h3 class="text-base font-semibold text-slate-950 dark:text-white">接口入口</h3>
+            <h3 class="text-base font-semibold text-slate-950 dark:text-white">{{ isActiveFragment ? 'Fragment 配置' : '接口入口' }}</h3>
             <div class="mt-4 space-y-3">
               <label class="builder-field">
                 <span>接口名称</span>
@@ -1625,7 +2219,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <span>API 标识</span>
                 <input v-model="activeDraft.apiJson.uuid" class="builder-input font-mono">
               </label>
-              <label class="builder-field">
+              <label v-if="!isActiveFragment" class="builder-field">
                 <span>请求方法</span>
                 <select v-model="activeDraft.apiJson.method" class="builder-input">
                   <option value="GET">GET</option>
@@ -1633,7 +2227,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 </select>
               </label>
               <div class="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                路径预览：<code>/api/mokelay/{{ activeDraft.apiJson.uuid }}</code>
+                {{ isActiveFragment ? 'Fragment UUID：' : '路径预览：' }}<code>{{ isActiveFragment ? activeDraft.apiJson.uuid : `/api/mokelay/${activeDraft.apiJson.uuid}` }}</code>
               </div>
               <button class="builder-secondary-button w-full disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="saveActiveDraft">
                 {{ isSavingApi ? '保存中...' : '保存基本信息' }}
@@ -1642,8 +2236,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           </template>
 
           <template v-else-if="selection.type === 'request'">
-            <h3 class="text-base font-semibold text-slate-950 dark:text-white">请求参数</h3>
-            <div class="mt-4 space-y-5">
+            <h3 class="text-base font-semibold text-slate-950 dark:text-white">{{ isActiveFragment ? 'Params 参数' : '请求参数' }}</h3>
+            <div v-if="isActiveFragment" class="mt-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <p class="text-sm text-slate-500 dark:text-slate-400">声明调用 Fragment 时必须映射的输入参数。</p>
+                <button data-testid="fragment-add-param" class="builder-small-button" @click="addFragmentParam">添加参数</button>
+              </div>
+              <div v-for="(param, index) in getFragmentParams()" :key="`params-${index}`" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  <input class="builder-input" :value="getRequestKey(param)" data-testid="fragment-param-key" placeholder="参数名" @input="updateFragmentParamKey(index, ($event.target as HTMLInputElement).value)">
+                  <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                    <input type="checkbox" :checked="isRequestRequired(param)" @change="toggleFragmentParamRequired(index)">
+                    必填
+                  </label>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <span v-for="(processor, processorIndex) in getRequestProcessors(param)" :key="processorIndex" class="rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-500/20 dark:text-teal-100">
+                    {{ processorLabel(processor) }}
+                    <button class="ml-1" @click="removeFragmentParamProcessor(index, processorIndex)">×</button>
+                  </span>
+                  <select class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-950" @change="addFragmentParamProcessor(index, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                    <option value="">添加规则</option>
+                    <option v-for="processor in processorDefinitions" :key="processor.name" :value="processor.name">{{ processor.title }}</option>
+                  </select>
+                  <button class="ml-auto text-xs text-rose-600" @click="removeFragmentParam(index)">删除</button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="mt-4 space-y-5">
               <section v-for="location in requestLocations" :key="location.value">
                 <div class="mb-2 flex items-center justify-between">
                   <h4 class="text-sm font-semibold text-slate-900 dark:text-white">{{ location.title }}</h4>
@@ -1676,8 +2296,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           </template>
 
           <template v-else-if="selection.type === 'response'">
-            <h3 class="text-base font-semibold text-slate-950 dark:text-white">响应组装</h3>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">把变量映射到响应 data 的字段。</p>
+            <h3 class="text-base font-semibold text-slate-950 dark:text-white">{{ isActiveFragment ? 'Outputs 组装' : '响应组装' }}</h3>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ isActiveFragment ? 'Fragment 的 outputs 会被调用方包装到 ExecuteFragment.outputs.result。' : '把变量映射到响应 data 的字段。' }}</p>
             <div v-if="usesTerminalResponses" class="mt-4">
               <div class="flex flex-wrap gap-2">
                 <button
@@ -1705,7 +2325,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 </div>
                 <button class="mt-2 text-xs text-rose-600" @click="removeResponseField(index)">删除字段</button>
               </div>
-              <button class="builder-secondary-button w-full" @click="addResponseField">添加响应字段</button>
+              <button class="builder-secondary-button w-full" @click="addResponseField">添加{{ isActiveFragment ? ' output' : '响应字段' }}</button>
             </div>
           </template>
 
@@ -1748,8 +2368,50 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                   <option v-for="option in executableTargetOptions(activeStandardBlock.uuid)" :key="option.uuid" :value="option.uuid">{{ option.label }}</option>
                 </select>
               </label>
+              <label class="builder-field">
+                <span>错误处理</span>
+                <select
+                  data-testid="block-error-next-block"
+                  class="builder-input"
+                  :value="errorNextBlockSelectValue(activeStandardBlock)"
+                  @change="updateErrorNextBlock(activeStandardBlock, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="__unhandled__">未捕获（抛错）</option>
+                  <option value="__terminal__">终止（使用当前 Block 响应）</option>
+                  <option v-for="option in executableTargetOptions(activeStandardBlock.uuid)" :key="option.uuid" :value="option.uuid">目标 Block：{{ option.label }}</option>
+                </select>
+              </label>
 
-              <template v-if="['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update'].includes(activeStandardBlock.functionName)">
+              <template v-if="activeStandardBlock.functionName === 'executeFragment'">
+                <label class="builder-field">
+                  <span>目标 Fragment</span>
+                  <select data-testid="execute-fragment-picker" class="builder-input" :value="selectedFragmentUuid" @change="selectFragment(($event.target as HTMLSelectElement).value)">
+                    <option value="">{{ isLoadingFragments ? '加载中...' : '请选择已发布 Fragment' }}</option>
+                    <option v-for="fragment in fragmentOptions" :key="fragment.uuid" :value="fragment.uuid">{{ fragment.name }} · {{ fragment.uuid }}</option>
+                  </select>
+                </label>
+                <div class="flex gap-2">
+                  <button v-if="!isActiveApiReadonly" type="button" class="builder-secondary-button flex-1" :disabled="!selectedFragmentUuid" @click="openFragmentEditor()">编排 Fragment</button>
+                  <button v-if="!isActiveApiReadonly" type="button" class="builder-secondary-button flex-1" @click="openFragmentEditor('')">新建 Fragment</button>
+                </div>
+                <div class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                  <div class="mb-2 flex items-center justify-between">
+                    <h4 class="text-sm font-semibold text-slate-900 dark:text-white">Params 映射</h4>
+                    <code class="text-xs text-slate-500">outputs: ['result']</code>
+                  </div>
+                  <p v-if="!selectedFragmentParams.length" class="text-xs text-slate-500 dark:text-slate-400">选择 Fragment 后按其 params 配置输入。</p>
+                  <label v-for="param in selectedFragmentParams" :key="declarationKey(param)" class="builder-field mt-2">
+                    <span>{{ declarationKey(param) }}</span>
+                    <input class="builder-input font-mono text-xs" :data-testid="`execute-fragment-param-${declarationKey(param)}`" :value="formatUnknown(fragmentParamMappings()[declarationKey(param)])" @input="updateFragmentParamMapping(declarationKey(param), parseLooseValue(($event.target as HTMLInputElement).value))">
+                    <select class="builder-input" @change="setTemplateValue((next) => updateFragmentParamMapping(declarationKey(param), next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                      <option value="">选择变量</option>
+                      <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
+                    </select>
+                  </label>
+                </div>
+              </template>
+
+              <template v-if="['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update', 'assertUnique'].includes(activeStandardBlock.functionName)">
                 <label class="builder-field">
                   <span>数据源</span>
                   <input class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
@@ -1757,6 +2419,59 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <label class="builder-field">
                   <span>表名</span>
                   <input class="builder-input" :value="stringInput('table')" @input="updateBlockInput('table', ($event.target as HTMLInputElement).value)">
+                </label>
+              </template>
+
+              <template v-if="activeStandardBlock.functionName === 'assertUnique'">
+                <label class="builder-field">
+                  <span>唯一字段</span>
+                  <input class="builder-input" :value="stringInput('fieldName')" @input="updateBlockInput('fieldName', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label class="builder-field">
+                  <span>校验值</span>
+                  <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().value)" @input="updateBlockInput('value', parseLooseValue(($event.target as HTMLInputElement).value))">
+                </label>
+                <select class="builder-input" @change="setTemplateValue((next) => updateBlockInput('value', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                  <option value="">选择变量</option>
+                  <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
+                </select>
+                <label class="builder-field">
+                  <span>冲突提示</span>
+                  <input class="builder-input" :value="stringInput('message')" @input="updateBlockInput('message', ($event.target as HTMLInputElement).value)">
+                </label>
+              </template>
+
+              <template v-if="activeStandardBlock.functionName === 'createSchema'">
+                <label class="builder-field">
+                  <span>数据源</span>
+                  <input class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label class="builder-field">
+                  <span>Schema</span>
+                  <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().schema)" @input="updateBlockInput('schema', parseLooseValue(($event.target as HTMLInputElement).value))">
+                </label>
+                <select class="builder-input" @change="setTemplateValue((next) => updateBlockInput('schema', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                  <option value="">选择变量</option>
+                  <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
+                </select>
+              </template>
+
+              <template v-if="activeStandardBlock.functionName === 'randomId'">
+                <label class="builder-field">
+                  <span>Prefix</span>
+                  <input class="builder-input" :value="stringInput('prefix')" @input="updateBlockInput('prefix', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label class="builder-field">
+                  <span>Length</span>
+                  <input type="number" min="1" max="32" class="builder-input" :value="Number(blockInputs().length ?? 6)" @input="updateBlockInput('length', Number(($event.target as HTMLInputElement).value))">
+                </label>
+                <label class="builder-field">
+                  <span>Alphabet</span>
+                  <input class="builder-input font-mono text-xs" :value="stringInput('alphabet')" @input="updateBlockInput('alphabet', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <input type="checkbox" :checked="blockInputs().lowerCase !== false" @change="updateBlockInput('lowerCase', ($event.target as HTMLInputElement).checked)">
+                  转为小写
                 </label>
               </template>
 
@@ -1974,6 +2689,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             </div>
           </template>
           </fieldset>
+          <button
+            v-if="isActiveApiReadonly && activeExecuteFragmentBlock"
+            type="button"
+            data-testid="view-system-fragment"
+            class="builder-secondary-button mt-3 w-full"
+            :disabled="!selectedFragmentUuid"
+            @click="openFragmentEditor()"
+          >查看内置 Fragment</button>
         </aside>
       </div>
 
@@ -2007,7 +2730,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
           <div v-else-if="bottomTab === 'test'" class="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
             <div class="space-y-4">
-              <section v-for="location in requestLocations" :key="location.value">
+              <section v-if="isActiveFragment">
+                <h4 class="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Params</h4>
+                <div class="space-y-2">
+                  <label v-for="param in activeApiJson.params || []" :key="`params-${declarationKey(param)}`" class="builder-field">
+                    <span>{{ declarationKey(param) }}</span>
+                    <input class="builder-input" :value="formatUnknown(testRequest.params[declarationKey(param)])" @input="updateTestParam(declarationKey(param), ($event.target as HTMLInputElement).value)">
+                  </label>
+                  <p v-if="!(activeApiJson.params || []).length" class="text-xs text-slate-500 dark:text-slate-400">没有 Params 参数。</p>
+                </div>
+              </section>
+              <section v-for="location in (isActiveFragment ? [] : requestLocations)" :key="location.value">
                 <h4 class="mb-2 text-sm font-semibold text-slate-900 dark:text-white">{{ location.title }}</h4>
                 <div class="space-y-2">
                   <label v-for="param in activeApiJson.request?.[location.value] || []" :key="`${location.value}-${declarationKey(param)}`" class="builder-field">
@@ -2060,13 +2793,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
       <button class="mt-4 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="navigateToList">返回 API 列表</button>
     </section>
 
+    <div v-if="isFragmentEditorOpen && fragmentEditorDraft" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/55 p-4">
+      <section class="flex max-h-[96vh] w-full max-w-[1500px] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="fragment-editor-dialog-title">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-medium text-teal-700 dark:text-teal-300">
+              {{ fragmentEditorDraft.source === 'system' ? '内置 Fragment · 只读' : 'Fragment Editor' }}
+            </p>
+            <h2 id="fragment-editor-dialog-title" class="text-xl font-semibold text-slate-950 dark:text-white">{{ fragmentEditorDraft.apiJson.alias || '未命名 Fragment' }}</h2>
+          </div>
+          <div class="flex gap-2">
+            <button class="builder-secondary-button" :disabled="isSavingFragment" @click="closeFragmentEditor">取消</button>
+            <button v-if="fragmentEditorDraft.source !== 'system' && fragmentEditorDraft.status !== 'published'" class="builder-secondary-button" :disabled="isSavingFragment" @click="saveFragmentFromModal('draft')">保存草稿</button>
+            <button v-if="fragmentEditorDraft.source !== 'system'" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="isSavingFragment" @click="saveFragmentFromModal('published')">发布</button>
+          </div>
+        </div>
+        <p v-if="fragmentEditorError" class="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{{ fragmentEditorError }}</p>
+        <div class="min-h-0 flex-1 overflow-auto">
+          <MApiOrchestrationEditorBlock
+            ref="fragmentEditorRef"
+            :draft="fragmentEditorDraft"
+            :mode="fragmentEditorDraft.source === 'system' ? 'readonly' : 'edit'"
+            context="embedded"
+          />
+        </div>
+      </section>
+    </div>
+
     <div v-if="isApiInfoDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
       <section class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="api-info-dialog-title">
         <form class="space-y-4" @submit.prevent="submitApiInfoDialog">
           <div>
             <p class="text-sm font-medium text-teal-700 dark:text-teal-300">API Builder</p>
             <h2 id="api-info-dialog-title" class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
-              复制 API
+              {{ apiInfoDialogMode === 'create' ? '新建' : '复制' }}{{ apiInfoForm.method === 'FRAGMENT' ? ' Fragment' : ' API' }}
             </h2>
           </div>
 
@@ -2082,7 +2842,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             <input v-model="apiInfoForm.uuid" data-testid="api-info-uuid" class="builder-input font-mono" maxlength="128">
           </label>
 
-          <label class="builder-field">
+          <label v-if="apiInfoForm.method !== 'FRAGMENT'" class="builder-field">
             <span>请求方法</span>
             <select v-model="apiInfoForm.method" data-testid="api-info-method" class="builder-input">
               <option value="GET">GET</option>
@@ -2091,7 +2851,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           </label>
 
           <div class="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            路径预览：<code>/api/mokelay/{{ apiInfoForm.uuid || '-' }}</code>
+            {{ apiInfoForm.method === 'FRAGMENT' ? 'Fragment UUID：' : '路径预览：' }}<code>{{ apiInfoForm.method === 'FRAGMENT' ? (apiInfoForm.uuid || '-') : `/api/mokelay/${apiInfoForm.uuid || '-'}` }}</code>
           </div>
 
           <div class="flex justify-end gap-2">
@@ -2155,31 +2915,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   @apply bg-slate-900 text-white hover:bg-slate-900 dark:bg-white dark:text-slate-950 dark:hover:bg-white;
 }
 
-.api-flow {
-  @apply h-full;
-}
-
-.flow-node {
-  @apply relative w-44 rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition dark:border-slate-700 dark:bg-slate-900;
-}
-
-.flow-node-selected {
-  @apply border-teal-400 bg-teal-50 dark:border-teal-400 dark:bg-teal-500/10;
-}
-
-.flow-node-starter {
-  @apply border-teal-300 bg-teal-50 dark:border-teal-500/60 dark:bg-teal-500/10;
-}
-
-.flow-node-controller {
-  @apply border-violet-300 bg-violet-50 dark:border-violet-500/60 dark:bg-violet-500/10;
-}
-
-.flow-branch-handle {
-  @apply absolute right-0 flex translate-x-full items-center gap-2 pr-4 text-xs font-semibold text-slate-500 dark:text-slate-300;
-}
-
-.api-flow :deep(.vue-flow__handle) {
-  @apply h-3 w-3 border-2 border-white bg-teal-500 dark:border-slate-900;
-}
 </style>

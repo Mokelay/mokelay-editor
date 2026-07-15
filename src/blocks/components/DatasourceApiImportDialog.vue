@@ -161,7 +161,7 @@ async function loadMokelayApiOptions(force = false) {
   apiImportError.value = '';
 
   try {
-    const result = await listApis({ page: 1, pageSize: 100, source });
+    const result = await listApis({ page: 1, pageSize: 100, source, fragment: false });
     mokelayApiOptionsBySource.value = {
       ...mokelayApiOptionsBySource.value,
       [source]: result.apis

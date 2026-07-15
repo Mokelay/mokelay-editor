@@ -57,9 +57,13 @@ export type BlockFunctionName =
   | 'create'
   | 'upsert'
   | 'update'
+  | 'randomId'
+  | 'assertUnique'
+  | 'createSchema'
   | 'addSession'
   | 'removeSession'
-  | 'readSession';
+  | 'readSession'
+  | 'executeFragment';
 
 export type ControllerFunctionName = 'if_controller' | 'switch_controller';
 
@@ -78,6 +82,11 @@ export type ApiStandardBlock = {
   inputs?: Record<string, unknown>;
   outputs?: ProcessableKey[] | null;
   nextBlock?: NextBlockUuid;
+  /**
+   * Optional error control flow. Missing means rethrow, null means this block is
+   * an error terminal, and a UUID routes the caught error to that block.
+   */
+  errorNextBlock?: NextBlockUuid;
 };
 
 export type ControllerNode = {
@@ -102,15 +111,34 @@ export type ExecutableApiBlock = ApiStandardBlock | ApiController;
 
 export type ApiBlock = StarterBlock | ExecutableApiBlock;
 
-export type ApiJson = {
+export type ApiJsonCommon = {
   uuid: string;
   alias?: string;
-  method: HttpMethod | string;
-  request?: RequestSchema;
   blocks?: ApiBlock[];
   response?: ResponseConfig;
   responses?: Record<string, ResponseConfig>;
 };
+
+export type EndpointApiJson = ApiJsonCommon & {
+  fragment?: false;
+  method: HttpMethod | string;
+  request?: RequestSchema;
+  params?: never;
+};
+
+export type FragmentApiJson = ApiJsonCommon & {
+  fragment: true;
+  params?: ProcessableKey[];
+  method?: never;
+  request?: never;
+};
+
+/**
+ * The persisted API DSL is deliberately discriminated by `fragment`.
+ * Fragment JSON never carries HTTP request metadata; the database record uses
+ * the `FRAGMENT` method sentinel separately.
+ */
+export type ApiJson = EndpointApiJson | FragmentApiJson;
 
 export type ResponseTerminal = {
   uuid: string;
@@ -150,11 +178,16 @@ export type ApiBuilderDraft = {
   updatedAt: string;
 };
 
+export type OrchestrationEditorDraft = Pick<
+  ApiBuilderDraft,
+  'apiJson' | 'layout' | 'disabledBlockIds' | 'testCases'
+>;
+
 export type VariableOption = {
   id: string;
   label: string;
   path: string;
-  source: 'request' | 'block' | 'system';
+  source: 'request' | 'params' | 'block' | 'system';
 };
 
 export type ValidationSeverity = 'error' | 'warning';
@@ -166,7 +199,11 @@ export type ValidationIssue = {
   target: 'api' | 'request' | 'response' | `block:${string}`;
 };
 
-export type RequestSnapshot = Record<RequestLocation, Record<string, unknown>>;
+export type RequestSnapshot = Record<RequestLocation, Record<string, unknown>> & {
+  params: Record<string, unknown>;
+};
+
+export type FragmentResolver = (uuid: string) => ApiJson | Promise<ApiJson>;
 
 export type DryRunBlockLog = {
   uuid: string;
