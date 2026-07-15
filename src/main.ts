@@ -4,6 +4,9 @@ import App from './App.vue';
 import './style.css';
 import { globalCallsPlugin } from './utils/globalCalls';
 import { globalSettingsPlugin } from './utils/globalSettings';
+import { setupCloudflareWebAnalytics } from './utils/cloudflareWebAnalytics';
+
+setupCloudflareWebAnalytics();
 
 const app = createApp(App);
 const queryClient = new QueryClient();
