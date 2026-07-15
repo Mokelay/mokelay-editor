@@ -382,6 +382,48 @@ function createMockOutputs(block: ApiStandardBlock, inputs: Record<string, unkno
     const schema = typeof inputs.schema === 'string' ? inputs.schema : 'mock_schema';
     return { schema, created: true, exists: true };
   }
+  if (block.functionName === 'cascadeDelete') {
+    const root = isRecord(inputs.root) ? inputs.root : {};
+    const relations = Array.isArray(inputs.relations) ? inputs.relations.filter(isRecord) : [];
+    const nodeIds = [root, ...relations]
+      .map((node) => typeof node.id === 'string' ? node.id : '')
+      .filter(Boolean);
+    const affectedByNode = Object.fromEntries(nodeIds.map((id) => [id, 1]));
+    const collected = Object.fromEntries(
+      (Array.isArray(inputs.collect) ? inputs.collect : [])
+        .filter(isRecord)
+        .map((item) => {
+          const key = typeof item.key === 'string' ? item.key : '';
+          const declarations = Array.isArray(item.fields)
+            ? item.fields.filter((field): field is ProcessableKey => typeof field === 'string' || (isRecord(field) && typeof field.key === 'string'))
+            : [];
+          if (item.mode === 'values') {
+            const field = declarations[0];
+            return [key, field ? [mockFieldValue(declarationKey(field))] : []];
+          }
+          const collectedRow = Object.fromEntries(
+            declarations.map((field) => {
+              const fieldKey = declarationKey(field);
+              return [fieldKey, mockFieldValue(fieldKey)];
+            })
+          );
+          return [key, [collectedRow]];
+        })
+        .filter(([key]) => Boolean(key))
+    );
+    return {
+      affected: root.id ? 1 : 0,
+      affectedByNode,
+      totalAffected: Object.values(affectedByNode).reduce((total, value) => total + Number(value), 0),
+      collected
+    };
+  }
+  if (block.functionName === 'dropSchemas') {
+    const schemas = Array.isArray(inputs.schemas)
+      ? Array.from(new Set(inputs.schemas.filter((schema): schema is string => typeof schema === 'string')))
+      : [];
+    return { schemas, dropped: schemas.length };
+  }
   if (block.functionName === 'readSession') {
     return {
       value: {

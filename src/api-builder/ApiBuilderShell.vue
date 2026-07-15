@@ -68,11 +68,16 @@ import type {
   ApiStandardBlock,
   BlockFunctionName,
   BuilderSelection,
+  CascadeDeleteCollect,
+  CascadeDeleteLimits,
+  CascadeDeleteRelation,
+  CascadeDeleteRoot,
   Condition,
   ControllerFunctionName,
   ControllerNode,
   DryRunResult,
   ExecutableApiBlock,
+  OrderBy,
   ProcessableKey,
   ProcessorConfig,
   RequestLocation,
@@ -1683,6 +1688,150 @@ function updateArrayInput(key: string, value: string) {
   updateBlockInput(key, splitFields(value));
 }
 
+function cascadeRootInput() {
+  const inputs = blockInputs();
+  if (!isRecord(inputs.root)) {
+    inputs.root = {
+      id: 'employees',
+      table: 'employees',
+      keyField: 'id',
+      conditions: []
+    } satisfies CascadeDeleteRoot;
+  }
+  const root = inputs.root as Record<string, unknown>;
+  if (!Array.isArray(root.conditions)) root.conditions = [];
+  return root as unknown as CascadeDeleteRoot;
+}
+
+function cascadeRelations() {
+  const inputs = blockInputs();
+  if (!Array.isArray(inputs.relations)) inputs.relations = [];
+  return inputs.relations as CascadeDeleteRelation[];
+}
+
+function addCascadeRelation() {
+  const relations = cascadeRelations();
+  const rootId = cascadeRootInput().id || 'root';
+  const index = relations.length + 1;
+  relations.push({
+    id: `relation_${index}`,
+    table: `related_table_${index}`,
+    keyField: 'id',
+    parent: rootId,
+    foreignKey: `${rootId}_id`,
+    conditions: []
+  });
+}
+
+function removeCascadeRelation(index: number) {
+  cascadeRelations().splice(index, 1);
+}
+
+function cascadeCollectItems() {
+  const inputs = blockInputs();
+  if (!Array.isArray(inputs.collect)) inputs.collect = [];
+  return inputs.collect as CascadeDeleteCollect[];
+}
+
+function addCascadeCollect() {
+  const collects = cascadeCollectItems();
+  collects.push({
+    key: `values_${collects.length + 1}`,
+    node: cascadeRootInput().id || 'root',
+    mode: 'values',
+    fields: ['uuid'],
+    distinct: true,
+    orderBy: []
+  });
+}
+
+function removeCascadeCollect(index: number) {
+  cascadeCollectItems().splice(index, 1);
+}
+
+function cascadeCollectFields(collect: CascadeDeleteCollect) {
+  if (!Array.isArray(collect.fields)) collect.fields = [];
+  return collect.fields;
+}
+
+function addCascadeCollectField(collect: CascadeDeleteCollect) {
+  cascadeCollectFields(collect).push('uuid');
+}
+
+function updateCascadeCollectFieldKey(collect: CascadeDeleteCollect, index: number, key: string) {
+  const field = cascadeCollectFields(collect)[index];
+  if (typeof field === 'string') collect.fields[index] = key;
+  else if (field) field.key = key;
+}
+
+function cascadeCollectFieldProcessors(field: ProcessableKey) {
+  return typeof field === 'string' ? [] : field.processors ?? [];
+}
+
+function updateCascadeCollectFieldProcessors(collect: CascadeDeleteCollect, index: number, value: string) {
+  try {
+    const processors = JSON.parse(value);
+    if (!Array.isArray(processors)) return;
+    const field = cascadeCollectFields(collect)[index];
+    const key = field ? declarationKey(field) : 'uuid';
+    collect.fields[index] = processors.length ? { key, processors } : key;
+  } catch {
+    // Preserve the last valid processors while the user types partial JSON.
+  }
+}
+
+function removeCascadeCollectField(collect: CascadeDeleteCollect, index: number) {
+  cascadeCollectFields(collect).splice(index, 1);
+}
+
+function cascadeCollectOrderBy(collect: CascadeDeleteCollect) {
+  return Array.isArray(collect.orderBy) ? collect.orderBy as OrderBy[] : [];
+}
+
+function addCascadeCollectOrderBy(collect: CascadeDeleteCollect) {
+  if (!Array.isArray(collect.orderBy)) collect.orderBy = [];
+  collect.orderBy.push({ fieldName: 'uuid', direction: 'ASC' });
+}
+
+function removeCascadeCollectOrderBy(collect: CascadeDeleteCollect, index: number) {
+  cascadeCollectOrderBy(collect).splice(index, 1);
+}
+
+function cascadeConditions(node: CascadeDeleteRoot | CascadeDeleteRelation) {
+  return Array.isArray(node.conditions) ? node.conditions : [];
+}
+
+function addCascadeCondition(node: CascadeDeleteRoot | CascadeDeleteRelation) {
+  if (!Array.isArray(node.conditions)) node.conditions = [];
+  node.conditions.push({
+    group: false,
+    fieldName: node.keyField || 'id',
+    conditionType: 'EQ',
+    fieldValue: makeTemplate('request.body.id')
+  });
+}
+
+function removeCascadeCondition(node: CascadeDeleteRoot | CascadeDeleteRelation, index: number) {
+  cascadeConditions(node).splice(index, 1);
+}
+
+function cascadeLimitsInput() {
+  const inputs = blockInputs();
+  if (!isRecord(inputs.limits)) {
+    inputs.limits = {
+      maxRootRows: 1,
+      maxAffectedRows: 100000,
+      maxCollectedRows: 10000
+    } satisfies CascadeDeleteLimits;
+  }
+  return inputs.limits as unknown as CascadeDeleteLimits;
+}
+
+function cascadeNodeOptions() {
+  const ids = [cascadeRootInput().id, ...cascadeRelations().map((relation) => relation.id)];
+  return Array.from(new Set(ids.filter((id): id is string => typeof id === 'string' && Boolean(id.trim()))));
+}
+
 function getFieldEntries() {
   const fields = blockInputs().fields;
   return isRecord(fields) ? Object.entries(fields) : [];
@@ -2409,6 +2558,237 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                     </select>
                   </label>
                 </div>
+              </template>
+
+              <template v-if="activeStandardBlock.functionName === 'cascadeDelete'">
+                <label class="builder-field">
+                  <span>数据源</span>
+                  <input data-testid="cascade-delete-datasource" class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
+                </label>
+
+                <section class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                  <div class="mb-3 flex items-center justify-between gap-2">
+                    <h4 class="text-sm font-semibold text-slate-900 dark:text-white">Root 节点</h4>
+                    <button data-testid="cascade-add-root-condition" class="builder-small-button" @click="addCascadeCondition(cascadeRootInput())">添加条件</button>
+                  </div>
+                  <div class="grid gap-2 sm:grid-cols-3">
+                    <label class="builder-field">
+                      <span>节点 ID</span>
+                      <input data-testid="cascade-root-id" class="builder-input" :value="cascadeRootInput().id" @input="cascadeRootInput().id = ($event.target as HTMLInputElement).value">
+                    </label>
+                    <label class="builder-field">
+                      <span>表名</span>
+                      <input data-testid="cascade-root-table" class="builder-input" :value="cascadeRootInput().table" @input="cascadeRootInput().table = ($event.target as HTMLInputElement).value">
+                    </label>
+                    <label class="builder-field">
+                      <span>主键字段</span>
+                      <input data-testid="cascade-root-key-field" class="builder-input" :value="cascadeRootInput().keyField" @input="cascadeRootInput().keyField = ($event.target as HTMLInputElement).value">
+                    </label>
+                  </div>
+                  <div class="mt-3 space-y-2">
+                    <div v-for="(condition, index) in cascadeConditions(cascadeRootInput())" :key="index" class="rounded-lg bg-slate-50 p-2 dark:bg-slate-800">
+                      <template v-if="!condition.group">
+                        <div class="grid gap-2 sm:grid-cols-2">
+                          <input v-model="condition.fieldName" class="builder-input" placeholder="字段">
+                          <select v-model="condition.conditionType" class="builder-input">
+                            <option v-for="item in conditionTypes" :key="item.value" :value="item.value">{{ item.title }}</option>
+                          </select>
+                        </div>
+                        <input class="builder-input mt-2 font-mono text-xs" :value="formatUnknown(condition.fieldValue)" @input="condition.fieldValue = parseLooseValue(($event.target as HTMLInputElement).value)">
+                        <select class="builder-input mt-2" @change="setTemplateValue((next) => condition.fieldValue = next, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                          <option value="">选择变量</option>
+                          <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
+                        </select>
+                      </template>
+                      <template v-else>
+                        <select v-model="condition.groupType" class="builder-input">
+                          <option value="AND">AND</option>
+                          <option value="OR">OR</option>
+                        </select>
+                        <textarea class="builder-input mt-2 min-h-24 font-mono text-xs" :value="stringifyJson(condition.groups)" @input="updateConditionGroupJson(condition, ($event.target as HTMLTextAreaElement).value)"></textarea>
+                      </template>
+                      <button class="mt-2 text-xs text-rose-600" @click="removeCascadeCondition(cascadeRootInput(), index)">删除条件</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                  <div class="mb-3 flex items-center justify-between gap-2">
+                    <div>
+                      <h4 class="text-sm font-semibold text-slate-900 dark:text-white">Relations</h4>
+                      <p class="mt-1 text-xs text-slate-500">显式配置父子关系；每张表只能对应一个节点。</p>
+                    </div>
+                    <button data-testid="cascade-add-relation" class="builder-small-button" @click="addCascadeRelation">添加关系</button>
+                  </div>
+                  <div class="space-y-3">
+                    <article v-for="(relation, relationIndex) in cascadeRelations()" :key="relationIndex" class="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+                      <div class="grid gap-2 sm:grid-cols-2">
+                        <label class="builder-field">
+                          <span>节点 ID</span>
+                          <input v-model="relation.id" :data-testid="`cascade-relation-${relationIndex}-id`" class="builder-input">
+                        </label>
+                        <label class="builder-field">
+                          <span>表名</span>
+                          <input v-model="relation.table" :data-testid="`cascade-relation-${relationIndex}-table`" class="builder-input">
+                        </label>
+                        <label class="builder-field">
+                          <span>主键字段</span>
+                          <input v-model="relation.keyField" :data-testid="`cascade-relation-${relationIndex}-key-field`" class="builder-input">
+                        </label>
+                        <label class="builder-field">
+                          <span>父节点</span>
+                          <select v-model="relation.parent" :data-testid="`cascade-relation-${relationIndex}-parent`" class="builder-input">
+                            <option value="">请选择父节点</option>
+                            <option v-for="nodeId in cascadeNodeOptions()" :key="nodeId" :value="nodeId">{{ nodeId }}</option>
+                          </select>
+                        </label>
+                        <label class="builder-field sm:col-span-2">
+                          <span>外键字段</span>
+                          <input v-model="relation.foreignKey" :data-testid="`cascade-relation-${relationIndex}-foreign-key`" class="builder-input">
+                        </label>
+                      </div>
+                      <div class="mt-3 flex items-center justify-between gap-2">
+                        <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">附加条件</span>
+                        <button class="builder-small-button" @click="addCascadeCondition(relation)">添加条件</button>
+                      </div>
+                      <div class="mt-2 space-y-2">
+                        <div v-for="(condition, conditionIndex) in cascadeConditions(relation)" :key="conditionIndex" class="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+                          <template v-if="!condition.group">
+                            <div class="grid gap-2 sm:grid-cols-2">
+                              <input v-model="condition.fieldName" class="builder-input" placeholder="字段">
+                              <select v-model="condition.conditionType" class="builder-input">
+                                <option v-for="item in conditionTypes" :key="item.value" :value="item.value">{{ item.title }}</option>
+                              </select>
+                            </div>
+                            <input class="builder-input mt-2 font-mono text-xs" :value="formatUnknown(condition.fieldValue)" @input="condition.fieldValue = parseLooseValue(($event.target as HTMLInputElement).value)">
+                            <select class="builder-input mt-2" @change="setTemplateValue((next) => condition.fieldValue = next, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                              <option value="">选择变量</option>
+                              <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
+                            </select>
+                          </template>
+                          <template v-else>
+                            <select v-model="condition.groupType" class="builder-input">
+                              <option value="AND">AND</option>
+                              <option value="OR">OR</option>
+                            </select>
+                            <textarea class="builder-input mt-2 min-h-24 font-mono text-xs" :value="stringifyJson(condition.groups)" @input="updateConditionGroupJson(condition, ($event.target as HTMLTextAreaElement).value)"></textarea>
+                          </template>
+                          <button class="mt-2 text-xs text-rose-600" @click="removeCascadeCondition(relation, conditionIndex)">删除条件</button>
+                        </div>
+                      </div>
+                      <button class="mt-3 text-xs text-rose-600" @click="removeCascadeRelation(relationIndex)">删除关系</button>
+                    </article>
+                    <p v-if="!cascadeRelations().length" class="text-xs text-slate-500">没有子节点时可保持空数组。</p>
+                  </div>
+                </section>
+
+                <section class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                  <div class="mb-3 flex items-center justify-between gap-2">
+                    <div>
+                      <h4 class="text-sm font-semibold text-slate-900 dark:text-white">Collect</h4>
+                      <p class="mt-1 text-xs text-slate-500">在删除前收集节点字段，供后续 Block 使用。</p>
+                    </div>
+                    <button data-testid="cascade-add-collect" class="builder-small-button" @click="addCascadeCollect">添加收集项</button>
+                  </div>
+                  <div class="space-y-3">
+                    <article v-for="(collect, collectIndex) in cascadeCollectItems()" :key="collectIndex" class="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
+                      <div class="grid gap-2 sm:grid-cols-2">
+                        <label class="builder-field">
+                          <span>输出 key</span>
+                          <input v-model="collect.key" :data-testid="`cascade-collect-${collectIndex}-key`" class="builder-input">
+                        </label>
+                        <label class="builder-field">
+                          <span>节点</span>
+                          <select v-model="collect.node" :data-testid="`cascade-collect-${collectIndex}-node`" class="builder-input">
+                            <option value="">请选择节点</option>
+                            <option v-for="nodeId in cascadeNodeOptions()" :key="nodeId" :value="nodeId">{{ nodeId }}</option>
+                          </select>
+                        </label>
+                        <label class="builder-field">
+                          <span>模式</span>
+                          <select v-model="collect.mode" :data-testid="`cascade-collect-${collectIndex}-mode`" class="builder-input">
+                            <option value="values">values</option>
+                            <option value="rows">rows</option>
+                          </select>
+                        </label>
+                        <label class="flex items-center gap-2 self-end pb-2 text-sm text-slate-600 dark:text-slate-300">
+                          <input v-model="collect.distinct" type="checkbox">
+                          去重 distinct
+                        </label>
+                      </div>
+
+                      <div class="mt-3">
+                        <div class="mb-2 flex items-center justify-between">
+                          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Fields</span>
+                          <button class="builder-small-button" @click="addCascadeCollectField(collect)">添加字段</button>
+                        </div>
+                        <div class="space-y-2">
+                          <div v-for="(field, fieldIndex) in cascadeCollectFields(collect)" :key="fieldIndex" class="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+                            <input class="builder-input" :data-testid="`cascade-collect-${collectIndex}-field-${fieldIndex}`" :value="declarationKey(field)" @input="updateCascadeCollectFieldKey(collect, fieldIndex, ($event.target as HTMLInputElement).value)">
+                            <textarea class="builder-input mt-2 min-h-20 font-mono text-xs" :data-testid="`cascade-collect-${collectIndex}-field-${fieldIndex}-processors`" :value="stringifyJson(cascadeCollectFieldProcessors(field))" placeholder="processors JSON（可选）" @input="updateCascadeCollectFieldProcessors(collect, fieldIndex, ($event.target as HTMLTextAreaElement).value)"></textarea>
+                            <button class="mt-2 text-xs text-rose-600" @click="removeCascadeCollectField(collect, fieldIndex)">删除字段</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="mt-3">
+                        <div class="mb-2 flex items-center justify-between">
+                          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Order By</span>
+                          <button class="builder-small-button" @click="addCascadeCollectOrderBy(collect)">添加排序</button>
+                        </div>
+                        <div class="space-y-2">
+                          <div v-for="(order, orderIndex) in cascadeCollectOrderBy(collect)" :key="orderIndex" class="grid grid-cols-[minmax(0,1fr)_96px_auto] gap-2">
+                            <input v-model="order.fieldName" class="builder-input" placeholder="字段">
+                            <select v-model="order.direction" class="builder-input">
+                              <option value="ASC">ASC</option>
+                              <option value="DESC">DESC</option>
+                            </select>
+                            <button class="text-xs text-rose-600" @click="removeCascadeCollectOrderBy(collect, orderIndex)">删除</button>
+                          </div>
+                        </div>
+                      </div>
+                      <button class="mt-3 text-xs text-rose-600" @click="removeCascadeCollect(collectIndex)">删除收集项</button>
+                    </article>
+                    <p v-if="!cascadeCollectItems().length" class="text-xs text-slate-500">不需要向后续步骤传值时可保持空数组。</p>
+                  </div>
+                </section>
+
+                <section class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                  <h4 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">安全限制 Limits</h4>
+                  <div class="grid gap-2 sm:grid-cols-3">
+                    <label class="builder-field">
+                      <span>maxRootRows</span>
+                      <input data-testid="cascade-limit-max-root-rows" type="number" min="0" max="10000" class="builder-input" :value="cascadeLimitsInput().maxRootRows" @input="cascadeLimitsInput().maxRootRows = Number(($event.target as HTMLInputElement).value)">
+                    </label>
+                    <label class="builder-field">
+                      <span>maxAffectedRows</span>
+                      <input data-testid="cascade-limit-max-affected-rows" type="number" min="0" max="1000000" class="builder-input" :value="cascadeLimitsInput().maxAffectedRows" @input="cascadeLimitsInput().maxAffectedRows = Number(($event.target as HTMLInputElement).value)">
+                    </label>
+                    <label class="builder-field">
+                      <span>maxCollectedRows</span>
+                      <input data-testid="cascade-limit-max-collected-rows" type="number" min="0" max="100000" class="builder-input" :value="cascadeLimitsInput().maxCollectedRows" @input="cascadeLimitsInput().maxCollectedRows = Number(($event.target as HTMLInputElement).value)">
+                    </label>
+                  </div>
+                </section>
+              </template>
+
+              <template v-if="activeStandardBlock.functionName === 'dropSchemas'">
+                <label class="builder-field">
+                  <span>数据源</span>
+                  <input data-testid="drop-schemas-datasource" class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
+                </label>
+                <label class="builder-field">
+                  <span>Schemas 数组或模板</span>
+                  <input data-testid="drop-schemas-value" class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().schemas)" @input="updateBlockInput('schemas', parseLooseValue(($event.target as HTMLInputElement).value))">
+                </label>
+                <select data-testid="drop-schemas-variable" class="builder-input" @change="setTemplateValue((next) => updateBlockInput('schemas', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                  <option value="">选择变量</option>
+                  <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
+                </select>
+                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                  <input data-testid="drop-schemas-cascade" type="checkbox" :checked="blockInputs().cascade === true" @change="updateBlockInput('cascade', ($event.target as HTMLInputElement).checked)">
+                  使用 DROP SCHEMA CASCADE
+                </label>
               </template>
 
               <template v-if="['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update', 'assertUnique'].includes(activeStandardBlock.functionName)">

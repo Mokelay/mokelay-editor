@@ -25,7 +25,7 @@ export type CalculateTemplate = {
 
 export type ResponseConfig = Record<string, unknown> | null;
 
-export type ConditionType = 'GE' | 'GT' | 'LE' | 'LT' | 'NEQ' | 'EQ' | 'NOTIN' | 'IN';
+export type ConditionType = 'GE' | 'GT' | 'LE' | 'LT' | 'NEQ' | 'EQ' | 'NOTIN' | 'IN' | 'LIKE';
 export type GroupType = 'AND' | 'OR';
 
 export type LeafCondition = {
@@ -48,6 +48,37 @@ export type OrderBy = {
   direction?: 'ASC' | 'DESC';
 };
 
+export type CascadeDeleteRoot = {
+  id: string;
+  table: string;
+  keyField: string;
+  conditions: Condition[];
+};
+
+export type CascadeDeleteRelation = {
+  id: string;
+  table: string;
+  keyField: string;
+  parent: string;
+  foreignKey: string;
+  conditions?: Condition[];
+};
+
+export type CascadeDeleteCollect = {
+  key: string;
+  node: string;
+  mode: 'values' | 'rows';
+  fields: ProcessableKey[];
+  distinct?: boolean;
+  orderBy?: OrderBy[];
+};
+
+export type CascadeDeleteLimits = {
+  maxRootRows?: number;
+  maxAffectedRows?: number;
+  maxCollectedRows?: number;
+};
+
 export type BlockFunctionName =
   | 'list'
   | 'page'
@@ -60,6 +91,8 @@ export type BlockFunctionName =
   | 'randomId'
   | 'assertUnique'
   | 'createSchema'
+  | 'cascadeDelete'
+  | 'dropSchemas'
   | 'addSession'
   | 'removeSession'
   | 'readSession'

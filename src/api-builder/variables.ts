@@ -61,6 +61,30 @@ export function buildVariableOptions(apiJson: ApiJson, beforeBlockUuid?: string)
         });
       }
     }
+
+    if (block.functionName === 'cascadeDelete') {
+      const inputs = block.inputs ?? {};
+      if (outputKeys.includes('affectedByNode')) {
+        for (const nodeId of cascadeNodeIds(inputs)) {
+          options.push({
+            id: `block-${block.uuid}-affectedByNode-${nodeId}`,
+            label: `${block.alias || block.uuid}.affectedByNode.${nodeId}`,
+            path: `blocks['${block.uuid}'].outputs.affectedByNode.${nodeId}`,
+            source: 'block'
+          });
+        }
+      }
+      if (outputKeys.includes('collected')) {
+        for (const collectKey of cascadeCollectKeys(inputs)) {
+          options.push({
+            id: `block-${block.uuid}-collected-${collectKey}`,
+            label: `${block.alias || block.uuid}.collected.${collectKey}`,
+            path: `blocks['${block.uuid}'].outputs.collected.${collectKey}`,
+            source: 'block'
+          });
+        }
+      }
+    }
   }
 
   options.push({
@@ -116,4 +140,24 @@ function orderedReachableBlocks(apiJson: ApiJson) {
   }
 
   return ordered;
+}
+
+function cascadeNodeIds(inputs: Record<string, unknown>) {
+  const nodes = [inputs.root, ...(Array.isArray(inputs.relations) ? inputs.relations : [])];
+  return Array.from(new Set(nodes.flatMap((node) => {
+    if (!isRecord(node) || typeof node.id !== 'string' || !node.id.trim()) return [];
+    return [node.id.trim()];
+  })));
+}
+
+function cascadeCollectKeys(inputs: Record<string, unknown>) {
+  if (!Array.isArray(inputs.collect)) return [];
+  return Array.from(new Set(inputs.collect.flatMap((item) => {
+    if (!isRecord(item) || typeof item.key !== 'string' || !item.key.trim()) return [];
+    return [item.key.trim()];
+  })));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

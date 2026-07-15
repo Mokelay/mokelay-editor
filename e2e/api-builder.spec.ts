@@ -1251,6 +1251,169 @@ test('hides manual snapshot controls while keeping save actions available', asyn
   await expect(page.getByRole('button', { name: '保存基本信息' })).toBeVisible();
 });
 
+test('configures cascadeDelete and dropSchemas with nested variables and dry-run outputs', async ({ page }) => {
+  await resetEditor(page, {
+    apis: [
+      {
+        uuid: 'delete_enterprise_graph',
+        name: '删除企业关系图',
+        method: 'POST',
+        status: 'draft',
+        apiJson: {
+          uuid: 'delete_enterprise_graph',
+          alias: '删除企业关系图',
+          method: 'POST',
+          request: { body: ['uuid'] },
+          blocks: linearBlocks([
+            {
+              uuid: 'delete_enterprise_records',
+              alias: '删除企业关联记录',
+              functionName: 'cascadeDelete',
+              inputs: {
+                datasource: 'Mokelay',
+                root: {
+                  id: 'enterprise',
+                  table: 'enterprise',
+                  keyField: 'uuid',
+                  conditions: [
+                    {
+                      group: false,
+                      conditionType: 'LIKE',
+                      fieldName: 'uuid',
+                      fieldValue: { template: '{{request.body.uuid}}' }
+                    }
+                  ]
+                },
+                relations: [
+                  {
+                    id: 'datasources',
+                    table: 'datasources',
+                    keyField: 'id',
+                    parent: 'enterprise',
+                    foreignKey: 'enterprise_uuid'
+                  }
+                ],
+                collect: [
+                  {
+                    key: 'schemaNames',
+                    node: 'datasources',
+                    mode: 'values',
+                    fields: [
+                      {
+                        key: 'uuid',
+                        processors: ['trim']
+                      }
+                    ],
+                    distinct: true,
+                    orderBy: [{ fieldName: 'uuid', direction: 'ASC' }]
+                  }
+                ],
+                limits: {
+                  maxRootRows: 1,
+                  maxAffectedRows: 100000,
+                  maxCollectedRows: 10000
+                }
+              },
+              outputs: ['affected', 'affectedByNode', 'totalAffected', 'collected']
+            },
+            {
+              uuid: 'drop_enterprise_schemas',
+              alias: '删除企业 Schemas',
+              functionName: 'dropSchemas',
+              inputs: {
+                datasource: 'MokelayFree',
+                schemas: {
+                  template: "{{blocks['delete_enterprise_records'].outputs.collected.schemaNames}}"
+                },
+                cascade: true
+              },
+              outputs: ['schemas', 'dropped']
+            }
+          ]),
+          response: {
+            affected: { template: "{{blocks['delete_enterprise_records'].outputs.totalAffected}}" },
+            schemas: { template: "{{blocks['drop_enterprise_schemas'].outputs.schemas}}" },
+            dropped: { template: "{{blocks['drop_enterprise_schemas'].outputs.dropped}}" }
+          }
+        }
+      }
+    ]
+  });
+
+  await page.goto('/#/apis/delete_enterprise_graph');
+  await page.locator('[data-block-uuid="delete_enterprise_records"]').click();
+
+  await expect(page.getByTestId('cascade-delete-datasource')).toHaveValue('Mokelay');
+  await expect(page.getByTestId('cascade-root-id')).toHaveValue('enterprise');
+  await expect(page.getByTestId('cascade-root-table')).toHaveValue('enterprise');
+  await expect(page.getByTestId('cascade-relation-0-parent')).toHaveValue('enterprise');
+  await expect(page.getByTestId('cascade-collect-0-key')).toHaveValue('schemaNames');
+  await expect(page.getByTestId('cascade-limit-max-affected-rows')).toHaveValue('100000');
+
+  await page.getByTestId('cascade-root-table').fill('enterprise_archive');
+  await page.getByTestId('cascade-add-relation').click();
+  await page.getByTestId('cascade-relation-1-id').fill('employees');
+  await page.getByTestId('cascade-relation-1-table').fill('employees');
+  await page.getByTestId('cascade-relation-1-parent').selectOption('enterprise');
+  await page.getByTestId('cascade-relation-1-foreign-key').fill('enterprise_uuid');
+
+  let apiJson = JSON.parse(await page.getByTestId('api-builder-json').innerText()) as { blocks: Array<Record<string, any>> };
+  const cascadeBlock = apiJson.blocks.find((block) => block.uuid === 'delete_enterprise_records');
+  expect(cascadeBlock).toMatchObject({
+    functionName: 'cascadeDelete',
+    inputs: {
+      root: { id: 'enterprise', table: 'enterprise_archive', keyField: 'uuid' },
+      relations: [
+        { id: 'datasources', parent: 'enterprise' },
+        { id: 'employees', table: 'employees', parent: 'enterprise', foreignKey: 'enterprise_uuid' }
+      ],
+      collect: [{ key: 'schemaNames', node: 'datasources', mode: 'values' }],
+      limits: { maxRootRows: 1, maxAffectedRows: 100000, maxCollectedRows: 10000 }
+    },
+    outputs: ['affected', 'affectedByNode', 'totalAffected', 'collected']
+  });
+  expect(cascadeBlock.inputs.root.conditions).toEqual([
+    expect.objectContaining({ conditionType: 'LIKE' })
+  ]);
+
+  const processorEditor = page.getByTestId('cascade-collect-0-field-0-processors');
+  await processorEditor.fill('[null]');
+  await page.getByRole('button', { name: /校验/ }).click();
+  await expect(page.getByText('处理规则必须是非空字符串或包含 processor 的对象。')).toBeVisible();
+  await page.getByTestId('cascade-relation-1-table').fill('public.enterprise_archive');
+  await expect(page.getByText('级联删除 table public.enterprise_archive 重复配置。')).toBeVisible();
+  await page.getByTestId('cascade-relation-1-table').fill('employees');
+  await expect(page.getByText('级联删除 table public.enterprise_archive 重复配置。')).toHaveCount(0);
+  await processorEditor.fill('["trim", {"processor":"default_value","param":"e_default"}]');
+  await expect(page.getByText('处理规则必须是非空字符串或包含 processor 的对象。')).toHaveCount(0);
+  await page.getByRole('button', { name: 'JSON 预览', exact: true }).click();
+
+  await page.locator('[data-block-uuid="drop_enterprise_schemas"]').click();
+  const variablePicker = page.getByTestId('drop-schemas-variable');
+  const collectedPath = "blocks['delete_enterprise_records'].outputs.collected.schemaNames";
+  await expect(variablePicker.locator(`option[value="${collectedPath}"]`)).toHaveCount(1);
+  await expect(variablePicker.locator('option[value="blocks[\'delete_enterprise_records\'].outputs.affectedByNode.datasources"]')).toHaveCount(1);
+  await variablePicker.selectOption(collectedPath);
+  await expect(page.getByTestId('drop-schemas-cascade')).toBeChecked();
+
+  apiJson = JSON.parse(await page.getByTestId('api-builder-json').innerText()) as { blocks: Array<Record<string, any>> };
+  const dropSchemasBlock = apiJson.blocks.find((block) => block.uuid === 'drop_enterprise_schemas');
+  expect(dropSchemasBlock).toMatchObject({
+    functionName: 'dropSchemas',
+    inputs: {
+      datasource: 'MokelayFree',
+      schemas: { template: `{{${collectedPath}}}` },
+      cascade: true
+    },
+    outputs: ['schemas', 'dropped']
+  });
+
+  await page.getByRole('button', { name: '测试', exact: true }).click();
+  await page.getByRole('button', { name: '运行 Dry-run' }).click();
+  await expect(page.getByText('Dry-run 通过')).toBeVisible();
+  await expect(page.locator('pre').filter({ hasText: '"dropped": 1' })).toBeVisible();
+});
+
 test('saves, publishes, and deletes APIs through server endpoints', async ({ page }) => {
   const apiState = await resetEditor(page);
 

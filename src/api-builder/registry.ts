@@ -58,7 +58,8 @@ export const conditionTypes: Array<{ value: ConditionType; title: string }> = [
   { value: 'LT', title: '小于' },
   { value: 'LE', title: '小于等于' },
   { value: 'IN', title: '包含在' },
-  { value: 'NOTIN', title: '不包含在' }
+  { value: 'NOTIN', title: '不包含在' },
+  { value: 'LIKE', title: '模糊包含' }
 ];
 
 export const processorDefinitions: ProcessorDefinition[] = [
@@ -223,6 +224,52 @@ export const blockDefinitions: BlockDefinition[] = [
     defaultInputs: () => ({
       datasource: 'MokelayFree',
       schema: { template: "{{blocks['random_schema'].outputs.value}}" }
+    })
+  },
+  {
+    functionName: 'cascadeDelete',
+    title: '级联删除',
+    shortTitle: '级联删除',
+    group: 'write',
+    description: '在一个事务内按显式关系图删除根记录及子记录。',
+    outputs: ['affected', 'affectedByNode', 'totalAffected', 'collected'],
+    defaultInputs: () => ({
+      datasource: 'Mokelay',
+      root: {
+        id: 'employees',
+        table: 'employees',
+        keyField: 'id',
+        conditions: [leafCondition('id', { template: '{{request.body.id}}' })]
+      },
+      relations: [
+        {
+          id: 'employee_auth_identities',
+          table: 'employee_auth_identities',
+          keyField: 'id',
+          parent: 'employees',
+          foreignKey: 'employee_id',
+          conditions: []
+        }
+      ],
+      collect: [],
+      limits: {
+        maxRootRows: 1,
+        maxAffectedRows: 100000,
+        maxCollectedRows: 10000
+      }
+    })
+  },
+  {
+    functionName: 'dropSchemas',
+    title: '删除 Postgres Schemas',
+    shortTitle: '删 Schemas',
+    group: 'write',
+    description: '批量删除指定 Postgres 数据源中的 schema。',
+    outputs: ['schemas', 'dropped'],
+    defaultInputs: () => ({
+      datasource: 'MokelayFree',
+      schemas: [],
+      cascade: false
     })
   },
   {
