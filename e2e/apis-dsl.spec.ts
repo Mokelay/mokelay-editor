@@ -79,7 +79,7 @@ function hasListRequest(
   });
 }
 
-test('renders user/system API and Fragment lists as nested Page DSL tabs', async ({ page }) => {
+test('renders user API and Fragment lists without the relocated system tab', async ({ page }) => {
   const userApi = mockApi('user_api_record', '用户 API 记录');
   const userFragment = mockApi('user_fragment_record', '用户 Fragment 记录', { fragment: true });
   const systemApi = mockApi('system_api_record', '系统 API 记录', { source: 'system' });
@@ -98,8 +98,8 @@ test('renders user/system API and Fragment lists as nested Page DSL tabs', async
   });
 
   const userSourceTab = page.getByTestId('editor-tabs-tab-user-create');
-  const systemSourceTab = page.getByTestId('editor-tabs-tab-system-built-in');
-  await expect(userSourceTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('editor-tabs-tab-system-built-in')).toHaveCount(0);
+  await expect(userSourceTab).toBeHidden();
   await expect(page.getByTestId('editor-tabs-tab-user-api')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('cell', { name: '用户 API 记录' })).toBeVisible();
   await expect(page.getByText('用户 Fragment 记录', { exact: true })).toHaveCount(0);
@@ -107,6 +107,26 @@ test('renders user/system API and Fragment lists as nested Page DSL tabs', async
   await expect(page.getByRole('button', { name: '新建 API' })).toBeVisible();
   await expect(page.getByRole('button', { name: '新建 Fragment' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '删除', exact: true })).toBeVisible();
+  const createApiButton = page.getByRole('button', { name: '新建 API' });
+  const batchDeleteApiButton = page.getByRole('button', { name: '批量删除' });
+  await expect.poll(async () => {
+    const [createBox, deleteBox] = await Promise.all([
+      createApiButton.boundingBox(),
+      batchDeleteApiButton.boundingBox()
+    ]);
+    return createBox && deleteBox
+      ? Math.abs((createBox.y + createBox.height / 2) - (deleteBox.y + deleteBox.height / 2))
+      : Number.POSITIVE_INFINITY;
+  }).toBeLessThan(2);
+  await expect.poll(async () => {
+    const [buttonBox, tableBox] = await Promise.all([
+      createApiButton.boundingBox(),
+      page.getByRole('table').boundingBox()
+    ]);
+    return buttonBox && tableBox
+      ? tableBox.y - (buttonBox.y + buttonBox.height)
+      : Number.POSITIVE_INFINITY;
+  }).toBeLessThan(12);
   await expect.poll(() => hasListRequest(
     apiState.apiListRequests,
     '/api/mokelay/list_apis',
@@ -120,56 +140,26 @@ test('renders user/system API and Fragment lists as nested Page DSL tabs', async
   await expect(page.getByRole('button', { name: '新建 Fragment' })).toBeVisible();
   await expect(page.getByRole('button', { name: '新建 API' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '删除', exact: true })).toBeVisible();
+  const createFragmentButton = page.getByRole('button', { name: '新建 Fragment' });
+  const batchDeleteFragmentButton = page.getByRole('button', { name: '批量删除' });
+  await expect.poll(async () => {
+    const [createBox, deleteBox] = await Promise.all([
+      createFragmentButton.boundingBox(),
+      batchDeleteFragmentButton.boundingBox()
+    ]);
+    return createBox && deleteBox
+      ? Math.abs((createBox.y + createBox.height / 2) - (deleteBox.y + deleteBox.height / 2))
+      : Number.POSITIVE_INFINITY;
+  }).toBeLessThan(2);
   await expect.poll(() => hasListRequest(
     apiState.apiListRequests,
     '/api/mokelay/list_apis',
     true
   )).toBe(true);
 
-  await systemSourceTab.click();
-  await expect(systemSourceTab).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByTestId('editor-tabs-tab-system-fragment')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('cell', { name: '系统 Fragment 记录' })).toBeVisible();
-  await expect(page.getByText('系统 API 记录', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('用户 API 记录', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '新建 API' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '新建 Fragment' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '删除', exact: true })).toHaveCount(0);
-  await expect.poll(() => hasListRequest(
-    apiState.apiListRequests,
-    '/api/mokelay/list_mokelay_api_jsons',
-    true
-  )).toBe(true);
-
-  await page.getByTestId('editor-tabs-tab-system-api').click();
-  await expect(page.getByTestId('editor-tabs-tab-system-api')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('cell', { name: '系统 API 记录' })).toBeVisible();
-  await expect(page.getByText('系统 Fragment 记录', { exact: true })).toHaveCount(0);
-  await expect.poll(() => hasListRequest(
-    apiState.apiListRequests,
-    '/api/mokelay/list_mokelay_api_jsons',
-    false
-  )).toBe(true);
-
-  await page.getByTestId('editor-tabs-tab-system-fragment').click();
-  await expect(page.getByTestId('editor-tabs-tab-system-fragment')).toHaveAttribute('aria-selected', 'true');
-  const systemFragmentRow = page.getByRole('row', { name: /系统 Fragment 记录/ });
-  await expect(systemFragmentRow).toBeVisible();
-  await expect(page.getByText('系统 API 记录', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '新建 API' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '新建 Fragment' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '删除', exact: true })).toHaveCount(0);
-  await expect.poll(() => hasListRequest(
-    apiState.apiListRequests,
-    '/api/mokelay/list_mokelay_api_jsons',
-    true
-  )).toBe(true);
-
-  await systemFragmentRow.getByRole('button', { name: '打开' }).click();
-  await expect(page).toHaveURL(/#\/apis\/system_fragment_record\?source=system&fragment=true$/);
 });
 
-test('selects both Page DSL tab levels from source and fragment query combinations', async ({ page }) => {
+test('selects user Page DSL tabs from fragment query combinations', async ({ page }) => {
   const userApi = mockApi('user_api_record', '用户 API 记录');
   const userFragment = mockApi('user_fragment_record', '用户 Fragment 记录', { fragment: true });
   const systemApi = mockApi('system_api_record', '系统 API 记录', { source: 'system' });
@@ -199,24 +189,12 @@ test('selects both Page DSL tab levels from source and fragment query combinatio
       sourceTab: 'user-create',
       typeTab: 'user-fragment',
       rowName: '用户 Fragment 记录'
-    },
-    {
-      url: '/#/apis?source=system',
-      sourceTab: 'system-built-in',
-      typeTab: 'system-api',
-      rowName: '系统 API 记录'
-    },
-    {
-      url: '/#/apis?source=system&fragment=true',
-      sourceTab: 'system-built-in',
-      typeTab: 'system-fragment',
-      rowName: '系统 Fragment 记录'
     }
   ];
 
   for (const routeCase of cases) {
     await page.goto(routeCase.url);
-    await expect(page.getByTestId(`editor-tabs-tab-${routeCase.sourceTab}`)).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId(`editor-tabs-tab-${routeCase.sourceTab}`)).toBeHidden();
     await expect(page.getByTestId(`editor-tabs-tab-${routeCase.typeTab}`)).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('cell', { name: routeCase.rowName })).toBeVisible();
   }

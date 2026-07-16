@@ -126,3 +126,50 @@ body {
   background: rgb(71 85 105);
   color: rgb(248 250 252);
 }
+/* A single MTabs entry is used as a page-reference container, not navigation. */
+.m-tabs__bar-wrap:has(.m-tabs__tab:only-child) {
+  display: none;
+}
+
+/* Consecutive action toolbars share one compact row above their content. */
+.space-y-1:has(> [data-testid="preview-block-MActionToolbar"] + [data-testid="preview-block-MActionToolbar"]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: center;
+  align-content: start;
+}
+
+.space-y-1
+  > [data-testid="preview-block-MActionToolbar"]
+  + [data-testid="preview-block-MActionToolbar"] {
+  margin-top: 0;
+}
+
+.space-y-1
+  > [data-testid="preview-block-MActionToolbar"]
+  + [data-testid="preview-block-MActionToolbar"]
+  + * {
+  grid-column: 1 / -1;
+}
+
+/* MLayoutGrid renders nested blocks without MPage's preview-block wrapper. */
+.m-layout-grid__area:has(
+    > [data-testid="m-action-toolbar"]
+    + [data-testid="m-action-toolbar"]
+  ) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: center;
+  align-content: start;
+}
+
+.m-layout-grid__area
+  > [data-testid="m-action-toolbar"]
+  + [data-testid="m-action-toolbar"]
+  + * {
+  grid-column: 1 / -1;
+}

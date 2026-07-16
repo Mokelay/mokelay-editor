@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { resetEditor, type MockApiBuilderSample } from './helpers/editor';
+import { readSystemPageAsset, resetEditor, type MockApiBuilderSample } from './helpers/editor';
 
 type TestApiBlock = Record<string, unknown> & { uuid: string; nextBlock?: string | null };
 
@@ -241,7 +241,7 @@ test('switches to system APIs and opens them as read-only before copying', async
   await page.goto('/#/apis');
   await page.getByTestId('api-source-system').click();
 
-  await expect(page).toHaveURL(/#\/apis\?source=system$/);
+  await expect(page).toHaveURL(/#\/setting\?section=system-apis&fragment=true$/);
   await expect.poll(() => apiState.apiListRequests.some((requestUrl) => new URL(requestUrl).pathname === '/api/mokelay/list_mokelay_api_jsons')).toBe(true);
   await expect(page.getByTestId('api-builder-new')).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: '状态' })).toHaveCount(0);
@@ -297,6 +297,7 @@ test('switches to system APIs and opens them as read-only before copying', async
 
 test('loads a system API from a direct source-aware URL', async ({ page }) => {
   const apiState = await resetEditor(page, {
+    systemPages: [readSystemPageAsset('setting')],
     systemApis: [
       {
         uuid: 'direct_system_api',
@@ -327,11 +328,12 @@ test('loads a system API from a direct source-aware URL', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '直达读取步骤' })).toBeVisible();
   await expect(page.getByText('系统内置', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '返回 API 列表' }).click();
-  await expect(page).toHaveURL(/#\/apis\?source=system$/);
+  await expect(page).toHaveURL(/#\/setting\?section=system-apis$/);
 });
 
 test('loads a system Fragment from a direct fragment-aware URL and returns to its list tab', async ({ page }) => {
   const apiState = await resetEditor(page, {
+    systemPages: [readSystemPageAsset('setting')],
     systemApis: [
       {
         uuid: 'shared_system_uuid',
@@ -366,14 +368,14 @@ test('loads a system Fragment from a direct fragment-aware URL and returns to it
   });
 
   const expectSystemFragmentList = async () => {
-    await expect(page.getByTestId('editor-tabs-tab-system-built-in')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('editor-tabs-tab-system-apis')).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('editor-tabs-tab-system-fragment')).toHaveAttribute('aria-selected', 'true');
     const fragmentRow = page.getByRole('row', { name: /shared_system_uuid/ });
     await expect(fragmentRow).toContainText('同 UUID 内置 Fragment');
     await expect(fragmentRow).not.toContainText('同 UUID 内置 API');
   };
 
-  await page.goto('/#/apis?source=system&fragment=true');
+  await page.goto('/#/setting?section=system-apis&fragment=true');
   await expectSystemFragmentList();
 
   await page.goto('/#/apis/shared_system_uuid?source=system&fragment=true');
@@ -387,7 +389,7 @@ test('loads a system Fragment from a direct fragment-aware URL and returns to it
   await expect(page.getByText('Fragment', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: '返回 API 列表' }).click();
-  await expect(page).toHaveURL(/#\/apis\?source=system&fragment=true$/);
+  await expect(page).toHaveURL(/#\/setting\?section=system-apis&fragment=true$/);
   await expectSystemFragmentList();
 });
 

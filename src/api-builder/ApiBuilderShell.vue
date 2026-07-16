@@ -497,6 +497,12 @@ function apiDetailHash(uuid: string, source: MokelayApiSource, fragment = false)
 }
 
 function navigateToList() {
+  if ((activeDraft.value?.source ?? props.routeSource) === 'system') {
+    const fragment = isActiveFragment.value || props.routeFragment;
+    window.location.hash = `/setting?section=system-apis${fragment ? '&fragment=true' : ''}`;
+    return;
+  }
+
   window.location.hash = apiListHash(
     activeDraft.value?.source ?? props.routeSource,
     isActiveFragment.value || props.routeFragment

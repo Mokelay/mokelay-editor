@@ -1231,7 +1231,7 @@ function mergeByUuid<TRecord extends { uuid: string }>(defaults: TRecord[], over
   return [...records.values()];
 }
 
-function readSystemPageAsset(uuid: string): MockMokelayPage {
+export function readSystemPageAsset(uuid: string): MockMokelayPage {
   const value = readServerAssetJson('mokelay-pages', `${uuid}.json`);
   return {
     uuid: readString(value.uuid),

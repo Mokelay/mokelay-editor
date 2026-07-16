@@ -59,7 +59,7 @@ function mockLayout(uuid: string, name: string): MockMokelayLayout {
   };
 }
 
-test('renders layouts as Page DSL and manages user/system layout tabs', async ({ page }) => {
+test('renders user-created layouts without the relocated system tab', async ({ page }) => {
   const userLayout = mockLayout('user_layout', '用户布局');
   const apiState = await resetEditor(page, {
     initialRoute: '/#/layouts',
@@ -75,8 +75,8 @@ test('renders layouts as Page DSL and manages user/system layout tabs', async ({
 
   await expect(page).toHaveURL(/#\/layouts$/);
   await expect(page.getByTestId('preview-panel')).toBeVisible();
-  await expect(page.getByTestId('editor-tabs-tab-user-create')).toContainText('用户创建');
-  await expect(page.getByTestId('editor-tabs-tab-system-built-in')).toContainText('系统内置');
+  await expect(page.getByTestId('editor-tabs-tab-user-create')).toBeHidden();
+  await expect(page.getByTestId('editor-tabs-tab-system-built-in')).toHaveCount(0);
   await expect(page.getByRole('cell', { name: '用户布局' })).toBeVisible();
 
   await page.getByTestId('m-action-toolbar-action-create').click();
@@ -125,14 +125,6 @@ test('renders layouts as Page DSL and manages user/system layout tabs', async ({
   expect(apiState.layouts.has('user_layout')).toBe(false);
   expect(apiState.layoutDeletePayloads).toContainEqual({ uuid: 'user_layout' });
 
-  await page.getByTestId('editor-tabs-tab-system-built-in').click();
-  await expect(page.getByRole('cell', { name: 'Mokelay编辑器布局' })).toBeVisible();
-  await page.getByRole('row', { name: /Mokelay编辑器布局/ }).getByRole('button', { name: '打开' }).click();
-  const systemDialog = page.getByTestId('action-dialog');
-  await expect(systemDialog).toContainText('查看内置布局');
-  await expect(systemDialog.getByRole('button', { name: '保存布局' })).toHaveCount(0);
-  await systemDialog.getByTestId('m-json-editor-control').fill('{\\n  \"schemaVersion\": 1,\\n  \"uuid\": \"local_only\",\\n  \"name\": \"本地编辑\",\\n  \"blocks\": []\\n}');
-  expect(apiState.systemLayouts.get('mokelay_layout')).toMatchObject({ name: 'Mokelay编辑器布局' });
 });
 
 test('requires a layout name when creating a layout', async ({ page }) => {
