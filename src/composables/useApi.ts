@@ -13,6 +13,7 @@ function getDefaultApiBaseUrl() {
 
 export const apiClient = axios.create({
   baseURL: normalizeApiBaseUrl(import.meta.env.VITE_MOKELAY_API_BASE_URL || getDefaultApiBaseUrl()),
+  withCredentials: true,
   timeout: 10000
 });
 

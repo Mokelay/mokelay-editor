@@ -203,7 +203,8 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   const saveAiDslAssetsRequests: Record<string, unknown>[] = [];
   let aiGenerateDslResponseIndex = 0;
   const corsHeaders = {
-    'access-control-allow-origin': '*',
+    'access-control-allow-origin': 'http://127.0.0.1:4173',
+    'access-control-allow-credentials': 'true',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
     'access-control-allow-headers': 'content-type',
     'content-type': 'application/json'
@@ -304,6 +305,11 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   }
 
+  const defaultLoggedInUser = {
+    name: 'Editor User',
+    enterprise_name: 'Mokelay Test'
+  };
+
   await page.route('**/api/mokelay/**', async (route) => {
     const request = route.request();
     const method = request.method();
@@ -319,7 +325,9 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     const url = new URL(request.url());
 
     if (method === 'GET' && url.pathname === '/api/mokelay/me') {
-      const user = options.loggedInUser ?? null;
+      const user = url.searchParams.get('purpose') === 'editor-auth'
+        ? defaultLoggedInUser
+        : options.loggedInUser ?? null;
       await route.fulfill({
         status: 200,
         headers: corsHeaders,

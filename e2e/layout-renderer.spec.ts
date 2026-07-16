@@ -12,7 +12,8 @@ test('renders an app default layout around a page preview', async ({ page }) => 
     initialRoute: `/#/pages/${pageUuid}/preview`,
     loggedInUser: {
       name: 'Ada Lovelace',
-      email: 'ada@example.com'
+      email: 'ada@example.com',
+      enterprise_name: 'Analytical Engines'
     },
     apps: [
       {
@@ -71,7 +72,7 @@ test('renders an app default layout around a page preview', async ({ page }) => 
                   { id: 'login', type: 'MLink', data: { text: 'Login', url: '/login' } }
                 ],
                 userActions: [
-                  { id: 'dashboard', type: 'MLink', data: { text: '{{auth.user.name}}', url: '/dashboard' } }
+                  { id: 'dashboard', type: 'MLink', data: { text: '{{auth.user.name}} · {{auth.user.enterprise_name}}', url: '/dashboard' } }
                 ]
               }
             },
@@ -88,7 +89,7 @@ test('renders an app default layout around a page preview', async ({ page }) => 
 
   await expect(page.getByTestId('layout-renderer')).toBeVisible();
   await expect(page.getByTestId('layout-top-nav')).toContainText('Docs');
-  await expect(page.getByTestId('layout-top-nav')).toContainText('Ada Lovelace');
+  await expect(page.getByTestId('layout-top-nav')).toContainText('Ada Lovelace · Analytical Engines');
   await expect(page.getByTestId('preview-blocks')).toContainText('Rendered inside the page slot.');
   await expect(page.getByTestId('layout-page-slot-panel')).toHaveCount(0);
   await expect(page.locator('[data-layout-page-slot-surface="plain"]')).toBeVisible();

@@ -16,32 +16,39 @@ import { getPage, getSystemPage } from './services/pagesApi';
 import { resolveDatasourceRuntimeData } from 'mokelay-components/datasource';
 import { apiClient } from './composables/useApi';
 import { registerEditorRuntimeExtensions } from './editors/runtimeExtensions';
+import { requireAuthenticatedUser } from './auth/requireAuth';
 
-registerEditorRuntimeExtensions();
+async function bootstrap() {
+  if (!await requireAuthenticatedUser()) return;
 
-configureMokelayComponents({
-  apiClient,
-  t: (key) => i18n.t(key),
-  confirm: (message, title = '') => $confirm(title, message),
-  getPage,
-  getSystemPage,
-  resolveDatasourceRuntimeData: (...args) =>
-    (resolveDatasourceRuntimeData as (...values: unknown[]) => Promise<unknown>)(...args),
-  getGlobalSetting: (key) => getGlobalSettingValue(key),
-  setGlobalSetting: (key, value) => {
-    setGlobalSettingValue(key, value);
-  }
-});
+  registerEditorRuntimeExtensions();
 
-setupCloudflareWebAnalytics();
+  configureMokelayComponents({
+    apiClient,
+    t: (key) => i18n.t(key),
+    confirm: (message, title = '') => $confirm(title, message),
+    getPage,
+    getSystemPage,
+    resolveDatasourceRuntimeData: (...args) =>
+      (resolveDatasourceRuntimeData as (...values: unknown[]) => Promise<unknown>)(...args),
+    getGlobalSetting: (key) => getGlobalSettingValue(key),
+    setGlobalSetting: (key, value) => {
+      setGlobalSettingValue(key, value);
+    }
+  });
 
-const app = createApp(App);
-const queryClient = new QueryClient();
+  setupCloudflareWebAnalytics();
 
-app.use(VueQueryPlugin, { queryClient });
-app.use(globalCallsPlugin);
-app.use(globalSettingsPlugin);
-app.mount('#app');
+  const app = createApp(App);
+  const queryClient = new QueryClient();
+
+  app.use(VueQueryPlugin, { queryClient });
+  app.use(globalCallsPlugin);
+  app.use(globalSettingsPlugin);
+  app.mount('#app');
+
+  setupPwaAutoUpdate();
+}
 
 function setupPwaAutoUpdate() {
   if (!('serviceWorker' in navigator)) {
@@ -107,4 +114,4 @@ function setupPwaAutoUpdate() {
   });
 }
 
-setupPwaAutoUpdate();
+void bootstrap();
