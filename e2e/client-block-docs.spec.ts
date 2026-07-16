@@ -230,7 +230,7 @@ async function mockClientBlockDocsPage(page: Page) {
           description: '用于验证客户端 Block 文档详情页的完整字段。',
           source_kind: 'mokelay-editor',
           source_package: 'mokelay-editor',
-          source_file: 'src/blocks/MButton.vue',
+          source_file: 'submodule/mokelay-components/src/blocks/MButton.vue',
           component_name: 'MButton',
           tool_symbol: 'mButtonEditorTool',
           initial_props: { label: '初始按钮' },
@@ -275,7 +275,7 @@ async function mockClientBlockDocsPage(page: Page) {
               action: { type: 'submit' }
             }
           }],
-          source_refs: [{ file: 'src/blocks/MButton.vue', reason: '组件实现' }],
+          source_refs: [{ file: 'submodule/mokelay-components/src/blocks/MButton.vue', reason: '组件实现' }],
           raw_meta: { counts: { properties: 1, events: 1, methods: 1, dataFields: 1, saveRules: 1 } }
         }
       : null;
@@ -290,7 +290,7 @@ async function mockClientBlockDocsPage(page: Page) {
   return { listRequests, settingsRequests, detailRequests };
 }
 
-test('registers only the active block documents returned by the API', async ({ page }) => {
+test('keeps local editor tool documents authoritative over matching API documents', async ({ page }) => {
   let requestedPage = '';
   let requestedEditorEnabled: string | null = null;
   await page.route('**/api/mokelay/list_client_block_docs**', async (route) => {
@@ -351,25 +351,21 @@ test('registers only the active block documents returned by the API', async ({ p
     return {
       blockTypes: Object.keys(tools),
       toolboxTitle: button.class.toolbox.title,
-      config: button.config
+      config: button.config,
+      documentUuid: loadedDocs.find((doc) => doc.blockType === 'MButton')?.uuid
     };
   });
 
-  expect(result.blockTypes).toEqual(['MButton']);
+  expect(result.blockTypes).toContain('MButton');
+  expect(result.blockTypes.length).toBeGreaterThan(1);
   expect(requestedPage).toBe('1');
   expect(requestedEditorEnabled).toBeNull();
-  expect(result.toolboxTitle).toBe('API Button');
-  expect(result.config).toMatchObject({
-    label: 'From API',
-    variant: 'danger',
-    align: 'right',
-    action: { type: 'submit' },
-    disabled: false,
-    edit: true
-  });
+  expect(result.toolboxTitle).not.toBe('API Button');
+  expect(result.config.label).not.toBe('From API');
+  expect(result.documentUuid).not.toBe('test-button');
 });
 
-test('keeps disabled and hidden blocks registered while removing them from the toolbox', async ({ page }) => {
+test('does not let API copies override local editor registration flags', async ({ page }) => {
   await page.route('**/api/mokelay/list_client_block_docs**', async (route) => {
     await route.fulfill({
       status: 200,
@@ -420,17 +416,17 @@ test('keeps disabled and hidden blocks registered while removing them from the t
 
     return {
       blockTypes: Object.keys(tools),
-      buttonToolbox: (tools.MButton as { class: { toolbox: unknown } }).class.toolbox,
-      inputToolbox: (tools.MInput as { class: { toolbox: unknown } }).class.toolbox,
+      buttonDoc: loadedDocs.find((doc) => doc.blockType === 'MButton'),
+      inputDoc: loadedDocs.find((doc) => doc.blockType === 'MInput')
     };
   });
 
-  expect(result.blockTypes).toEqual(['MButton', 'MInput']);
-  expect(result.buttonToolbox).toBe(false);
-  expect(result.inputToolbox).toBe(false);
+  expect(result.blockTypes).toEqual(expect.arrayContaining(['MButton', 'MInput']));
+  expect(result.buttonDoc?.uuid).not.toBe('disabled-button');
+  expect(result.inputDoc?.uuid).not.toBe('hidden-input');
 });
 
-test('does not use local block docs when the API is unavailable', async ({ page }) => {
+test('keeps local editor tools available when the API is unavailable', async ({ page }) => {
   await page.route('**/api/mokelay/list_client_block_docs**', async (route) => {
     await route.fulfill({
       status: 503,
@@ -452,7 +448,8 @@ test('does not use local block docs when the API is unavailable', async ({ page 
     };
   });
 
-  expect(result).toEqual({ count: 0, blockTypes: [] });
+  expect(result.count).toBeGreaterThan(0);
+  expect(result.blockTypes).toEqual(expect.arrayContaining(['MPage', 'MButton']));
 });
 
 test('rebuilds documented toolbox metadata for the active locale', async ({ page }) => {
@@ -493,7 +490,7 @@ test('resolves documented defaults before creating an MForm child block', async 
   await page.goto('/');
   const result = await page.evaluate(async () => {
     const docs = await import('/src/utils/clientBlockDocs.ts');
-    const formItemTools = await import('/src/blocks/mFormItemTools.ts');
+    const formItemTools = await import('/src/editors/form/mFormItemTools.ts');
 
     await docs.loadClientBlockDocs();
     const block = formItemTools.createInitialFormItemEditorBlock('MLink');
@@ -522,10 +519,11 @@ test('keeps documented MButton save rules while runtime serialization stays beha
   }]);
   await page.goto('/');
   const result = await page.evaluate(async () => {
-    const button = await import('/src/blocks/MButton.vue');
+    const button = await import('/@id/mokelay-components/blocks/MButton.vue');
+    const { mButtonEditorTool } = await import('/src/editors/tools/mButtonEditorTool.ts');
     const docs = await import('/src/utils/clientBlockDocs.ts');
     await docs.loadClientBlockDocs();
-    const saved = button.mButtonEditorTool.serialize(button.normalizeButtonProps({
+    const saved = mButtonEditorTool.serialize(button.normalizeButtonProps({
       edit: true,
       label: 'Save rule',
       disabled: false,
@@ -547,10 +545,11 @@ test('keeps documented MButton save rules while runtime serialization stays beha
 test('normalizes row-driven MButton visibility conditions and persists non-default conditions', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async () => {
-    const button = await import('/src/blocks/MButton.vue');
+    const button = await import('/@id/mokelay-components/blocks/MButton.vue');
+    const { mButtonEditorTool } = await import('/src/editors/tools/mButtonEditorTool.ts');
     const visible = button.normalizeButtonProps({ edit: false, visible: '1' as unknown as boolean, hidden: '0' as unknown as boolean });
     const hidden = button.normalizeButtonProps({ edit: false, visible: '0' as unknown as boolean, hidden: '1' as unknown as boolean });
-    const saved = button.mButtonEditorTool.serialize(hidden);
+    const saved = mButtonEditorTool.serialize(hidden);
 
     return { visible, hidden, saved };
   });
@@ -570,7 +569,7 @@ test('filters and manages client block toolbox settings from the docs page', asy
   await expect(filters.nth(0).locator('option').first()).toHaveText('全部');
   await expect(filters.nth(0)).toHaveValue('');
   await filters.nth(0).selectOption('1');
-  await filters.nth(2).selectOption('action');
+  await filters.nth(3).selectOption('action');
   await page.getByRole('button', { name: '查询', exact: true }).click();
 
   await expect.poll(() => listRequests.at(-1)?.searchParams.get('editorEnabled')).toBe('1');
@@ -653,44 +652,8 @@ test('opens a shareable Block detail page with structured fields and visual JSON
   await expect(detailTables.nth(2)).toContainText('focus');
   await expect.poll(() => detailRequests.length).toBe(1);
 
-  const playground = page.getByTestId('m-block-playground');
-  await expect(playground).toBeVisible();
-  await expect(playground).toContainText('Test Button / MButton');
-  const previewButton = playground.getByTestId('block-doc-detail-playground-preview');
-  await expect(previewButton).toHaveText('示例按钮');
-
-  await playground.getByTestId('m-block-playground-field-label').fill('即时按钮');
-  await expect(previewButton).toHaveText('即时按钮');
-
-  await playground.getByTestId('m-block-playground-field-variant').selectOption('danger');
-  await expect(previewButton).toHaveClass(/page-dsl-button--danger/);
-
-  await playground.getByTestId('m-block-playground-field-disabled').check();
-  await expect(previewButton).toBeDisabled();
-
-  const actionField = playground.getByTestId('m-block-playground-field-action');
-  await actionField.fill('{"type":"navigate","url":"/next"}');
-  await expect(playground.getByTestId('m-block-playground-json')).toHaveValue(/"navigate"/);
-
-  const playgroundJson = playground.getByTestId('m-block-playground-json');
-  await playgroundJson.fill('{');
-  await expect(playground.getByTestId('m-block-playground-json-error')).toHaveText('请输入有效 JSON。');
-  await expect(previewButton).toHaveText('即时按钮');
-
-  await playgroundJson.fill(JSON.stringify({
-    label: 'JSON 按钮',
-    variant: 'warning',
-    disabled: false,
-    action: { type: 'submit' }
-  }, null, 2));
-  await expect(previewButton).toHaveText('JSON 按钮');
-  await expect(previewButton).toHaveClass(/page-dsl-button--warning/);
-  await expect(previewButton).not.toBeDisabled();
-
-  await playground.getByTestId('m-block-playground-format').click();
-  await expect(playgroundJson).toHaveValue(/"label": "JSON 按钮"/);
-  await playground.getByTestId('m-block-playground-reset').click();
-  await expect(previewButton).toHaveText('示例按钮');
+  // MBlockPlayground is an editor-only tool and must not be loaded by the runtime renderer.
+  await expect(page.getByTestId('m-block-playground')).toHaveCount(0);
 
   const jsonViewers = page.getByTestId('m-json-viewer');
   await expect(jsonViewers).toHaveCount(10);

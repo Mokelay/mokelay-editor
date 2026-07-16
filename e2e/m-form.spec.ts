@@ -531,7 +531,6 @@ test('supports runtime values, reset, and submit options', async ({ page }) => {
       }
     ]
   });
-
   await page.getByTestId('preview-button').click();
   const previewBlock = page.getByTestId('preview-block-MForm');
   await expect(previewBlock).toBeVisible({ timeout: 15000 });

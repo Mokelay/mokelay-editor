@@ -3,7 +3,7 @@ import { defineEditorTool, type EditorToolComponentProps } from '@/editors/edito
 import {
   normalizeAdvanceTableColumns,
   type MAdvanceTableColumnConfig
-} from '@/utils/advanceTableColumns';
+} from 'mokelay-components/blocks';
 
 export type ColumnsEditorPayload = {
   value: MAdvanceTableColumnConfig[];
@@ -126,8 +126,8 @@ import {
   setSingleParagraphColumnTemplate,
   type AdvanceTableColumnField,
   type MAdvanceTableFixed
-} from '@/utils/advanceTableColumns';
-import { cloneBlockEvents } from '@/utils/blockEvents';
+} from 'mokelay-components/blocks';
+import { cloneBlockEvents } from 'mokelay-components/blocks';
 
 const props = defineProps<MAdvanceTableColumnsEditorProps & {
   onChange?: (payload: ColumnsEditorPayload) => void;

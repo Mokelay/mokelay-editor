@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 
 test('normalizes configs and executes processors in order without mutating input', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const processors = await import('/src/processors/index.ts');
+    const processors = await import('/@id/mokelay-components/processors');
     const input = [{ name: ' Ada ', age: 20 }, { name: ' Bob ', age: 15 }];
     const output = processors.applyProcessors(input, [
       {
@@ -41,7 +41,7 @@ test('normalizes configs and executes processors in order without mutating input
 
 test('supports trim, merge_data, filter conditions, and type mismatches', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { applyProcessor } = await import('/src/processors/index.ts');
+    const { applyProcessor } = await import('/@id/mokelay-components/processors');
     return {
       trim: applyProcessor('  hello  ', 'trim'),
       trimMismatch: applyProcessor(12, 'trim'),
@@ -92,7 +92,7 @@ test('supports trim, merge_data, filter conditions, and type mismatches', async 
 
 test('formats valid dates in browser local time and returns failed conversions unchanged', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { applyProcessor } = await import('/src/processors/index.ts');
+    const { applyProcessor } = await import('/@id/mokelay-components/processors');
     const timestamp = Date.UTC(2026, 5, 15, 4, 5, 6);
     const local = new Date(timestamp);
     const pad = (value: number) => String(value).padStart(2, '0');
@@ -132,7 +132,7 @@ test('formats valid dates in browser local time and returns failed conversions u
 
 test('generates random_id strings with defaults, shorthands, and fallback params', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { applyProcessor } = await import('/src/processors/index.ts');
+    const { applyProcessor } = await import('/@id/mokelay-components/processors');
     return {
       defaultId: applyProcessor('', {
         processor: 'random_id',
@@ -173,7 +173,7 @@ test('generates random_id strings with defaults, shorthands, and fallback params
 
 test('reports invalid and unsupported processor configs with stable error codes', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { applyProcessor } = await import('/src/processors/index.ts');
+    const { applyProcessor } = await import('/@id/mokelay-components/processors');
     const readError = (callback: () => unknown) => {
       try {
         callback();
@@ -208,7 +208,7 @@ test('previews ordinary and array field paths while preserving nested array stru
     const {
       extractSchemaSelectionValue,
       previewSchemaSelection
-    } = await import('/src/processors/index.ts');
+    } = await import('/@id/mokelay-components/processors');
     const input = {
       profile: { name: ' Ada ' },
       data: {
@@ -250,7 +250,7 @@ test('previews ordinary and array field paths while preserving nested array stru
 
 test('applies processors to an array when the selected path ends with an array marker', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { previewSchemaSelection } = await import('/src/processors/index.ts');
+    const { previewSchemaSelection } = await import('/@id/mokelay-components/processors');
     const input = {
       users: [
         { name: 'Ada', age: 20 },
@@ -283,7 +283,7 @@ test('applies processors to an array when the selected path ends with an array m
 
 test('reports missing and invalid preview paths and propagates Processor errors', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { previewSchemaSelection } = await import('/src/processors/index.ts');
+    const { previewSchemaSelection } = await import('/@id/mokelay-components/processors');
     const readError = (callback: () => unknown) => {
       try {
         callback();
@@ -317,7 +317,7 @@ test('reports missing and invalid preview paths and propagates Processor errors'
 
 test('builds an AI DSL payload from request JSON and the latest successful turns', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { applyProcessor, getProcessorDefinition } = await import('/src/processors/index.ts');
+    const { applyProcessor, getProcessorDefinition } = await import('/@id/mokelay-components/processors');
     const response = (summary: string, marker: string) => ({
       version: 1,
       status: 'complete',
@@ -420,8 +420,8 @@ test('builds an AI DSL payload from request JSON and the latest successful turns
 
 test('resolves AI DSL history templates and reports stable request errors', async ({ page }) => {
   const result = await page.evaluate(async () => {
-    const { resolveActionTemplates } = await import('/src/actions/template.ts');
-    const { applyProcessor } = await import('/src/processors/index.ts');
+    const { resolveActionTemplates } = await import('/@id/mokelay-components/actions');
+    const { applyProcessor } = await import('/@id/mokelay-components/processors');
     const history = [{
       status: 'success',
       requirementDocument: '生成客户列表。',

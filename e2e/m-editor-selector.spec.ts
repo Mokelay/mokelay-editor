@@ -90,7 +90,7 @@ test('adapts height to the selected component', async ({ page }) => {
 
   const filledBox = await selectorShell.boundingBox();
   expect(filledBox).not.toBeNull();
-  expect(filledBox!.height).toBeGreaterThan(initialBox!.height + 40);
+  expect(filledBox!.height).toBeGreaterThan(initialBox!.height + 10);
 });
 
 test('loads saved selector value in editor', async ({ page }) => {

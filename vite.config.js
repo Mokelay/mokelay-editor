@@ -15,6 +15,11 @@ export default defineConfig(function () { return ({
             output: {
                 manualChunks: function (id) {
                     var moduleId = normalizeModuleId(id);
+                    var isMokelayComponentsCode = (moduleId.includes('/node_modules/mokelay-components/') ||
+                        moduleId.includes('/submodule/mokelay-components/dist/')) && !moduleId.includes('/mokelay-components/node_modules/');
+                    if (isMokelayComponentsCode) {
+                        return 'mokelay-components';
+                    }
                     if (!moduleId.includes('node_modules')) {
                         return;
                     }
@@ -64,6 +69,11 @@ export default defineConfig(function () { return ({
             port: 5173,
             clientPort: 5173
         }
+    },
+    optimizeDeps: {
+        // Element Plus imports the CommonJS dayjs distribution from lazy editor modules.
+        // Pre-bundling it guarantees a stable ESM default export after cache rebuilds.
+        include: ['dayjs']
     },
     resolve: {
         alias: {

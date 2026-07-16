@@ -3,8 +3,8 @@ import type { OutputData } from '@editorjs/editorjs';
 import * as QRCode from 'qrcode';
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
-import type { MokelayLayout, RenderBundlePage } from '@/utils/layoutsApi';
-import type { PageDataSourceConfig, PageRuntimeContext } from '@/utils/pageRuntimeContext';
+import type { MokelayLayout, RenderBundlePage } from '@/services/layoutsApi';
+import type { PageDataSourceConfig, PageRuntimeContext } from 'mokelay-components/pages';
 
 const previewModes = ['pc', 'h5', 'ios', 'android'] as const;
 
@@ -24,8 +24,8 @@ type PreviewPanelProps = {
   showToolbar?: boolean;
 };
 
-const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
-const LayoutRenderer = defineAsyncComponent(() => import('@/layouts/LayoutRenderer.vue'));
+const MPage = defineAsyncComponent(() => import('mokelay-components/blocks/MPage.vue'));
+const LayoutRenderer = defineAsyncComponent(() => import('mokelay-components/layouts/LayoutRenderer.vue'));
 
 const props = withDefaults(defineProps<PreviewPanelProps>(), {
   blocks: () => [],

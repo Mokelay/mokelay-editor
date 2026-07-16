@@ -5,7 +5,7 @@ import {
   createEmptyBlockEvent,
   normalizeBlockEvents,
   type BlockEvent
-} from '@/utils/blockEvents';
+} from 'mokelay-components/blocks';
 import type { PageEditorBridge } from '@/editors/pageEditor';
 
 type BlockEventsDialogOptions = {

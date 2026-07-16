@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineEditorTool, type EditorToolComponentProps } from '@/editors/editorToolDefinition';
-import type { MTabsTab } from '@/blocks/MTabs.vue';
+import type { MTabsTab } from 'mokelay-components/blocks/MTabs.vue';
 
 export type MTabsConfigEditorData = {
   tabs: MTabsTab[];
@@ -335,7 +335,7 @@ import {
   listSystemPages,
   type PageListItem,
   type PageSource
-} from '@/utils/pagesApi';
+} from '@/services/pagesApi';
 
 type EditableTab = MTabsTab & {
   pageSource: PageSource;

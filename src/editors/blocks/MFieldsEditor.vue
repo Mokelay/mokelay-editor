@@ -1,7 +1,7 @@
 <script lang="ts">
 import { defineEditorTool } from '@/editors/editorToolDefinition';
-import { bodyDataTypes } from '@/utils/datasource';
-import { isRecord } from '@/utils/datasourceSchema';
+import { bodyDataTypes } from 'mokelay-components/datasource';
+import { isRecord } from 'mokelay-components/datasource';
 
 export interface MFieldsEditorField {
   label: string;
@@ -184,10 +184,10 @@ export const mFieldsEditorTool = defineEditorTool<MFieldsEditorProps>({
 import { computed, ref, shallowRef, watch } from 'vue';
 import DatasourceApiImportDialog, {
   type DatasourceApiImportSource
-} from '@/blocks/components/DatasourceApiImportDialog.vue';
+} from '@/editors/dialogs/DatasourceApiImportDialog.vue';
 import DatasourceResponseMockDialog, {
   type DatasourceResponseMockCapturePayload
-} from '@/blocks/components/DatasourceResponseMockDialog.vue';
+} from '@/editors/dialogs/DatasourceResponseMockDialog.vue';
 import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
 import { useI18n } from '@/i18n';
 import {
@@ -201,12 +201,12 @@ import {
   type MDatasourceApiObject,
   type MDatasourceBodyItem,
   type JsonValue
-} from '@/utils/datasource';
+} from 'mokelay-components/datasource';
 import {
   getSchemaSelectionFields,
   inferJSONSchema,
   type SchemaSelectionField
-} from '@/utils/datasourceSchema';
+} from 'mokelay-components/datasource';
 import { translateTextsToChinese } from '@/utils/translationsApi';
 import type { ImportedApiDatasource } from '@/utils/datasourceApiImport';
 import {
@@ -214,7 +214,7 @@ import {
   listApiDomains,
   normalizeApiDomainUuid,
   type ApiDomainRecord
-} from '@/utils/apiDomains';
+} from 'mokelay-components/datasource';
 
 type FieldsEditorCandidateSource = 'saved' | 'manual' | 'api' | 'response';
 

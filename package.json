@@ -9,6 +9,7 @@
     "build": "vue-tsc -b && vite build && node scripts/write-dist-package.mjs",
     "dist:package": "node scripts/write-dist-package.mjs",
     "publish:npm": "npm version patch && npm run build && npm pack --dry-run ./dist && npm publish ./dist",
+    "update:mokelay-components": "npm install mokelay-components@latest --save-exact",
     "preview": "vite preview",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
@@ -28,6 +29,7 @@
     "echarts": "^6.0.0",
     "element-ui": "npm:element-plus@^2.14.0",
     "json-editor-vue": "^0.18.1",
+    "mokelay-components": "0.2.3",
     "qrcode": "^1.5.4",
     "reka-ui": "^2.3.1",
     "vue": "^3.5.13"

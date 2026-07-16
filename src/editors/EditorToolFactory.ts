@@ -18,8 +18,8 @@ import {
 import {
   PreviewBlockRuntimeKey,
   type PreviewBlockRuntime
-} from '@/utils/previewBlockRuntime';
-import { PageReferenceAncestryKey } from '@/utils/pageReferenceRuntime';
+} from 'mokelay-components/runtime';
+import { PageReferenceAncestryKey } from 'mokelay-components/pages';
 import {
   attachInternalBlockEventsToData,
   cloneBlockEvents,
@@ -27,10 +27,11 @@ import {
   normalizeBlockEvents,
   removeInternalBlockEventsFromData,
   type BlockEvent
-} from '@/utils/blockEvents';
+} from 'mokelay-components/blocks';
 import {
   getClientBlockDocSnapshot,
   getClientBlockDocsSnapshot,
+  filterClientBlockDocumentData,
   type NormalizedClientBlockDoc
 } from '@/utils/clientBlockDocs';
 
@@ -119,6 +120,7 @@ export default class EditorToolFactory {
       private propertyDialog: HTMLDialogElement | null = null;
       private eventsDialog: BlockEventsDialogController | null = null;
       private events: BlockEvent[] = [];
+      private toolbarAlignTimer: number | null = null;
      private readonly blockApi?: EditorToolFactoryOptions['block'];
      private readonly previewRuntime?: PreviewBlockRuntime;
       private readonly pendingInput: MergedEditorToolProps;
@@ -150,7 +152,13 @@ export default class EditorToolFactory {
         const contentRoot = document.createElement('div');
         contentRoot.className = 'mokelay-editor-tool__content';
         contentRoot.dataset.testid = `editor-tool-content-${toolName}`;
+        // Vue block 是异步挂载的。先提供一个可聚焦的输入根节点，否则
+        // EditorJS 在工具尚未挂载时找不到 caret 目标，会额外追加空 paragraph。
+        contentRoot.contentEditable = 'true';
         wrapper.appendChild(contentRoot);
+        wrapper.addEventListener('focusin', this.scheduleToolbarAlignment);
+        wrapper.addEventListener('mouseenter', this.scheduleToolbarAlignment);
+        wrapper.addEventListener('mousemove', this.scheduleToolbarAlignment);
 
        this.wrapper = wrapper;
        this.contentRoot = contentRoot;
@@ -160,6 +168,10 @@ export default class EditorToolFactory {
       }
 
       destroy() {
+        this.clearToolbarAlignment();
+        this.wrapper?.removeEventListener('focusin', this.scheduleToolbarAlignment);
+        this.wrapper?.removeEventListener('mouseenter', this.scheduleToolbarAlignment);
+        this.wrapper?.removeEventListener('mousemove', this.scheduleToolbarAlignment);
         this.unmountVueApp();
         this.unmountPropertyComponents();
         this.propertyDialog?.remove();
@@ -171,13 +183,46 @@ export default class EditorToolFactory {
         this.loadingPromise = null;
      }
 
+      private clearToolbarAlignment() {
+        if (this.toolbarAlignTimer === null) return;
+        window.clearTimeout(this.toolbarAlignTimer);
+        this.toolbarAlignTimer = null;
+      }
+
+      private scheduleToolbarAlignment = () => {
+        this.clearToolbarAlignment();
+        this.toolbarAlignTimer = window.setTimeout(() => {
+          this.toolbarAlignTimer = null;
+          const root = this.wrapper;
+          const block = root?.closest<HTMLElement>('.ce-block');
+          const editorRoot = root?.closest<HTMLElement>('.codex-editor');
+          const toolbar = editorRoot?.querySelector<HTMLElement>(':scope > .ce-toolbar')
+            ?? editorRoot?.querySelector<HTMLElement>('.ce-toolbar');
+          const plusButton = toolbar?.querySelector<HTMLElement>('.ce-toolbar__plus');
+          if (!root || !block || !toolbar || !plusButton) return;
+
+          const blockRect = block.getBoundingClientRect();
+          const rootRect = root.getBoundingClientRect();
+          const toolbarButtonHeight = plusButton.getBoundingClientRect().height || 26;
+          const top = block.offsetTop + (rootRect.top - blockRect.top) + (rootRect.height - toolbarButtonHeight) / 2;
+          toolbar.style.top = `${Math.max(0, Math.round(top))}px`;
+        }, 0);
+      };
+
      save() {
         const definition = this.definition;
         const state = this.state;
         if (!definition || !state) {
           return attachInternalBlockEventsToData(this.rawData, this.events, true);
         }
-        return attachInternalBlockEventsToData(definition.serialize(state), this.events, true);
+        const serialized = definition.serialize(state);
+        return attachInternalBlockEventsToData(
+          definition.documentFieldsOnly
+            ? filterClientBlockDocumentData(toolName, serialized)
+            : serialized,
+          this.events,
+          true
+        );
      }
 
      renderSettings(): MenuConfig {
@@ -274,6 +319,7 @@ export default class EditorToolFactory {
                 : {})
             };
             if (!this.wrapper || !this.contentRoot) return;
+            this.contentRoot.removeAttribute('contenteditable');
             this.contentRoot.replaceChildren();
             this.createPropertyDialog();
             this.createEventsDialog();

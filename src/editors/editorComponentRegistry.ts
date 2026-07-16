@@ -21,82 +21,118 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     return { component: markRaw(module.default), ...module.mActionToolBarEditorTool };
   },
   MActionCardList: async () => {
-    const module = await import('@/blocks/MActionCardList.vue');
-    return { component: markRaw(module.default), ...module.mActionCardListEditorTool };
+    const [module, { mActionCardListEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MActionCardList.vue'),
+      import('@/editors/tools/mActionCardListEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mActionCardListEditorTool };
   },
   MActionToolbar: async () => {
-    const module = await import('@/blocks/MActionToolbar.vue');
-    return { component: markRaw(module.default), ...module.mActionToolbarEditorTool };
+    const [module, { mActionToolbarEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MActionToolbar.vue'),
+      import('@/editors/tools/mActionToolbarEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mActionToolbarEditorTool };
   },
   MAdvanceInput: async () => {
-    const module = await import('@/blocks/MAdvanceInput.vue');
-    return { component: markRaw(module.default), ...module.mAdvanceInputEditorTool };
+    const [module, { mAdvanceInputEditorTool }] = await Promise.all([
+      import('@/editors/blocks/MAdvanceInputEditor.vue'),
+      import('@/editors/tools/mAdvanceInputEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mAdvanceInputEditorTool };
   },
   MAdvanceTable: async () => {
-    const module = await import('@/blocks/MAdvanceTable.vue');
-    return { component: markRaw(module.default), ...module.mAdvanceTableEditorTool };
+    const [module, { mAdvanceTableEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MAdvanceTable.vue'),
+      import('@/editors/tools/mAdvanceTableEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mAdvanceTableEditorTool };
   },
   MAdvanceTableColumnsEditor: async () => {
     const module = await import('@/editors/blocks/MAdvanceTableColumnsEditor.vue');
     return { component: markRaw(module.default), ...module.mAdvanceTableColumnsEditorTool };
   },
   MBlockPlayground: async () => {
-    const module = await import('@/blocks/MBlockPlayground.vue');
+    const module = await import('@/editors/blocks/MBlockPlaygroundEditor.vue');
     return { component: markRaw(module.default), ...module.mBlockPlaygroundTool };
   },
   MChart: async () => {
-    const module = await import('@/blocks/MChart.vue');
-    return { component: markRaw(module.default), ...module.mChartEditorTool };
+    const [module, { mChartEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MChart.vue'),
+      import('@/editors/tools/mChartEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mChartEditorTool };
   },
   MChartDataEditor: async () => {
     const module = await import('@/editors/blocks/MChartDataEditor.vue');
     return { component: markRaw(module.default), ...module.mChartDataEditorTool };
   },
   MDateRangeField: async () => {
-    const module = await import('@/blocks/MDateRangeField.vue');
-    return { component: markRaw(module.default), ...module.mDateRangeFieldEditorTool };
+    const [module, { mDateRangeFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MDateRangeField.vue'),
+      import('@/editors/tools/mDateRangeFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mDateRangeFieldEditorTool };
   },
   MDatasourceEditor: async () => {
     const module = await import('@/editors/blocks/MDatasourceEditor.vue');
     return { component: markRaw(module.default), ...module.mDatasourceEditorTool };
   },
   MDividerLine: async () => {
-    const module = await import('@/blocks/MDividerLine.vue');
-    return { component: markRaw(module.default), ...module.mDividerLineEditorTool };
+    const [module, { mDividerLineEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MDividerLine.vue'),
+      import('@/editors/tools/mDividerLineEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mDividerLineEditorTool };
   },
   MForm: async () => {
     const [{ default: component }, { mFormEditorTool }] = await Promise.all([
-      import('@/blocks/MForm.vue'),
-      import('@/blocks/mFormEditorTool')
+      import('@/editors/blocks/MFormEditor.vue'),
+      import('@/editors/tools/mFormEditorTool')
     ]);
     return { component: markRaw(component), ...mFormEditorTool };
   },
   MFormItem: async () => {
     const [{ default: component }, { mFormItemEditorTool }] = await Promise.all([
-      import('@/blocks/MFormItem.vue'),
-      import('@/blocks/mFormItemEditorTool')
+      import('@/editors/blocks/MFormItemEditor.vue'),
+      import('@/editors/tools/mFormItemEditorTool')
     ]);
     return { component: markRaw(component), ...mFormItemEditorTool };
   },
   MButton: async () => {
-    const module = await import('@/blocks/MButton.vue');
-    return { component: markRaw(module.default), ...module.mButtonEditorTool };
+    const [module, { mButtonEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MButton.vue'),
+      import('@/editors/tools/mButtonEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mButtonEditorTool };
   },
   MCheckboxGroupField: async () => {
-    const module = await import('@/blocks/MCheckboxGroupField.vue');
-    return { component: markRaw(module.default), ...module.mCheckboxGroupFieldEditorTool };
+    const [module, { mCheckboxGroupFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MCheckboxGroupField.vue'),
+      import('@/editors/tools/mCheckboxGroupFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mCheckboxGroupFieldEditorTool };
   },
   MEmailField: async () => {
-    const module = await import('@/blocks/MEmailField.vue');
-    return { component: markRaw(module.default), ...module.mEmailFieldEditorTool };
+    const [module, { mEmailFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MEmailField.vue'),
+      import('@/editors/tools/mEmailFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mEmailFieldEditorTool };
   },
   MEmbed: async () => {
-    const module = await import('@/blocks/MEmbed.vue');
-    return { component: markRaw(module.default), ...module.mEmbedEditorTool };
+    const [module, { mEmbedEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MEmbed.vue'),
+      import('@/editors/tools/mEmbedEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mEmbedEditorTool };
   },
   MFileUploadField: async () => {
-    const module = await import('@/blocks/MFileUploadField.vue');
-    return { component: markRaw(module.default), ...module.mFileUploadFieldEditorTool };
+    const [module, { mFileUploadFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MFileUploadField.vue'),
+      import('@/editors/tools/mFileUploadFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mFileUploadFieldEditorTool };
   },
   MFieldsEditor: async () => {
     const module = await import('@/editors/blocks/MFieldsEditor.vue');
@@ -107,61 +143,100 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     return { component: markRaw(module.default), ...module.mFormItemsEditorTool };
   },
   MHeading: async () => {
-    const module = await import('@/blocks/MHeading.vue');
-    return { component: markRaw(module.default), ...module.mHeadingEditorTool };
+    const [module, { mHeadingEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MHeading.vue'),
+      import('@/editors/tools/mHeadingEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mHeadingEditorTool };
   },
   MImage: async () => {
-    const module = await import('@/blocks/MImage.vue');
-    return { component: markRaw(module.default), ...module.mImageEditorTool };
+    const [module, { mImageEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MImage.vue'),
+      import('@/editors/tools/mImageEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mImageEditorTool };
   },
   MImageChoiceField: async () => {
-    const module = await import('@/blocks/MImageChoiceField.vue');
-    return { component: markRaw(module.default), ...module.mImageChoiceFieldEditorTool };
+    const [module, { mImageChoiceFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MImageChoiceField.vue'),
+      import('@/editors/tools/mImageChoiceFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mImageChoiceFieldEditorTool };
   },
   MInput: async () => {
-    const module = await import('@/blocks/MInput.vue');
-    return { component: markRaw(module.default), ...module.mInputEditorTool };
+    const [module, { mInputEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MInput.vue'),
+      import('@/editors/tools/mInputEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mInputEditorTool };
   },
   MJson: async () => {
-    const module = await import('@/blocks/MJson.vue');
-    return { component: markRaw(module.default), ...module.mJsonTool };
+    const [module, { mJsonTool }] = await Promise.all([
+      import('mokelay-components/blocks/MJson.vue'),
+      import('@/editors/tools/mJsonTool')
+    ]);
+    return { component: markRaw(module.default), ...mJsonTool };
   },
   MJsonEditor: async () => {
-    const module = await import('@/blocks/MJsonEditor.vue');
-    return { component: markRaw(module.default), ...module.mJsonEditorTool };
+    const [module, { mJsonEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MJsonEditor.vue'),
+      import('@/editors/tools/mJsonEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mJsonEditorTool };
   },
   MPageState: async () => {
-    const module = await import('@/blocks/MPageState.vue');
-    return { component: markRaw(module.default), ...module.mPageStateTool };
+    const [module, { mPageStateTool }] = await Promise.all([
+      import('mokelay-components/blocks/MPageState.vue'),
+      import('@/editors/tools/mPageStateTool')
+    ]);
+    return { component: markRaw(module.default), ...mPageStateTool };
   },
   MLayoutGrid: async () => {
-    const module = await import('@/blocks/MLayoutGrid.vue');
-    return { component: markRaw(module.default), ...module.mLayoutGridEditorTool };
+    const [module, { mLayoutGridEditorTool }] = await Promise.all([
+      import('@/editors/blocks/MLayoutGridEditor.vue'),
+      import('@/editors/tools/mLayoutGridEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mLayoutGridEditorTool };
   },
   MLayoutPreview: async () => {
-    const module = await import('@/blocks/MLayoutPreview.vue');
-    return { component: markRaw(module.default), ...module.mLayoutPreviewTool };
+    const [module, { mLayoutPreviewTool }] = await Promise.all([
+      import('mokelay-components/blocks/MLayoutPreview.vue'),
+      import('@/editors/tools/mLayoutPreviewTool')
+    ]);
+    return { component: markRaw(module.default), ...mLayoutPreviewTool };
   },
   MLink: async () => {
-    const module = await import('@/blocks/MLink.vue');
-    return { component: markRaw(module.default), ...module.mLinkEditorTool };
+    const [module, { mLinkEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MLink.vue'),
+      import('@/editors/tools/mLinkEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mLinkEditorTool };
   },
   MLinearScaleField: async () => {
-    const module = await import('@/blocks/MLinearScaleField.vue');
-    return { component: markRaw(module.default), ...module.mLinearScaleFieldEditorTool };
+    const [module, { mLinearScaleFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MLinearScaleField.vue'),
+      import('@/editors/tools/mLinearScaleFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mLinearScaleFieldEditorTool };
   },
   MLinkField: async () => {
-    const module = await import('@/blocks/MLinkField.vue');
-    return { component: markRaw(module.default), ...module.mLinkFieldEditorTool };
+    const [module, { mLinkFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MLinkField.vue'),
+      import('@/editors/tools/mLinkFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mLinkFieldEditorTool };
   },
   MMatrixField: async () => {
-    const module = await import('@/blocks/MMatrixField.vue');
-    return { component: markRaw(module.default), ...module.mMatrixFieldEditorTool };
+    const [module, { mMatrixFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MMatrixField.vue'),
+      import('@/editors/tools/mMatrixFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mMatrixFieldEditorTool };
   },
   MPage: async () => {
     const [{ default: component }, { mPageEditorTool }] = await Promise.all([
-      import('@/blocks/MPage.vue'),
-      import('@/blocks/mPageEditorTool')
+      import('@/editors/page/MPageEditor.vue'),
+      import('@/editors/tools/mPageEditorTool')
     ]);
     return { component: markRaw(component), ...mPageEditorTool };
   },
@@ -173,60 +248,99 @@ const editorComponentLoaders: Record<string, EditorToolLoader> = {
     return { component: markRaw(component), ...mEditorSelectorEditorTool };
   },
   MPhoneField: async () => {
-    const module = await import('@/blocks/MPhoneField.vue');
-    return { component: markRaw(module.default), ...module.mPhoneFieldEditorTool };
+    const [module, { mPhoneFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MPhoneField.vue'),
+      import('@/editors/tools/mPhoneFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mPhoneFieldEditorTool };
   },
   MRadioGroupField: async () => {
-    const module = await import('@/blocks/MRadioGroupField.vue');
-    return { component: markRaw(module.default), ...module.mRadioGroupFieldEditorTool };
+    const [module, { mRadioGroupFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MRadioGroupField.vue'),
+      import('@/editors/tools/mRadioGroupFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mRadioGroupFieldEditorTool };
   },
   MRecordList: async () => {
-    const module = await import('@/blocks/MRecordList.vue');
-    return { component: markRaw(module.default), ...module.mRecordListEditorTool };
+    const [module, { mRecordListEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MRecordList.vue'),
+      import('@/editors/tools/mRecordListEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mRecordListEditorTool };
   },
   MRatingField: async () => {
-    const module = await import('@/blocks/MRatingField.vue');
-    return { component: markRaw(module.default), ...module.mRatingFieldEditorTool };
+    const [module, { mRatingFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MRatingField.vue'),
+      import('@/editors/tools/mRatingFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mRatingFieldEditorTool };
   },
   MResultPage: async () => {
-    const module = await import('@/blocks/MResultPage.vue');
-    return { component: markRaw(module.default), ...module.mResultPageEditorTool };
+    const [module, { mResultPageEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MResultPage.vue'),
+      import('@/editors/tools/mResultPageEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mResultPageEditorTool };
   },
   MRichText: async () => {
-    const module = await import('@/blocks/MRichText.vue');
-    return { component: markRaw(module.default), ...module.mRichTextEditorTool };
+    const [module, { mRichTextEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MRichText.vue'),
+      import('@/editors/tools/mRichTextEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mRichTextEditorTool };
   },
   MSelectField: async () => {
-    const module = await import('@/blocks/MSelectField.vue');
-    return { component: markRaw(module.default), ...module.mSelectFieldEditorTool };
+    const [module, { mSelectFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MSelectField.vue'),
+      import('@/editors/tools/mSelectFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mSelectFieldEditorTool };
   },
   MTag: async () => {
-    const module = await import('@/blocks/MTag.vue');
-    return { component: markRaw(module.default), ...module.mTagEditorTool };
+    const [module, { mTagEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MTag.vue'),
+      import('@/editors/tools/mTagEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mTagEditorTool };
   },
   MTextField: async () => {
-    const module = await import('@/blocks/MTextField.vue');
-    return { component: markRaw(module.default), ...module.mTextFieldEditorTool };
+    const [module, { mTextFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MTextField.vue'),
+      import('@/editors/tools/mTextFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mTextFieldEditorTool };
   },
   MTextareaField: async () => {
-    const module = await import('@/blocks/MTextareaField.vue');
-    return { component: markRaw(module.default), ...module.mTextareaFieldEditorTool };
+    const [module, { mTextareaFieldEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MTextareaField.vue'),
+      import('@/editors/tools/mTextareaFieldEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mTextareaFieldEditorTool };
   },
   MThankYouPage: async () => {
-    const module = await import('@/blocks/MThankYouPage.vue');
-    return { component: markRaw(module.default), ...module.mThankYouPageEditorTool };
+    const [module, { mThankYouPageEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MThankYouPage.vue'),
+      import('@/editors/tools/mThankYouPageEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mThankYouPageEditorTool };
   },
   MTabs: async () => {
-    const module = await import('@/blocks/MTabs.vue');
-    return { component: markRaw(module.default), ...module.mTabsEditorTool };
+    const [module, { mTabsEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MTabs.vue'),
+      import('@/editors/tools/mTabsEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mTabsEditorTool };
   },
   MTabsConfigEditor: async () => {
     const module = await import('@/editors/blocks/MTabsConfigEditor.vue');
     return { component: markRaw(module.default), ...module.mTabsConfigEditorTool };
   },
   MUploadImport: async () => {
-    const module = await import('@/blocks/MUploadImport.vue');
-    return { component: markRaw(module.default), ...module.mUploadImportEditorTool };
+    const [module, { mUploadImportEditorTool }] = await Promise.all([
+      import('mokelay-components/blocks/MUploadImport.vue'),
+      import('@/editors/tools/mUploadImportEditorTool')
+    ]);
+    return { component: markRaw(module.default), ...mUploadImportEditorTool };
   },
   MVariableValueEditor: async () => {
     const module = await import('@/editors/blocks/MVariableValueEditor.vue');

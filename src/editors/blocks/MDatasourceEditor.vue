@@ -17,7 +17,7 @@ import {
   type JsonValue,
   type SchemaSelectionField,
   type SchemaTreeNode
-} from '@/utils/datasourceSchema';
+} from 'mokelay-components/datasource';
 import {
   $remote as resolveDatasourceRemote,
   DatasourceError,
@@ -39,7 +39,7 @@ import {
   type MDatasourceExternalField,
   type MDatasourceMatchingExternalField,
   type MDatasourceKeyValueItem
-} from '@/utils/datasource';
+} from 'mokelay-components/datasource';
 
 export type {
   DatasourceSchemaSelections,
@@ -53,19 +53,19 @@ export type {
   MDatasourceExternalField,
   MDatasourceMatchingExternalField,
   MDatasourceKeyValueItem
-} from '@/utils/datasource';
+} from 'mokelay-components/datasource';
 export {
   normalizeDatasource,
   normalizeDatasourceExternalFields,
   normalizeDatasourceMatchingExternalFields
-} from '@/utils/datasource';
-export type { SchemaSelectionField } from '@/utils/datasourceSchema';
+} from 'mokelay-components/datasource';
+export type { SchemaSelectionField } from 'mokelay-components/datasource';
 
 export interface MDatasourceEditorProps {
   edit: boolean;
   currentBlockId?: string;
-  getAvailableBlockDataSources?: import('@/utils/variableValue').GetAvailableBlockDataSources;
-  getAvailablePageVariableSources?: import('@/utils/variableValue').GetAvailablePageVariableSources;
+  getAvailableBlockDataSources?: import('mokelay-components/runtime').GetAvailableBlockDataSources;
+  getAvailablePageVariableSources?: import('mokelay-components/runtime').GetAvailablePageVariableSources;
   value?: MDatasourceApiObject;
   matchingExternalFields?: MDatasourceExternalField[];
   showPageBreak?: boolean;
@@ -125,7 +125,7 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *     {
  *       "key": "getAvailablePageVariableSources",
  *       "optional": true,
- *       "tsType": "import('@/utils/variableValue').GetAvailablePageVariableSources",
+ *       "tsType": "import('mokelay-components/runtime').GetAvailablePageVariableSources",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
  *       "line": 68,
  *       "declaredInProps": true,
@@ -236,14 +236,14 @@ export const mDatasourceEditorTool = defineEditorTool<MDatasourceEditorProps>({
 <script setup lang="ts">
 import { computed, inject, reactive, ref, shallowRef, triggerRef, watch } from 'vue';
 import { useI18n } from '@/i18n';
-import JsonTreeView from '@/blocks/components/JsonTreeView.vue';
+import JsonTreeView from '@/editors/components/JsonTreeView.vue';
 import MVariableValueEditor from '@/editors/blocks/MVariableValueEditor.vue';
 import DatasourceApiImportDialog, {
   type DatasourceApiImportSource
-} from '@/blocks/components/DatasourceApiImportDialog.vue';
+} from '@/editors/dialogs/DatasourceApiImportDialog.vue';
 import DatasourceResponseMockDialog, {
   type DatasourceResponseMockCapturePayload
-} from '@/blocks/components/DatasourceResponseMockDialog.vue';
+} from '@/editors/dialogs/DatasourceResponseMockDialog.vue';
 import { useEditorBlockToolbarAlignment } from '@/composables/useEditorBlockToolbarAlignment';
 import {
   DEFAULT_API_DOMAIN_UUID,
@@ -251,7 +251,7 @@ import {
   getDefaultApiDomainUuid,
   listApiDomains,
   normalizeApiDomainUuid
-} from '@/utils/apiDomains';
+} from 'mokelay-components/datasource';
 import type { ImportedApiDatasource } from '@/utils/datasourceApiImport';
 import { translateTextsToChinese } from '@/utils/translationsApi';
 import ProcessorConfigDialog from '@/processors/components/ProcessorConfigDialog.vue';
@@ -261,10 +261,10 @@ import {
   normalizeProcessors,
   processorName,
   type ProcessorConfig
-} from '@/processors';
-import { resolveDatasourceRuntimeData } from '@/utils/datasourceRuntime';
-import { PreviewBlockRuntimeKey } from '@/utils/previewBlockRuntime';
-import { PageRuntimeVariableContextKey } from '@/utils/pageRuntimeContext';
+} from 'mokelay-components/processors';
+import { resolveDatasourceRuntimeData } from 'mokelay-components/datasource';
+import { PreviewBlockRuntimeKey } from 'mokelay-components/runtime';
+import { PageRuntimeVariableContextKey } from 'mokelay-components/pages';
 import {
   isVariableValueConfig,
   stringifyVariableValue,
@@ -273,7 +273,7 @@ import {
   type VariableOption,
   type VariableValueConfig,
   type VariableValueResolveContext
-} from '@/utils/variableValue';
+} from 'mokelay-components/runtime';
 
 type KeyValueListName = 'headerData' | 'queryData';
 type BodyValueParseResult = {
@@ -726,7 +726,7 @@ function normalizeApiDomainState(shouldEmit = props.edit) {
   const currentDomain = apiState.domain;
   const normalizedDomain = normalizeApiDomainUuid(currentDomain, apiDomainOptions.value);
   const nextDomain = normalizedDomain ||
-    (currentDomain.trim() && !isDefaultBlankApiState() ? '' : getDefaultApiDomainUuid(apiDomainOptions.value));
+    (isDefaultBlankApiState() ? getDefaultApiDomainUuid(apiDomainOptions.value) : '');
 
   if (nextDomain === currentDomain) {
     return;

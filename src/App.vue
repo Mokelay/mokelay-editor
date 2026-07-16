@@ -11,9 +11,9 @@ import {
 } from '@/editors/pageEditor';
 import { formatPageReferenceIssue, validatePageReferences } from '@/editors/pageReferenceValidator';
 import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
-import { $message } from '@/utils/globalCalls';
+import { $message } from 'mokelay-components/global-calls';
 import { getInitialEditorBlocks } from '@/utils/editorData';
-import SourceLayoutShell from '@/layouts/SourceLayoutShell.vue';
+import SourceLayoutShell from 'mokelay-components/layouts/SourceLayoutShell.vue';
 import {
   createPage,
   formatMokelayApiError,
@@ -24,13 +24,13 @@ import {
   type MokelayPage,
   type PageSource,
   type UpdatePagePayload
-} from '@/utils/pagesApi';
-import { generatePageSlug } from '@/utils/pageSlug';
+} from '@/services/pagesApi';
+import { generatePageSlug } from 'mokelay-components/pages';
 import {
   normalizePageDataSources,
   type PageDataSourceConfig,
   type PageRuntimeContext
-} from '@/utils/pageRuntimeContext';
+} from 'mokelay-components/pages';
 import {
   getPageRenderBundle,
   getSystemLayout,
@@ -39,7 +39,7 @@ import {
   type MokelayLayout,
   type MokelayLayoutRecord,
   type RenderBundlePage
-} from '@/utils/layoutsApi';
+} from '@/services/layoutsApi';
 
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
 const MPageEditorBlock = defineAsyncComponent(() => import('@/editors/page/MPageEditorBlock.vue')) as Component;

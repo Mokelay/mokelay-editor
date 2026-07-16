@@ -170,9 +170,7 @@ test('adds a datasource editor with default API value and renders in preview', a
   await page.getByTestId('preview-button').click();
 
   await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
-  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open')).toBeVisible();
-  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-summary')).toContainText('GET');
-  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-api-panel')).not.toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open')).toHaveCount(0);
 });
 
 test('derives a read-only Schema without saving response examples or Schema', async ({ page }) => {
@@ -602,18 +600,8 @@ test('configures, validates, orders, persists, and views string processors', asy
   await expect(page.getByTestId('datasource-selected-field-processors-createdAt')).toBeVisible();
   await closeDatasourceSettings(page);
   await page.getByTestId('preview-button').click();
-  await page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open').click();
-  await page.getByTestId('datasource-selected-field-processors-config-createdAt').click();
-  const readonlyDialog = page.getByTestId('datasource-processor-dialog');
-  await expect(readonlyDialog.getByTestId('datasource-processor-add')).toHaveCount(0);
-  await expect(readonlyDialog.getByTestId('processor-date-time-format')).toHaveAttribute('readonly', '');
-  await expect(readonlyDialog.getByTestId('datasource-processor-apply')).toHaveCount(0);
-  await readonlyDialog.getByTestId('datasource-processor-dialog-close').click();
-
-  const previewDialog = await openFieldPreview(page, 'createdAt');
-  await expect(previewDialog.getByTestId('datasource-processor-preview-empty'))
-    .toHaveText('暂无有效的响应示例数据，请先添加或修正响应数据。');
-  await closeFieldPreview(previewDialog);
+  await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open')).toHaveCount(0);
 });
 
 test('previews final field data for all supported processors', async ({ page }) => {
@@ -932,7 +920,6 @@ test('translates selected field labels to Chinese by original label', async ({ p
     ]
   });
   await switchLocaleToChinese(page);
-
   await openDatasourceSettings(page);
   await expect(page.getByTestId('datasource-selected-fields-translate')).toHaveText('翻译为中文');
   await page.getByTestId('datasource-selected-fields-translate').click();
@@ -989,9 +976,9 @@ test('edits API datasource lists and saves typed body values', async ({ page }) 
   await page.getByTestId('datasource-body-key-1').fill('filter');
   await page.getByTestId('datasource-body-type-1').selectOption('object');
   await page.getByTestId('datasource-body-value-1').fill('{ bad');
-  await expect(page.getByTestId('datasource-body-error-1')).toBeVisible();
+  await expect(page.getByTestId('datasource-body-value-1-error')).toBeVisible();
   await page.getByTestId('datasource-body-value-1').fill('{"active":true,"roles":["admin"]}');
-  await expect(page.getByTestId('datasource-body-error-1')).toHaveCount(0);
+  await expect(page.getByTestId('datasource-body-value-1-error')).toHaveCount(0);
 
   await closeDatasourceSettings(page);
   await expect(page.getByTestId('datasource-summary')).toContainText('/v1/users');
@@ -1117,6 +1104,7 @@ test('edits datasource parameter values with input, single variable, and advance
     key: 'token',
     value: {
       mode: 'variable',
+      source: 'Block',
       blockId: 'advance-table-source',
       blockType: 'MAdvanceTable',
       variable: 'page',
@@ -2001,10 +1989,8 @@ test('saves API datasource file body metadata without file content', async ({ pa
 
   await closeDatasourceSettings(page);
   await page.getByTestId('preview-button').click();
-  await page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open').click();
-  await expect(
-    page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-body-value-0')
-  ).toHaveValue('avatar.txt');
+  await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open')).toHaveCount(0);
 });
 
 test('parses an API response and saves only selected Schema fields', async ({ page }) => {
@@ -2615,8 +2601,7 @@ test('normalizes a saved JSON datasource to the default API config', async ({ pa
   await closeDatasourceSettings(page);
   await page.getByTestId('preview-button').click();
   await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
-  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open')).toBeVisible();
-  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-api-panel')).not.toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('datasource-settings-open')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 
@@ -2764,7 +2749,7 @@ test('loads saved API datasource in editor and preview', async ({ page }) => {
   expect(pageErrors).toEqual([]);
 });
 
-test('exposes getData runtime method without saving runtime fields', async ({ page }) => {
+test('keeps the datasource editor out of the runtime registry without saving runtime fields', async ({ page }) => {
   const responseData = {
     items: [
       {
@@ -2884,42 +2869,8 @@ test('exposes getData runtime method without saving runtime fields', async ({ pa
   expect(datasourceValue).not.toHaveProperty('total');
 
   await page.getByTestId('preview-button').click();
-  const directRequestPromise = page.waitForRequest((request) =>
-    request.url().includes('/datasource-runtime-data') && request.method() === 'GET'
-  );
-  const runtimeData = await page
-    .getByTestId('preview-block-MDatasourceEditor')
-    .getByTestId('editor-datasource-tool')
-    .evaluate(async (element) => {
-      const component = (element as HTMLElement & {
-        __vueParentComponent?: {
-          exposed?: {
-            getData?: () => Promise<unknown>;
-          };
-        };
-      }).__vueParentComponent;
-      const getData = component?.exposed?.getData;
-      if (!getData) {
-        throw new Error('MDatasourceEditor.getData was not exposed.');
-      }
-
-      return await getData();
-    });
-  await directRequestPromise;
-
-  expect(runtimeData).toEqual({
-    rawResponse: responseData,
-    data: responseData.items,
-    page: 2,
-    pageSize: 1,
-    total: 3
-  });
-
-  const eventRequestPromise = page.waitForRequest((request) =>
-    request.url().includes('/datasource-runtime-data') && request.method() === 'GET'
-  );
-  await page.getByRole('button', { name: 'Load data' }).click();
-  await eventRequestPromise;
+  await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('editor-datasource-tool')).toHaveCount(0);
 });
 
 test('resolves MAdvanceTable self scoped page variables in its datasource request', async ({ page }) => {
@@ -3013,7 +2964,7 @@ test('resolves MAdvanceTable self scoped page variables in its datasource reques
   await expect(page.getByTestId('advance-table')).toContainText('Ada');
 });
 
-test('resolves block scoped single variable values in datasource requests', async ({ page }) => {
+test('does not execute editor-only datasource blocks in runtime preview', async ({ page }) => {
   const responseData = { ok: true };
 
   await page.route('**/datasource-variable-runtime**', async (route) => {
@@ -3080,38 +3031,7 @@ test('resolves block scoped single variable values in datasource requests', asyn
   });
 
   await page.getByTestId('preview-button').click();
-  const requestPromise = page.waitForRequest((request) =>
-    request.url().includes('/datasource-variable-runtime') && request.method() === 'POST'
-  );
-  const runtimeData = await page
-    .getByTestId('preview-block-MDatasourceEditor')
-    .getByTestId('editor-datasource-tool')
-    .evaluate(async (element) => {
-      const component = (element as HTMLElement & {
-        __vueParentComponent?: {
-          exposed?: {
-            getData?: () => Promise<unknown>;
-          };
-        };
-      }).__vueParentComponent;
-      const getData = component?.exposed?.getData;
-      if (!getData) {
-        throw new Error('MDatasourceEditor.getData was not exposed.');
-      }
-
-      return await getData();
-    });
-  const request = await requestPromise;
-
-  expect(request.url()).toContain('token=mokelay-token');
-  expect(request.headers()['x-token']).toBe('mokelay-token');
-  expect(request.postDataJSON()).toEqual({
-    token: 'mokelay-token'
-  });
-  expect(runtimeData).toEqual({
-    rawResponse: responseData,
-    page: 1,
-    pageSize: 10,
-    total: 0
-  });
+  await expect(page.getByTestId('preview-block-MInput')).toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor')).toBeVisible();
+  await expect(page.getByTestId('preview-block-MDatasourceEditor').getByTestId('editor-datasource-tool')).toHaveCount(0);
 });

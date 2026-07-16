@@ -9,14 +9,14 @@ import {
   type MDatasourceBodyDataType,
   type MDatasourceBodyItem,
   type MDatasourceKeyValueItem
-} from '@/utils/datasource';
+} from 'mokelay-components/datasource';
 import {
   inferJSONSchema,
   isJsonValue,
   normalizeJSONSchema,
   type JSONSchema,
   type JsonValue
-} from '@/utils/datasourceSchema';
+} from 'mokelay-components/datasource';
 
 export type ImportedApiDatasource = {
   datasource: MDatasourceApiObject;

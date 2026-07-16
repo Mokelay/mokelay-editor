@@ -1,69 +1,17 @@
 import { defineEditorTool } from '@/editors/editorToolDefinition';
+import {
+  finalizeEditorBlocksWithEvents,
+  normalizeSelectorBlock,
+  type StoredBlock
+} from 'mokelay-components/blocks';
 
-import { cloneBlockEvents, finalizeEditorBlocksWithEvents, type BlockEvent } from '@/utils/blockEvents';
-
-export type StoredBlock = {
-  id: string;
-  type: string;
-  data: Record<string, unknown>;
-  events?: BlockEvent[];
-};
+export { cloneSelectorBlock, normalizeSelectorBlock } from 'mokelay-components/blocks';
+export type { StoredBlock } from 'mokelay-components/blocks';
 
 export interface MEditorSelectorProps {
   edit: boolean;
   value?: StoredBlock;
   excludeToolNames?: string[];
-}
-
-function generateBlockId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID().slice(0, 10);
-  }
-  return Math.random().toString(36).slice(2, 12);
-}
-
-function cloneJsonValue<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function toPlainRecord(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return {};
-  }
-
-  return cloneJsonValue(value) as Record<string, unknown>;
-}
-
-export function normalizeSelectorBlock(value?: unknown): StoredBlock | undefined {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return undefined;
-  }
-
-  const record = value as Record<string, unknown>;
-  if (typeof record.type !== 'string' || typeof record.data !== 'object' || record.data === null || Array.isArray(record.data)) {
-    return undefined;
-  }
-
-  const events = cloneBlockEvents(record.events);
-
-  return {
-    id: typeof record.id === 'string' && record.id ? record.id : generateBlockId(),
-    type: record.type,
-    data: toPlainRecord(record.data),
-    ...(events.length || Object.prototype.hasOwnProperty.call(record, 'events') ? { events } : {})
-  };
-}
-
-export function cloneSelectorBlock(block: StoredBlock): StoredBlock {
-  const events = cloneBlockEvents(block.events);
-  const hasEvents = Object.prototype.hasOwnProperty.call(block, 'events');
-
-  return {
-    id: block.id,
-    type: block.type,
-    data: toPlainRecord(block.data),
-    ...(events.length || hasEvents ? { events } : {})
-  };
 }
 
 /**

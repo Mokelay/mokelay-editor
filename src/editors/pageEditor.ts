@@ -1,4 +1,4 @@
-import type { MokelayPage, PageSource } from '@/utils/pagesApi';
+import type { MokelayPage, PageSource } from '@/services/pagesApi';
 
 export type PageReference = {
   uuid: string;

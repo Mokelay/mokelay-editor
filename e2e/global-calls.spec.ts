@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { resetEditor } from './helpers/editor';
-import type { GlobalCallContent, MessageType } from '../src/utils/globalCalls';
-import type { JSONSchema, JsonValue, MDatasourceObject } from '../src/utils/datasource';
+import type { GlobalCallContent, MessageType } from 'mokelay-components/global-calls';
+import type { JSONSchema, JsonValue, MDatasourceObject } from 'mokelay-components/datasource';
 
 type GlobalCallTestWindow = Window & {
   $alert: (title: string, content: GlobalCallContent) => Promise<void>;

@@ -4,7 +4,7 @@ import {
   createEmptyApiJson,
   createStarterBlock
 } from '@/api-builder/registry';
-import { normalizeProcessors } from '@/processors';
+import { normalizeProcessors } from 'mokelay-components/processors';
 import type {
   ApiBlock,
   ApiBuilderDraft,

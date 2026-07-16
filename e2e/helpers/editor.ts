@@ -2,8 +2,8 @@ import { expect } from '@playwright/test';
 import type { Locator, Page, Route } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { PageDataSourceConfig } from '../../src/utils/pageRuntimeContext';
-import { validatePageSlug } from '../../src/utils/pageSlug';
+import type { PageDataSourceConfig } from 'mokelay-components/pages';
+import { validatePageSlug } from 'mokelay-components/pages';
 
 export const storageKey = 'mokelay-editor-config';
 export const defaultPageUuid = '00000000-0000-4000-8000-000000000000';
@@ -150,7 +150,28 @@ export async function resetEditor(page: Page, apiOptions: MockPagesApiOptions = 
     initialHash: routeToHash(initialRoute)
   });
   await page.reload();
+  if (isPageEditorRoute(initialRoute)) {
+    await waitForPageEditorReady(page);
+  }
   return apiState;
+}
+
+function isPageEditorRoute(route: string) {
+  const hash = routeToHash(route);
+  return /^\/pages\/[^/?]+(?:\?[^#]*)?$/.test(hash);
+}
+
+async function waitForPageEditorReady(page: Page, expectedBlockIds: string[] = []) {
+  await expect(page.getByTestId('editor-surface').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.ce-block').first()).toBeVisible({ timeout: 20_000 });
+  if (expectedBlockIds.length) {
+    await expect.poll(async () => {
+      const renderedIds = await page.locator('.ce-block').evaluateAll((blocks) => (
+        blocks.map((block) => block.getAttribute('data-id')).filter(Boolean)
+      ));
+      return expectedBlockIds.every((id) => renderedIds.includes(id));
+    }, { timeout: 20_000 }).toBe(true);
+  }
 }
 
 export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}) {
@@ -967,7 +988,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     });
   });
 
-  return { pages, systemPages, apps, layouts, systemLayouts, datasources, apis, systemApis, systemFragments, apiDomains, apiBuilderSamples, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, layoutDeletePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, apiBuilderSampleRequests, systemApiReadRequests, aiGenerateDslRequests, saveAiDslAssetsRequests };
+  return { pages, systemPages, apps, layouts, systemLayouts, datasources, apis, systemApis, systemFragments, apiDomains, apiBuilderSamples, apiSnapshots, pageCreatePayloads, pageUpdatePayloads, pageLayoutUpdatePayloads, layoutDeletePayloads, apiSavePayloads, apiDomainRequests, apiListRequests, apiBuilderSampleRequests, systemApiReadRequests, aiGenerateDslRequests, saveAiDslAssetsRequests };
 }
 
 export async function seedSavedConfig(page: Page, config: Record<string, unknown>) {
@@ -990,6 +1011,13 @@ export async function seedSavedConfig(page: Page, config: Record<string, unknown
     uuid: defaultPageUuid
   });
   await page.reload();
+  const expectedBlockIds = Array.isArray(config.blocks)
+    ? config.blocks.flatMap((block) => {
+        if (typeof block !== 'object' || block === null || Array.isArray(block)) return [];
+        return typeof block.id === 'string' && block.id.trim() ? [block.id.trim()] : [];
+      })
+    : [];
+  await waitForPageEditorReady(page, expectedBlockIds);
 }
 
 export async function getSavedBlocks(page: Page) {
@@ -1040,8 +1068,11 @@ export async function expectToolToolbarBeside(page: Page, toolTestId: string) {
   const tool = page.getByTestId(toolTestId);
   await tool.hover();
 
-  const plusButton = page.locator('.ce-toolbar__plus');
-  const settingsButton = page.locator('.ce-toolbar__settings-btn');
+  // 嵌套 MForm/MLayoutGrid 会同时存在多个 EditorJS toolbar，应校验目标 block
+  // 所属的最近一层 editor，不使用页面级全局 locator。
+  const editorRoot = tool.locator('xpath=ancestor::*[contains(concat(" ", normalize-space(@class), " "), " codex-editor ")][1]');
+  const plusButton = editorRoot.locator(':scope > .ce-toolbar .ce-toolbar__plus');
+  const settingsButton = editorRoot.locator(':scope > .ce-toolbar .ce-toolbar__settings-btn');
 
   await expect(plusButton).toBeVisible();
   await expect(settingsButton).toBeVisible();

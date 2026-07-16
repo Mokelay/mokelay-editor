@@ -12,9 +12,9 @@ import {
   getProcessorsForType,
   normalizeProcessors,
   processorName
-} from '@/processors';
-import type { ProcessorConfig } from '@/processors/types';
-import type { DatasourceSchemaSelection } from '@/utils/datasourceSchema';
+} from 'mokelay-components/processors';
+import type { ProcessorConfig } from 'mokelay-components/processors/types';
+import type { DatasourceSchemaSelection } from 'mokelay-components/datasource';
 
 type DraftProcessor = {
   id: number;

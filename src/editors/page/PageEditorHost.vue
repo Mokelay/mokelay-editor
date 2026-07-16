@@ -24,13 +24,13 @@ import {
   getSystemPage,
   updatePage,
   type MokelayPage
-} from '@/utils/pagesApi';
+} from '@/services/pagesApi';
 import {
   generatePageSlug,
   PAGE_SLUG_HINT,
   PAGE_SLUG_MAX_LENGTH,
   validatePageSlug
-} from '@/utils/pageSlug';
+} from 'mokelay-components/pages';
 
 type PageEditorFrame = {
   id: string;

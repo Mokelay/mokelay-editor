@@ -608,7 +608,7 @@ test('renders a persistent runtime error dialog for an ancestor open_dialog targ
   });
 
   await page.evaluate(() => {
-    void import('/src/actions/dialogHost.ts').then(({ showActionPageDialog }) => showActionPageDialog({
+    void import('/@id/mokelay-components/actions').then(({ showActionPageDialog }) => showActionPageDialog({
       title: '循环页面',
       pageUUID: 'root-page',
       pageSource: 'user',

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import JsonTreeView from '@/blocks/components/JsonTreeView.vue';
+import JsonTreeView from '@/editors/components/JsonTreeView.vue';
 import { useI18n } from '@/i18n';
 import {
   getProcessorDefinition,
@@ -8,9 +8,9 @@ import {
   ProcessorError,
   processorName,
   SchemaSelectionPreviewError
-} from '@/processors';
-import type { ProcessorConfig } from '@/processors/types';
-import type { DatasourceSchemaSelection, JsonValue } from '@/utils/datasourceSchema';
+} from 'mokelay-components/processors';
+import type { ProcessorConfig } from 'mokelay-components/processors/types';
+import type { DatasourceSchemaSelection, JsonValue } from 'mokelay-components/datasource';
 
 export type ProcessorPreviewExample = {
   id: number;

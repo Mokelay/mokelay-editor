@@ -2,7 +2,7 @@ import { defineAsyncComponent } from 'vue';
 import { i18n } from '@/i18n';
 import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import { getClientBlockDocSnapshot } from '@/utils/clientBlockDocs';
-import type { VariableValueDataType } from '@/utils/variableValue';
+import type { VariableValueDataType } from 'mokelay-components/runtime';
 
 const MFormItemsEditor = defineAsyncComponent(() => import('@/editors/blocks/MFormItemsEditor.vue'));
 const MActionToolBarEditor = defineAsyncComponent(() => import('@/editors/blocks/MActionToolBarEditor.vue'));

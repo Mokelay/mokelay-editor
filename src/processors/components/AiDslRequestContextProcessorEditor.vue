@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
-import { isRecord, processorParam } from '@/processors/shared';
-import type { ProcessorConfig } from '@/processors/types';
+import { isRecord, processorParam } from 'mokelay-components/processors/shared';
+import type { ProcessorConfig } from 'mokelay-components/processors/types';
 
 const props = defineProps<{
   modelValue: ProcessorConfig;

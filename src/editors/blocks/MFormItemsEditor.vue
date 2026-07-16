@@ -3,7 +3,7 @@ import { defineEditorTool, type EditorToolComponentProps } from '@/editors/edito
 import {
   normalizeMFormItems,
   type MFormItemData
-} from '@/blocks/mFormEditorTool';
+} from 'mokelay-components/blocks';
 
 export type FormItemsEditorPayload = {
   value: MFormItemData[];
@@ -116,13 +116,13 @@ import MFieldsEditor, {
 } from '@/editors/blocks/MFieldsEditor.vue';
 import {
   cloneFormItemData
-} from '@/blocks/mFormEditorTool';
+} from 'mokelay-components/blocks';
 import {
   createInitialFormItemEditorBlock,
   getDefaultFormItemToolName,
   getFormItemToolNames,
   isAllowedFormItemToolName
-} from '@/blocks/mFormItemTools';
+} from '@/editors/form/mFormItemTools';
 import { getEditorComponentDefinition } from '@/editors/editorComponentRuntimeRegistry';
 import { useI18n } from '@/i18n';
 import { getClientBlockDocSnapshot } from '@/utils/clientBlockDocs';

@@ -10,11 +10,11 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
 import { isRegisteredEditorComponent } from '@/editors/editorComponentRuntimeRegistry';
-import EditorPreviewBlock from '@/blocks/components/EditorPreviewBlock.vue';
+import MokelayBlockRenderer from 'mokelay-components/blocks/MokelayBlockRenderer.vue';
 import {
   finalizeEditorOutputWithEvents,
   prepareEditorOutputWithEvents
-} from '@/utils/blockEvents';
+} from 'mokelay-components/blocks';
 import {
   cloneSelectorBlock,
   normalizeSelectorBlock,
@@ -46,6 +46,7 @@ const hasSelectedBlock = computed(() => selectedBlock.value !== undefined);
 
 let editor: EditorJS | null = null;
 let isRenderingCanonicalValue = false;
+let isEditorInitializing = false;
 let editorMutationObserver: MutationObserver | null = null;
 let scheduledEditorSync: number | null = null;
 let scheduledToolbarSync: number | null = null;
@@ -154,12 +155,12 @@ function clearScheduledEditorSync() {
 }
 
 function scheduleEditorSync() {
-  if (!editor || isRenderingCanonicalValue) return;
+  if (!editor || isRenderingCanonicalValue || isEditorInitializing) return;
 
   clearScheduledEditorSync();
   scheduledEditorSync = window.setTimeout(async () => {
     scheduledEditorSync = null;
-    if (!editor || isRenderingCanonicalValue) return;
+    if (!editor || isRenderingCanonicalValue || isEditorInitializing) return;
 
     try {
       const output = finalizeEditorOutputWithEvents(await editor.save());
@@ -248,14 +249,17 @@ async function mountEditor() {
 
   const { default: EditorJSConstructor } = await import('@editorjs/editorjs');
   clientBlockDocsCache = await loadClientBlockDocs();
+  const holder = holderRef.value;
+  if (!props.edit || !holder?.isConnected || editor) return;
   editorDataCache = buildOutput(selectedBlock.value);
   const tools = createEditorTools(
     { edit: true },
     { exclude: getExcludedToolNames(), docs: clientBlockDocsCache }
   ) as Record<string, ToolSettings>;
 
-  editor = new EditorJSConstructor({
-    holder: holderRef.value,
+  isEditorInitializing = true;
+  const nextEditor = new EditorJSConstructor({
+    holder,
     placeholder: t('editorSelector.placeholder'),
     tools,
     data: prepareEditorOutputWithEvents(editorDataCache),
@@ -264,22 +268,49 @@ async function mountEditor() {
       messages: getEditorJsI18nMessages(localeValue.value)
     },
     onChange: async () => {
-      if (!editor) return;
-      const output = finalizeEditorOutputWithEvents(await editor.save());
+      if (editor !== nextEditor || isEditorInitializing) return;
+      const output = finalizeEditorOutputWithEvents(await nextEditor.save());
       await syncFromEditorOutput(output);
     }
   });
+  editor = nextEditor;
 
-  startEditorSyncListeners();
+  void (async () => {
+    try {
+      await nextEditor.isReady;
+      await waitForEditorToolMounts(holder);
+    } catch {
+      if (editor === nextEditor) editor = null;
+      isEditorInitializing = false;
+      return;
+    }
+
+    if (editor !== nextEditor || !holder.isConnected) {
+      isEditorInitializing = false;
+      return;
+    }
+
+    isEditorInitializing = false;
+    startEditorSyncListeners();
+  })();
+}
+
+async function waitForEditorToolMounts(holder: HTMLElement) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    if (!holder.isConnected || !holder.querySelector('[data-testid="editor-tool-loading"]')) return;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 25));
+  }
 }
 
 async function unmountEditor() {
   const currentEditor = editor;
   if (!currentEditor) return;
   editor = null;
+  isEditorInitializing = false;
   stopEditorSyncListeners();
 
   try {
+    await currentEditor.isReady;
     const output = finalizeEditorOutputWithEvents(await currentEditor.save());
     selectedBlock.value = getSelectedBlockFromOutput(output);
     editorDataCache = buildOutput(selectedBlock.value);
@@ -287,7 +318,9 @@ async function unmountEditor() {
     editorDataCache = buildOutput(selectedBlock.value);
   }
 
-  currentEditor.destroy();
+  if (typeof currentEditor.destroy === 'function') {
+    currentEditor.destroy();
+  }
 }
 
 async function rebuildEditor() {
@@ -368,7 +401,7 @@ onBeforeUnmount(async () => {
     </div>
 
     <div v-else class="ce-editor-selector-tool__preview" data-testid="preview-editor-selector-value">
-      <EditorPreviewBlock v-if="selectedBlock" :block="selectedBlock" />
+      <MokelayBlockRenderer v-if="selectedBlock" :block="selectedBlock" />
     </div>
   </div>
 </template>

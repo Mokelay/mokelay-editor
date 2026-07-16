@@ -1,7 +1,7 @@
 export type HttpMethod = 'GET' | 'POST';
 
-export type { ProcessorConfig } from '@/processors/types';
-import type { ProcessorConfig } from '@/processors/types';
+export type { ProcessorConfig } from 'mokelay-components/processors/types';
+import type { ProcessorConfig } from 'mokelay-components/processors/types';
 
 export type ProcessableKey =
   | string

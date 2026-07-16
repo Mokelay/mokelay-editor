@@ -3,7 +3,7 @@ import { defineEditorTool, type EditorToolComponentProps } from '@/editors/edito
 import {
   cloneActions as cloneEditorActions,
   type ActionConfig as EditorActionConfig
-} from '@/actions';
+} from 'mokelay-components/actions';
 
 export interface MActionEditorProps extends EditorToolComponentProps {
   value?: EditorActionConfig[];
@@ -148,13 +148,13 @@ import {
   createActionUuid,
   type ActionConfig,
   type ActionNode
-} from '@/actions';
+} from 'mokelay-components/actions';
 import type { PageReference } from '@/editors/pageEditor';
 import {
   listPages,
   listSystemPages,
   type PageListItem
-} from '@/utils/pagesApi';
+} from '@/services/pagesApi';
 
 const actionDefinitions = [
   {

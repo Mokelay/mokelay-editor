@@ -1,8 +1,12 @@
 import { markRaw, type Component } from 'vue';
-import MButton, { mButtonEditorTool } from '@/blocks/MButton.vue';
-import MInput, { mInputEditorTool } from '@/blocks/MInput.vue';
-import MLink, { mLinkEditorTool } from '@/blocks/MLink.vue';
-import MTag, { mTagEditorTool } from '@/blocks/MTag.vue';
+import MButton from 'mokelay-components/blocks/MButton.vue';
+import MInput from 'mokelay-components/blocks/MInput.vue';
+import MLink from 'mokelay-components/blocks/MLink.vue';
+import MTag from 'mokelay-components/blocks/MTag.vue';
+import { mButtonEditorTool } from '@/editors/tools/mButtonEditorTool';
+import { mInputEditorTool } from '@/editors/tools/mInputEditorTool';
+import { mLinkEditorTool } from '@/editors/tools/mLinkEditorTool';
+import { mTagEditorTool } from '@/editors/tools/mTagEditorTool';
 import { resolveEditorToolDefinition } from '@/editors/clientBlockToolMetadata';
 import type {
   EditorToolDefinition,

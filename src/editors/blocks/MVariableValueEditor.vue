@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineEditorTool, type EditorToolComponentProps } from '@/editors/editorToolDefinition';
-import { valueBlockDataField } from '@/blocks/blockDataFields';
+import { valueBlockDataField } from 'mokelay-components/blocks/blockDataFields';
 import {
   normalizeVariableDataType as normalizeEditorVariableDataType,
   normalizeVariableValueConfig as normalizeEditorVariableValueConfig,
@@ -11,7 +11,7 @@ import {
   type PageVariableSource as EditorPageVariableSource,
   type VariableOption as EditorVariableOption,
   type VariableValueDataType as EditorVariableValueDataType
-} from '@/utils/variableValue';
+} from 'mokelay-components/runtime';
 
 export interface MVariableValueEditorProps extends EditorToolComponentProps {
   value?: unknown;
@@ -269,11 +269,11 @@ export const mVariableValueEditorTool = defineEditorTool<MVariableValueEditorPro
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
-import MVariableFlowDialog from '@/blocks/MVariableFlowDialog.vue';
+import MVariableFlowDialog from '@/editors/dialogs/MVariableFlowDialog.vue';
 import ProcessorConfigDialog from '@/processors/components/ProcessorConfigDialog.vue';
-import { getProcessorDefinition, processorName } from '@/processors';
-import type { ProcessorConfig } from '@/processors';
-import type { DatasourceSchemaSelection } from '@/utils/datasourceSchema';
+import { getProcessorDefinition, processorName } from 'mokelay-components/processors';
+import type { ProcessorConfig } from 'mokelay-components/processors';
+import type { DatasourceSchemaSelection } from 'mokelay-components/datasource';
 import {
   createFlowFromInput,
   createFlowFromVariable,
@@ -293,7 +293,7 @@ import {
   type VariableValueConfig,
   type VariableValueDataType,
   type VariableValueSource
-} from '@/utils/variableValue';
+} from 'mokelay-components/runtime';
 
 const props = withDefaults(defineProps<{
   edit?: boolean;

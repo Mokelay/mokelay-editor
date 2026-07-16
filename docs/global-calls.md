@@ -7,7 +7,7 @@
 ### TypeScript / 组合式 API
 
 ```ts
-import { $alert, $confirm, $message } from '@/utils/globalCalls';
+import { $alert, $confirm, $message } from 'mokelay-components/global-calls';
 
 await $alert('提示', '保存成功');
 
@@ -137,7 +137,7 @@ await $alert('提示', '<strong>这段内容不会作为 HTML 执行</strong>');
 `StoredBlock[]` 与 `MAdvanceInput` 的 `value` 格式一致，可混排普通文本和内联组件。
 
 ```ts
-import type { StoredBlock } from '@/utils/globalCalls';
+import type { StoredBlock } from 'mokelay-components/global-calls';
 
 const content: StoredBlock[] = [
   {
@@ -164,7 +164,7 @@ await $alert('详情', content);
 await $message('info', content);
 ```
 
-当前 `StoredBlock[]` 会复用项目内联组件注册表进行渲染。已注册组件包括 `MInput`、`MLink`、`MTag`。
+当前 `StoredBlock[]` 会复用 `mokelay-components` 的运行时内联组件注册表进行渲染。已注册组件包括 `MInput`、`MLink`、`MTag`。
 
 ## 行为说明
 

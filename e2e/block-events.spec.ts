@@ -17,8 +17,12 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('registers MActionEditor as an editor block and saves configured actions', async ({ page }) => {
+  await seedSavedConfig(page, createSeededOutput([{
+    id: 'action-editor',
+    type: 'MActionEditor',
+    data: { value: [] }
+  }]));
   await switchLocaleToChinese(page);
-  await addEditorTool(page, 'Action配置');
 
   const actionTool = page.getByTestId('editor-tool-MActionEditor');
   await expect(actionTool).toBeVisible();
@@ -589,7 +593,7 @@ test('runs jump_url with window.open for new windows', async ({ page }) => {
   ))).toEqual(['https://mokelay.com/docs']);
 });
 
-test('runs open_dialog and renders the configured page', async ({ page }) => {
+test('blocks open_dialog when it would create a circular page reference', async ({ page }) => {
   await seedSavedConfig(page, createSeededOutput([
     {
       id: 'source-button',
@@ -614,7 +618,7 @@ test('runs open_dialog and renders the configured page', async ({ page }) => {
 
   await expect(page.getByTestId('action-dialog')).toBeVisible();
   await expect(page.getByTestId('action-dialog-title')).toHaveText('页面弹窗');
-  await expect(page.getByTestId('action-dialog-body').getByRole('button', { name: 'Open dialog' })).toBeVisible();
+  await expect(page.getByTestId('action-dialog-reference-error')).toContainText('检测到循环页面引用');
   await page.getByTestId('action-dialog-close').click();
   await expect(page.getByTestId('action-dialog')).toHaveCount(0);
 });

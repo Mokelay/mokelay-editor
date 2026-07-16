@@ -84,14 +84,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-test('all built-in page DSL assets use the editor layout without embedded top navigation blocks', async () => {
+test('all standalone built-in page DSL assets use the editor layout without embedded top navigation blocks', async () => {
   const pageAssetFiles = readdirSync(resolveAssetDir('mokelay-pages'))
     .filter((fileName) => fileName.endsWith('.json'))
     .sort();
   const violations = pageAssetFiles.flatMap((fileName) => {
     const asset = readJsonAsset<Record<string, unknown>>('mokelay-pages', fileName);
     const uuid = typeof asset.uuid === 'string' ? asset.uuid : fileName.replace(/\.json$/, '');
-    const layoutViolation = asset.layoutUuid === 'mokelay_layout'
+    const isEmbeddedQuotedSubpage = asset.subPage === true
+      && Array.isArray(asset.quotes)
+      && asset.quotes.length > 0;
+    const layoutViolation = asset.layoutUuid === 'mokelay_layout' || isEmbeddedQuotedSubpage
       ? []
       : [`${uuid}: layoutUuid=${String(asset.layoutUuid)}`];
     const topNavViolations = collectEmbeddedTopNavBlocks(asset.blocks).map((block) => `${uuid}: ${block}`);
@@ -149,7 +152,7 @@ test('renders a built-in page DSL from a bare path', async ({ page }) => {
 });
 
 test('renders a built-in source page with the shared editor layout from a runtime route', async ({ page }) => {
-  const uuid = 'block_component_doc_properties';
+  const uuid = 'home';
   await mockPagesApi(page, {
     seedDefaultPage: false,
     systemPages: [readSystemPageAsset(uuid)],
@@ -172,7 +175,7 @@ test('renders a built-in source page with the shared editor layout from a runtim
   await expect(page.getByTestId('layout-renderer')).toBeVisible();
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
   await expect(page.getByTestId('layout-page-slot-panel')).toBeVisible();
-  await expect(page.getByTestId('preview-panel')).toContainText('属性');
+  await expect(page.getByTestId('preview-panel')).toContainText('应用管理');
 });
 
 test('shows a 404 page when an unmatched route has no built-in page DSL', async ({ page }) => {

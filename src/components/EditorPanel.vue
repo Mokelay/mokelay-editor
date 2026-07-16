@@ -2,8 +2,8 @@
 import type { OutputData } from '@editorjs/editorjs';
 import { computed, defineAsyncComponent, ref } from 'vue';
 import { useI18n } from '@/i18n';
-import type { MokelayLayoutRecord } from '@/utils/layoutsApi';
-import type { PageDataSourceConfig } from '@/utils/pageRuntimeContext';
+import type { MokelayLayoutRecord } from '@/services/layoutsApi';
+import type { PageDataSourceConfig } from 'mokelay-components/pages';
 import type { PageEditorBridge } from '@/editors/pageEditor';
 
 type EditorPanelProps = {
@@ -19,7 +19,6 @@ type EditorPanelProps = {
   layoutError?: string;
   canEditLayoutBinding?: boolean;
   showLayoutBinding?: boolean;
-  editable?: boolean;
   loading?: boolean;
   error?: string;
 };
@@ -28,7 +27,7 @@ type MPageExpose = {
   saveEditor: () => Promise<OutputData | undefined>;
 };
 
-const MPage = defineAsyncComponent(() => import('@/blocks/MPage.vue'));
+const MPageEditor = defineAsyncComponent(() => import('@/editors/page/MPageEditor.vue'));
 
 const props = withDefaults(defineProps<EditorPanelProps>(), {
   blocks: () => [],
@@ -42,7 +41,6 @@ const props = withDefaults(defineProps<EditorPanelProps>(), {
   layoutError: '',
   canEditLayoutBinding: true,
   showLayoutBinding: true,
-  editable: true,
   loading: false,
   error: ''
 });
@@ -99,7 +97,6 @@ defineExpose({
         data-testid="page-name-input"
         class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
         :value="pageName"
-        :readonly="!editable"
         placeholder="请输入页面标题"
         @input="emit('name-change', ($event.target as HTMLInputElement).value)"
       />
@@ -126,10 +123,9 @@ defineExpose({
       <span v-else-if="layoutError" data-testid="page-layout-error" class="text-xs text-rose-600 dark:text-rose-300">{{ layoutError }}</span>
     </label>
 
-    <MPage
+    <MPageEditor
       v-if="!loading"
       ref="pageRef"
-      :edit="editable"
       :value="blocks"
       :page-id="pageUuid ?? undefined"
       :data-sources="dataSources"

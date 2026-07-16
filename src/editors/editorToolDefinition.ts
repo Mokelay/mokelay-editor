@@ -3,8 +3,8 @@ import type {
   BlockDataField,
   GetAvailableBlockDataSources,
   GetAvailablePageVariableSources
-} from '@/utils/variableValue';
-import type { PreviewBlockRuntime } from '@/utils/previewBlockRuntime';
+} from 'mokelay-components/runtime';
+import type { PreviewBlockRuntime } from 'mokelay-components/runtime';
 import type { PageEditorBridge } from '@/editors/pageEditor';
 
 // 所有编辑器工具组件共享的基础 props。
@@ -51,6 +51,7 @@ export type EditorComponentToolbox = {
 // from @clientBlockDoc so toolbox, defaults, and property fields have one owner.
 export type EditorToolDefinition<TProps extends EditorToolComponentProps = EditorToolComponentProps> = {
   component: Component;
+  documentFieldsOnly?: boolean;
   getDataFields?: (context: { data: Record<string, unknown>; blockId: string }) => BlockDataField[];
   // 将任意输入 props 归一化为可渲染、可保存的完整结构。
   normalizeProps: (props: Partial<TProps>) => TProps;

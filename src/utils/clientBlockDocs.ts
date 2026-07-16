@@ -1,4 +1,5 @@
 import { apiClient } from '@/composables/useApi';
+import { getLocalClientBlockDocs } from '@/editors/localClientBlockDocs';
 
 export type ClientBlockRegistration = {
   sourceKind?: string;
@@ -126,8 +127,11 @@ type ListClientBlockDocsResponse = {
   docs?: ClientBlockDoc[];
 };
 
-// 客户端 Block 的文档元数据以服务端 API 为唯一来源，不保留内置缓存。
-let activeDocs: NormalizedClientBlockDoc[] = [];
+// Editor 本地 tool modules 是内置编辑器工具 metadata 的唯一所有者。
+// 服务端文档只补充本地不存在的动态 block，避免旧版组件包文档覆盖本地序列化契约。
+const localDocs = normalizeClientBlockDocs(getLocalClientBlockDocs());
+const localBlockTypes = new Set(localDocs.map((doc) => doc.blockType));
+let activeDocs: NormalizedClientBlockDoc[] = localDocs;
 let loadingPromise: Promise<NormalizedClientBlockDoc[]> | null = null;
 
 function booleanValue(value: unknown, fallback: boolean) {
@@ -207,6 +211,13 @@ export function normalizeClientBlockDocs(docs: readonly ClientBlockDoc[]) {
     .sort((left, right) => left.sortOrder - right.sortOrder || left.blockType.localeCompare(right.blockType));
 }
 
+function mergeRemoteClientBlockDocs(remoteDocs: NormalizedClientBlockDoc[]) {
+  return [
+    ...localDocs,
+    ...remoteDocs.filter((doc) => !localBlockTypes.has(doc.blockType))
+  ].sort((left, right) => left.sortOrder - right.sortOrder || left.blockType.localeCompare(right.blockType));
+}
+
 function responseDocs(response: ListClientBlockDocsResponse) {
   return response.data?.docs ?? response.docs ?? [];
 }
@@ -217,6 +228,21 @@ export function getClientBlockDocsSnapshot() {
 
 export function getClientBlockDocSnapshot(blockType: string) {
   return activeDocs.find((doc) => doc.blockType === blockType);
+}
+
+export function filterClientBlockDocumentData(blockType: string, data: Record<string, unknown>) {
+  const doc = getClientBlockDocSnapshot(blockType);
+  if (!doc) return data;
+
+  const allowedKeys = new Set([
+    ...Object.keys(doc.defaultData),
+    ...doc.properties
+      .filter((field) => field.configurable !== false)
+      .map((field) => field.key)
+  ]);
+  return Object.fromEntries(
+    Object.entries(data).filter(([key, value]) => allowedKeys.has(key) && value !== undefined)
+  );
 }
 
 export function getEditorEnabledClientBlockDocs(docs: NormalizedClientBlockDoc[] = activeDocs) {
@@ -239,13 +265,12 @@ export async function loadClientBlockDocs() {
     }
   }).then((response) => {
     const docs = normalizeClientBlockDocs(responseDocs(response.data));
-    activeDocs = docs;
+    activeDocs = mergeRemoteClientBlockDocs(docs);
     return activeDocs;
   }).catch((error) => {
     if (import.meta.env.DEV) {
       console.warn('[Mokelay editor] Failed to load client block docs; no client blocks are available.', error);
     }
-    activeDocs = [];
     return activeDocs;
   }).finally(() => {
     loadingPromise = null;

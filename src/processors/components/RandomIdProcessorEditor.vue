@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from '@/i18n';
-import { isRecord, processorParam } from '@/processors/shared';
-import type { ProcessorConfig, RandomIdParam } from '@/processors/types';
+import { isRecord, processorParam } from 'mokelay-components/processors/shared';
+import type { ProcessorConfig, RandomIdParam } from 'mokelay-components/processors/types';
 
 const defaultParam: Required<RandomIdParam> = {
   prefix: '',

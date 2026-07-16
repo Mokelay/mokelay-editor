@@ -1,10 +1,34 @@
 import { createApp } from 'vue';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
+import { configureMokelayComponents } from 'mokelay-components/runtime';
+import 'mokelay-components/style.css';
+import { $confirm, globalCallsPlugin } from 'mokelay-components/global-calls';
 import App from './App.vue';
 import './style.css';
-import { globalCallsPlugin } from './utils/globalCalls';
-import { globalSettingsPlugin } from './utils/globalSettings';
+import {
+  getGlobalSettingValue,
+  globalSettingsPlugin,
+  setGlobalSettingValue
+} from './host/globalSettings';
 import { setupCloudflareWebAnalytics } from './utils/cloudflareWebAnalytics';
+import { i18n } from './i18n';
+import { getPage, getSystemPage } from './services/pagesApi';
+import { resolveDatasourceRuntimeData } from 'mokelay-components/datasource';
+import { apiClient } from './composables/useApi';
+
+configureMokelayComponents({
+  apiClient,
+  t: (key) => i18n.t(key),
+  confirm: (message, title = '') => $confirm(title, message),
+  getPage,
+  getSystemPage,
+  resolveDatasourceRuntimeData: (...args) =>
+    (resolveDatasourceRuntimeData as (...values: unknown[]) => Promise<unknown>)(...args),
+  getGlobalSetting: (key) => getGlobalSettingValue(key),
+  setGlobalSetting: (key, value) => {
+    setGlobalSettingValue(key, value);
+  }
+});
 
 setupCloudflareWebAnalytics();
 

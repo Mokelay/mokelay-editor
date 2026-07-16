@@ -6,7 +6,7 @@ import {
   type MActionToolbarMode,
   type MActionToolbarSize,
   type ToolbarButton
-} from '@/blocks/MActionToolbar.vue';
+} from 'mokelay-components/blocks/MActionToolbar.vue';
 
 export type MActionToolBarEditorData = {
   align?: MActionToolbarAlign | string;
@@ -177,8 +177,8 @@ export const mActionToolBarEditorTool = defineEditorTool<MActionToolBarEditorPro
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import MActionEditor from '@/editors/blocks/MActionEditor.vue';
-import { cloneActions, type ActionConfig } from '@/actions';
-import { cloneBlockEvents } from '@/utils/blockEvents';
+import { cloneActions, type ActionConfig } from 'mokelay-components/actions';
+import { cloneBlockEvents } from 'mokelay-components/blocks';
 import { useI18n } from '@/i18n';
 
 const props = defineProps<MActionToolBarEditorProps & {

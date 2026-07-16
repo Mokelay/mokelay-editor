@@ -2,10 +2,10 @@
 import type { OutputData } from '@editorjs/editorjs';
 import { computed, ref } from 'vue';
 import EditorPanel from '@/components/EditorPanel.vue';
-import MPage from '@/blocks/MPage.vue';
+import MPage from 'mokelay-components/blocks/MPage.vue';
 import type { PageEditorBridge } from '@/editors/pageEditor';
-import type { MokelayLayoutRecord } from '@/utils/layoutsApi';
-import type { PageDataSourceConfig } from '@/utils/pageRuntimeContext';
+import type { MokelayLayoutRecord } from '@/services/layoutsApi';
+import type { PageDataSourceConfig } from 'mokelay-components/pages';
 
 export type PageEditorDraft = {
   name: string;
@@ -98,7 +98,7 @@ defineExpose({ flush });
 
 <template>
   <EditorPanel
-    v-if="mode === 'edit' || context === 'standalone'"
+    v-if="mode === 'edit'"
     ref="editorPanelRef"
     :blocks="draftBlocks"
     :data-sources="draftDataSources"
@@ -112,7 +112,6 @@ defineExpose({ flush });
     :layout-error="layoutError"
     :can-edit-layout-binding="canEditLayoutBinding"
     :show-layout-binding="showLayoutBinding"
-    :editable="mode === 'edit'"
     :loading="loading"
     :error="error"
     @change="handleBlocksChange"
@@ -134,7 +133,6 @@ defineExpose({ flush });
       :value="draftBlocks"
       :page-id="runtimePageId"
       :data-sources="draftDataSources"
-      :page-editor="pageEditor"
     />
   </section>
 </template>
