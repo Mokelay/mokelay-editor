@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { OutputData } from '@editorjs/editorjs';
 import { TooltipProvider } from 'reka-ui';
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch, type Component } from 'vue';
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import PageEditorHost from '@/editors/page/PageEditorHost.vue';
+import MPageEditorBlock from '@/editors/page/MPageEditorBlock.vue';
 import {
   createPageEditorBridge,
   type PageEditorOpenRequest,
@@ -42,7 +43,6 @@ import {
 } from '@/services/layoutsApi';
 
 const PreviewPanel = defineAsyncComponent(() => import('@/components/PreviewPanel.vue'));
-const MPageEditorBlock = defineAsyncComponent(() => import('@/editors/page/MPageEditorBlock.vue')) as Component;
 const ApiBuilderShell = defineAsyncComponent(() => import('@/api-builder/ApiBuilderShell.vue'));
 const NotFoundPage = defineAsyncComponent(() => import('@/components/NotFoundPage.vue'));
 

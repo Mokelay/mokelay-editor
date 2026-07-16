@@ -11,15 +11,21 @@ export default defineConfig(function () { return ({
     },
     plugins: [vue()],
     build: {
+        // JSON Editor 和本地 Block metadata 是已独立拆分的大型功能块，高于 Vite 的默认 500 kB 提示线。
+        chunkSizeWarningLimit: 1050,
         rollupOptions: {
+            onwarn: function (warning, warn) {
+                var _a;
+                // @vueuse/core 发布产物中两个 PURE 标记位置不被 Rollup 识别，Rollup 会自动移除且不影响代码。
+                if (warning.code === 'INVALID_ANNOTATION'
+                    && ((_a = warning.id) === null || _a === void 0 ? void 0 : _a.includes('/@vueuse/core/dist/index.js'))) {
+                    return;
+                }
+                warn(warning);
+            },
             output: {
                 manualChunks: function (id) {
                     var moduleId = normalizeModuleId(id);
-                    var isMokelayComponentsCode = (moduleId.includes('/node_modules/mokelay-components/') ||
-                        moduleId.includes('/submodule/mokelay-components/dist/')) && !moduleId.includes('/mokelay-components/node_modules/');
-                    if (isMokelayComponentsCode) {
-                        return 'mokelay-components';
-                    }
                     if (!moduleId.includes('node_modules')) {
                         return;
                     }
@@ -48,12 +54,6 @@ export default defineConfig(function () { return ({
                         moduleId.includes('/element-plus/') ||
                         moduleId.includes('/@popperjs/')) {
                         return 'element-plus';
-                    }
-                    if (moduleId.includes('/vue/') ||
-                        moduleId.includes('/@vue/') ||
-                        moduleId.includes('/reka-ui/') ||
-                        moduleId.includes('/@tanstack/vue-query/')) {
-                        return 'vue-vendor';
                     }
                 }
             }
