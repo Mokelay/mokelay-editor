@@ -1,0 +1,1 @@
+import{d as i}from"./editorToolDefinition-BzSiZ_bo.js";const n=i({documentFieldsOnly:!0,normalizeProps:e=>({...e,edit:e.edit??!1}),serialize:e=>Object.fromEntries(Object.entries(e).filter(([o,t])=>!["edit","currentBlockId","onChange","onToolChange"].includes(o)&&t!==void 0))});export{n as mResultPageEditorTool};

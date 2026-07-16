@@ -1,0 +1,1 @@
+import{d as t}from"./editorToolDefinition-BzSiZ_bo.js";const n=t({documentFieldsOnly:!0,normalizeProps:e=>({...e,edit:e.edit??!1}),serialize:e=>Object.fromEntries(Object.entries(e).filter(([i,o])=>!["edit","currentBlockId","onChange","onToolChange"].includes(i)&&o!==void 0))});export{n as mDividerLineEditorTool};

@@ -1,0 +1,1 @@
+import{d as t}from"./editorToolDefinition-BzSiZ_bo.js";const d=t({documentFieldsOnly:!0,normalizeProps:e=>({...e,edit:e.edit??!1}),serialize:e=>Object.fromEntries(Object.entries(e).filter(([o,i])=>!["edit","currentBlockId","onChange","onToolChange"].includes(o)&&i!==void 0))});export{d as mRadioGroupFieldEditorTool};
