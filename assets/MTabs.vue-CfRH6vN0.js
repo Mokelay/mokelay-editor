@@ -1,0 +1,1 @@
+import{S as o}from"./MTabs2.vue-CYwxqyji.js";import{T as d}from"./MTabs2.vue-CYwxqyji.js";import{s as r}from"./index-B2XBra1t.js";import"./element-plus-D3XLzju9.js";import"./json-editor-BI2m8N7C.js";const s=r(o,[["__scopeId","data-v-da620061"]]);export{s as default,d as normalizeTabs};
