@@ -108,6 +108,42 @@ function createClientBlockDoc(
   };
 }
 
+function createRuntimeUnavailableDetail(
+  uuid: string,
+  blockType: 'MBlockPlayground' | 'MDatasourceEditor'
+): ClientBlockDocDetailFixture {
+  const summary = createClientBlockDoc(
+    uuid,
+    blockType,
+    blockType === 'MBlockPlayground' ? 'mBlockPlaygroundTool' : 'mDatasourceEditorTool',
+    'content',
+    { toolbox_visible: false }
+  );
+
+  return {
+    ...summary,
+    display_name: blockType,
+    description: `${blockType} is only available in the editor.`,
+    source_kind: 'mokelay-editor',
+    source_package: 'mokelay-editor',
+    source_file: blockType === 'MBlockPlayground'
+      ? 'submodule/mokelay-editor/src/editors/blocks/MBlockPlaygroundEditor.vue'
+      : 'submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue',
+    component_name: blockType,
+    tool_symbol: summary.registration.toolSymbol,
+    initial_props: {},
+    default_data: {},
+    property_schema: [],
+    event_schema: [],
+    method_schema: [],
+    data_fields_schema: [],
+    save_schema: [],
+    examples: [{ id: `${uuid}-example`, type: blockType, data: {} }],
+    source_refs: [],
+    raw_meta: {}
+  };
+}
+
 async function mockClientBlockDocsApi(page: Page, docs: unknown[]) {
   await page.route('**/api/mokelay/list_client_block_docs**', async (route) => {
     await route.fulfill({
@@ -222,8 +258,14 @@ async function mockClientBlockDocsPage(page: Page) {
   await page.route('**/api/mokelay/read_block_component_doc**', async (route) => {
     const url = new URL(route.request().url());
     detailRequests.push(url);
-    const summary = docs.find((item) => item.uuid === url.searchParams.get('uuid'));
-    const doc: ClientBlockDocDetailFixture | null = summary
+    const requestedUuid = url.searchParams.get('uuid');
+    const summary = docs.find((item) => item.uuid === requestedUuid);
+    const runtimeUnavailableDoc = requestedUuid === 'test-playground'
+      ? createRuntimeUnavailableDetail('test-playground', 'MBlockPlayground')
+      : requestedUuid === 'test-editor-only'
+        ? createRuntimeUnavailableDetail('test-editor-only', 'MDatasourceEditor')
+        : null;
+    const doc: ClientBlockDocDetailFixture | null = runtimeUnavailableDoc ?? (summary
       ? {
           ...summary,
           display_name: 'Test Button',
@@ -278,7 +320,7 @@ async function mockClientBlockDocsPage(page: Page) {
           source_refs: [{ file: 'submodule/mokelay-components/src/blocks/MButton.vue', reason: '组件实现' }],
           raw_meta: { counts: { properties: 1, events: 1, methods: 1, dataFields: 1, saveRules: 1 } }
         }
-      : null;
+      : null);
 
     await route.fulfill({
       status: 200,
@@ -652,8 +694,43 @@ test('opens a shareable Block detail page with structured fields and visual JSON
   await expect(detailTables.nth(2)).toContainText('focus');
   await expect.poll(() => detailRequests.length).toBe(1);
 
-  // MBlockPlayground is an editor-only tool and must not be loaded by the runtime renderer.
-  await expect(page.getByTestId('m-block-playground')).toHaveCount(0);
+  const playground = page.getByTestId('m-block-playground');
+  await expect(playground).toBeVisible();
+  await expect(playground).toContainText('Test Button / MButton');
+  const playgroundPreview = playground.getByTestId('m-block-playground-preview');
+  await expect(playgroundPreview.getByRole('button', { name: '示例按钮', exact: true })).toBeVisible();
+
+  const labelField = playground.getByTestId('m-block-playground-field-label');
+  await expect(labelField).toHaveValue('示例按钮');
+  await labelField.fill('调试按钮');
+  await expect(playgroundPreview.getByRole('button', { name: '调试按钮', exact: true })).toBeVisible();
+
+  const variantField = playground.getByTestId('m-block-playground-field-variant');
+  await variantField.selectOption('danger');
+  await expect(playgroundPreview.getByRole('button', { name: '调试按钮', exact: true })).toHaveClass(/page-dsl-button--danger/);
+
+  const disabledField = playground.getByTestId('m-block-playground-field-disabled');
+  await disabledField.check();
+  await expect(playgroundPreview.getByRole('button', { name: '调试按钮', exact: true })).toBeDisabled();
+
+  const actionField = playground.getByTestId('m-block-playground-field-action');
+  await actionField.fill('{');
+  await expect(playground.getByTestId('m-block-playground-field-error-action')).toHaveText('请输入有效 JSON。');
+  await actionField.fill('{"type":"submit"}');
+  await expect(playground.getByTestId('m-block-playground-field-error-action')).toHaveCount(0);
+
+  const playgroundJson = playground.getByTestId('m-block-playground-json');
+  await playgroundJson.fill('{');
+  await expect(playground.getByTestId('m-block-playground-json-error')).toHaveText('请输入有效 JSON。');
+  await playgroundJson.fill('{"label":"JSON 按钮","variant":"warning","disabled":false,"action":{"type":"submit"}}');
+  await expect(playgroundPreview.getByRole('button', { name: 'JSON 按钮', exact: true })).toBeVisible();
+  await playground.getByTestId('m-block-playground-format').click();
+  await expect(playgroundJson).toHaveValue(/\n  "label": "JSON 按钮"/);
+  await expect(playground.getByTestId('m-block-playground-json-error')).toHaveCount(0);
+
+  await playground.getByTestId('m-block-playground-reset').click();
+  await expect(labelField).toHaveValue('示例按钮');
+  await expect(playgroundPreview.getByRole('button', { name: '示例按钮', exact: true })).toBeVisible();
 
   const jsonViewers = page.getByTestId('m-json-viewer');
   await expect(jsonViewers).toHaveCount(10);
@@ -687,6 +764,22 @@ test('opens a shareable Block detail page with structured fields and visual JSON
   await page.goto('/#/block_component_doc_detail?uuid=unknown');
   await expect.poll(() => detailRequests.at(-1)?.searchParams.get('uuid')).toBe('unknown');
   await expect(page.getByTestId('record-list-empty')).toHaveText('未找到对应的 Block 文档。');
+  await expect(page.getByTestId('m-block-playground-empty')).toHaveText('未找到对应的 Block 文档。');
+
+  await page.goto('/#/block_component_doc_detail?uuid=test-playground');
+  await expect(page.getByTestId('m-block-playground')).toHaveCount(1);
+  await expect(page.getByTestId('m-block-playground-preview-unavailable')).toHaveText('该 Block 仅支持编辑态，无法运行时预览。');
+
+  await page.goto('/#/block_component_doc_detail?uuid=test-editor-only');
+  await expect(page.getByTestId('m-block-playground-preview-unavailable')).toHaveText('该 Block 仅支持编辑态，无法运行时预览。');
+  const runtimeRegistry = await page.evaluate(async () => {
+    const { isMokelayBlockRegistered } = await import('/@id/mokelay-components/blocks');
+    return {
+      playground: isMokelayBlockRegistered('MBlockPlayground'),
+      editorOnly: isMokelayBlockRegistered('MDatasourceEditor')
+    };
+  });
+  expect(runtimeRegistry).toEqual({ playground: true, editorOnly: false });
 
   await page.goto('/#/block_component_doc_detail');
   await expect.poll(() => detailRequests.at(-1)?.searchParams.get('uuid')).toBe('');

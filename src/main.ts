@@ -15,6 +15,9 @@ import { i18n } from './i18n';
 import { getPage, getSystemPage } from './services/pagesApi';
 import { resolveDatasourceRuntimeData } from 'mokelay-components/datasource';
 import { apiClient } from './composables/useApi';
+import { registerEditorRuntimeExtensions } from './editors/runtimeExtensions';
+
+registerEditorRuntimeExtensions();
 
 configureMokelayComponents({
   apiClient,

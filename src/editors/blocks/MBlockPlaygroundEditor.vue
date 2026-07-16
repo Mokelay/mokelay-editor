@@ -210,6 +210,7 @@ export const mBlockPlaygroundTool = defineEditorTool<MBlockPlaygroundProps>({
 import { computed, ref, watch } from 'vue';
 import PageDslEditorBlock from '@/editors/components/PageDslEditorBlock.vue';
 import MokelayBlockRenderer from 'mokelay-components/blocks/MokelayBlockRenderer.vue';
+import { isMokelayBlockRegistered } from 'mokelay-components/blocks';
 import type { EditorToolPropertyField } from '@/editors/editorToolDefinition';
 import {
   getClientBlockDefaultData,
@@ -242,13 +243,20 @@ const propertyFields = computed(() => (
 ));
 const playgroundTitle = computed(() => normalizedProps.value.title || blockPlaygroundDefaults.title);
 const playgroundEmptyText = computed(() => normalizedProps.value.emptyText || blockPlaygroundDefaults.emptyText);
+const runtimePreviewUnavailableText = '该 Block 仅支持编辑态，无法运行时预览。';
+const isRuntimePreviewSupported = computed(() => {
+  const blockType = normalizedDoc.value?.blockType;
+  if (!blockType || blockType === 'MBlockPlayground') return false;
+  return blockType === 'paragraph' || blockType === 'table' || blockType === 'columns' ||
+    isMokelayBlockRegistered(blockType);
+});
 const previewBlockId = computed(() => {
   const base = normalizedProps.value.currentBlockId || normalizedDoc.value?.blockType || 'block-playground';
   return `${base}-preview`;
 });
 const previewBlock = computed<EditorBlock | null>(() => {
   const doc = normalizedDoc.value;
-  if (!doc) return null;
+  if (!doc || !isRuntimePreviewSupported.value) return null;
   return {
     id: previewBlockId.value,
     type: doc.blockType,
@@ -537,7 +545,14 @@ watch(
             实时预览
           </div>
           <div class="m-block-playground__preview" data-testid="m-block-playground-preview">
-            <template v-if="previewBlock">
+            <p
+              v-if="!isRuntimePreviewSupported"
+              class="m-block-playground__muted"
+              data-testid="m-block-playground-preview-unavailable"
+            >
+              {{ runtimePreviewUnavailableText }}
+            </p>
+            <template v-else-if="previewBlock">
               <div
                 v-if="isColumnsBlock(previewBlock)"
                 data-testid="m-block-playground-preview-columns"
