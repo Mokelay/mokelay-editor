@@ -94,7 +94,6 @@ export function normalizeMActionToolBarEditorProps(
  *       "optional": true,
  *       "tsType": "MActionToolBarEditorData",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
- *       "line": 18,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "工具栏配置"
@@ -104,7 +103,6 @@ export function normalizeMActionToolBarEditorProps(
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
- *       "line": 19,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "允许空工具栏"
@@ -114,7 +112,6 @@ export function normalizeMActionToolBarEditorProps(
  *       "optional": true,
  *       "tsType": "'value' | 'patch'",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
- *       "line": 20,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "输出模式"

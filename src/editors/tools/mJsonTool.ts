@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "只读 JSON 查看器，使用 json-editor-vue 的树形模式展示任意可 JSON 序列化值，支持键和值搜索、匹配项定位、展开收起和复制。setValue/clear 可接收 action 或 processor 的运行时结果，并通知依赖 blocks[blockId] 的模板刷新；运行时值不会写回静态 DSL。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MJson",
  *     "toolSymbol": "mJsonTool",
  *     "editorEnabled": true,

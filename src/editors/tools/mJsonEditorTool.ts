@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "页面 DSL 的多行 JSON 文本编辑器。它保留原始文本，同时向变量和 action 暴露解析值、对象型 layoutJson、校验状态与错误；支持运行时 setValue/clear/format、根节点类型约束、只读模式及 JSON Schema 元信息。schema 在 v1 仅供描述和 AI 上下文使用，不执行关键字级 Schema 校验。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MJsonEditor",
  *     "toolSymbol": "mJsonEditorTool",
  *     "editorEnabled": true,

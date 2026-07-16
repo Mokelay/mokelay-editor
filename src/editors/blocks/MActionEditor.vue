@@ -54,7 +54,6 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *       "optional": true,
  *       "tsType": "EditorActionConfig[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
- *       "line": 10,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "动作配置"
@@ -64,7 +63,6 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *       "optional": true,
  *       "tsType": "EditorActionConfig[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
- *       "line": 11,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "绑定动作配置"
@@ -76,7 +74,6 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *       "payload": "value: ActionConfig[]",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
- *       "line": 144,
  *       "label": "更新绑定值"
  *     },
  *     {
@@ -84,7 +81,6 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *       "payload": "value: ActionConfig[]",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
- *       "line": 144,
  *       "label": "变更"
  *     }
  *   ],

@@ -12,8 +12,8 @@ import { normalizeStoredBlocks } from 'mokelay-components/blocks';
  *   "description": "高级输入框，支持文本片段与嵌入组件的混合编辑，并保存为可编排的结构化内容。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MAdvanceInput",
  *     "toolSymbol": "mAdvanceInputEditorTool",
  *     "editorEnabled": true,
@@ -34,7 +34,6 @@ import { normalizeStoredBlocks } from 'mokelay-components/blocks';
  *       "optional": true,
  *       "tsType": "StoredBlock[]",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceInput.vue",
- *       "line": 18,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "输入值"

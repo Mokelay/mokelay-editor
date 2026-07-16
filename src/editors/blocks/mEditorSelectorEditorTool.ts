@@ -47,7 +47,6 @@ export interface MEditorSelectorProps {
  *       "optional": true,
  *       "tsType": "StoredBlock",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/mEditorSelectorEditorTool.ts",
- *       "line": 14,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "选中 Block"
@@ -57,7 +56,6 @@ export interface MEditorSelectorProps {
  *       "optional": true,
  *       "tsType": "string[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/mEditorSelectorEditorTool.ts",
- *       "line": 15,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "排除工具名称"

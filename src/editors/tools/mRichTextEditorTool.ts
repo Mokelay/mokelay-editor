@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "富文本 Block，用于渲染和保存 HTML 富文本内容。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MRichText",
  *     "toolSymbol": "mRichTextEditorTool",
  *     "editorEnabled": true,
@@ -31,7 +31,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MRichText.vue",
- *       "line": 36,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "正文",

@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "日期范围表单字段，收集开始和结束日期，并支持必填、禁用和展示格式。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MDateRangeField",
  *     "toolSymbol": "mDateRangeFieldEditorTool",
  *     "editorEnabled": true,
@@ -34,7 +34,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MDateRangeField.vue",
- *       "line": 21,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "值 JSON",
@@ -46,7 +45,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MDateRangeField.vue",
- *       "line": 20,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "字段 ID"
@@ -61,7 +59,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MDateRangeField.vue",
- *       "line": 225,
  *       "label": "获取数据"
  *     }
  *   ],

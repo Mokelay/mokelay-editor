@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "输入框，支持标签、占位符、输入类型、禁用状态和受控值。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MInput",
  *     "toolSymbol": "mInputEditorTool",
  *     "editorEnabled": true,
@@ -38,7 +38,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MInput.vue",
- *       "line": 63,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "占位提示",
@@ -53,7 +52,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MInput.vue",
- *       "line": 68,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "默认值",
@@ -69,7 +67,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MInput.vue",
- *       "line": 10,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "字段 ID"
@@ -79,7 +76,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MInput.vue",
- *       "line": 13,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "必填"
@@ -89,7 +85,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "number",
  *       "source": "submodule/mokelay-components/src/blocks/MInput.vue",
- *       "line": 14,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "最大长度"
@@ -99,7 +94,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MInput.vue",
- *       "line": 15,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "禁用"
@@ -114,7 +108,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MInput.vue",
- *       "line": 135,
  *       "label": "聚焦"
  *     },
  *     {
@@ -124,7 +117,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MInput.vue",
- *       "line": 136,
  *       "label": "获取数据"
  *     }
  *   ],

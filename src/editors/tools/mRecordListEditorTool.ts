@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "记录列表，按字段顺序呈现对象或数组数据，支持字段别名、隐藏字段、标题字段和数量显示。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MRecordList",
  *     "toolSymbol": "mRecordListEditorTool",
  *     "editorEnabled": true,
@@ -44,7 +44,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 83,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "空状态文案",
@@ -55,7 +54,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 84,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "显示数量",
@@ -66,7 +64,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string[]",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 12,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "字段顺序 JSON",
@@ -79,7 +76,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string[]",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 13,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "隐藏字段 JSON",
@@ -92,7 +88,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "Record<string, string>",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 13,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "字段标签 JSON",
@@ -105,7 +100,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string[]",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 14,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "标题字段 JSON",
@@ -118,7 +112,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 7,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "列表数据"
@@ -128,7 +121,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string | number",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 8,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "数量"
@@ -138,7 +130,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 9,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "显示名称"
@@ -148,7 +139,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 10,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "Block 类型"
@@ -158,7 +148,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "fieldLabels.value ?? '值'",
  *       "type": "text",
  *       "source": "submodule/mokelay-components/src/blocks/MRecordList.vue",
- *       "line": 302,
  *       "declaredInProps": false,
  *       "configurable": false
  *     }

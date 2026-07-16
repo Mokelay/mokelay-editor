@@ -22,8 +22,8 @@ export type MPageToolProps = {
  *   "description": "页面编排容器，承载 EditorJS Block，并按客户端 Block 文档 API 的 active 配置注册可插入组件。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MPage",
  *     "toolSymbol": "mPageEditorTool",
  *     "editorEnabled": true,
@@ -46,7 +46,6 @@ export type MPageToolProps = {
  *       "optional": true,
  *       "tsType": "OutputData['blocks']",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mPageEditorTool.ts",
- *       "line": 11,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "页面 Blocks"
@@ -58,7 +57,6 @@ export type MPageToolProps = {
  *       "payload": "blocks: OutputData['blocks']",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MPage.vue",
- *       "line": 57,
  *       "label": "变更"
  *     },
  *     {
@@ -66,7 +64,6 @@ export type MPageToolProps = {
  *       "payload": "result?: unknown",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MPage.vue",
- *       "line": 57,
  *       "label": "关闭"
  *     }
  *   ],
@@ -78,7 +75,6 @@ export type MPageToolProps = {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MPage.vue",
- *       "line": 563,
  *       "label": "保存编辑器"
  *     },
  *     {
@@ -88,7 +84,6 @@ export type MPageToolProps = {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MPage.vue",
- *       "line": 564,
  *       "label": "获取数据"
  *     },
  *     {
@@ -98,7 +93,6 @@ export type MPageToolProps = {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MPage.vue",
- *       "line": 565,
  *       "label": "关闭"
  *     }
  *   ],
@@ -109,8 +103,7 @@ export type MPageToolProps = {
  *       },
  *       "variable": "key",
  *       "dataType": "inferDataType(value)",
- *       "source": "submodule/mokelay-components/src/blocks/MPage.vue",
- *       "line": 137
+ *       "source": "submodule/mokelay-components/src/blocks/MPage.vue"
  *     }
  *   ],
  *   "saveRules": [

@@ -58,7 +58,6 @@ export function normalizeMFormItemsEditorProps(
  *       "optional": true,
  *       "tsType": "MFormItemData[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MFormItemsEditor.vue",
- *       "line": 9,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "表单项配置"

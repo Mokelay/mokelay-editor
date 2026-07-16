@@ -17,8 +17,8 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *   "description": "表单容器，负责字段布局、校验和表单项的嵌套编辑；子组件工具由客户端 Block 文档 API 的元数据创建。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MForm",
  *     "toolSymbol": "mFormEditorTool",
  *     "editorEnabled": true,
@@ -43,7 +43,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "optional": true,
  *       "tsType": "MFormLayout",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 192,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "布局方式",
@@ -70,7 +69,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "optional": true,
  *       "tsType": "MFormItemWidthMode",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 211,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "横向项宽度",
@@ -97,7 +95,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "optional": true,
  *       "tsType": "MFormItemData[]",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 201,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "表单项配置",
@@ -109,7 +106,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "optional": true,
  *       "tsType": "MFormActionBarData",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 207,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "操作栏配置",
@@ -121,7 +117,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "optional": true,
  *       "tsType": "MFormActionBarData",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 39,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "工具栏配置"
@@ -131,7 +126,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "optional": true,
  *       "tsType": "Record<string, unknown>",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 40,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "表单值"
@@ -141,7 +135,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "optional": true,
  *       "tsType": "Record<string, unknown>",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 41,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "默认值"
@@ -151,7 +144,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "optional": true,
  *       "tsType": "MFormSubmitData",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 42,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "提交配置"
@@ -161,7 +153,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "optional": true,
  *       "tsType": "MFormProcessorsData",
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 43,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "处理器配置"
@@ -173,7 +164,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "payload": "items: MFormItemData[]",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "line": 76,
  *       "label": "变更"
  *     },
  *     {
@@ -181,7 +171,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "payload": "payload: { values: Record<string, unknown> }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "line": 76,
  *       "label": "重置"
  *     },
  *     {
@@ -189,7 +178,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "payload": "payload: { values: Record<string, unknown>; valid: boolean; errors: unknown[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "line": 76,
  *       "label": "提交"
  *     }
  *   ],
@@ -201,7 +189,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "line": 1052,
  *       "label": "保存编辑器"
  *     },
  *     {
@@ -211,7 +198,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "line": 1053,
  *       "label": "获取数据"
  *     },
  *     {
@@ -221,7 +207,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "line": 1054,
  *       "label": "设置表单值"
  *     },
  *     {
@@ -231,7 +216,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "line": 1055,
  *       "label": "重置"
  *     },
  *     {
@@ -241,7 +225,6 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "line": 1056,
  *       "label": "提交"
  *     }
  *   ],
@@ -252,8 +235,7 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       },
  *       "variable": "item.variableName",
  *       "dataType": "normalizeVariableDataType(item.fieldDataType)",
- *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
- *       "line": 220
+ *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts"
  *     },
  *     {
  *       "label": {

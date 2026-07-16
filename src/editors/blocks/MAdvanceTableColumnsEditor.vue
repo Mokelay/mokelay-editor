@@ -58,7 +58,6 @@ export function normalizeMAdvanceTableColumnsEditorProps(
  *       "optional": true,
  *       "tsType": "MAdvanceTableColumnConfig[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MAdvanceTableColumnsEditor.vue",
- *       "line": 9,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "列配置"

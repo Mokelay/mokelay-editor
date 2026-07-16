@@ -217,7 +217,6 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "optional": true,
  *       "tsType": "string[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
- *       "line": 18,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "横坐标数据"
@@ -227,7 +226,6 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "optional": true,
  *       "tsType": "MChartDataEditorSeriesItem[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
- *       "line": 19,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "图表数据"
@@ -237,7 +235,6 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "optional": true,
  *       "tsType": "MChartDataEditorChartType | string",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
- *       "line": 20,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "预览图表类型",
@@ -253,7 +250,6 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
- *       "line": 21,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "只读",

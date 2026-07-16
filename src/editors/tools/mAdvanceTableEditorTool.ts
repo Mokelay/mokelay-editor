@@ -20,8 +20,8 @@ import {
  *   "description": "高级表格，支持静态数据或数据源、分页选择、固定列和单元格内嵌 Block 的行数据绑定。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MAdvanceTable",
  *     "toolSymbol": "mAdvanceTableEditorTool",
  *     "editorEnabled": true,
@@ -45,7 +45,6 @@ import {
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 81,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "显示序号列",
@@ -56,7 +55,6 @@ import {
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 86,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "显示多选列",
@@ -67,7 +65,6 @@ import {
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 91,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "显示分页",
@@ -78,7 +75,6 @@ import {
  *       "optional": true,
  *       "tsType": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 33,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "行数据"
@@ -88,7 +84,6 @@ import {
  *       "optional": true,
  *       "tsType": "MAdvanceTableColumnConfig[]",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 96,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "列配置",
@@ -100,7 +95,6 @@ import {
  *       "optional": true,
  *       "tsType": "MDatasourceApiObject",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 102,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "数据源",
@@ -114,7 +108,6 @@ import {
  *       "payload": "payload: {\n    selectedRows: Record<string, unknown>[];\n    selection: ReturnType<typeof getSelectionState>;\n  }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 191,
  *       "label": "已选中行"
  *     },
  *     {
@@ -122,7 +115,6 @@ import {
  *       "payload": "payload: {\n    selectedRows: Record<string, unknown>[];\n    selection: ReturnType<typeof getSelectionState>;\n  }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 191,
  *       "label": "清空选中行"
  *     }
  *   ],
@@ -134,7 +126,6 @@ import {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 856,
  *       "label": "获取数据"
  *     },
  *     {
@@ -144,7 +135,6 @@ import {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 857,
  *       "label": "刷新"
  *     },
  *     {
@@ -154,7 +144,6 @@ import {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 858,
  *       "label": "搜索"
  *     },
  *     {
@@ -164,7 +153,6 @@ import {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 859,
  *       "label": "获取选中行"
  *     },
  *     {
@@ -174,7 +162,6 @@ import {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 860,
  *       "label": "获取选中值"
  *     },
  *     {
@@ -184,7 +171,6 @@ import {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 861,
  *       "label": "清空选择"
  *     },
  *     {
@@ -194,7 +180,6 @@ import {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 862,
  *       "label": "获取选择状态"
  *     }
  *   ],
@@ -207,8 +192,7 @@ import {
  *       },
  *       "variable": "data",
  *       "dataType": "array",
- *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 40
+ *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue"
  *     },
  *     {
  *       "label": {
@@ -218,8 +202,7 @@ import {
  *       },
  *       "variable": "page",
  *       "dataType": "number",
- *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 45
+ *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue"
  *     },
  *     {
  *       "label": {
@@ -229,8 +212,7 @@ import {
  *       },
  *       "variable": "pageSize",
  *       "dataType": "number",
- *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 50
+ *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue"
  *     },
  *     {
  *       "label": {
@@ -240,8 +222,7 @@ import {
  *       },
  *       "variable": "total",
  *       "dataType": "number",
- *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 55
+ *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue"
  *     },
  *     {
  *       "label": {
@@ -251,8 +232,7 @@ import {
  *       },
  *       "variable": "search",
  *       "dataType": "object",
- *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "line": 60
+ *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue"
  *     }
  *   ],
  *   "saveRules": [

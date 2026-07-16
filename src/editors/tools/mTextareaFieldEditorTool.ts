@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "多行文本表单字段，支持行数、占位符、默认值和校验。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MTextareaField",
  *     "toolSymbol": "mTextareaFieldEditorTool",
  *     "editorEnabled": true,
@@ -33,7 +33,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue",
- *       "line": 18,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "占位提示",
@@ -44,7 +43,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue",
- *       "line": 19,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "值",
@@ -56,7 +54,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "number",
  *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue",
- *       "line": 62,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "行数",
@@ -67,7 +64,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue",
- *       "line": 17,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "字段 ID"
@@ -77,7 +73,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue",
- *       "line": 21,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "必填"
@@ -87,7 +82,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "number",
  *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue",
- *       "line": 22,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "最大长度"
@@ -97,7 +91,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue",
- *       "line": 23,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "禁用"
@@ -112,7 +105,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue",
- *       "line": 134,
  *       "label": "聚焦"
  *     },
  *     {
@@ -122,7 +114,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue",
- *       "line": 135,
  *       "label": "获取数据"
  *     }
  *   ],

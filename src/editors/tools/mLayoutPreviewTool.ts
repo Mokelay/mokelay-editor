@@ -11,8 +11,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "布局预览，用于在编辑器内以只读方式渲染页面布局，辅助配置和校验区域内容。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MLayoutPreview",
  *     "toolSymbol": "mLayoutPreviewTool",
  *     "editorEnabled": true,

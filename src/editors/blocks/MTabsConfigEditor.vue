@@ -213,7 +213,6 @@ export function normalizeMTabsConfigEditorProps(
  *       "optional": true,
  *       "tsType": "MTabsTab[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MTabsConfigEditor.vue",
- *       "line": 13,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "页签列表"
@@ -223,7 +222,6 @@ export function normalizeMTabsConfigEditorProps(
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MTabsConfigEditor.vue",
- *       "line": 14,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "默认激活页签"
@@ -233,7 +231,6 @@ export function normalizeMTabsConfigEditorProps(
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MTabsConfigEditor.vue",
- *       "line": 15,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "只读"

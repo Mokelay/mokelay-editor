@@ -14,8 +14,8 @@ import {
  *   "description": "页签容器，按配置渲染多个页面或内容区，并支持当前页签切换。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MTabs",
  *     "toolSymbol": "mTabsEditorTool",
  *     "editorEnabled": true,
@@ -39,7 +39,6 @@ import {
  *       "optional": true,
  *       "tsType": "MTabsTab[]",
  *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue",
- *       "line": 99,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "页签配置",
@@ -51,7 +50,6 @@ import {
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue",
- *       "line": 106,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "激活页签 ID"
@@ -66,7 +64,6 @@ import {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue",
- *       "line": 285,
  *       "label": "获取数据"
  *     },
  *     {
@@ -76,7 +73,6 @@ import {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue",
- *       "line": 286,
  *       "label": "设置激活页签"
  *     }
  *   ],
@@ -89,8 +85,7 @@ import {
  *       },
  *       "variable": "activeTabId",
  *       "dataType": "string",
- *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue",
- *       "line": 68
+ *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue"
  *     },
  *     {
  *       "label": {
@@ -100,8 +95,7 @@ import {
  *       },
  *       "variable": "activeTab",
  *       "dataType": "object",
- *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue",
- *       "line": 73
+ *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue"
  *     },
  *     {
  *       "label": {
@@ -111,8 +105,7 @@ import {
  *       },
  *       "variable": "tabs",
  *       "dataType": "array",
- *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue",
- *       "line": 78
+ *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue"
  *     }
  *   ],
  *   "saveRules": [

@@ -11,8 +11,8 @@ import type { MSelectFieldProps } from 'mokelay-components/blocks/MSelectField.v
  *   "description": "下拉选择表单字段，支持静态 PageDslOption[] 或 VariableValueConfig 动态选项。预览运行时会先解析变量，再通过 optionLabelField/optionValueField 点路径把任意对象数组映射为标准选项；选择值可被 MForm、getData 和 blocks[blockId].value 读取。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MSelectField",
  *     "toolSymbol": "mSelectFieldEditorTool",
  *     "editorEnabled": true,

@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "动作工具栏，支持行内、分组和下拉按钮，保留按钮的加载、禁用、可见性和嵌套动作配置。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MActionToolbar",
  *     "toolSymbol": "mActionToolbarEditorTool",
  *     "editorEnabled": true,
@@ -50,7 +50,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "type": "component",
  *       "component": "MActionToolBarEditor",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 189,
  *       "declaredInProps": false,
  *       "configurable": true
  *     },
@@ -59,7 +58,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MActionToolbarAlign | string",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 33,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "对齐方式"
@@ -69,7 +67,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MActionToolbarSize | string",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 34,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "尺寸"
@@ -79,7 +76,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MActionToolbarMode | string",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 35,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "模式"
@@ -89,7 +85,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "ToolbarButton[]",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 36,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "按钮配置"
@@ -99,7 +94,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 37,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "动作配置"
@@ -111,7 +105,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: ButtonEventPayload & { nativeEvent?: MouseEvent }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 227,
  *       "label": "点击按钮"
  *     },
  *     {
@@ -119,7 +112,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: ButtonEventPayload",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 227,
  *       "label": "执行前"
  *     },
  *     {
@@ -127,7 +119,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: ButtonEventPayload & { result?: unknown }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 227,
  *       "label": "执行成功"
  *     },
  *     {
@@ -135,7 +126,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: ButtonEventPayload & { error: unknown }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 227,
  *       "label": "执行失败"
  *     }
  *   ],
@@ -147,7 +137,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 419,
  *       "label": "触发动作"
  *     },
  *     {
@@ -157,7 +146,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 420,
  *       "label": "启用"
  *     },
  *     {
@@ -167,7 +155,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 421,
  *       "label": "禁用"
  *     },
  *     {
@@ -177,7 +164,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 422,
  *       "label": "设置加载状态"
  *     },
  *     {
@@ -187,7 +173,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 423,
  *       "label": "设置禁用状态"
  *     },
  *     {
@@ -197,7 +182,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 424,
  *       "label": "获取按钮"
  *     },
  *     {
@@ -207,7 +191,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 425,
  *       "label": "获取动作"
  *     },
  *     {
@@ -217,7 +200,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "line": 426,
  *       "label": "刷新可见性"
  *     }
  *   ],

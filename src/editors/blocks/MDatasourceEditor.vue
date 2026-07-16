@@ -127,7 +127,6 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "optional": true,
  *       "tsType": "import('mokelay-components/runtime').GetAvailablePageVariableSources",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
- *       "line": 68,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "可用页面变量来源"
@@ -137,7 +136,6 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "optional": true,
  *       "tsType": "MDatasourceApiObject",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
- *       "line": 69,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "数据源配置"
@@ -147,7 +145,6 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "optional": true,
  *       "tsType": "MDatasourceExternalField[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
- *       "line": 70,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "匹配外部字段"
@@ -157,7 +154,6 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
- *       "line": 71,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "显示分页"
@@ -172,7 +168,6 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue",
- *       "line": 1285,
  *       "label": "获取数据"
  *     }
  *   ],

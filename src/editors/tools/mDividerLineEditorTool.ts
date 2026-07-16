@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "分割线内容 Block，支持横向分隔的样式、颜色和间距配置。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MDividerLine",
  *     "toolSymbol": "mDividerLineEditorTool",
  *     "editorEnabled": true,

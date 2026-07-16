@@ -15,8 +15,8 @@ import {
  *   "description": "表单项容器，负责字段标签、布局、校验提示与内嵌字段 Block 的编排。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MFormItem",
  *     "toolSymbol": "mFormItemEditorTool",
  *     "editorEnabled": true,
@@ -43,7 +43,6 @@ import {
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MFormItem.vue",
- *       "line": 91,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "字段文本",
@@ -58,7 +57,6 @@ import {
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MFormItem.vue",
- *       "line": 96,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "变量名",
@@ -73,7 +71,6 @@ import {
  *       "optional": true,
  *       "tsType": "MFormItemLayout",
  *       "source": "submodule/mokelay-components/src/blocks/MFormItem.vue",
- *       "line": 101,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "布局方式",
@@ -100,7 +97,6 @@ import {
  *       "optional": true,
  *       "tsType": "StoredBlock",
  *       "source": "submodule/mokelay-components/src/blocks/MFormItem.vue",
- *       "line": 16,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "编辑器配置"
@@ -112,7 +108,6 @@ import {
  *       "payload": "payload: MouseEvent",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MFormItem.vue",
- *       "line": 140,
  *       "label": "点击表单项"
  *     }
  *   ],

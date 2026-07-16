@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "上传导入 Block，支持文件选择、解析导入、进度、结果汇总和错误反馈。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MUploadImport",
  *     "toolSymbol": "mUploadImportEditorTool",
  *     "editorEnabled": true,
@@ -40,7 +40,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MUploadImportMode | string",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 210,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "模式",
@@ -73,7 +72,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 211,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "文件类型",
@@ -85,7 +83,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 212,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "允许多文件",
@@ -96,7 +93,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "number",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 213,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "最多文件数",
@@ -107,7 +103,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "number",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 214,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "单文件大小 MB",
@@ -118,7 +113,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 215,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "拖拽上传",
@@ -129,7 +123,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 216,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "选择后自动上传",
@@ -140,7 +133,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 217,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "本地预览",
@@ -151,7 +143,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MUploadImportTemplate",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 218,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "模板配置 JSON",
@@ -164,7 +155,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "ActionConfig[]",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 225,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "上传 Action",
@@ -176,7 +166,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MUploadImportUploadedFile[]",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 57,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "值 JSON",
@@ -189,7 +178,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MUploadImportResult",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 56,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "结果数据"
@@ -201,7 +189,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: MUploadImportProps & { files: MUploadImportUploadedFile[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 260,
  *       "label": "变更"
  *     },
  *     {
@@ -209,7 +196,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: { files: MUploadImportUploadedFile[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 260,
  *       "label": "上传前"
  *     },
  *     {
@@ -217,7 +203,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: { file: MUploadImportUploadedFile; percent: number }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 260,
  *       "label": "上传进度"
  *     },
  *     {
@@ -225,7 +210,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: { result: MUploadImportResult; files: MUploadImportUploadedFile[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 260,
  *       "label": "上传成功"
  *     },
  *     {
@@ -233,7 +217,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: { error: Error; file?: MUploadImportUploadedFile }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 260,
  *       "label": "上传失败"
  *     },
  *     {
@@ -241,7 +224,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: { template?: MUploadImportTemplate }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 260,
  *       "label": "下载模板"
  *     }
  *   ],
@@ -253,7 +235,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 825,
  *       "label": "选择文件"
  *     },
  *     {
@@ -263,7 +244,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 826,
  *       "label": "上传"
  *     },
  *     {
@@ -273,7 +253,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 827,
  *       "label": "清空"
  *     },
  *     {
@@ -283,7 +262,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 828,
  *       "label": "移除文件"
  *     },
  *     {
@@ -293,7 +271,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 829,
  *       "label": "下载模板"
  *     },
  *     {
@@ -303,7 +280,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 830,
  *       "label": "解析文件"
  *     },
  *     {
@@ -313,7 +289,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 831,
  *       "label": "设置值"
  *     },
  *     {
@@ -323,7 +298,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 832,
  *       "label": "获取数据"
  *     }
  *   ],
@@ -336,8 +310,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       },
  *       "variable": "files",
  *       "dataType": "array",
- *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 192
+ *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue"
  *     },
  *     {
  *       "label": {
@@ -347,8 +320,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       },
  *       "variable": "urls",
  *       "dataType": "array",
- *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 193
+ *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue"
  *     },
  *     {
  *       "label": {
@@ -358,8 +330,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       },
  *       "variable": "result",
  *       "dataType": "object",
- *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 194
+ *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue"
  *     },
  *     {
  *       "label": {
@@ -369,8 +340,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       },
  *       "variable": "text",
  *       "dataType": "string",
- *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "line": 195
+ *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue"
  *     }
  *   ],
  *   "saveRules": [

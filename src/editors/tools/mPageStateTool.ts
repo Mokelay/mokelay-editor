@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "页面级、内存态 JSON 状态容器。它把复杂页面的临时状态从专用 Vue 组件下沉到 DSL，向 action graph 和模板变量暴露读取、路径写入、根级浅合并、数组追加和恢复初始值能力；运行态不会持久化到 DSL、数据库或其他页面。编辑态显示调试摘要，预览态默认不占视觉空间。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MPageState",
  *     "toolSymbol": "mPageStateTool",
  *     "editorEnabled": true,

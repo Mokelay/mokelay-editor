@@ -26,8 +26,8 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *   "description": "多区域布局网格，支持列轨道、区域、嵌套 Block 和响应式断点；嵌套工具按当前文档 API 元数据构建。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MLayoutGrid",
  *     "toolSymbol": "mLayoutGridEditorTool",
  *     "editorEnabled": true,
@@ -65,7 +65,6 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "optional": true,
  *       "tsType": "MLayoutGridTrack | MLayoutGridTrack[]",
  *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue",
- *       "line": 239,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "列宽配置",
@@ -77,7 +76,6 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "optional": true,
  *       "tsType": "number | string",
  *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue",
- *       "line": 244,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "区域间距",
@@ -89,7 +87,6 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "optional": true,
  *       "tsType": "{\n    mobile?: MLayoutGridResponsiveConfig;\n    tablet?: MLayoutGridResponsiveConfig;\n    desktop?: MLayoutGridResponsiveConfig;\n  }",
  *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue",
- *       "line": 29,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "响应式配置",
@@ -101,7 +98,6 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "optional": true,
  *       "tsType": "MLayoutGridArea[]",
  *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue",
- *       "line": 34,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "区域配置",
@@ -128,7 +124,6 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue",
- *       "line": 678,
  *       "label": "获取数据"
  *     },
  *     {
@@ -138,7 +133,6 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue",
- *       "line": 679,
  *       "label": "保存编辑器"
  *     }
  *   ],
@@ -151,8 +145,7 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       },
  *       "variable": "areas",
  *       "dataType": "array",
- *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue",
- *       "line": 216
+ *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue"
  *     },
  *     {
  *       "label": {
@@ -162,8 +155,7 @@ function getLayoutGridDataFields(): BlockDataField[] {
  *       },
  *       "variable": "areaCount",
  *       "dataType": "number",
- *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue",
- *       "line": 221
+ *       "source": "submodule/mokelay-components/src/blocks/MLayoutGrid.vue"
  *     }
  *   ],
  *   "saveRules": [

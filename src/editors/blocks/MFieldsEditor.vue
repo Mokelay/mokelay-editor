@@ -91,7 +91,6 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       "optional": true,
  *       "tsType": "MFieldsEditorField[]",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
- *       "line": 15,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "字段配置"
@@ -106,8 +105,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       },
  *       "variable": "field.variable",
  *       "dataType": "normalizeFieldsEditorDataType(field.dataType)",
- *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
- *       "line": 202
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue"
  *     },
  *     {
  *       "label": {
@@ -115,8 +113,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       },
  *       "variable": "candidate.variable.trim()",
  *       "dataType": "normalizeFieldsEditorDataType(candidate.dataType)",
- *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
- *       "line": 225
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue"
  *     },
  *     {
  *       "label": {
@@ -124,8 +121,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       },
  *       "variable": "item.key.trim()",
  *       "dataType": "string",
- *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
- *       "line": 323
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue"
  *     },
  *     {
  *       "label": {
@@ -133,8 +129,7 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       },
  *       "variable": "field.path",
  *       "dataType": "normalizeFieldsEditorDataType(field.type)",
- *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue",
- *       "line": 447
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue"
  *     }
  *   ],
  *   "saveRules": [

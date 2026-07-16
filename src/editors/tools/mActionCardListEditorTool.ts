@@ -10,8 +10,8 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "description": "动作卡片列表，以卡片或紧凑列表展示数据项，支持字段路径、禁用状态、加载状态和卡片级事件。",
  *   "status": "active",
  *   "registration": {
- *     "sourceKind": "mokelay-editor",
- *     "sourcePackage": "mokelay-editor",
+ *     "sourceKind": "mokelay-components",
+ *     "sourcePackage": "mokelay-components",
  *     "componentName": "MActionCardList",
  *     "toolSymbol": "mActionCardListEditorTool",
  *     "editorEnabled": true,
@@ -49,7 +49,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 154,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "列表数据 JSON / 变量",
@@ -61,7 +60,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 161,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "唯一标识路径",
@@ -73,7 +71,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 162,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "标题路径",
@@ -85,7 +82,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 163,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "描述路径",
@@ -97,7 +93,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MActionCardListVariant | string",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 164,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "样式",
@@ -118,7 +113,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MActionCardListSize | string",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 173,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "尺寸",
@@ -139,7 +133,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "string",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 182,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "空状态文案",
@@ -150,7 +143,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "boolean",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 183,
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "禁用",
@@ -161,7 +153,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "optional": true,
  *       "tsType": "MActionCardListKey | null",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 27,
  *       "declaredInProps": true,
  *       "configurable": false,
  *       "label": "激活项标识"
@@ -173,7 +164,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: MActionCardListEventPayload",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 217,
  *       "label": "选择卡片"
  *     },
  *     {
@@ -181,7 +171,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: MActionCardListEventPayload",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 217,
  *       "label": "点击卡片"
  *     }
  *   ],
@@ -193,7 +182,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 393,
  *       "label": "获取数据"
  *     },
  *     {
@@ -203,7 +191,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 394,
  *       "label": "设置列表数据"
  *     },
  *     {
@@ -213,7 +200,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 395,
  *       "label": "设置激活项"
  *     },
  *     {
@@ -223,7 +209,6 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "params": "not declared in defineExpose object",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 396,
  *       "label": "清除激活项"
  *     }
  *   ],
@@ -236,8 +221,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       },
  *       "variable": "selectedItem",
  *       "dataType": "object",
- *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 126
+ *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue"
  *     },
  *     {
  *       "label": {
@@ -247,8 +231,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       },
  *       "variable": "activeKey",
  *       "dataType": "string",
- *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 131
+ *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue"
  *     },
  *     {
  *       "label": {
@@ -258,8 +241,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       },
  *       "variable": "items",
  *       "dataType": "array",
- *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "line": 136
+ *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue"
  *     }
  *   ],
  *   "saveRules": [
