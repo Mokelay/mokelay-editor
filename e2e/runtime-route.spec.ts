@@ -193,16 +193,27 @@ test('layout navigation replaces only the page DSL and keeps the current layout'
   await page.goto('/#/home');
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
   await expect(page.getByTestId('preview-panel')).toContainText('Home DSL');
+  await page.evaluate(() => {
+    (window as typeof window & { __layoutNode?: Element | null }).__layoutNode = document.querySelector('[data-testid="layout-renderer"]');
+  });
   await page.getByTestId('layout-top-nav').getByRole('link', { name: '文档', exact: true }).click();
   await expect(page).toHaveURL(/#\/docs$/);
   await expect(page.getByTestId('preview-panel')).toContainText('Docs DSL');
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
   await expect(page.getByTestId('layout-runtime-loading')).toHaveCount(0);
+  expect(await page.evaluate(() => (
+    (window as typeof window & { __layoutNode?: Element | null }).__layoutNode
+      === document.querySelector('[data-testid="layout-renderer"]')
+  ))).toBe(true);
 
   await page.goBack();
   await expect(page).toHaveURL(/#\/home$/);
   await expect(page.getByTestId('preview-panel')).toContainText('Home DSL');
   await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
+  expect(await page.evaluate(() => (
+    (window as typeof window & { __layoutNode?: Element | null }).__layoutNode
+      === document.querySelector('[data-testid="layout-renderer"]')
+  ))).toBe(true);
 });
 
 test('shows a 404 page when an unmatched route has no built-in page DSL', async ({ page }) => {

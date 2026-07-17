@@ -654,9 +654,11 @@ watch(
 
 watch(
   [isPreviewPage, routePageUuid, routePageSource],
-  ([preview, uuid, source]) => {
+  ([preview, uuid, source], [wasPreview]) => {
     if (!preview) {
-      currentLayout.value = null;
+      if (wasPreview) {
+        currentLayout.value = null;
+      }
       layoutLoadRequestId += 1;
       return;
     }
