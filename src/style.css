@@ -126,11 +126,6 @@ body {
   background: rgb(71 85 105);
   color: rgb(248 250 252);
 }
-/* A single MTabs entry is used as a page-reference container, not navigation. */
-.m-tabs__bar-wrap:has(.m-tabs__tab:only-child) {
-  display: none;
-}
-
 /* Consecutive action toolbars share one compact row above their content. */
 .space-y-1:has(> [data-testid="preview-block-MActionToolbar"] + [data-testid="preview-block-MActionToolbar"]) {
   display: grid;

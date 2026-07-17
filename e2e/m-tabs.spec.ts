@@ -146,6 +146,8 @@ test('loads system page tabs through pageSource', async ({ page }) => {
 
   await openPreview(page);
 
+  await expect(page.getByTestId('editor-tabs-list')).toBeVisible();
+  await expect(page.getByTestId('editor-tabs-tab-system-source')).toBeVisible();
   await expect(page.getByTestId('editor-tabs-tab-system-source')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('editor-tabs-active-panel')).toContainText('System source tab page');
 });

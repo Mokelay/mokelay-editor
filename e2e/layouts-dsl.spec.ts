@@ -10,7 +10,6 @@ import {
 const serverRoot = resolve(process.cwd(), '../mokelay-server/server/assets');
 const layoutPageUuids = [
   'layouts',
-  'mokelay_layouts_user_page',
   'mokelay_layouts_system_page',
   'mokelay_layout_create_page',
   'mokelay_layout_user_editor_page',
@@ -75,7 +74,7 @@ test('renders user-created layouts without the relocated system tab', async ({ p
 
   await expect(page).toHaveURL(/#\/layouts$/);
   await expect(page.getByTestId('preview-panel')).toBeVisible();
-  await expect(page.getByTestId('editor-tabs-tab-user-create')).toBeHidden();
+  await expect(page.getByTestId('editor-tabs-tab-user-create')).toHaveCount(0);
   await expect(page.getByTestId('editor-tabs-tab-system-built-in')).toHaveCount(0);
   await expect(page.getByRole('cell', { name: '用户布局' })).toBeVisible();
 

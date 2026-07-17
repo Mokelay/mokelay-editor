@@ -39,6 +39,55 @@ test('enters the APP workbench from the app list', async ({ page }) => {
   await expect(page.getByRole('tab', { name: '页面' })).toBeVisible();
 });
 
+test('loads API Builder samples from the samples API', async ({ page }) => {
+  const apiState = await resetEditor(page, {
+    initialRoute: '/#/app?uuid=console',
+    apps: [{ id: 1, uuid: 'console', alias: 'Console', description: 'Internal tools' }],
+    apiBuilderSamples: [{
+      uuid: 'dynamic-sample',
+      title: '动态订单接口',
+      description: '由样例接口动态返回。',
+      method: 'POST',
+      apiJson: {
+        uuid: 'create_orders',
+        alias: '创建订单',
+        method: 'POST',
+        request: { query: ['customerId'] },
+        blocks: [{ uuid: 'starter', nextBlock: 'read_orders' }, { uuid: 'read_orders', functionName: 'read' }],
+        response: { orders: [] }
+      },
+      sortOrder: 1
+    }]
+  });
+
+  await expect.poll(() => apiState.apiBuilderSampleRequests.length).toBe(1);
+  await expect(page.getByText('动态订单接口')).toBeVisible();
+  await expect(page.getByText('由样例接口动态返回。')).toBeVisible();
+  await expect(page.getByText('登录接口')).toHaveCount(0);
+  const samplesUrl = new URL(apiState.apiBuilderSampleRequests[0]);
+  expect(samplesUrl.searchParams.get('page')).toBe('1');
+  expect(samplesUrl.searchParams.get('pageSize')).toBe('100');
+
+  await page.getByText('动态订单接口').click();
+  const dialog = page.getByTestId('action-dialog');
+  await expect(dialog.getByPlaceholder('请输入接口名称')).toHaveValue('动态订单接口');
+  await expect(dialog.getByPlaceholder('例如 api_list_customers')).toHaveValue('create_orders');
+
+  const saveRequestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/save_api'
+  );
+  await dialog.getByRole('button', { name: '保存并打开' }).click();
+  const savePayload = (await saveRequestPromise).postDataJSON();
+  expect(savePayload.apiJson).toMatchObject({
+    uuid: 'create_orders',
+    alias: '动态订单接口',
+    method: 'POST',
+    request: { query: ['customerId'] },
+    blocks: [{ uuid: 'starter', nextBlock: 'read_orders' }, { uuid: 'read_orders', functionName: 'read' }],
+    response: { orders: [] }
+  });
+});
+
 test('creates a page inside the current APP', async ({ page }) => {
   await resetEditor(page, {
     initialRoute: '/#/app?uuid=console',

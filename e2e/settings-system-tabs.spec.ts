@@ -81,8 +81,7 @@ test('removes built-in source tabs from APIs, pages, and layouts', async ({ page
       readSystemPage('mokelay_apis_user_fragment_page'),
       readSystemPage('pages'),
       readSystemPage('mokelay_list_page'),
-      readSystemPage('layouts'),
-      readSystemPage('mokelay_layouts_user_page')
+      readSystemPage('layouts')
     ],
     systemLayouts: [readSystemLayout('mokelay_layout')],
     seedDefaultPage: false
@@ -91,6 +90,6 @@ test('removes built-in source tabs from APIs, pages, and layouts', async ({ page
   for (const route of ['apis', 'pages', 'layouts']) {
     await page.goto(`/#/${route}`);
     await expect(page.getByTestId('editor-tabs-tab-system-built-in')).toHaveCount(0);
-    await expect(page.getByTestId('editor-tabs-tab-user-create')).toBeHidden();
+    await expect(page.getByTestId('editor-tabs-tab-user-create')).toHaveCount(0);
   }
 });
