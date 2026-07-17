@@ -1,0 +1,1 @@
+import{d as i}from"./editorToolDefinition-BzSiZ_bo.js";import{d as e}from"./index-Mz0v-dzd.js";import"./element-plus-D3XLzju9.js";import"./json-editor-BI2m8N7C.js";const m=i({normalizeProps:o=>({edit:o.edit??!1,value:e(o.value)}),serialize:o=>({value:e(o.value)})});export{m as mAdvanceInputEditorTool};
