@@ -4,6 +4,7 @@ import * as QRCode from 'qrcode';
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
 import type { MokelayLayout, RenderBundlePage } from '@/services/layoutsApi';
+import type { LayoutNavigateHandler } from 'mokelay-components/layouts';
 import type { PageDataSourceConfig, PageRuntimeContext } from 'mokelay-components/pages';
 
 const previewModes = ['pc', 'h5', 'ios', 'android'] as const;
@@ -22,6 +23,7 @@ type PreviewPanelProps = {
   minimal?: boolean;
   showTitle?: boolean;
   showToolbar?: boolean;
+  onNavigate?: LayoutNavigateHandler;
 };
 
 const MPage = defineAsyncComponent(() => import('mokelay-components/blocks/MPage.vue'));
@@ -202,7 +204,7 @@ watch(
       </div>
 
       <div v-else-if="previewMode === 'pc'" data-testid="preview-pc-canvas" class="min-h-full">
-        <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" :page-runtime-context="runtimeContext" />
+        <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" :page-runtime-context="runtimeContext" :on-navigate="onNavigate" />
         <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" :runtime-context="runtimeContext" />
       </div>
 
@@ -210,7 +212,7 @@ watch(
         <div data-testid="preview-phone-shell" :class="phoneShellClass">
           <div v-if="previewMode === 'ios'" class="absolute left-1/2 top-3 z-10 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-slate-950 dark:bg-slate-800"></div>
           <div data-testid="preview-phone-screen" :class="phoneScreenClass">
-            <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" :page-runtime-context="runtimeContext" />
+            <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" :page-runtime-context="runtimeContext" :on-navigate="onNavigate" />
             <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" :runtime-context="runtimeContext" />
           </div>
         </div>

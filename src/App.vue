@@ -15,6 +15,7 @@ import { MOKELAY_CONFIG_STORAGE_KEY } from '@/constants/storage';
 import { $message } from 'mokelay-components/global-calls';
 import { getInitialEditorBlocks } from '@/utils/editorData';
 import SourceLayoutShell from 'mokelay-components/layouts/SourceLayoutShell.vue';
+import type { LayoutNavigationRequest } from 'mokelay-components/layouts';
 import {
   createPage,
   formatMokelayApiError,
@@ -100,6 +101,7 @@ let layoutLoadRequestId = 0;
 let pageLayoutOptionsRequestId = 0;
 let runtimePageLoadRequestId = 0;
 let sourceLayoutLoadRequestId = 0;
+let layoutNavigationLayout: MokelayLayout | null = null;
 
 const pageEditorBridge = createPageEditorBridge(
   (request) => {
@@ -377,7 +379,7 @@ function resetToLocalDraft() {
   systemPageDraftBaseline.value = null;
 }
 
-function resetRuntimePageState(uuid: string | null) {
+function resetRuntimePageState(uuid: string | null, preservedLayout: MokelayLayout | null = null) {
   currentPageUuid.value = uuid;
   currentPageSource.value = 'system';
   currentPageName.value = uuid || t('notFound.title');
@@ -385,7 +387,7 @@ function resetRuntimePageState(uuid: string | null) {
   currentPageLayoutUuid.value = null;
   pageBlocks.value = [];
   pageDataSources.value = [];
-  currentLayout.value = null;
+  currentLayout.value = preservedLayout;
   systemPageDraftBaseline.value = null;
   pageError.value = '';
   pageLayoutError.value = '';
@@ -460,9 +462,12 @@ async function loadPreviewLayout(uuid: string, source: PageSource) {
 async function loadRuntimePage(uuid: string) {
   const requestId = runtimePageLoadRequestId + 1;
   runtimePageLoadRequestId = requestId;
-  isLoadingPage.value = true;
+  const preservedLayout = layoutNavigationLayout;
+  isLoadingPage.value = preservedLayout === null;
   runtimePageLoadFailed.value = false;
-  resetRuntimePageState(uuid);
+  if (!preservedLayout) {
+    resetRuntimePageState(uuid);
+  }
 
   try {
     const bundle = await getPageRenderBundle(uuid, 'system');
@@ -473,16 +478,32 @@ async function loadRuntimePage(uuid: string) {
       return;
     }
 
-    applyRuntimePage(bundle.page, bundle.layout);
+    applyRuntimePage(bundle.page, preservedLayout ?? bundle.layout);
   } catch {
     if (requestId !== runtimePageLoadRequestId) return;
     runtimePageLoadFailed.value = true;
-    resetRuntimePageState(uuid);
+    if (!preservedLayout) {
+      resetRuntimePageState(uuid);
+    }
   } finally {
     if (requestId === runtimePageLoadRequestId) {
       isLoadingPage.value = false;
     }
   }
+}
+
+function handleLayoutNavigate(request: LayoutNavigationRequest) {
+  const nextLocation = { rawPath: request.route };
+  const nextRoute = parseRouteLocation(nextLocation);
+
+  if (nextRoute.runtimePage) {
+    layoutNavigationLayout = currentLayout.value ?? sourceLayout.value;
+  } else {
+    layoutNavigationLayout = null;
+  }
+
+  if (routeLocation.value.rawPath === request.route) return;
+  window.location.hash = request.route;
 }
 
 async function loadSourceLayout() {
@@ -813,6 +834,7 @@ function backToPagesPage() {
         :layout="sourceLayout"
         :page="sourceLayoutPage"
         :error="sourceLayoutError"
+        :on-navigate="handleLayoutNavigate"
       >
         <ApiBuilderShell
           v-if="isApiBuilderPage"
@@ -905,6 +927,7 @@ function backToPagesPage() {
         :minimal="true"
         :show-title="false"
         :show-toolbar="false"
+        :on-navigate="handleLayoutNavigate"
       />
       <PreviewPanel
         v-else-if="isPreviewPage"
@@ -918,6 +941,7 @@ function backToPagesPage() {
         :layout="currentLayout"
         :minimal="true"
         :show-title="false"
+        :on-navigate="handleLayoutNavigate"
       >
         <template #toolbarLeading>
           <button

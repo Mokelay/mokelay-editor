@@ -178,6 +178,33 @@ test('renders a built-in source page with the shared editor layout from a runtim
   await expect(page.getByTestId('preview-panel')).toContainText('应用管理');
 });
 
+test('layout navigation replaces only the page DSL and keeps the current layout', async ({ page }) => {
+  const home = { ...runtimePage('home', 'Home DSL'), layoutUuid: 'mokelay_layout' };
+  const docs = { ...runtimePage('docs', 'Docs DSL'), layoutUuid: 'web_layout' };
+  await mockPagesApi(page, {
+    seedDefaultPage: false,
+    systemPages: [home, docs],
+    systemLayouts: [
+      readSystemLayoutAsset('mokelay_layout'),
+      readSystemLayoutAsset('web_layout')
+    ]
+  });
+
+  await page.goto('/#/home');
+  await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
+  await expect(page.getByTestId('preview-panel')).toContainText('Home DSL');
+  await page.getByTestId('layout-top-nav').getByRole('link', { name: '文档', exact: true }).click();
+  await expect(page).toHaveURL(/#\/docs$/);
+  await expect(page.getByTestId('preview-panel')).toContainText('Docs DSL');
+  await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
+  await expect(page.getByTestId('layout-runtime-loading')).toHaveCount(0);
+
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/home$/);
+  await expect(page.getByTestId('preview-panel')).toContainText('Home DSL');
+  await expect(page.getByTestId('layout-top-nav')).toContainText('Mokelay Editor');
+});
+
 test('shows a 404 page when an unmatched route has no built-in page DSL', async ({ page }) => {
   const uuid = 'missing_runtime_page';
   await mockPagesApi(page, {
