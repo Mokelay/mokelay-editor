@@ -243,12 +243,8 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
   const apiSource = query.get('source') === 'system' ? 'system' : 'user';
   const apiFragment = query.get('fragment') === 'true' || query.get('type') === 'fragment';
   const pageMatch = path.match(/^\/pages\/([^/]+)(\/preview)?\/?$/);
-  if (path === '/apis') {
-    return createParsedRoute({
-      pageUuid: 'apis',
-      pageSource: 'system',
-      runtimePage: true
-    });
+  if (path === '/apis' || path === '/pages') {
+    return createParsedRoute({ notFound: true });
   }
 
   const apiMatch = path.match(/^\/apis\/([^/]+)\/?$/);
@@ -797,7 +793,9 @@ function backToEditorPage() {
 }
 
 function backToPagesPage() {
-  window.location.hash = '/pages';
+  const query = new URLSearchParams(window.location.hash.split('?', 2)[1] ?? '');
+  const appUuid = query.get('appUuid');
+  window.location.hash = appUuid ? `/app?uuid=${encodeURIComponent(appUuid)}` : '/';
 }
 
 </script>

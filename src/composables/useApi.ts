@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const DEVELOPMENT_MOKELAY_API_BASE_URL = 'http://127.0.0.1:8787';
+const DEVELOPMENT_MOKELAY_API_BASE_URL = 'http://localhost:8787';
 const PRODUCTION_MOKELAY_API_BASE_URL = 'https://api.mokelay.com';
 
 function normalizeApiBaseUrl(value: string) {
@@ -18,7 +18,7 @@ export const apiClient = axios.create({
 });
 
 export async function fetchWithNative(url: string) {
-  const response = await fetch(url);
+  const response = await fetch(url, { credentials: 'include' });
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`);
   }

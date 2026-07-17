@@ -21,6 +21,48 @@ test('renders the app list on the editor home route', async ({ page }) => {
   await expect(page.getByRole('row', { name: /Internal tools/ })).toBeVisible();
 });
 
+test('enters the APP workbench from the app list', async ({ page }) => {
+  await resetEditor(page, {
+    initialRoute: '/',
+    apps: [{ id: 1, uuid: 'console', alias: 'Console', description: 'Internal tools' }]
+  });
+
+  const readRequest = page.waitForRequest((request) =>
+    new URL(request.url()).pathname === '/api/mokelay/read_app_by_uuid'
+  );
+  await page.getByRole('row', { name: /Console/ }).getByRole('link', { name: '进入 APP' }).click();
+  expect(new URL((await readRequest).url()).searchParams.get('uuid')).toBe('console');
+
+  await expect(page).toHaveURL(/#\/app\?uuid=console$/);
+  await expect(page.getByText('Internal tools')).toBeVisible();
+  await expect(page.getByRole('tab', { name: '接口' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: '页面' })).toBeVisible();
+});
+
+test('creates a page inside the current APP', async ({ page }) => {
+  await resetEditor(page, {
+    initialRoute: '/#/app?uuid=console',
+    apps: [{ id: 1, uuid: 'console', alias: 'Console', description: 'Internal tools' }]
+  });
+
+  await page.getByRole('tab', { name: '页面' }).click();
+  await page.getByRole('button', { name: '创建页面' }).click();
+  const dialog = page.getByTestId('action-dialog');
+  await dialog.getByTestId('mokelay-create-page-uuid-input').fill('orders');
+  await dialog.getByTestId('mokelay-create-page-name-input').fill('Orders');
+  const createRequestPromise = page.waitForRequest((request) =>
+    request.method() === 'POST' && new URL(request.url()).pathname === '/api/mokelay/create_page'
+  );
+  await dialog.getByRole('button', { name: '保存页面' }).click();
+  await page.getByTestId('global-call-ok').click();
+
+  expect((await createRequestPromise).postDataJSON()).toMatchObject({
+    uuid: 'orders',
+    name: 'Orders',
+    appUuid: 'console'
+  });
+});
+
 test('renders the app list from the deployed editor html entrypoint', async ({ page }) => {
   await mockPagesApi(page, {
     apps: [
@@ -135,28 +177,12 @@ test('requires an app UUID with at most eight characters', async ({ page }) => {
   await expect(uuidInput).toHaveCSS('border-top-width', '1px');
 });
 
-test('opens the pages DSL runtime from the top navigation', async ({ page }) => {
-  await resetEditor(page, {
-    initialRoute: '/',
-    systemPages: [
-      {
-        uuid: 'pages',
-        name: 'Pages DSL',
-        blocks: [
-          {
-            type: 'paragraph',
-            data: {
-              text: 'Pages DSL route'
-            }
-          }
-        ]
-      }
-    ]
-  });
+test('removes root API and page navigation entries', async ({ page }) => {
+  await resetEditor(page, { initialRoute: '/' });
 
-  await page.getByRole('link', { name: /页面列表|页面|Pages/ }).click();
+  await expect(page.locator('nav a[href="#/apis"]')).toHaveCount(0);
+  await expect(page.locator('nav a[href="#/pages"]')).toHaveCount(0);
 
-  await expect(page).toHaveURL(/#\/pages$/);
-  await expect(page.getByTestId('preview-panel')).toBeVisible();
-  await expect(page.getByTestId('preview-block-paragraph')).toContainText('Pages DSL route');
+  await page.goto('/#/pages');
+  await expect(page.getByText(/not found|未找到/i)).toBeVisible();
 });

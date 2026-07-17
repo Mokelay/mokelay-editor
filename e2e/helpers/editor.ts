@@ -643,6 +643,12 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
       return;
     }
 
+    if (method === 'GET' && url.pathname === '/api/mokelay/read_app_by_uuid') {
+      const uuid = url.searchParams.get('uuid') ?? '';
+      await fulfillApp(route, apps.get(uuid) ?? null, corsHeaders);
+      return;
+    }
+
     if (method === 'GET' && url.pathname === '/api/mokelay/list_apps') {
       const pageNumber = Number(url.searchParams.get('page') ?? 1);
       const pageSize = Number(url.searchParams.get('pageSize') ?? 20);
@@ -1203,13 +1209,17 @@ function getSeedSystemPages(overrides: MockMokelayPage[] = []) {
       readSystemPageAsset('ai-chat'),
       readSystemPageAsset('mokelay_app_create_page'),
       readSystemPageAsset('mokelay_app_edit_page'),
-      readSystemPageAsset('apis'),
+      readSystemPageAsset('mokelay_create_page'),
+      readSystemPageAsset('mokelay_api_create_page'),
+      readSystemPageAsset('mokelay_fragment_create_page'),
+      readSystemPageAsset('app'),
       readSystemPageAsset('mokelay_apis_user_tabs_page'),
       readSystemPageAsset('mokelay_apis_system_tabs_page'),
       readSystemPageAsset('mokelay_apis_user_page'),
       readSystemPageAsset('mokelay_apis_user_fragment_page'),
       readSystemPageAsset('mokelay_apis_system_page'),
-      readSystemPageAsset('mokelay_apis_system_fragment_page')
+      readSystemPageAsset('mokelay_apis_system_fragment_page'),
+      readSystemPageAsset('mokelay_list_page')
     ],
     overrides
   );
@@ -1363,7 +1373,16 @@ async function fulfillApp(
     body: JSON.stringify({
       ok: true,
       data: {
-        app: appRecord
+        app: appRecord,
+        apps: appRecord ? [appRecord] : [],
+        pagination: {
+          page: 1,
+          pageSize: 1,
+          total: appRecord ? 1 : 0,
+          totalPages: appRecord ? 1 : 0,
+          hasPreviousPage: false,
+          hasNextPage: false
+        }
       }
     })
   });

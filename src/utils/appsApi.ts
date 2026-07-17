@@ -5,6 +5,8 @@ export type MokelayApp = {
   uuid: string;
   alias: string;
   description: string;
+  defaultLayoutUuid?: string | null;
+  enterpriseUuid?: string;
 };
 
 export type CreateAppPayload = {
@@ -80,6 +82,13 @@ export async function listApps(params: ListAppsParams) {
   return normalizeAppsResponse(unwrapApiResponse(response.data));
 }
 
+export async function getApp(uuid: string) {
+  const response = await apiClient.get<MokelayApiResponse<AppResponse>>('/api/mokelay/read_app_by_uuid', {
+    params: { uuid }
+  });
+  return normalizeAppResponse(unwrapApiResponse(response.data));
+}
+
 function unwrapApiResponse<T>(value: MokelayApiResponse<T>): T {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('Invalid API response.');
@@ -134,7 +143,9 @@ function normalizeApp(app: unknown): MokelayApp {
     id,
     uuid,
     alias: typeof record.alias === 'string' ? record.alias : '',
-    description: typeof record.description === 'string' ? record.description : ''
+    description: typeof record.description === 'string' ? record.description : '',
+    defaultLayoutUuid: typeof record.defaultLayoutUuid === 'string' ? record.defaultLayoutUuid : null,
+    enterpriseUuid: typeof record.enterpriseUuid === 'string' ? record.enterpriseUuid : ''
   };
 }
 

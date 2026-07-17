@@ -15,6 +15,8 @@ export type MokelayApiRecord = {
   layout?: ApiBuilderLayout;
   createdAt: string;
   updatedAt: string;
+  enterpriseUuid?: string;
+  appUuid?: string;
 };
 
 export type ListApisParams = {
@@ -22,6 +24,7 @@ export type ListApisParams = {
   pageSize: number;
   source?: MokelayApiSource;
   fragment?: boolean;
+  appUuid?: string;
 };
 
 export type MokelayApisPagination = {
@@ -82,6 +85,7 @@ export type SaveApiPayload = {
   layout?: ApiBuilderLayout;
   status: ApiBuilderStatus;
   originalUuid?: string;
+  appUuid?: string;
 };
 
 export type DeleteApiResult = {
@@ -155,7 +159,7 @@ export async function listApis(params: ListApisParams) {
 
   const { source: _source, ...userParams } = params;
   const response = await apiClient.get<MokelayApiResponse<ApisResponse>>('/api/mokelay/list_apis', {
-    params: userParams
+    params: { ...userParams, appUuid: userParams.appUuid || currentAppUuid() }
   });
   return normalizeApisResponse(unwrapApiResponse(response.data));
 }
@@ -232,9 +236,18 @@ export async function saveApi(payload: SaveApiPayload) {
     status: payload.status,
     apiJson,
     layout: payload.layout ?? normalizeApiBuilderLayout(undefined)
+    ,appUuid: payload.appUuid || currentAppUuid()
   });
 
   return normalizeApiResponse(unwrapApiResponse(response.data));
+}
+
+function currentAppUuid() {
+  if (typeof window === 'undefined') return '';
+  const rawQuery = (window.location.hash.split('?', 2)[1] ?? '');
+  return new URLSearchParams(rawQuery).get('appUuid')
+    || new URLSearchParams(rawQuery).get('uuid')
+    || '';
 }
 
 export async function deleteApi(uuid: string) {
@@ -377,7 +390,9 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
     apiJson: apiJsonValue as ApiJson | undefined,
     ...(layout ? { layout } : {}),
     createdAt: readString(value.createdAt) || readString(value.created_at),
-    updatedAt: readString(value.updatedAt) || readString(value.updated_at)
+    updatedAt: readString(value.updatedAt) || readString(value.updated_at),
+    enterpriseUuid: readString(value.enterpriseUuid) || readString(value.enterprise_uuid),
+    appUuid: readString(value.appUuid) || readString(value.app_uuid)
   };
 }
 

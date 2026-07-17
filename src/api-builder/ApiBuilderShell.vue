@@ -484,8 +484,15 @@ function apiRouteQuery(source: MokelayApiSource, fragment = false) {
   const query = new URLSearchParams();
   if (source === 'system') query.set('source', 'system');
   if (fragment) query.set('fragment', 'true');
+  const appUuid = currentAppUuid();
+  if (source === 'user' && appUuid) query.set('appUuid', appUuid);
   const serialized = query.toString();
   return serialized ? `?${serialized}` : '';
+}
+
+function currentAppUuid() {
+  const rawQuery = window.location.hash.split('?', 2)[1] ?? '';
+  return new URLSearchParams(rawQuery).get('appUuid') ?? '';
 }
 
 function apiListHash(source: MokelayApiSource, fragment = false) {
@@ -503,10 +510,10 @@ function navigateToList() {
     return;
   }
 
-  window.location.hash = apiListHash(
-    activeDraft.value?.source ?? props.routeSource,
-    isActiveFragment.value || props.routeFragment
-  );
+  const appUuid = currentAppUuid();
+  window.location.hash = appUuid
+    ? `/app?uuid=${encodeURIComponent(appUuid)}`
+    : '/';
 }
 
 async function loadApiList(source: MokelayApiSource = apiListSource.value) {

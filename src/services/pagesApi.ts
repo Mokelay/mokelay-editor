@@ -16,6 +16,7 @@ export type CreatePagePayload = {
   name: string;
   blocks: OutputData['blocks'];
   dataSources?: PageDataSourceConfig[];
+  appUuid?: string;
 };
 
 export type UpdatePagePayload = {
@@ -45,6 +46,7 @@ export type PageListParams = {
   uuid?: string;
   name?: string;
   subPage?: boolean;
+  appUuid?: string;
 };
 
 type PageResponse = {
@@ -97,7 +99,8 @@ export async function createPage(payload: CreatePagePayload) {
   }
   const response = await apiClient.post<MokelayApiResponse<PageResponse>>('/api/mokelay/create_page', {
     ...payload,
-    uuid: slug.value
+    uuid: slug.value,
+    appUuid: payload.appUuid || currentAppUuid()
   });
   return normalizePageResponse(unwrapApiResponse(response.data));
 }
@@ -131,10 +134,17 @@ export async function listPages(params: PageListParams = {}) {
       ...(typeof (params.name ?? params.query) === 'string' && (params.name ?? params.query)?.trim()
         ? { name: (params.name ?? params.query)?.trim() }
         : {}),
-      ...(typeof params.subPage === 'boolean' ? { subPage: params.subPage ? '1' : '0' } : {})
+      ...(typeof params.subPage === 'boolean' ? { subPage: params.subPage ? '1' : '0' } : {}),
+      appUuid: params.appUuid || currentAppUuid()
     }
   });
   return normalizePageList(unwrapApiResponse(response.data), 'user');
+}
+
+function currentAppUuid() {
+  if (typeof window === 'undefined') return '';
+  const query = new URLSearchParams(window.location.hash.split('?', 2)[1] ?? '');
+  return query.get('appUuid') || query.get('uuid') || '';
 }
 
 export async function listSystemPages() {
