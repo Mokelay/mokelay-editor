@@ -880,13 +880,20 @@ export const enMessages = {
   },
   contentLocalization: {
     title: 'Page languages',
-    supportedLocales: 'Supported locales (comma separated)',
+    supportedLocales: 'Supported locales',
     defaultLocale: 'Default locale',
     editingLocale: 'Content editing locale',
     removeConfirm: 'Removing a locale may hide existing translations. Continue?',
     missingWarning: 'Missing translations (save is still allowed):',
     editAll: 'Edit all locales',
-    collapse: 'Collapse'
+    collapse: 'Collapse',
+    searchLocales: 'Search languages or codes',
+    openLocales: 'Open locale list',
+    noLocales: 'No locales available',
+    addCustomLocale: 'Add custom locale:',
+    invalidOrMissingLocale: 'No matches. Enter a valid locale code.',
+    atLeastOneLocale: 'At least one locale is required.',
+    removeLocale: 'Remove locale'
   },
 } as const;
 

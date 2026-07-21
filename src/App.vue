@@ -5,6 +5,8 @@ import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } fr
 import { useI18n } from '@/i18n';
 import PageEditorHost from '@/editors/page/PageEditorHost.vue';
 import MPageEditorBlock from '@/editors/page/MPageEditorBlock.vue';
+import ContentLocaleMultiSelect from '@/components/ContentLocaleMultiSelect.vue';
+import { formatContentLocale } from '@/i18n/contentLocales';
 import {
   createPageEditorBridge,
   type PageEditorOpenRequest,
@@ -788,16 +790,16 @@ async function saveEditorContent() {
   }
 }
 
-function updateSupportedLocales(event: Event) {
-  const requested = [...new Set((event.target as HTMLInputElement).value
-    .split(',')
-    .map((locale) => locale.trim())
-    .filter(Boolean))];
+function updateSupportedLocales(locales: string[]) {
+  const current = pageLocaleConfig.value.supportedLocales;
+  let requested = [...new Set(locales.map((locale) => locale.trim()).filter(Boolean))];
   if (!requested.length) return;
-  const removed = pageLocaleConfig.value.supportedLocales.filter((locale) => !requested.includes(locale));
-  if (removed.length && !window.confirm(t('contentLocalization.removeConfirm'))) {
-    (event.target as HTMLInputElement).value = pageLocaleConfig.value.supportedLocales.join(', ');
-    return;
+  const added = requested.filter((locale) => !current.includes(locale));
+  // Headless UI may report only the currently filtered option together with the
+  // new selection. A single interaction cannot add and remove locales at once,
+  // so an addition must preserve every existing locale and its order.
+  if (added.length) {
+    requested = [...current, ...added];
   }
   pageLocaleConfig.value = normalizePageLocaleConfig({
     defaultLocale: requested.includes(pageLocaleConfig.value.defaultLocale)
@@ -935,18 +937,18 @@ function backToPagesPage() {
             <div class="grid gap-3 md:grid-cols-3">
               <label class="grid gap-1">
                 <span>{{ t('contentLocalization.supportedLocales') }}</span>
-                <input class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700" :value="pageLocaleConfig.supportedLocales.join(', ')" @change="updateSupportedLocales" />
+                <ContentLocaleMultiSelect :model-value="pageLocaleConfig.supportedLocales" @update:model-value="updateSupportedLocales" />
               </label>
               <label class="grid gap-1">
                 <span>{{ t('contentLocalization.defaultLocale') }}</span>
                 <select class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700" :value="pageLocaleConfig.defaultLocale" @change="updateDefaultLocale">
-                  <option v-for="locale in pageLocaleConfig.supportedLocales" :key="locale" :value="locale">{{ locale }}</option>
+                  <option v-for="locale in pageLocaleConfig.supportedLocales" :key="locale" :value="locale">{{ formatContentLocale(locale) }}</option>
                 </select>
               </label>
               <label class="grid gap-1">
                 <span>{{ t('contentLocalization.editingLocale') }}</span>
                 <select class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700" :value="editingLocale" @change="setContentEditingLocale(($event.target as HTMLSelectElement).value)">
-                  <option v-for="locale in pageLocaleConfig.supportedLocales" :key="locale" :value="locale">{{ locale }}</option>
+                  <option v-for="locale in pageLocaleConfig.supportedLocales" :key="locale" :value="locale">{{ formatContentLocale(locale) }}</option>
                 </select>
               </label>
             </div>

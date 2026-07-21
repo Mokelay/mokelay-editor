@@ -27,6 +27,10 @@ export type MockMokelayPage = {
   dataSources?: PageDataSourceConfig[];
   appUuid?: string | null;
   layoutUuid?: string | null;
+  localeConfig?: {
+    defaultLocale: string;
+    supportedLocales: string[];
+  };
   createdAt?: string;
   updatedAt?: string;
 };

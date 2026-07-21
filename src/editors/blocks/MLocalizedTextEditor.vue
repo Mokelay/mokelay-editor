@@ -8,6 +8,7 @@ import {
 } from 'mokelay-components/runtime';
 import { useContentLocalization } from '@/composables/useContentLocalization';
 import { useI18n } from '@/i18n';
+import { formatContentLocale } from '@/i18n/contentLocales';
 
 const props = withDefaults(defineProps<{
   value?: unknown;
@@ -46,14 +47,14 @@ function update(locale: string, text: string) {
   <div class="localized-editor" :class="{ 'localized-editor--compact': compact }" data-testid="localized-text-editor">
     <div v-if="compact" class="localized-editor__compact-row">
       <select :value="editingLocale" :disabled="readonly" data-testid="localized-editing-locale" @change="setEditingLocale(($event.target as HTMLSelectElement).value)">
-        <option v-for="locale in localeConfig.supportedLocales" :key="locale" :value="locale">{{ locale }}</option>
+        <option v-for="locale in localeConfig.supportedLocales" :key="locale" :value="locale">{{ formatContentLocale(locale) }}</option>
       </select>
       <input type="text" :value="normalizedValue.$i18n[editingLocale]" :readonly="readonly" :placeholder="placeholder" :data-testid="dataTestid || `localized-input-${editingLocale}`" @input="update(editingLocale, ($event.target as HTMLInputElement).value)">
       <span class="localized-editor__completion">{{ completed }}/{{ localeConfig.supportedLocales.length }}</span>
       <button type="button" :disabled="readonly" @click="showAll = !showAll">{{ showAll ? t('contentLocalization.collapse') : t('contentLocalization.editAll') }}</button>
       <div v-if="showAll" class="localized-editor__popover">
         <label v-for="locale in localeConfig.supportedLocales" :key="locale" class="localized-editor__field">
-          <span>{{ locale }}</span>
+          <span>{{ formatContentLocale(locale) }}</span>
           <input type="text" :value="normalizedValue.$i18n[locale]" :readonly="readonly" :placeholder="placeholder" @input="update(locale, ($event.target as HTMLInputElement).value)">
         </label>
       </div>
@@ -61,13 +62,13 @@ function update(locale: string, text: string) {
     <template v-else>
     <div class="localized-editor__toolbar">
       <select :value="editingLocale" :disabled="readonly" data-testid="localized-editing-locale" @change="setEditingLocale(($event.target as HTMLSelectElement).value)">
-        <option v-for="locale in localeConfig.supportedLocales" :key="locale" :value="locale">{{ locale }}</option>
+        <option v-for="locale in localeConfig.supportedLocales" :key="locale" :value="locale">{{ formatContentLocale(locale) }}</option>
       </select>
       <span>{{ completed }}/{{ localeConfig.supportedLocales.length }}</span>
       <button type="button" :disabled="readonly" @click="showAll = !showAll">{{ showAll ? t('contentLocalization.collapse') : t('contentLocalization.editAll') }}</button>
     </div>
     <label v-for="locale in visibleLocales" :key="locale" class="localized-editor__field">
-      <span>{{ locale }}</span>
+      <span>{{ formatContentLocale(locale) }}</span>
       <textarea v-if="multiline" :value="normalizedValue.$i18n[locale]" :readonly="readonly" :placeholder="placeholder" :data-testid="dataTestid" @input="update(locale, ($event.target as HTMLTextAreaElement).value)" />
       <input v-else type="text" :value="normalizedValue.$i18n[locale]" :readonly="readonly" :placeholder="placeholder" :data-testid="dataTestid || `localized-input-${locale}`" @input="update(locale, ($event.target as HTMLInputElement).value)" />
     </label>

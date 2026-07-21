@@ -880,13 +880,20 @@ export const zhMessages = {
   },
   contentLocalization: {
     title: '页面语言',
-    supportedLocales: '支持语言（逗号分隔）',
+    supportedLocales: '支持语言',
     defaultLocale: '默认语言',
     editingLocale: '内容编辑语言',
     removeConfirm: '删除语言可能隐藏已有翻译，是否继续？',
     missingWarning: '缺失翻译（仍允许保存）：',
     editAll: '编辑全部语言',
-    collapse: '收起'
+    collapse: '收起',
+    searchLocales: '搜索语言或代码',
+    openLocales: '打开语言列表',
+    noLocales: '没有可选语言',
+    addCustomLocale: '添加自定义语言：',
+    invalidOrMissingLocale: '没有匹配项，请输入有效的语言代码',
+    atLeastOneLocale: '至少需要保留一种语言。',
+    removeLocale: '移除语言'
   },
 } as const;
 
