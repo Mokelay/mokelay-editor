@@ -1,1 +1,0 @@
-import{g as o}from"./MAdvanceTable2.vue-IXY5qN5f.js";import{f as i}from"./MAdvanceTable2.vue-IXY5qN5f.js";import{s as t}from"./index-CxPjnZt4.js";import"./advanceTableColumns-CLtfUoH6.js";import"./element-plus-D3XLzju9.js";import"./json-editor-BI2m8N7C.js";const p=t(o,[["__scopeId","data-v-f2d632d1"]]);export{p as default,i as getAdvanceTableDataFields};
