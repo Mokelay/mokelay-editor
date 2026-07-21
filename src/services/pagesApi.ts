@@ -8,6 +8,7 @@ import {
   type PageDataSourceConfig,
   type PageSource
 } from 'mokelay-components/pages';
+import type { PageLocaleConfig } from 'mokelay-components/runtime';
 
 export type { MokelayPage, PageSource } from 'mokelay-components/pages';
 
@@ -16,6 +17,7 @@ export type CreatePagePayload = {
   name: string;
   blocks: OutputData['blocks'];
   dataSources?: PageDataSourceConfig[];
+  localeConfig?: PageLocaleConfig;
   appUuid?: string;
 };
 
@@ -23,6 +25,7 @@ export type UpdatePagePayload = {
   name: string;
   blocks: OutputData['blocks'];
   dataSources?: PageDataSourceConfig[];
+  localeConfig?: PageLocaleConfig;
 };
 
 export type UpdatePageLayoutPayload = {

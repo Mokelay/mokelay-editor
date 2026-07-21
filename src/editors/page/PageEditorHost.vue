@@ -41,6 +41,7 @@ type PageEditorFrame = {
   mode: 'edit' | 'preview';
   canPersist: boolean;
   canCreateSubPage: boolean;
+  appUuid?: string;
   pageSlug: string;
   baseline: PageEditorDraft | null;
   draft: PageEditorDraft;
@@ -110,7 +111,8 @@ function getFrameBridge(frame: PageEditorFrame) {
     () => getFrameAncestry(frame),
     () => ({
       canPersist: frame.canPersist,
-      canCreateSubPage: frame.canCreateSubPage
+      canCreateSubPage: frame.canCreateSubPage,
+      ...(frame.appUuid ? { appUuid: frame.appUuid } : {})
     })
   );
   bridges.set(frame.id, bridge);
@@ -173,6 +175,7 @@ async function open(request: PageEditorOpenRequest): Promise<PageEditorResult> {
     mode: 'edit',
     canPersist,
     canCreateSubPage,
+    ...(requestedCapabilities.appUuid ? { appUuid: requestedCapabilities.appUuid } : {}),
     pageSlug: createIntent ? generatePageSlug() : '',
     baseline: null,
     draft: emptyDraft(createIntent ? request.suggestedName || '未命名子页面' : ''),
@@ -285,7 +288,8 @@ async function saveFrame(frame: PageEditorFrame) {
     const page = frame.intent === 'create'
       ? await createPage({
           ...payload,
-          uuid: slug!.value
+          uuid: slug!.value,
+          ...(frame.appUuid ? { appUuid: frame.appUuid } : {})
         })
       : await updatePage(frame.target!.uuid, payload);
     await finishFrame(frame, {

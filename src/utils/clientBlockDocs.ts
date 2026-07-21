@@ -38,6 +38,8 @@ export type ClientBlockPropertyField = {
   }> | unknown;
   component?: string;
   configurable?: boolean;
+  localizable?: boolean;
+  localizablePaths?: string[];
   [key: string]: unknown;
 };
 

@@ -155,6 +155,7 @@ function createFormItemTool(
     private wrapper: HTMLElement | null = null;
     private contentRoot: HTMLElement | null = null;
     private vueApp: App<Element> | null = null;
+    private propertyComponentApps: App<Element>[] = [];
     private propertyDialog: HTMLDialogElement | null = null;
     private eventsDialog: BlockEventsDialogController | null = null;
     private events: BlockEvent[] = [];
@@ -208,6 +209,7 @@ function createFormItemTool(
       this.wrapper?.removeEventListener('mouseenter', this.handleToolbarPointer);
       this.wrapper?.removeEventListener('mousemove', this.handleToolbarPointer);
       this.unmountVueApp();
+      this.unmountPropertyComponents();
       this.propertyDialog?.remove();
       this.eventsDialog?.destroy();
       this.eventsDialog = null;
@@ -340,6 +342,7 @@ function createFormItemTool(
       this.wrapper.appendChild(dialog);
       this.propertyDialog = dialog;
       this.bindPropertyInputs();
+      this.mountPropertyComponents();
     }
 
     private async ensureEventsDialog() {
@@ -364,6 +367,7 @@ function createFormItemTool(
     private openPropertyDialog() {
       if (!this.propertyDialog) return;
       this.syncPropertyDialogValues();
+      this.mountPropertyComponents();
       if (!this.propertyDialog.open) {
         this.propertyDialog.showModal();
       }
@@ -388,7 +392,7 @@ function createFormItemTool(
       });
     }
 
-    private updateProperty(key: string, value: string | boolean) {
+    private updateProperty(key: string, value: unknown) {
       Object.assign(this.state, normalizeFormItemProps({
         ...this.state,
         [key]: value,
@@ -401,6 +405,14 @@ function createFormItemTool(
     }
 
     private renderPropertyField(field: EditorToolPropertyField) {
+      if (field.type === 'component') {
+        return `
+          <div class="mokelay-editor-tool__property-field mokelay-editor-tool__property-field--component">
+            <span class="mokelay-editor-tool__property-label">${escapeHtml(field.label)}</span>
+            <div data-property-component-key="${escapeHtml(field.key)}"></div>
+          </div>
+        `;
+      }
       if (field.type === 'checkbox') {
         return `
           <label class="mokelay-editor-tool__property-field mokelay-editor-tool__property-field--checkbox">
@@ -468,6 +480,29 @@ function createFormItemTool(
           this.updateProperty(propertyKey, this.readPropertyInputValue(input));
         });
       });
+    }
+
+    private mountPropertyComponents() {
+      if (!this.propertyDialog) return;
+      this.unmountPropertyComponents();
+      this.getPropertyFields().filter((field) => field.type === 'component').forEach((field) => {
+        if (!field.component || !this.propertyDialog) return;
+        const host = this.propertyDialog.querySelector<HTMLElement>(`[data-property-component-key="${field.key}"]`);
+        if (!host) return;
+        const app = createApp(field.component, {
+          value: this.getPropertyFieldValue(field.key),
+          ...(field.getComponentProps?.({ value: this.getPropertyFieldValue(field.key), state: this.state as unknown as Record<string, unknown>, edit: true }) ?? {}),
+          onToolChange: (value: unknown) => this.updateProperty(field.key, value),
+          onChange: (value: unknown) => this.updateProperty(field.key, value)
+        });
+        app.mount(host);
+        this.propertyComponentApps.push(app);
+      });
+    }
+
+    private unmountPropertyComponents() {
+      this.propertyComponentApps.forEach((app) => app.unmount());
+      this.propertyComponentApps = [];
     }
 
     private readPropertyInputValue(input: HTMLInputElement | HTMLSelectElement) {

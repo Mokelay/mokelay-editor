@@ -878,6 +878,16 @@ export const enMessages = {
       actions: 'Actions'
     }
   },
+  contentLocalization: {
+    title: 'Page languages',
+    supportedLocales: 'Supported locales (comma separated)',
+    defaultLocale: 'Default locale',
+    editingLocale: 'Content editing locale',
+    removeConfirm: 'Removing a locale may hide existing translations. Continue?',
+    missingWarning: 'Missing translations (save is still allowed):',
+    editAll: 'Edit all locales',
+    collapse: 'Collapse'
+  },
 } as const;
 
 export const enEditorJsMessages = {} as const;

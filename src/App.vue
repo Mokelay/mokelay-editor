@@ -28,6 +28,8 @@ import {
   type UpdatePagePayload
 } from '@/services/pagesApi';
 import { generatePageSlug } from 'mokelay-components/pages';
+import { collectMissingTranslations, normalizePageLocaleConfig, type PageLocaleConfig } from 'mokelay-components/runtime';
+import { setContentEditingLocale, setContentLocaleConfig, useContentLocalization } from '@/composables/useContentLocalization';
 import {
   normalizePageDataSources,
   type PageDataSourceConfig,
@@ -83,6 +85,8 @@ const currentPageAppUuid = ref<string | null>(null);
 const currentPageLayoutUuid = ref<string | null>(null);
 const pageBlocks = ref<OutputData['blocks']>(getInitialEditorBlocks(t));
 const pageDataSources = ref<PageDataSourceConfig[]>([]);
+const pageLocaleConfig = ref<PageLocaleConfig>(normalizePageLocaleConfig(undefined));
+const { editingLocale } = useContentLocalization();
 const currentLayout = ref<MokelayLayout | null>(null);
 const sourceLayout = ref<MokelayLayout | null>(null);
 const pageLayoutOptions = ref<MokelayLayoutRecord[]>([]);
@@ -115,7 +119,8 @@ const pageEditorBridge = createPageEditorBridge(
     : [],
   () => ({
     canPersist: currentPageSource.value === 'user',
-    canCreateSubPage: currentPageSource.value === 'user'
+    canCreateSubPage: currentPageSource.value === 'user',
+    ...(currentPageAppUuid.value ? { appUuid: currentPageAppUuid.value } : {})
   })
 );
 
@@ -334,6 +339,8 @@ function applyPage(page: MokelayPage, source: PageSource = currentPageSource.val
   currentPageLayoutUuid.value = page.layoutUuid ?? null;
   pageBlocks.value = page.blocks;
   pageDataSources.value = page.dataSources ?? [];
+  pageLocaleConfig.value = normalizePageLocaleConfig(page.localeConfig);
+  setContentLocaleConfig(pageLocaleConfig.value);
   pageError.value = '';
   pageLayoutError.value = '';
   if (source === 'system') {
@@ -356,6 +363,8 @@ function applyRuntimePage(page: RenderBundlePage, layout: MokelayLayout | null) 
   currentPageLayoutUuid.value = page.layoutUuid ?? null;
   pageBlocks.value = page.blocks;
   pageDataSources.value = page.dataSources ?? [];
+  pageLocaleConfig.value = normalizePageLocaleConfig(page.localeConfig);
+  setContentLocaleConfig(pageLocaleConfig.value);
   currentLayout.value = layout;
   systemPageDraftBaseline.value = null;
   pageError.value = '';
@@ -375,6 +384,8 @@ function resetToLocalDraft() {
   isLoadingPage.value = false;
   pageBlocks.value = getInitialEditorBlocks(t);
   pageDataSources.value = [];
+  pageLocaleConfig.value = normalizePageLocaleConfig(undefined);
+  setContentLocaleConfig(pageLocaleConfig.value);
   currentLayout.value = null;
   systemPageDraftBaseline.value = null;
 }
@@ -444,6 +455,7 @@ async function loadPreviewLayout(uuid: string, source: PageSource) {
         name: bundle.page.name,
         blocks: bundle.page.blocks,
         dataSources: bundle.page.dataSources,
+        localeConfig: normalizePageLocaleConfig(bundle.page.localeConfig),
         appUuid: bundle.page.appUuid,
         layoutUuid: bundle.page.layoutUuid,
         subPage: bundle.page.subPage ?? false,
@@ -734,6 +746,10 @@ async function saveEditorContent() {
 
   try {
     const blocks = await readEditorBlocks();
+    const missingTranslations = collectMissingTranslations({ blocks, localeConfig: pageLocaleConfig.value });
+    if (missingTranslations.length) {
+      void $message('warning', `${t('contentLocalization.missingWarning')} ${missingTranslations.length}`);
+    }
     const validation = validatePageReferences(blocks, currentPageUuid.value
       ? [{ uuid: currentPageUuid.value, source: currentPageSource.value }]
       : []);
@@ -747,6 +763,7 @@ async function saveEditorContent() {
     currentPageName.value = name;
     const payload = { name, blocks } as UpdatePagePayload;
     payload.dataSources = normalizePageDataSources(pageDataSources.value as unknown);
+    payload.localeConfig = pageLocaleConfig.value;
     let page: MokelayPage;
     if (uuid) {
       page = await updatePage(uuid, payload);
@@ -769,6 +786,34 @@ async function saveEditorContent() {
   } finally {
     isSavingPage.value = false;
   }
+}
+
+function updateSupportedLocales(event: Event) {
+  const requested = [...new Set((event.target as HTMLInputElement).value
+    .split(',')
+    .map((locale) => locale.trim())
+    .filter(Boolean))];
+  if (!requested.length) return;
+  const removed = pageLocaleConfig.value.supportedLocales.filter((locale) => !requested.includes(locale));
+  if (removed.length && !window.confirm(t('contentLocalization.removeConfirm'))) {
+    (event.target as HTMLInputElement).value = pageLocaleConfig.value.supportedLocales.join(', ');
+    return;
+  }
+  pageLocaleConfig.value = normalizePageLocaleConfig({
+    defaultLocale: requested.includes(pageLocaleConfig.value.defaultLocale)
+      ? pageLocaleConfig.value.defaultLocale
+      : requested[0],
+    supportedLocales: requested
+  });
+  setContentLocaleConfig(pageLocaleConfig.value);
+}
+
+function updateDefaultLocale(event: Event) {
+  pageLocaleConfig.value = normalizePageLocaleConfig({
+    ...pageLocaleConfig.value,
+    defaultLocale: (event.target as HTMLSelectElement).value
+  });
+  setContentLocaleConfig(pageLocaleConfig.value);
 }
 
 async function handlePageLayoutChange(layoutUuid: string | null) {
@@ -885,6 +930,28 @@ function backToPagesPage() {
             内置页面处于临时编排模式：修改不会保存，也不能创建或保存子页面。
           </p>
 
+          <section class="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-700 dark:bg-slate-900" data-testid="page-locale-settings">
+            <h3 class="font-semibold text-slate-900 dark:text-white">{{ t('contentLocalization.title') }}</h3>
+            <div class="grid gap-3 md:grid-cols-3">
+              <label class="grid gap-1">
+                <span>{{ t('contentLocalization.supportedLocales') }}</span>
+                <input class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700" :value="pageLocaleConfig.supportedLocales.join(', ')" @change="updateSupportedLocales" />
+              </label>
+              <label class="grid gap-1">
+                <span>{{ t('contentLocalization.defaultLocale') }}</span>
+                <select class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700" :value="pageLocaleConfig.defaultLocale" @change="updateDefaultLocale">
+                  <option v-for="locale in pageLocaleConfig.supportedLocales" :key="locale" :value="locale">{{ locale }}</option>
+                </select>
+              </label>
+              <label class="grid gap-1">
+                <span>{{ t('contentLocalization.editingLocale') }}</span>
+                <select class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700" :value="editingLocale" @change="setContentEditingLocale(($event.target as HTMLSelectElement).value)">
+                  <option v-for="locale in pageLocaleConfig.supportedLocales" :key="locale" :value="locale">{{ locale }}</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
           <MPageEditorBlock
             ref="pageEditorBlockRef"
             mode="edit"
@@ -921,6 +988,7 @@ function backToPagesPage() {
         v-else-if="isRuntimePage"
         :blocks="pageBlocks"
         :data-sources="pageDataSources"
+        :locale-config="pageLocaleConfig"
         :runtime-context="pageRuntimeContext"
         :loading="isLoadingPage"
         :page-uuid="routePageUuid ?? currentPageUuid"
@@ -935,6 +1003,7 @@ function backToPagesPage() {
         v-else-if="isPreviewPage"
         :blocks="pageBlocks"
         :data-sources="pageDataSources"
+        :locale-config="pageLocaleConfig"
         :runtime-context="pageRuntimeContext"
         :loading="isLoadingPage"
         :error="pageError"

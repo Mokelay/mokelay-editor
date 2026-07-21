@@ -128,7 +128,7 @@ test('adds form item through form menu, saves items, and previews', async ({ pag
 
   expect(items).toHaveLength(1);
   expect(items?.[0]).toEqual(expect.objectContaining({
-    labelName: '用户名',
+    labelName: { $i18n: { 'zh-CN': '用户名', 'en-US': '' } },
     variableName: 'userName',
     layout: 'Horizontal'
   }));
@@ -229,7 +229,7 @@ test('configures form items from the form property panel', async ({ page }) => {
   const blocks = await getSavedBlocks(page);
   const formBlock = blocks.find((block) => block.type === 'MForm');
   const items = formBlock?.data?.items as Array<{
-    labelName?: string;
+    labelName?: string | { $i18n: Record<string, string> };
     variableName?: string;
     fieldDataType?: string;
     layout?: string;
@@ -261,7 +261,7 @@ test('configures form items from the form property panel', async ({ page }) => {
   }));
   expect(items?.[0]?.editor?.type).toBe('MInput');
   expect(items?.[1]).toEqual(expect.objectContaining({
-    labelName: '联系邮箱',
+    labelName: { $i18n: { 'zh-CN': '联系邮箱', 'en-US': '' } },
     variableName: 'email',
     fieldDataType: 'string',
     layout: 'Horizontal'

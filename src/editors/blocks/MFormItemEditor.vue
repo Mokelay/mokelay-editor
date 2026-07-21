@@ -14,7 +14,7 @@ export { mFormItemEditorTool } from '@/editors/tools/mFormItemEditorTool';
 </script>
 
 <script setup lang="ts">
-import { reactive, watch } from 'vue';
+import { computed, reactive, watch } from 'vue';
 import MFormItemRenderer from 'mokelay-components/blocks/MFormItem.vue';
 import {
   cloneEditorBlock,
@@ -22,6 +22,8 @@ import {
   normalizeLayout,
   type MFormItemProps
 } from 'mokelay-components/blocks';
+import { resolveLocalizedValue } from 'mokelay-components/runtime';
+import { useContentLocalization } from '@/composables/useContentLocalization';
 import MEditorSelector from '@/editors/blocks/MEditorSelector.vue';
 import {
   normalizeSelectorBlock,
@@ -39,6 +41,10 @@ const props = withDefaults(defineProps<MFormItemProps & {
 
 const selectorExcludeToolNames = ['MFormItem', 'MForm'];
 const formItem = reactive(normalizeFormItemProps({ ...props, edit: true }));
+const { localeConfig, editingLocale } = useContentLocalization();
+const previewLabelName = computed(() => typeof formItem.labelName === 'string'
+  ? formItem.labelName
+  : resolveLocalizedValue(formItem.labelName, editingLocale.value, localeConfig.value));
 
 function emitChange() {
   const payload: MFormItemProps = {
@@ -80,7 +86,7 @@ watch(
   <div class="m-form-item-editor" data-testid="form-item-edit-shell">
     <MFormItemRenderer
       :edit="true"
-      :label-name="formItem.labelName"
+      :label-name="previewLabelName"
       :variable-name="formItem.variableName"
       :editor="formItem.editor"
       :layout="formItem.layout"

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { defineEditorTool, type EditorToolComponentProps } from '@/editors/editorToolDefinition';
 import type { MTabsTab } from 'mokelay-components/blocks/MTabs.vue';
+import { normalizeLocalizedTextValue } from 'mokelay-components/runtime';
 
 export type MTabsConfigEditorData = {
   tabs: MTabsTab[];
@@ -116,7 +117,7 @@ function normalizeTabsInput(value: unknown): MTabsTab[] {
     if (!isRecord(item)) return;
 
     const id = readString(item.id);
-    const name = readString(item.name);
+    const name = normalizeLocalizedTextValue(item.name);
     const hasCanonical = Object.prototype.hasOwnProperty.call(item, 'pageUUID');
     const hasLegacy = Object.prototype.hasOwnProperty.call(item, 'pageUuid');
     const canonicalPageUUID = readString(item.pageUUID);
@@ -124,7 +125,7 @@ function normalizeTabsInput(value: unknown): MTabsTab[] {
     const pageUUID = canonicalPageUUID || legacyPageUuid;
     const query = normalizeQueryMapping(item.query);
 
-    if (!id || !name || !pageUUID || seenIds.has(id)) return;
+    if (!id || (typeof name === 'string' && !name) || !pageUUID || seenIds.has(id)) return;
 
     seenIds.add(id);
     tabs.push({
@@ -327,9 +328,16 @@ export const mTabsConfigEditorTool = defineEditorTool<MTabsConfigEditorProps>({
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
+import MLocalizedTextEditor from '@/editors/blocks/MLocalizedTextEditor.vue';
+import {
+  normalizeLocalizedValue,
+  resolveLocalizedValue,
+  type LocalizedTextValue,
+  type LocalizedValue
+} from 'mokelay-components/runtime';
+import { useContentLocalization } from '@/composables/useContentLocalization';
 import {
   listPages,
-  listSystemPages,
   type PageListItem,
   type PageSource
 } from '@/services/pagesApi';
@@ -349,6 +357,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const { localeConfig, editingLocale } = useContentLocalization();
 const settingsDialogRef = ref<HTMLDialogElement | null>(null);
 const isSettingsDialogOpen = ref(false);
 const committedValue = ref<MTabsConfigEditorData>(normalizeFromProps());
@@ -367,12 +376,12 @@ const isReadOnly = computed(() => !props.edit || props.readonly === true || comm
 const savedTabCount = computed(() => committedValue.value.tabs.length);
 const activeTabSummary = computed(() => {
   const activeTab = committedValue.value.tabs.find((tab) => tab.id === committedValue.value.activeTabId);
-  return activeTab?.name || t('tabs.configEditor.summary.noActive');
+  return activeTab ? resolveEditorText(activeTab.name) : t('tabs.configEditor.summary.noActive');
 });
 const pageOptionsByUuid = computed(() => {
   const map = new Map<string, PageListItem>();
   pageOptions.value.forEach((page) => {
-    map.set(`${page.source}:${page.uuid}`, page);
+    map.set(page.uuid, page);
   });
   return map;
 });
@@ -384,16 +393,16 @@ function normalizeFromProps() {
 function toEditableTabs(tabs: MTabsTab[]): EditableTab[] {
   return tabs.map((tab) => ({
     ...cloneValue(tab),
-    pageSource: tab.pageSource === 'system' ? 'system' : 'user'
+    pageSource: 'user'
   }));
 }
 
 function fromEditableTabs(tabs: EditableTab[]): MTabsTab[] {
   return tabs.map((tab) => ({
     id: tab.id.trim(),
-    name: tab.name.trim(),
+    name: cloneValue(tab.name),
     pageUUID: tab.pageUUID.trim(),
-    pageSource: tab.pageSource === 'system' ? 'system' : 'user',
+    pageSource: 'user',
     ...(tab.query ? { query: cloneValue(tab.query) } : {})
   }));
 }
@@ -421,7 +430,7 @@ function addTab() {
   const id = createTabId();
   const nextTab: EditableTab = {
     id,
-    name: t('tabs.configEditor.defaultTabName').replace('{index}', String(draftTabs.value.length + 1)),
+    name: createLocalizedText(t('tabs.configEditor.defaultTabName').replace('{index}', String(draftTabs.value.length + 1))),
     pageUUID: '',
     pageSource: 'user'
   };
@@ -464,17 +473,24 @@ function updateTab(index: number, patch: Partial<EditableTab>) {
   }
 }
 
+function resolveEditorText(value: LocalizedTextValue) {
+  return typeof value === 'string'
+    ? value
+    : resolveLocalizedValue(value, editingLocale.value, localeConfig.value);
+}
+
+function createLocalizedText(text: string): LocalizedValue {
+  return normalizeLocalizedValue({ $i18n: { [editingLocale.value]: text } }, localeConfig.value);
+}
+
 function selectActiveTab(tabId: string) {
   if (isReadOnly.value) return;
   draftActiveTabId.value = tabId;
 }
 
 function pageOptionLabel(page: PageListItem) {
-  const sourceLabel = page.source === 'system'
-    ? t('tabs.configEditor.sources.system')
-    : t('tabs.configEditor.sources.user');
   const blocked = !isPageReferenceAllowed(page);
-  return `${page.name || page.uuid} · ${sourceLabel} · ${page.subPage ? '子页面' : '主页面'}${blocked ? ' · 循环引用' : ''}`;
+  return `${page.name || page.uuid} · ${page.subPage ? '子页面' : '主页面'}${blocked ? ' · 循环引用' : ''}`;
 }
 
 function isPageReferenceAllowed(page: Pick<PageListItem, 'uuid' | 'source'>) {
@@ -484,7 +500,6 @@ function isPageReferenceAllowed(page: Pick<PageListItem, 'uuid' | 'source'>) {
 function filteredPageOptions(tab: EditableTab) {
   const query = pageSearch.value.trim().toLowerCase();
   return pageOptions.value.filter((page) => {
-    if (page.source !== tab.pageSource) return false;
     if (pageKindFilter.value === 'sub' && !page.subPage) return false;
     if (pageKindFilter.value === 'main' && page.subPage) return false;
     if (!query) return true;
@@ -493,7 +508,7 @@ function filteredPageOptions(tab: EditableTab) {
 }
 
 function getPageOption(tab: EditableTab) {
-  return pageOptionsByUuid.value.get(`${tab.pageSource}:${tab.pageUUID.trim()}`);
+  return pageOptionsByUuid.value.get(tab.pageUUID.trim());
 }
 
 function updateTabPageUUID(index: number, pageUUID: string) {
@@ -501,10 +516,10 @@ function updateTabPageUUID(index: number, pageUUID: string) {
   const tab = draftTabs.value[index];
   if (!tab) return;
   const normalizedPageUUID = pageUUID.trim();
-  const page = pageOptionsByUuid.value.get(`${tab.pageSource}:${normalizedPageUUID}`);
+  const page = pageOptionsByUuid.value.get(normalizedPageUUID);
   updateTab(index, {
     pageUUID: normalizedPageUUID,
-    name: !tab.name.trim() && page?.name ? page.name : tab.name
+    name: !resolveEditorText(tab.name).trim() && page?.name ? createLocalizedText(page.name) : tab.name
   });
 }
 
@@ -522,7 +537,7 @@ async function createSubPage(index: number) {
       blockId: props.currentBlockId,
       itemId: tab.id || `tab_${index + 1}`
     }, {
-      name: tab.name
+      name: resolveEditorText(tab.name)
     });
     if (result.status !== 'saved') return;
     const page: PageListItem = {
@@ -551,7 +566,7 @@ async function editSubPage(index: number) {
   try {
     await props.pageEditor.openExisting({
       uuid: tab.pageUUID.trim(),
-      source: tab.pageSource
+      source: 'user'
     }, {
       kind: 'tabs',
       blockId: props.currentBlockId,
@@ -571,7 +586,7 @@ function validateTabsValue(tabs: EditableTab[], activeTabId: string): MTabsConfi
     if (seenIds.has(id)) return { valid: false, message: t('tabs.configEditor.validation.duplicateId').replace('{id}', id) };
     seenIds.add(id);
 
-    if (!tab.name.trim()) return { valid: false, message: t('tabs.configEditor.validation.emptyName') };
+    if (!resolveEditorText(tab.name).trim()) return { valid: false, message: t('tabs.configEditor.validation.emptyName') };
     if (!tab.pageUUID.trim()) return { valid: false, message: t('tabs.configEditor.validation.emptyPageUUID') };
   }
 
@@ -671,21 +686,15 @@ async function refreshPages() {
   pagesError.value = '';
 
   try {
-    const [userPages, systemPages] = await Promise.allSettled([
-      listPages({ page: 1, pageSize: 1000 }),
-      listSystemPages()
-    ]);
+    const userPages = await listPages({
+      page: 1,
+      pageSize: 1000,
+      ...(props.pageEditor?.appUuid ? { appUuid: props.pageEditor.appUuid } : {})
+    });
     if (loadId !== pagesLoadId) return;
-
-    const nextPages = [
-      ...(userPages.status === 'fulfilled' ? userPages.value : []),
-      ...(systemPages.status === 'fulfilled' ? systemPages.value : [])
-    ];
-    pageOptions.value = nextPages;
-
-    if (userPages.status === 'rejected' && systemPages.status === 'rejected') {
-      pagesError.value = t('tabs.configEditor.pageOptionsLoadFailed');
-    }
+    pageOptions.value = userPages.filter((page) => page.source === 'user');
+  } catch {
+    if (loadId === pagesLoadId) pagesError.value = t('tabs.configEditor.pageOptionsLoadFailed');
   } finally {
     if (loadId === pagesLoadId) {
       pagesLoading.value = false;
@@ -849,7 +858,6 @@ defineExpose({
               <span>{{ t('tabs.configEditor.columns.active') }}</span>
               <span>{{ t('tabs.configEditor.columns.id') }}</span>
               <span>{{ t('tabs.configEditor.columns.name') }}</span>
-              <span>{{ t('tabs.configEditor.columns.source') }}</span>
               <span>{{ t('tabs.configEditor.columns.pageUUID') }}</span>
               <span>{{ t('tabs.configEditor.columns.actions') }}</span>
             </div>
@@ -881,25 +889,13 @@ defineExpose({
                 @input="updateTab(index, { id: ($event.target as HTMLInputElement).value })"
               >
 
-              <input
-                class="tabs-config-editor__input"
-                type="text"
-                :value="tab.name"
+              <MLocalizedTextEditor
+                compact
                 :readonly="isReadOnly"
+                :value="tab.name"
                 :data-testid="`tabs-config-name-${index}`"
-                @input="updateTab(index, { name: ($event.target as HTMLInputElement).value })"
-              >
-
-              <select
-                class="tabs-config-editor__input"
-                :value="tab.pageSource"
-                :disabled="isReadOnly"
-                :data-testid="`tabs-config-source-${index}`"
-                @change="updateTab(index, { pageSource: ($event.target as HTMLSelectElement).value === 'system' ? 'system' : 'user', pageUUID: '' })"
-              >
-                <option value="user">{{ t('tabs.configEditor.sources.user') }}</option>
-                <option value="system">{{ t('tabs.configEditor.sources.system') }}</option>
-              </select>
+                :on-change="(value) => updateTab(index, { name: value })"
+              />
 
               <div class="tabs-config-editor__page-cell">
                 <select
@@ -911,7 +907,7 @@ defineExpose({
                 >
                   <option value="">请选择页面</option>
                   <option
-                    v-if="tab.pageUUID && !pageOptions.some((page) => page.source === tab.pageSource && page.uuid === tab.pageUUID)"
+                    v-if="tab.pageUUID && !pageOptions.some((page) => page.uuid === tab.pageUUID)"
                     :value="tab.pageUUID"
                   >
                     {{ tab.pageUUID }}（当前配置）
@@ -951,7 +947,7 @@ defineExpose({
                   :data-testid="`tabs-config-edit-page-${index}`"
                   @click="editSubPage(index)"
                 >
-                  {{ tab.pageSource === 'system' || !pageEditor?.canPersist ? '临时编排页面' : '编排页面' }}
+                  {{ !pageEditor?.canPersist ? '临时编排页面' : '编排页面' }}
                 </button>
                 <button
                   class="tabs-config-editor__icon-button"
@@ -1188,14 +1184,14 @@ defineExpose({
 
 .tabs-config-editor__table {
   display: grid;
-  min-width: 1040px;
+  min-width: 900px;
   gap: 8px;
 }
 
 .tabs-config-editor__table-head,
 .tabs-config-editor__row {
   display: grid;
-  grid-template-columns: 64px minmax(120px, 0.9fr) minmax(140px, 1fr) 118px minmax(180px, 1.25fr) 360px;
+  grid-template-columns: 56px minmax(105px, 0.75fr) minmax(250px, 1.35fr) minmax(180px, 1fr) 330px;
   align-items: center;
   gap: 8px;
 }

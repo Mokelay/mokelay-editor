@@ -41,10 +41,11 @@ import {
  *     {
  *       "key": "labelName",
  *       "optional": true,
- *       "tsType": "string",
+ *       "tsType": "LocalizedTextValue",
  *       "source": "submodule/mokelay-components/src/blocks/MFormItem.vue",
  *       "declaredInProps": true,
  *       "configurable": true,
+ *       "localizable": true,
  *       "label": "字段文本",
  *       "type": "text",
  *       "placeholder": {

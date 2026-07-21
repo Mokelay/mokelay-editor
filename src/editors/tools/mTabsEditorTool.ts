@@ -41,6 +41,7 @@ import {
  *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue",
  *       "declaredInProps": true,
  *       "configurable": true,
+ *       "localizablePaths": ["[].name"],
  *       "label": "页签配置",
  *       "type": "component",
  *       "component": "MTabsConfigEditor"

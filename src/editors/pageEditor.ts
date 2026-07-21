@@ -33,6 +33,7 @@ export type PageEditorResult =
 export type PageEditorCapabilities = {
   canPersist: boolean;
   canCreateSubPage: boolean;
+  appUuid?: string;
 };
 
 export type PageEditorOpenRequest =
@@ -58,6 +59,8 @@ export type PageEditorBridge = {
   readonly canPersist: boolean;
   /** Whether this editing session may create and persist a new child page. */
   readonly canCreateSubPage: boolean;
+  /** Application that owns pages created from this editing session. */
+  readonly appUuid?: string;
   canReference: (target: PageReference) => { allowed: boolean; message?: string };
   openExisting: (target: PageReference, origin: PageReferenceOrigin) => Promise<PageEditorResult>;
   createUserSubPage: (
@@ -77,6 +80,9 @@ export function createPageEditorBridge(
     },
     get canCreateSubPage() {
       return resolveCapabilities(getCapabilities).canCreateSubPage;
+    },
+    get appUuid() {
+      return resolveCapabilities(getCapabilities).appUuid;
     },
     canReference(target) {
       const normalized = normalizePageReference(target);
@@ -125,7 +131,10 @@ export function normalizePageEditorCapabilities(
   const canPersist = capabilities?.canPersist !== false;
   return {
     canPersist,
-    canCreateSubPage: canPersist && capabilities?.canCreateSubPage !== false
+    canCreateSubPage: canPersist && capabilities?.canCreateSubPage !== false,
+    ...(typeof capabilities?.appUuid === 'string' && capabilities.appUuid.trim()
+      ? { appUuid: capabilities.appUuid.trim() }
+      : {})
   };
 }
 

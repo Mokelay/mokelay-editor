@@ -4,7 +4,8 @@ import type {
   EditorToolPropertyField,
   ResolvedEditorToolDefinition
 } from '@/editors/editorToolDefinition';
-import { getClientBlockPropertyComponentBinding } from '@/editors/clientBlockPropertyComponents';
+import { getClientBlockPropertyComponentBinding, getLocalizedTextPropertyBinding } from '@/editors/clientBlockPropertyComponents';
+import { migrateLegacyLocalizedValue } from 'mokelay-components/runtime';
 import {
   getClientBlockDocSnapshot,
   type ClientBlockPropertyField,
@@ -44,7 +45,13 @@ export function resolveClientBlockDefaultValue(value: unknown): unknown {
 
 export function getClientBlockDefaultData(doc: NormalizedClientBlockDoc | undefined) {
   if (!doc) return {};
-  return resolveClientBlockDefaultValue(doc.defaultData) as Record<string, unknown>;
+  const data = resolveClientBlockDefaultValue(doc.defaultData) as Record<string, unknown>;
+  for (const field of doc.properties) {
+    if ((field.localizable !== true && !commonLocalizablePropertyKeys.has(field.key)) || !field.key) continue;
+    const localized = migrateLegacyLocalizedValue(doc.defaultData[field.key]);
+    if (localized) data[field.key] = localized;
+  }
+  return data;
 }
 
 function allowedFieldType(value: unknown): EditorToolPropertyField['type'] {
@@ -71,11 +78,26 @@ function normalizeOptions(value: unknown): EditorToolPropertyField['options'] | 
   return options.length ? options : undefined;
 }
 
+// Central schema for common top-level user-facing text. Complex component editors
+// declare their nested localizable paths alongside their own schemas.
+const commonLocalizablePropertyKeys = new Set([
+  'placeholder', 'title', 'label', 'text', 'description', 'emptyText', 'caption',
+  'alt', 'lowLabel', 'highLabel', 'displayName', 'debugLabel', 'labelName'
+]);
+
 export function resolveClientBlockPropertyFields(doc: NormalizedClientBlockDoc): EditorToolPropertyField[] {
   return doc.properties.flatMap((field: ClientBlockPropertyField): EditorToolPropertyField[] => {
     if (!field.key || field.configurable === false) return [];
-    const type = allowedFieldType(field.type);
-    const binding = type === 'component'
+    const localizable = field.localizable === true || commonLocalizablePropertyKeys.has(field.key);
+    const requestedType = allowedFieldType(field.type);
+    const type = localizable ? 'component' : requestedType;
+    const binding = localizable
+      ? getLocalizedTextPropertyBinding({
+          placeholder: localizedClientBlockText(field.placeholder),
+          multiline: requestedType === 'textarea',
+          propertyKey: field.key
+        })
+      : type === 'component'
       ? getClientBlockPropertyComponentBinding(doc.blockType, field.key)
       : undefined;
 
@@ -88,6 +110,7 @@ export function resolveClientBlockPropertyFields(doc: NormalizedClientBlockDoc):
       valueType: allowedValueType(field.valueType),
       placeholder: localizedClientBlockText(field.placeholder),
       validationMessage: localizedClientBlockText(field.validationMessage),
+      localizable,
       options: normalizeOptions(field.options),
       component: binding?.component,
       getComponentProps: binding?.getComponentProps

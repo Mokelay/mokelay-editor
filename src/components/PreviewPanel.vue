@@ -6,6 +6,7 @@ import { useI18n } from '@/i18n';
 import type { MokelayLayout, RenderBundlePage } from '@/services/layoutsApi';
 import type { LayoutNavigateHandler } from 'mokelay-components/layouts';
 import type { PageDataSourceConfig, PageRuntimeContext } from 'mokelay-components/pages';
+import type { PageLocaleConfig } from 'mokelay-components/runtime';
 
 const previewModes = ['pc', 'h5', 'ios', 'android'] as const;
 
@@ -14,6 +15,7 @@ type PreviewMode = typeof previewModes[number];
 type PreviewPanelProps = {
   blocks?: OutputData['blocks'];
   dataSources?: PageDataSourceConfig[];
+  localeConfig?: PageLocaleConfig;
   runtimeContext?: PageRuntimeContext;
   loading?: boolean;
   error?: string;
@@ -51,6 +53,7 @@ const previewPage = computed<RenderBundlePage>(() => ({
   name: props.pageName,
   blocks: props.blocks,
   dataSources: props.dataSources,
+  localeConfig: props.localeConfig,
   subPage: false,
   quotes: [],
   dependencies: []
@@ -205,7 +208,7 @@ watch(
 
       <div v-else-if="previewMode === 'pc'" data-testid="preview-pc-canvas" class="min-h-full">
         <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" :page-runtime-context="runtimeContext" :on-navigate="onNavigate" />
-        <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" :runtime-context="runtimeContext" />
+        <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" :locale-config="localeConfig" :runtime-context="runtimeContext" />
       </div>
 
       <div v-else :data-testid="mobileCanvasTestId" class="flex min-h-full justify-center overflow-auto bg-slate-100 px-4 py-6 dark:bg-slate-950">
@@ -213,7 +216,7 @@ watch(
           <div v-if="previewMode === 'ios'" class="absolute left-1/2 top-3 z-10 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-slate-950 dark:bg-slate-800"></div>
           <div data-testid="preview-phone-screen" :class="phoneScreenClass">
             <LayoutRenderer v-if="layout" :layout="layout" :page="previewPage" :page-runtime-context="runtimeContext" :on-navigate="onNavigate" />
-            <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" :runtime-context="runtimeContext" />
+            <MPage v-else :edit="false" :value="blocks" :page-id="pageUuid ?? undefined" :data-sources="dataSources" :locale-config="localeConfig" :runtime-context="runtimeContext" />
           </div>
         </div>
       </div>

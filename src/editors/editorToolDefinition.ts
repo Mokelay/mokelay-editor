@@ -25,6 +25,7 @@ export type EditorToolPropertyField = {
   type?: 'text' | 'select' | 'checkbox' | 'textarea' | 'component';
   valueType?: 'string' | 'json';
   validationMessage?: string;
+  localizable?: boolean;
   options?: Array<{
     label: string;
     value: string;

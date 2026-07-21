@@ -87,8 +87,8 @@ type BundleResponse = {
 };
 
 const defaultMainMenu: LayoutMenuItem[] = [
-  { label: '首页', href: '/' },
-  { label: '价格', href: '/pricing' }
+  { label: { $i18n: { 'zh-CN': '首页', 'en-US': 'Home' } }, href: '/' } as unknown as LayoutMenuItem,
+  { label: { $i18n: { 'zh-CN': '价格', 'en-US': 'Pricing' } }, href: '/pricing' } as unknown as LayoutMenuItem
 ];
 
 export function createDefaultLayoutJson(uuid: string, name: string): MokelayLayout {
@@ -96,6 +96,10 @@ export function createDefaultLayoutJson(uuid: string, name: string): MokelayLayo
     schemaVersion: 1,
     uuid,
     name,
+    localeConfig: {
+      defaultLocale: 'zh-CN',
+      supportedLocales: ['zh-CN', 'en-US']
+    },
     resources: {
       mainMenu: {
         type: 'static',
@@ -111,15 +115,15 @@ export function createDefaultLayoutJson(uuid: string, name: string): MokelayLayo
         id: 'top-nav',
         type: 'MSiteTopNav',
         data: {
-          brand: { text: 'Mokelay', href: '/' },
+          brand: { text: { $i18n: { 'zh-CN': 'Mokelay', 'en-US': 'Mokelay' } }, href: '/' },
           items: { template: '{{resources.mainMenu.items}}' },
           guestActions: [
-            { id: 'login', type: 'MLink', data: { text: '登录', url: '/login' } },
+            { id: 'login', type: 'MLink', data: { text: { $i18n: { 'zh-CN': '登录', 'en-US': 'Log in' } }, url: '/login' } },
             {
               id: 'register',
               type: 'MButton',
               data: {
-                label: '注册',
+                label: { $i18n: { 'zh-CN': '注册', 'en-US': 'Sign up' } },
                 variant: 'primary',
                 action: { type: 'link', url: '/register' }
               }
@@ -140,7 +144,7 @@ export function createDefaultLayoutJson(uuid: string, name: string): MokelayLayo
         data: { name: 'default' }
       }
     ]
-  };
+  } as unknown as MokelayLayout;
 }
 
 export async function createLayout(payload: CreateLayoutPayload) {

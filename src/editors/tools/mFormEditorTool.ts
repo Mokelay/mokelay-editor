@@ -5,7 +5,8 @@ import {
   serializeMFormProps,
   type MFormProps
 } from 'mokelay-components/blocks';
-import { normalizeVariableDataType } from 'mokelay-components/runtime';
+import { normalizeVariableDataType, resolveLocalizedValue } from 'mokelay-components/runtime';
+import { getContentEditingLocale, getContentLocaleConfig } from '@/composables/useContentLocalization';
 
 /**
  * @clientBlockDoc
@@ -97,6 +98,7 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
  *       "declaredInProps": true,
  *       "configurable": true,
+ *       "localizablePaths": ["[].labelName"],
  *       "label": "表单项配置",
  *       "type": "component",
  *       "component": "MFormItemsEditor"
@@ -284,7 +286,9 @@ import { normalizeVariableDataType } from 'mokelay-components/runtime';
  */
 export const mFormEditorTool = defineEditorTool<MFormProps>({
   getDataFields: (context) => normalizeMFormItems(context.data.items).map((item) => ({
-    label: item.labelName,
+    label: typeof item.labelName === 'string'
+      ? item.labelName
+      : resolveLocalizedValue(item.labelName, getContentEditingLocale(), getContentLocaleConfig()),
     variable: item.variableName,
     dataType: normalizeVariableDataType(item.fieldDataType)
   })),

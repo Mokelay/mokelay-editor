@@ -125,6 +125,14 @@ import {
 import { getEditorComponentDefinition } from '@/editors/editorComponentRuntimeRegistry';
 import { useI18n } from '@/i18n';
 import { getClientBlockDocSnapshot } from '@/utils/clientBlockDocs';
+import MLocalizedTextEditor from '@/editors/blocks/MLocalizedTextEditor.vue';
+import {
+  normalizeLocalizedValue,
+  resolveLocalizedValue,
+  type LocalizedTextValue,
+  type LocalizedValue
+} from 'mokelay-components/runtime';
+import { useContentLocalization } from '@/composables/useContentLocalization';
 
 const props = defineProps<MFormItemsEditorProps & {
   onChange?: (payload: FormItemsEditorPayload) => void;
@@ -132,6 +140,7 @@ const props = defineProps<MFormItemsEditorProps & {
 }>();
 
 const { t } = useI18n();
+const { localeConfig, editingLocale } = useContentLocalization();
 const settingsDialogRef = ref<HTMLDialogElement | null>(null);
 const isSettingsDialogOpen = ref(false);
 const committedItems = ref<MFormItemData[]>(cloneItems(props.value));
@@ -186,7 +195,7 @@ function getFieldsFromItems(items?: MFormItemData[]): MFieldsEditorField[] {
     if (!variable || fieldsByVariable.has(variable)) return;
 
     fieldsByVariable.set(variable, {
-      label: item.labelName,
+      label: resolveEditorText(item.labelName),
       variable,
       dataType: item.fieldDataType || 'string'
     });
@@ -229,7 +238,7 @@ function mergeFieldsIntoItems(fields: MFieldsEditorField[]) {
 
     return cloneFormItemData({
       ...existingItem,
-      labelName: field.label,
+      labelName: mergeEditorText(existingItem.labelName, field.label),
       variableName: field.variable,
       fieldDataType: field.dataType
     });
@@ -240,7 +249,7 @@ function handleFieldsChange(payload: { value?: MFieldsEditorField[] }) {
   mergeFieldsIntoItems(payload.value ?? []);
 }
 
-function updateItemLabelName(index: number, value: string) {
+function updateItemLabelName(index: number, value: LocalizedValue) {
   if (isReadOnly.value) return;
   const item = itemsDraft.value[index];
   if (!item) return;
@@ -249,6 +258,26 @@ function updateItemLabelName(index: number, value: string) {
     ...item,
     labelName: value
   };
+}
+
+function resolveEditorText(value: LocalizedTextValue) {
+  return typeof value === 'string'
+    ? value
+    : resolveLocalizedValue(value, editingLocale.value, localeConfig.value);
+}
+
+function mergeEditorText(value: LocalizedTextValue, text: string): LocalizedTextValue {
+  if (resolveEditorText(value) === text) return value;
+  if (typeof value === 'string') {
+    const localized = normalizeLocalizedValue({
+      $i18n: { [localeConfig.value.defaultLocale]: value }
+    }, localeConfig.value);
+    localized.$i18n[editingLocale.value] = text;
+    return localized;
+  }
+  const localized = normalizeLocalizedValue(value, localeConfig.value);
+  localized.$i18n[editingLocale.value] = text;
+  return localized;
 }
 
 function updateItemVariableName(index: number, value: string) {
@@ -432,14 +461,13 @@ watch(
                   class="ce-form-items-editor__row"
                   :data-testid="`form-item-row-${index}`"
                 >
-                  <input
-                    class="ce-form-items-editor__input"
-                    :data-testid="`form-item-label-${index}`"
-                    type="text"
+                  <MLocalizedTextEditor
+                    compact
                     :readonly="isReadOnly"
-                    :placeholder="t('form.itemsEditor.placeholders.label')"
                     :value="item.labelName"
-                    @input="updateItemLabelName(index, ($event.target as HTMLInputElement).value)"
+                    :data-testid="`form-item-label-${index}`"
+                    :placeholder="t('form.itemsEditor.placeholders.label')"
+                    :on-change="(value) => updateItemLabelName(index, value)"
                     @keydown.stop
                   />
                   <input

@@ -6,6 +6,8 @@ import { createPreviewBlockRuntime, PreviewBlockRuntimeKey } from 'mokelay-compo
 import type { PageDataSourceConfig } from 'mokelay-components/pages';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import { createEditorTools } from '@/editors/EditorToolFactory';
+import { createLocalizedParagraphToolSettings } from '@/editors/localizedParagraphTool';
+import { useContentLocalization } from '@/composables/useContentLocalization';
 import { getEditorComponentDefinition } from '@/editors/editorComponentRuntimeRegistry';
 import type { PageEditorBridge } from '@/editors/pageEditor';
 import {
@@ -50,6 +52,7 @@ const emit = defineEmits<{
 }>();
 
 const { t, localeValue } = useI18n();
+const { editingLocale } = useContentLocalization();
 const holderRef = ref<HTMLElement | null>(null);
 const parentPreviewRuntime = inject(PreviewBlockRuntimeKey, null);
 const previewRuntime = parentPreviewRuntime ?? createPreviewBlockRuntime();
@@ -261,7 +264,13 @@ async function mountEditor() {
     table: {
       class: Table as unknown as ToolSettings['class'],
       inlineToolbar: true
-    }
+    },
+    paragraph: createLocalizedParagraphToolSettings({
+      placeholder: t('editor.placeholder'),
+      settingsLabel: t('contentLocalization.editAll'),
+      saveLabel: t('editor.saveContent'),
+      cancelLabel: t('globalCalls.cancel')
+    })
   };
   editor = new EditorJSConstructor({
     holder: holderRef.value,
@@ -344,6 +353,13 @@ watch(localeValue, () => {
   if (!editor) return;
   holderRef.value?.replaceChildren();
   void rebuildEditor();
+});
+
+watch(editingLocale, async () => {
+  if (!editor) return;
+  const output = await saveEditorJsInstance(editor);
+  if (output) await syncFromEditorOutput(output);
+  await rebuildEditor();
 });
 
 onBeforeUnmount(unmountEditor);

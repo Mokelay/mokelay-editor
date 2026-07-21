@@ -878,6 +878,16 @@ export const zhMessages = {
       actions: '操作'
     }
   },
+  contentLocalization: {
+    title: '页面语言',
+    supportedLocales: '支持语言（逗号分隔）',
+    defaultLocale: '默认语言',
+    editingLocale: '内容编辑语言',
+    removeConfirm: '删除语言可能隐藏已有翻译，是否继续？',
+    missingWarning: '缺失翻译（仍允许保存）：',
+    editAll: '编辑全部语言',
+    collapse: '收起'
+  },
 } as const;
 
 export const zhEditorJsMessages = {

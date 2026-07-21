@@ -13,6 +13,8 @@ import type EditorJS from '@editorjs/editorjs';
 import type { OutputData, ToolSettings } from '@editorjs/editorjs';
 import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { createEditorTools } from '@/editors/EditorToolFactory';
+import { createLocalizedParagraphToolSettings } from '@/editors/localizedParagraphTool';
+import { useContentLocalization } from '@/composables/useContentLocalization';
 import { getEditorJsI18nMessages, useI18n } from '@/i18n';
 import PageDslEditorBlock from '@/editors/components/PageDslEditorBlock.vue';
 import MLayoutGridRenderer, {
@@ -42,6 +44,7 @@ const MAX_AREAS = 4;
 
 const props = defineProps<MLayoutGridProps & EditorToolComponentProps & PageDslCallbacks<MLayoutGridProps>>();
 const { t, localeValue } = useI18n();
+const { editingLocale } = useContentLocalization();
 const previewRuntime = inject(PreviewBlockRuntimeKey, null);
 
 const gridState = ref<MLayoutGridProps>(normalizeMLayoutGridProps({ ...props, edit: true }));
@@ -106,7 +109,13 @@ function createNestedTools(
     table: {
       class: Table as unknown as ToolSettings['class'],
       inlineToolbar: true
-    }
+    },
+    paragraph: createLocalizedParagraphToolSettings({
+      placeholder: t('editor.placeholder'),
+      settingsLabel: t('contentLocalization.editAll'),
+      saveLabel: t('editor.saveContent'),
+      cancelLabel: t('globalCalls.cancel')
+    })
   };
 
   return {
@@ -451,6 +460,13 @@ watch(
 );
 
 watch(localeValue, async () => {
+  await saveAllAreaEditors();
+  await unmountAllAreaEditors();
+  await nextTick();
+  await reconcileAreaEditors();
+});
+
+watch(editingLocale, async () => {
   await saveAllAreaEditors();
   await unmountAllAreaEditors();
   await nextTick();

@@ -40,6 +40,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "source": "submodule/mokelay-components/src/blocks/MInput.vue",
  *       "declaredInProps": true,
  *       "configurable": true,
+ *       "localizable": true,
  *       "label": "占位提示",
  *       "type": "text",
  *       "placeholder": {

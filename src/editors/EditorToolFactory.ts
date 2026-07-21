@@ -17,8 +17,13 @@ import {
 } from '@/editors/clientBlockToolMetadata';
 import {
   PreviewBlockRuntimeKey,
+  resolveLocalizedTree,
   type PreviewBlockRuntime
 } from 'mokelay-components/runtime';
+import {
+  getContentEditingLocale,
+  getContentLocaleConfig
+} from '@/composables/useContentLocalization';
 import { PageReferenceAncestryKey } from 'mokelay-components/pages';
 import {
   attachInternalBlockEventsToData,
@@ -343,9 +348,17 @@ export default class EditorToolFactory {
             Object.assign(state, payload);
           }
         };
+        const componentState: Record<string, unknown> = { ...state };
+        for (const key of Object.keys(this.rawData)) {
+          if (!(key in componentState)) continue;
+          componentState[key] = resolveLocalizedTree(componentState[key], {
+            locale: getContentEditingLocale(),
+            localeConfig: getContentLocaleConfig()
+          });
+        }
         this.unmountVueApp();
         this.vueApp = createApp(definition.component, {
-          ...state,
+          ...componentState,
           ...blockEventListeners,
           // 兼容两种回调命名，统一回写到同一份 state。
           onToolChange: this.chainHandlers(blockEventListeners.onToolChange, updateState),

@@ -12,6 +12,7 @@ const MChartDataEditor = defineAsyncComponent(() => import('@/editors/blocks/MCh
 const MDatasourceEditor = defineAsyncComponent(() => import('@/editors/blocks/MDatasourceEditor.vue'));
 const MTabsConfigEditor = defineAsyncComponent(() => import('@/editors/blocks/MTabsConfigEditor.vue'));
 const MVariableValueEditor = defineAsyncComponent(() => import('@/editors/blocks/MVariableValueEditor.vue'));
+const MLocalizedTextEditor = defineAsyncComponent(() => import('@/editors/blocks/MLocalizedTextEditor.vue'));
 
 type PropertyComponentBinding = Pick<EditorToolPropertyField, 'component' | 'getComponentProps'>;
 
@@ -160,4 +161,16 @@ const propertyComponentBindings: Record<string, PropertyComponentBinding> = {
 
 export function getClientBlockPropertyComponentBinding(blockType: string, propertyKey: string) {
   return propertyComponentBindings[`${blockType}.${propertyKey}`];
+}
+
+export function getLocalizedTextPropertyBinding(options?: { placeholder?: string; multiline?: boolean; propertyKey?: string }): PropertyComponentBinding {
+  return {
+    component: MLocalizedTextEditor,
+    getComponentProps: ({ value }) => ({
+      value,
+      placeholder: options?.placeholder ?? '',
+      multiline: options?.multiline === true,
+      dataTestid: options?.propertyKey ? `tool-property-input-${options.propertyKey}` : undefined
+    })
+  };
 }
