@@ -63,11 +63,11 @@ function resolveServerAsset(...segments: string[]) {
 }
 
 function readSystemPageAsset(uuid: string): MockMokelayPage {
-  return JSON.parse(readFileSync(resolveServerAsset('mokelay-pages', `${uuid}.json`), 'utf8')) as MockMokelayPage;
+  return JSON.parse(readFileSync(resolveServerAsset('mokelay/pages', `${uuid}.json`), 'utf8')) as MockMokelayPage;
 }
 
 function readSystemLayoutAsset(uuid: string): MockMokelayLayout {
-  const layoutJson = JSON.parse(readFileSync(resolveServerAsset('mokelay-layouts', `${uuid}.json`), 'utf8')) as Record<string, unknown>;
+  const layoutJson = JSON.parse(readFileSync(resolveServerAsset('mokelay/layouts', `${uuid}.json`), 'utf8')) as Record<string, unknown>;
   return {
     uuid,
     name: typeof layoutJson.name === 'string' ? layoutJson.name : uuid,

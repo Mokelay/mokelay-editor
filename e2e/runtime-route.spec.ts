@@ -28,7 +28,7 @@ function runtimePage(uuid: string, text: string): MockMokelayPage {
   };
 }
 
-function resolveAssetDir(assetDir: 'mokelay-pages' | 'mokelay-layouts') {
+function resolveAssetDir(assetDir: 'mokelay/pages' | 'mokelay/layouts') {
   const candidates = [
     resolve(process.cwd(), '../mokelay-server/server/assets', assetDir),
     resolve(process.cwd(), 'submodule/mokelay-server/server/assets', assetDir)
@@ -42,16 +42,16 @@ function resolveAssetDir(assetDir: 'mokelay-pages' | 'mokelay-layouts') {
   return assetPath;
 }
 
-function readJsonAsset<T>(assetDir: 'mokelay-pages' | 'mokelay-layouts', fileName: string): T {
+function readJsonAsset<T>(assetDir: 'mokelay/pages' | 'mokelay/layouts', fileName: string): T {
   return JSON.parse(readFileSync(resolve(resolveAssetDir(assetDir), fileName), 'utf8')) as T;
 }
 
 function readSystemPageAsset(uuid: string): MockMokelayPage {
-  return readJsonAsset<MockMokelayPage>('mokelay-pages', `${uuid}.json`);
+  return readJsonAsset<MockMokelayPage>('mokelay/pages', `${uuid}.json`);
 }
 
 function readSystemLayoutAsset(uuid: string): MockMokelayLayout {
-  const layoutJson = readJsonAsset<Record<string, unknown>>('mokelay-layouts', `${uuid}.json`);
+  const layoutJson = readJsonAsset<Record<string, unknown>>('mokelay/layouts', `${uuid}.json`);
   return {
     uuid,
     name: typeof layoutJson.name === 'string' ? layoutJson.name : uuid,
@@ -85,11 +85,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 test('all standalone built-in page DSL assets use the editor layout without embedded top navigation blocks', async () => {
-  const pageAssetFiles = readdirSync(resolveAssetDir('mokelay-pages'))
+  const pageAssetFiles = readdirSync(resolveAssetDir('mokelay/pages'))
     .filter((fileName) => fileName.endsWith('.json'))
     .sort();
   const violations = pageAssetFiles.flatMap((fileName) => {
-    const asset = readJsonAsset<Record<string, unknown>>('mokelay-pages', fileName);
+    const asset = readJsonAsset<Record<string, unknown>>('mokelay/pages', fileName);
     const uuid = typeof asset.uuid === 'string' ? asset.uuid : fileName.replace(/\.json$/, '');
     const isEmbeddedQuotedSubpage = asset.subPage === true
       && Array.isArray(asset.quotes)

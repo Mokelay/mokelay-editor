@@ -27,11 +27,11 @@ function readJsonAsset<T>(assetPath: string): T {
 }
 
 function readSystemPage(uuid: string): MockMokelayPage {
-  return readJsonAsset<MockMokelayPage>(`mokelay-pages/${uuid}.json`);
+  return readJsonAsset<MockMokelayPage>(`mokelay/pages/${uuid}.json`);
 }
 
 function readSystemLayout(uuid: string): MockMokelayLayout {
-  const layoutJson = readJsonAsset<Record<string, unknown>>(`mokelay-layouts/${uuid}.json`);
+  const layoutJson = readJsonAsset<Record<string, unknown>>(`mokelay/layouts/${uuid}.json`);
   return { uuid, name: String(layoutJson.name || uuid), layoutJson };
 }
 

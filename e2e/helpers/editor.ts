@@ -1246,7 +1246,7 @@ function mergeByUuid<TRecord extends { uuid: string }>(defaults: TRecord[], over
 }
 
 export function readSystemPageAsset(uuid: string): MockMokelayPage {
-  const value = readServerAssetJson('mokelay-pages', `${uuid}.json`);
+  const value = readServerAssetJson('mokelay/pages', `${uuid}.json`);
   return {
     uuid: readString(value.uuid),
     name: readString(value.name),
@@ -1260,7 +1260,7 @@ export function readSystemPageAsset(uuid: string): MockMokelayPage {
 }
 
 function readSystemLayoutAsset(uuid: string): MockMokelayLayout {
-  const value = readServerAssetJson('mokelay-layouts', `${uuid}.json`);
+  const value = readServerAssetJson('mokelay/layouts', `${uuid}.json`);
   return {
     uuid: readString(value.uuid),
     name: readString(value.name),
@@ -1270,7 +1270,7 @@ function readSystemLayoutAsset(uuid: string): MockMokelayLayout {
   };
 }
 
-function readServerAssetJson(assetDir: 'mokelay-pages' | 'mokelay-layouts', fileName: string) {
+function readServerAssetJson(assetDir: 'mokelay/pages' | 'mokelay/layouts', fileName: string) {
   const candidates = [
     resolve(process.cwd(), '../mokelay-server/server/assets', assetDir, fileName),
     resolve(process.cwd(), 'submodule/mokelay-server/server/assets', assetDir, fileName)
