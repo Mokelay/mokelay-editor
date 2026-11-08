@@ -1,0 +1,1 @@
+import{d as r}from"./editorToolDefinition-BzSiZ_bo.js";import{s as m,n as i}from"./mFormItemProps-DML9O0P6.js";import"./index-90a8uSXa.js";import"./element-plus-Byk1-xko.js";import"./json-editor-CTMZijwP.js";const l=r({normalizeProps:o=>i(o),serialize:m});export{l as mFormItemEditorTool};
