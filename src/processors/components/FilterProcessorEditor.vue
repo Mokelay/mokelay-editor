@@ -120,10 +120,10 @@ watch(() => props.modelValue, (value) => {
 
 <template>
   <div class="processor-filter-header">
-    <label class="processor-filter-field">
+    <label class="processor-filter-field mk-form-field">
       <span>{{ t('datasource.processors.filter.fields.type') }}</span>
       <select
-        class="processor-filter-input"
+        class="processor-filter-input mk-form-control"
         data-testid="processor-filter-type"
         :disabled="readonly"
         :value="filterType"
@@ -136,7 +136,7 @@ watch(() => props.modelValue, (value) => {
     <button
       v-if="!readonly"
       type="button"
-      class="processor-filter-add"
+      class="processor-filter-add mk-form-button"
       data-testid="processor-filter-condition-add"
       @click="addCondition"
     >
@@ -155,22 +155,22 @@ watch(() => props.modelValue, (value) => {
       class="processor-filter-condition"
       :data-testid="`processor-filter-condition-${index}`"
     >
-      <label class="processor-filter-field">
+      <label class="processor-filter-field mk-form-field">
         <span>{{ t('datasource.processors.filter.fields.variable') }}</span>
         <input
           v-model="condition.variable"
-          class="processor-filter-input"
+          class="processor-filter-input mk-form-control"
           :data-testid="`processor-filter-variable-${index}`"
           :readonly="readonly"
           @input="emitValue"
           @keydown.stop
         >
       </label>
-      <label class="processor-filter-field">
+      <label class="processor-filter-field mk-form-field">
         <span>{{ t('datasource.processors.filter.fields.condition') }}</span>
         <select
           v-model="condition.condition"
-          class="processor-filter-input"
+          class="processor-filter-input mk-form-control"
           :data-testid="`processor-filter-condition-type-${index}`"
           :disabled="readonly"
           @change="emitValue"
@@ -182,12 +182,12 @@ watch(() => props.modelValue, (value) => {
       </label>
       <label
         v-if="condition.condition !== 'is_empty' && condition.condition !== 'is_not_empty'"
-        class="processor-filter-field"
+        class="processor-filter-field mk-form-field"
       >
         <span>{{ t('datasource.processors.filter.fields.value') }}</span>
         <input
           v-model="condition.valueText"
-          class="processor-filter-input"
+          class="processor-filter-input mk-form-control"
           :data-testid="`processor-filter-value-${index}`"
           :readonly="readonly"
           @input="emitValue"
@@ -197,7 +197,7 @@ watch(() => props.modelValue, (value) => {
       <button
         v-if="!readonly"
         type="button"
-        class="processor-filter-remove"
+        class="processor-filter-remove mk-form-button mk-form-button--danger"
         :data-testid="`processor-filter-condition-remove-${index}`"
         @click="removeCondition(index)"
       >
@@ -234,45 +234,9 @@ watch(() => props.modelValue, (value) => {
   padding: 10px;
 }
 
-.processor-filter-field {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 5px;
-  color: rgb(51 65 85);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.processor-filter-input {
-  height: 34px;
-  min-width: 0;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 7px;
-  padding: 6px 8px;
-  background: white;
-  color: rgb(15 23 42);
-  font: inherit;
-}
-
 .processor-filter-add,
 .processor-filter-remove {
-  min-height: 34px;
-  border: 1px solid rgb(191 219 254);
-  border-radius: 7px;
-  padding: 5px 10px;
-  background: rgb(239 246 255);
-  color: rgb(29 78 216);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 650;
   cursor: pointer;
-}
-
-.processor-filter-remove {
-  border-color: rgb(254 202 202);
-  background: rgb(254 242 242);
-  color: rgb(220 38 38);
 }
 
 .processor-filter-empty,
@@ -289,16 +253,6 @@ watch(() => props.modelValue, (value) => {
 
 .dark .processor-filter-condition {
   border-color: rgb(51 65 85);
-}
-
-.dark .processor-filter-field {
-  color: rgb(203 213 225);
-}
-
-.dark .processor-filter-input {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
 }
 
 @media (max-width: 760px) {

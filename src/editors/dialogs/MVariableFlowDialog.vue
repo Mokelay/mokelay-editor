@@ -336,13 +336,13 @@ watch(() => props.open, (open) => {
 <template>
   <Teleport to="body" :disabled="teleportDisabled">
     <div v-if="open" class="variable-flow-dialog" data-testid="variable-flow-dialog" @keydown.stop>
-      <section class="variable-flow-dialog__panel">
-        <header class="variable-flow-dialog__header">
+      <section class="variable-flow-dialog__panel mk-form-scope mk-form-dialog-panel mk-form-dialog mk-form-dialog--canvas">
+        <header class="variable-flow-dialog__header mk-form-dialog-header">
           <div>
             <h2>{{ t('variableValue.flow.title') }}</h2>
             <p>{{ t('variableValue.flow.subtitle') }}</p>
           </div>
-          <button type="button" data-testid="variable-flow-close" @click="emit('close')">
+          <button class="mk-form-button" type="button" data-testid="variable-flow-close" @click="emit('close')">
             {{ t('editor.close') }}
           </button>
         </header>
@@ -350,11 +350,11 @@ watch(() => props.open, (open) => {
         <div class="variable-flow-dialog__body">
           <aside class="variable-flow-dialog__library">
             <strong>{{ t('variableValue.flow.library') }}</strong>
-            <button type="button" data-testid="variable-flow-add-variable" @click="addNode('variable')">{{ t('variableValue.flow.nodes.variable') }}</button>
-            <button type="button" data-testid="variable-flow-add-constant" @click="addNode('constant')">{{ t('variableValue.flow.nodes.constant') }}</button>
-            <button type="button" data-testid="variable-flow-add-processor" @click="addNode('processor')">{{ t('variableValue.flow.nodes.processor') }}</button>
-            <button type="button" data-testid="variable-flow-add-if" @click="addNode('if')">{{ t('variableValue.flow.nodes.if') }}</button>
-            <button type="button" data-testid="variable-flow-add-output" @click="addNode('output')">{{ t('variableValue.flow.nodes.output') }}</button>
+            <button class="mk-form-button" type="button" data-testid="variable-flow-add-variable" @click="addNode('variable')">{{ t('variableValue.flow.nodes.variable') }}</button>
+            <button class="mk-form-button" type="button" data-testid="variable-flow-add-constant" @click="addNode('constant')">{{ t('variableValue.flow.nodes.constant') }}</button>
+            <button class="mk-form-button" type="button" data-testid="variable-flow-add-processor" @click="addNode('processor')">{{ t('variableValue.flow.nodes.processor') }}</button>
+            <button class="mk-form-button" type="button" data-testid="variable-flow-add-if" @click="addNode('if')">{{ t('variableValue.flow.nodes.if') }}</button>
+            <button class="mk-form-button" type="button" data-testid="variable-flow-add-output" @click="addNode('output')">{{ t('variableValue.flow.nodes.output') }}</button>
           </aside>
 
           <main class="variable-flow-dialog__canvas">
@@ -388,27 +388,27 @@ watch(() => props.open, (open) => {
             </VueFlow>
           </main>
 
-          <aside class="variable-flow-dialog__inspector">
+          <aside class="variable-flow-dialog__inspector mk-form-scope">
             <strong>{{ t('variableValue.flow.inspector') }}</strong>
             <p v-if="!selectedNode" class="variable-flow-dialog__muted">{{ t('variableValue.flow.noSelection') }}</p>
             <template v-else>
               <div class="variable-flow-dialog__node-title">
                 <span>{{ selectedNode.id }}</span>
-                <button v-if="selectedNode.type !== 'output'" type="button" @click="removeSelectedNode">{{ t('datasource.actions.remove') }}</button>
+                <button class="mk-form-button" v-if="selectedNode.type !== 'output'" type="button" @click="removeSelectedNode">{{ t('datasource.actions.remove') }}</button>
               </div>
 
               <template v-if="selectedNode.type === 'variable'">
-                <label class="variable-flow-dialog__field">
+                <label class="variable-flow-dialog__field mk-form-field">
                   <span>{{ t('variableValue.variable.blockPlaceholder') }}</span>
-                  <select :value="selectedNode.blockId ?? ''" @change="updateSelectedVariableBlock(($event.target as HTMLSelectElement).value)">
+                  <select class="mk-form-control" :value="selectedNode.blockId ?? ''" @change="updateSelectedVariableBlock(($event.target as HTMLSelectElement).value)">
                     <option v-for="source in blockDataSources" :key="`${source.blockId}-${source.blockType}`" :value="source.blockId">
                       {{ source.blockType }} / {{ source.blockId || 'legacy' }}
                     </option>
                   </select>
                 </label>
-                <label class="variable-flow-dialog__field">
+                <label class="variable-flow-dialog__field mk-form-field">
                   <span>{{ t('variableValue.variable.fieldPlaceholder') }}</span>
-                  <select :value="selectedNode.variable" @change="updateSelectedVariableField(($event.target as HTMLSelectElement).value)">
+                  <select class="mk-form-control" :value="selectedNode.variable" @change="updateSelectedVariableField(($event.target as HTMLSelectElement).value)">
                     <option v-for="field in selectedVariableBlock?.fields ?? []" :key="field.variable" :value="field.variable">
                       {{ field.label }} {{ field.variable }} · {{ field.dataType }}
                     </option>
@@ -416,12 +416,12 @@ watch(() => props.open, (open) => {
                 </label>
               </template>
 
-              <label v-if="selectedNode.type === 'constant'" class="variable-flow-dialog__field">
+              <label v-if="selectedNode.type === 'constant'" class="variable-flow-dialog__field mk-form-field">
                 <span>{{ t('variableValue.flow.fields.value') }}</span>
-                <textarea :value="String(selectedNode.value ?? '')" @input="updateSelectedNode({ value: ($event.target as HTMLTextAreaElement).value })"></textarea>
+                <textarea class="mk-form-control" :value="String(selectedNode.value ?? '')" @input="updateSelectedNode({ value: ($event.target as HTMLTextAreaElement).value })"></textarea>
               </label>
 
-              <button
+              <button class="mk-form-button"
                 v-if="selectedNode.type === 'processor' || selectedNode.type === 'variable'"
                 type="button"
                 data-testid="variable-flow-config-processors"
@@ -431,9 +431,9 @@ watch(() => props.open, (open) => {
               </button>
 
               <template v-if="selectedNode.type === 'if'">
-                <label class="variable-flow-dialog__field">
+                <label class="variable-flow-dialog__field mk-form-field">
                   <span>{{ t('variableValue.flow.fields.left') }}</span>
-                  <select
+                  <select class="mk-form-control"
                     :value="selectedNode.condition.left.kind === 'variable' ? selectedNode.condition.left.variable : ''"
                     @change="updateConditionOperand('left', 'variable', ($event.target as HTMLSelectElement).value)"
                   >
@@ -442,15 +442,15 @@ watch(() => props.open, (open) => {
                     </option>
                   </select>
                 </label>
-                <label class="variable-flow-dialog__field">
+                <label class="variable-flow-dialog__field mk-form-field">
                   <span>{{ t('variableValue.flow.fields.operator') }}</span>
-                  <select :value="selectedNode.condition.operator" @change="updateConditionOperator(($event.target as HTMLSelectElement).value)">
+                  <select class="mk-form-control" :value="selectedNode.condition.operator" @change="updateConditionOperator(($event.target as HTMLSelectElement).value)">
                     <option v-for="operator in conditionOperators" :key="operator" :value="operator">{{ operator }}</option>
                   </select>
                 </label>
-                <label class="variable-flow-dialog__field">
+                <label class="variable-flow-dialog__field mk-form-field">
                   <span>{{ t('variableValue.flow.fields.right') }}</span>
-                  <input
+                  <input class="mk-form-control"
                     :value="selectedNode.condition.right.kind === 'constant' ? String(selectedNode.condition.right.value ?? '') : ''"
                     @input="updateConditionOperand('right', 'constant', ($event.target as HTMLInputElement).value)"
                   >
@@ -460,10 +460,10 @@ watch(() => props.open, (open) => {
           </aside>
         </div>
 
-        <footer class="variable-flow-dialog__footer">
+        <footer class="variable-flow-dialog__footer mk-form-dialog-footer">
           <p v-if="validationError" class="variable-flow-dialog__error" data-testid="variable-flow-error">{{ validationError }}</p>
-          <button type="button" @click="emit('close')">{{ t('datasource.actions.cancel') }}</button>
-          <button type="button" class="variable-flow-dialog__primary" data-testid="variable-flow-apply" @click="applyFlow">
+          <button class="mk-form-button" type="button" @click="emit('close')">{{ t('datasource.actions.cancel') }}</button>
+          <button type="button" class="variable-flow-dialog__primary mk-form-button mk-form-button--primary" data-testid="variable-flow-apply" @click="applyFlow">
             {{ t('datasource.processors.apply') }}
           </button>
         </footer>
@@ -494,14 +494,9 @@ watch(() => props.open, (open) => {
 
 .variable-flow-dialog__panel {
   display: flex;
-  width: min(1200px, 100%);
   height: min(820px, calc(100vh - 36px));
   flex-direction: column;
   overflow: hidden;
-  border-radius: 12px;
-  background: white;
-  color: rgb(15 23 42);
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.35);
 }
 
 .variable-flow-dialog__header,
@@ -510,13 +505,9 @@ watch(() => props.open, (open) => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 14px 16px;
 }
 
 .variable-flow-dialog__footer {
-  border-top: 1px solid rgb(226 232 240);
-  border-bottom: 0;
   justify-content: flex-end;
 }
 
@@ -547,7 +538,7 @@ watch(() => props.open, (open) => {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--mk-form-field-gap);
   overflow-y: auto;
   border-right: 1px solid rgb(226 232 240);
   padding: 12px;
@@ -566,20 +557,7 @@ watch(() => props.open, (open) => {
 .variable-flow-dialog__library button,
 .variable-flow-dialog__inspector button,
 .variable-flow-dialog__footer button {
-  min-height: 32px;
-  border: 1px solid rgb(191 219 254);
-  border-radius: 7px;
-  background: rgb(239 246 255);
-  color: rgb(29 78 216);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 650;
   cursor: pointer;
-}
-
-.variable-flow-dialog__primary {
-  background: rgb(37 99 235) !important;
-  color: white !important;
 }
 
 .variable-flow-dialog__node-title {
@@ -591,29 +569,7 @@ watch(() => props.open, (open) => {
   font-size: 12px;
 }
 
-.variable-flow-dialog__field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  color: rgb(51 65 85);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.variable-flow-dialog__field input,
-.variable-flow-dialog__field select,
 .variable-flow-dialog__field textarea {
-  min-width: 0;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 7px;
-  padding: 6px 8px;
-  background: white;
-  color: rgb(15 23 42);
-  font: inherit;
-}
-
-.variable-flow-dialog__field textarea {
-  min-height: 72px;
   resize: vertical;
 }
 
@@ -653,5 +609,16 @@ watch(() => props.open, (open) => {
   margin: 0 auto 0 0;
   color: rgb(185 28 28);
   font-size: 12px;
+}
+@container (max-width: 900px) {
+  .variable-flow-dialog__body { grid-template-columns: 150px minmax(0, 1fr); overflow: auto; }
+  .variable-flow-dialog__canvas { min-height: 300px; }
+  .variable-flow-dialog__inspector { grid-column: 1 / -1; overflow: visible; }
+}
+@container (max-width: 520px) {
+  .variable-flow-dialog__body { display: flex; flex-direction: column; }
+  .variable-flow-dialog__library { flex: none; max-height: 180px; }
+  .variable-flow-dialog__canvas { flex: none; height: 300px; }
+  .variable-flow-dialog__inspector { flex: none; }
 }
 </style>

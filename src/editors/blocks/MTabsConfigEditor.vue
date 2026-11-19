@@ -748,7 +748,7 @@ defineExpose({
   <div class="tabs-config-editor" data-testid="tabs-config-editor">
     <div class="tabs-config-editor__trigger-row">
       <button
-        class="tabs-config-editor__primary-button"
+        class="tabs-config-editor__primary-button mk-form-button mk-form-button--primary"
         type="button"
         data-testid="tabs-config-settings-open"
         :disabled="isReadOnly"
@@ -767,14 +767,14 @@ defineExpose({
 
     <dialog
       ref="settingsDialogRef"
-      class="tabs-config-editor__dialog"
+      class="tabs-config-editor__dialog mk-form-dialog"
       data-testid="tabs-config-dialog"
       :aria-hidden="!isSettingsDialogOpen"
       aria-labelledby="tabs-config-dialog-title"
       @close="isSettingsDialogOpen = false"
     >
-      <div class="tabs-config-editor__dialog-panel">
-        <div class="tabs-config-editor__dialog-header">
+      <div class="tabs-config-editor__dialog-panel mk-form-dialog-panel">
+        <div class="tabs-config-editor__dialog-header mk-form-dialog-header">
           <h3
             id="tabs-config-dialog-title"
             class="tabs-config-editor__dialog-title"
@@ -783,7 +783,7 @@ defineExpose({
             {{ t('tabs.configEditor.title') }}
           </h3>
           <button
-            class="tabs-config-editor__secondary-button"
+            class="tabs-config-editor__secondary-button mk-form-button"
             type="button"
             data-testid="tabs-config-close"
             @click="closeSettingsDialog"
@@ -792,10 +792,10 @@ defineExpose({
           </button>
         </div>
 
-        <div class="tabs-config-editor__dialog-body">
+        <div class="tabs-config-editor__dialog-body mk-form-dialog-body mk-form-scope">
           <div class="tabs-config-editor__toolbar">
             <button
-              class="tabs-config-editor__primary-button"
+              class="tabs-config-editor__primary-button mk-form-button mk-form-button--primary"
               type="button"
               data-testid="tabs-config-add"
               :disabled="isReadOnly"
@@ -804,7 +804,7 @@ defineExpose({
               {{ t('tabs.configEditor.actions.add') }}
             </button>
             <button
-              class="tabs-config-editor__secondary-button"
+              class="tabs-config-editor__secondary-button mk-form-button"
               type="button"
               data-testid="tabs-config-refresh-pages"
               :disabled="pagesLoading"
@@ -813,7 +813,7 @@ defineExpose({
               {{ pagesLoading ? t('tabs.configEditor.loadingPages') : t('tabs.configEditor.actions.refreshPages') }}
             </button>
             <button
-              class="tabs-config-editor__danger-button"
+              class="tabs-config-editor__danger-button mk-form-button mk-form-button--danger"
               type="button"
               data-testid="tabs-config-clear"
               :disabled="isReadOnly || !committedValue.tabs.length"
@@ -829,12 +829,12 @@ defineExpose({
           <div class="tabs-config-editor__page-filters">
             <input
               v-model="pageSearch"
-              class="tabs-config-editor__input"
+              class="tabs-config-editor__input mk-form-control"
               type="search"
               placeholder="按页面名称或 UUID 搜索"
               data-testid="tabs-config-page-search"
             >
-            <select v-model="pageKindFilter" class="tabs-config-editor__input" data-testid="tabs-config-page-kind-filter">
+            <select v-model="pageKindFilter" class="tabs-config-editor__input mk-form-control" data-testid="tabs-config-page-kind-filter">
               <option value="all">全部页面</option>
               <option value="main">主页面</option>
               <option value="sub">子页面</option>
@@ -868,8 +868,8 @@ defineExpose({
               class="tabs-config-editor__row"
               :data-testid="`tabs-config-row-${index}`"
             >
-              <label class="tabs-config-editor__active-cell">
-                <input
+              <label class="tabs-config-editor__active-cell mk-form-check-row">
+                <input class="mk-form-check"
                   type="radio"
                   name="tabs-config-active-tab"
                   :checked="draftActiveTabId === tab.id"
@@ -881,7 +881,7 @@ defineExpose({
               </label>
 
               <input
-                class="tabs-config-editor__input"
+                class="tabs-config-editor__input mk-form-control"
                 type="text"
                 :value="tab.id"
                 :readonly="isReadOnly"
@@ -899,7 +899,7 @@ defineExpose({
 
               <div class="tabs-config-editor__page-cell">
                 <select
-                  class="tabs-config-editor__input"
+                  class="tabs-config-editor__input mk-form-control"
                   :value="tab.pageUUID"
                   :disabled="isReadOnly || pagesLoading"
                   :data-testid="`tabs-config-page-uuid-${index}`"
@@ -932,7 +932,7 @@ defineExpose({
 
               <div class="tabs-config-editor__actions">
                 <button
-                  class="tabs-config-editor__secondary-button"
+                  class="tabs-config-editor__secondary-button mk-form-button"
                   type="button"
                   :disabled="isReadOnly || !pageEditor || !pageEditor.canCreateSubPage"
                   :data-testid="`tabs-config-create-page-${index}`"
@@ -941,7 +941,7 @@ defineExpose({
                   新建子页面
                 </button>
                 <button
-                  class="tabs-config-editor__secondary-button"
+                  class="tabs-config-editor__secondary-button mk-form-button"
                   type="button"
                   :disabled="!pageEditor || !tab.pageUUID"
                   :data-testid="`tabs-config-edit-page-${index}`"
@@ -950,7 +950,7 @@ defineExpose({
                   {{ !pageEditor?.canPersist ? '临时编排页面' : '编排页面' }}
                 </button>
                 <button
-                  class="tabs-config-editor__icon-button"
+                  class="tabs-config-editor__icon-button mk-form-button"
                   type="button"
                   :disabled="isReadOnly || index === 0"
                   :data-testid="`tabs-config-move-up-${index}`"
@@ -959,7 +959,7 @@ defineExpose({
                   ↑
                 </button>
                 <button
-                  class="tabs-config-editor__icon-button"
+                  class="tabs-config-editor__icon-button mk-form-button"
                   type="button"
                   :disabled="isReadOnly || index === draftTabs.length - 1"
                   :data-testid="`tabs-config-move-down-${index}`"
@@ -968,7 +968,7 @@ defineExpose({
                   ↓
                 </button>
                 <button
-                  class="tabs-config-editor__danger-button"
+                  class="tabs-config-editor__danger-button mk-form-button mk-form-button--danger"
                   type="button"
                   :disabled="isReadOnly"
                   :data-testid="`tabs-config-remove-${index}`"
@@ -989,9 +989,9 @@ defineExpose({
           </p>
         </div>
 
-        <div class="tabs-config-editor__dialog-actions">
+        <div class="tabs-config-editor__dialog-actions mk-form-dialog-footer">
           <button
-            class="tabs-config-editor__secondary-button"
+            class="tabs-config-editor__secondary-button mk-form-button"
             type="button"
             data-testid="tabs-config-cancel"
             @click="closeSettingsDialog"
@@ -999,7 +999,7 @@ defineExpose({
             {{ t('globalCalls.cancel') }}
           </button>
           <button
-            class="tabs-config-editor__primary-button"
+            class="tabs-config-editor__primary-button mk-form-button mk-form-button--primary"
             type="button"
             data-testid="tabs-config-save"
             :disabled="isReadOnly"
@@ -1046,32 +1046,11 @@ defineExpose({
 .tabs-config-editor__secondary-button,
 .tabs-config-editor__icon-button,
 .tabs-config-editor__danger-button {
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 18px;
-  min-height: 32px;
-  padding: 6px 10px;
-}
-
-.tabs-config-editor__primary-button {
-  border-color: rgb(37 99 235);
-  background: rgb(37 99 235);
-  color: white;
-}
-
-.tabs-config-editor__danger-button {
-  border-color: rgb(254 202 202);
-  color: rgb(185 28 28);
 }
 
 .tabs-config-editor__icon-button {
   width: 32px;
-  padding: 6px;
 }
 
 .tabs-config-editor__primary-button:hover,
@@ -1089,29 +1068,10 @@ defineExpose({
   opacity: 0.5;
 }
 
-.tabs-config-editor__dialog {
-  width: min(960px, calc(100vw - 32px));
-  max-width: 960px;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: inherit;
-  padding: 0;
-}
-
-.tabs-config-editor__dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
 .tabs-config-editor__dialog-panel {
   display: flex;
-  max-height: min(760px, calc(100vh - 48px));
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgb(226 232 240);
-  border-radius: 12px;
-  background: rgb(255 255 255);
-  box-shadow: 0 24px 60px rgb(15 23 42 / 0.22);
 }
 
 .tabs-config-editor__dialog-header,
@@ -1120,14 +1080,10 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 14px 16px;
 }
 
 .tabs-config-editor__dialog-actions {
   justify-content: flex-end;
-  border-top: 1px solid rgb(226 232 240);
-  border-bottom: 0;
 }
 
 .tabs-config-editor__dialog-title {
@@ -1141,9 +1097,8 @@ defineExpose({
   display: flex;
   min-height: 0;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--mk-form-field-gap);
   overflow: auto;
-  padding: 16px;
 }
 
 .tabs-config-editor__empty,
@@ -1212,32 +1167,7 @@ defineExpose({
 }
 
 .tabs-config-editor__active-cell {
-  display: flex;
   justify-content: center;
-}
-
-.tabs-config-editor__input {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font-size: 13px;
-  line-height: 20px;
-  padding: 7px 9px;
-}
-
-.tabs-config-editor__input:focus {
-  border-color: rgb(37 99 235);
-  box-shadow: 0 0 0 2px rgb(37 99 235 / 0.16);
-  outline: none;
-}
-
-.tabs-config-editor__input:read-only,
-.tabs-config-editor__input:disabled {
-  background: rgb(248 250 252);
-  color: rgb(100 116 139);
 }
 
 .tabs-config-editor__page-cell {
@@ -1278,11 +1208,6 @@ defineExpose({
   color: rgb(203 213 225);
 }
 
-.dark .tabs-config-editor__dialog-header,
-.dark .tabs-config-editor__dialog-actions {
-  border-color: rgb(51 65 85);
-}
-
 .dark .tabs-config-editor__dialog-title {
   color: rgb(248 250 252);
 }
@@ -1294,12 +1219,6 @@ defineExpose({
   border-color: rgb(71 85 105);
   background: rgb(30 41 59);
   color: rgb(248 250 252);
-}
-
-.dark .tabs-config-editor__input:read-only,
-.dark .tabs-config-editor__input:disabled {
-  background: rgb(15 23 42);
-  color: rgb(148 163 184);
 }
 
 .dark .tabs-config-editor__notice--warning {
@@ -1314,19 +1233,6 @@ defineExpose({
   color: rgb(254 202 202);
 }
 
-@media (max-width: 760px) {
-  .tabs-config-editor__dialog {
-    width: calc(100vw - 16px);
-  }
-
-  .tabs-config-editor__dialog-panel {
-    max-height: calc(100vh - 16px);
-  }
-
-  .tabs-config-editor__dialog-header,
-  .tabs-config-editor__dialog-actions,
-  .tabs-config-editor__dialog-body {
-    padding: 12px;
-  }
+@container (max-width: 760px) {
 }
 </style>

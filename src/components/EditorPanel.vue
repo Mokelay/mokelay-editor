@@ -91,22 +91,22 @@ defineExpose({
       {{ error }}
     </p>
 
-    <label v-if="!loading" class="mb-4 flex flex-col gap-1.5 text-sm">
+    <label v-if="!loading" class="mb-4 mk-form-field">
       <span class="font-medium text-slate-700 dark:text-slate-200">页面标题</span>
       <input
         data-testid="page-name-input"
-        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+        class="mk-form-control"
         :value="pageName"
         placeholder="请输入页面标题"
         @input="emit('name-change', ($event.target as HTMLInputElement).value)"
       />
     </label>
 
-    <label v-if="!loading && showLayoutBinding" class="mb-4 flex flex-col gap-1.5 text-sm">
+    <label v-if="!loading && showLayoutBinding" class="mb-4 mk-form-field">
       <span class="font-medium text-slate-700 dark:text-slate-200">页面布局</span>
       <select
         data-testid="page-layout-select"
-        class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-800"
+        class="disabled:cursor-not-allowed mk-form-control"
         :value="layoutUuid || ''"
         :disabled="layoutLoading || layoutSaving || !canEditLayoutBinding"
         @change="handleLayoutChange"
@@ -136,232 +136,5 @@ defineExpose({
 </template>
 
 <style scoped>
-:deep(.mokelay-editor-tool) {
-  position: relative;
-}
-
-:deep(.mokelay-editor-tool__property-dialog) {
-  width: min(100%, 480px);
-  border: 0;
-  border-radius: 16px;
-  padding: 0;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-}
-
-:deep(.mokelay-editor-tool__property-dialog--wide) {
-  width: min(calc(100vw - 32px), 720px);
-}
-
-:deep(.mokelay-editor-tool__property-dialog::backdrop) {
-  background: rgb(15 23 42 / 0.45);
-}
-
-:deep(.mokelay-editor-tool__property-panel) {
-  margin: 0;
-  padding: 20px;
-  background: rgb(255 255 255);
-}
-
-:deep(.mokelay-editor-tool__property-header) {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-:deep(.mokelay-editor-tool__property-title) {
-  margin: 0;
-  color: rgb(15 23 42);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-:deep(.mokelay-editor-tool__property-close) {
-  border: 0;
-  border-radius: 10px;
-  padding: 8px 12px;
-  background: rgb(226 232 240);
-  color: rgb(51 65 85);
-  cursor: pointer;
-}
-
-:deep(.mokelay-editor-tool__property-body) {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-:deep(.mokelay-editor-tool__events-dialog) {
-  width: min(100%, 920px);
-}
-
-:deep(.mokelay-editor-tool__events-body) {
-  gap: 12px;
-}
-
-:deep(.mokelay-editor-tool__events-empty) {
-  margin: 0;
-  color: rgb(100 116 139);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-:deep(.mokelay-editor-tool__event-row) {
-  display: flex;
-  align-items: end;
-  gap: 10px;
-  border: 1px solid rgb(226 232 240);
-  border-radius: 10px;
-  padding: 12px;
-}
-
-:deep(.mokelay-editor-tool__event-fields) {
-  display: grid;
-  flex: 1;
-  grid-template-columns: minmax(180px, 0.3fr) minmax(240px, 1fr);
-  gap: 10px;
-}
-
-:deep(.mokelay-editor-tool__event-field) {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 6px;
-}
-
-:deep(.mokelay-editor-tool__event-action-field) {
-  min-width: 240px;
-}
-
-:deep(.mokelay-editor-tool__event-add),
-:deep(.mokelay-editor-tool__event-remove) {
-  border: 0;
-  border-radius: 10px;
-  padding: 9px 12px;
-  font-size: 14px;
-  line-height: 20px;
-  cursor: pointer;
-}
-
-:deep(.mokelay-editor-tool__event-add) {
-  align-self: flex-start;
-  background: rgb(79 70 229);
-  color: white;
-}
-
-:deep(.mokelay-editor-tool__event-remove) {
-  flex: none;
-  background: rgb(254 226 226);
-  color: rgb(185 28 28);
-}
-
-:deep(.mokelay-editor-tool__property-field) {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-:deep(.mokelay-editor-tool__property-field--checkbox) {
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-}
-
-:deep(.mokelay-editor-tool__property-label) {
-  color: rgb(51 65 85);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-:deep(.mokelay-editor-tool__property-checkbox) {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-}
-
-:deep(.mokelay-editor-tool__property-input) {
-  width: 100%;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-:deep(.mokelay-editor-tool__property-input:focus) {
-  outline: none;
-  border-color: rgb(99 102 241);
-  box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
-}
-
-:deep(.mokelay-editor-tool__property-textarea) {
-  min-height: 128px;
-  resize: vertical;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-}
-
-:deep(.mokelay-editor-tool__property-input[aria-invalid='true']) {
-  border-color: rgb(220 38 38);
-  box-shadow: 0 0 0 2px rgb(220 38 38 / 0.12);
-}
-
-:deep(.mokelay-editor-tool__property-error) {
-  color: rgb(220 38 38);
-  font-size: 12px;
-  line-height: 18px;
-}
-
-:global(.dark .mokelay-editor-tool__property-panel) {
-  background: rgb(15 23 42);
-}
-
-:global(.dark .mokelay-editor-tool__property-title) {
-  color: rgb(241 245 249);
-}
-
-:global(.dark .mokelay-editor-tool__property-close) {
-  background: rgb(51 65 85);
-  color: rgb(241 245 249);
-}
-
-:global(.dark .mokelay-editor-tool__property-label) {
-  color: rgb(203 213 225);
-}
-
-:global(.dark .mokelay-editor-tool__property-input) {
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
-  border-color: rgb(71 85 105 / 0.9);
-}
-
-:global(.dark .mokelay-editor-tool__events-empty) {
-  color: rgb(148 163 184);
-}
-
-:global(.dark .mokelay-editor-tool__event-row) {
-  border-color: rgb(51 65 85);
-}
-
-:global(.dark .mokelay-editor-tool__event-remove) {
-  background: rgb(127 29 29 / 0.45);
-  color: rgb(254 202 202);
-}
-
-@media (max-width: 720px) {
-  :deep(.mokelay-editor-tool__event-row) {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  :deep(.mokelay-editor-tool__event-fields) {
-    grid-template-columns: 1fr;
-  }
-
-  :deep(.mokelay-editor-tool__event-remove) {
-    align-self: flex-start;
-  }
-}
+:deep(.mokelay-editor-tool) { position: relative; }
 </style>

@@ -60,6 +60,7 @@ type ParsedRoute = {
   apiBuilder: boolean;
   apiSource: 'user' | 'system';
   apiFragment: boolean;
+  assetApp: string;
   preview: boolean;
   runtimePage: boolean;
   notFound: boolean;
@@ -237,6 +238,7 @@ function createParsedRoute(overrides: Partial<ParsedRoute> = {}): ParsedRoute {
     apiBuilder: false,
     apiSource: 'user',
     apiFragment: false,
+    assetApp: 'mokelay',
     preview: false,
     runtimePage: false,
     notFound: false,
@@ -263,7 +265,8 @@ function parseRouteLocation(location: RouteLocation): ParsedRoute {
       apiUuid: safeDecodeURIComponent(apiMatch[1]),
       apiBuilder: true,
       apiSource,
-      apiFragment
+      apiFragment,
+      assetApp: query.get('assetApp') || 'mokelay'
     });
   }
 
@@ -887,6 +890,8 @@ function backToPagesPage() {
       >
         <ApiBuilderShell
           v-if="isApiBuilderPage"
+          :key="routeApiSource + ':' + parsedRoute.assetApp"
+          :route-asset-app="parsedRoute.assetApp"
           :route-uuid="routeApiUuid"
           :route-source="routeApiSource"
           :route-fragment="routeApiFragment"
@@ -895,7 +900,7 @@ function backToPagesPage() {
           <section data-testid="page-editor-header" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <button data-testid="back-to-page-list-button" class="mb-2 text-sm font-medium text-teal-700 hover:text-teal-500 dark:text-teal-300" @click="backToPagesPage">
+                <button data-testid="back-to-page-list-button" class="mb-2 text-teal-700 hover:text-teal-500 dark:text-teal-300 mk-form-button" @click="backToPagesPage">
                   {{ t('page.backToPages') }}
                 </button>
                 <div class="flex flex-wrap items-center gap-3">
@@ -906,7 +911,7 @@ function backToPagesPage() {
               <div class="flex flex-wrap items-center gap-2">
                 <button
                   data-testid="save-button"
-                  class="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  class="bg-teal-600 text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-50 mk-form-button"
                   :disabled="!isSaveReady"
                   @click="saveEditorContent"
                 >
@@ -914,7 +919,7 @@ function backToPagesPage() {
                 </button>
                 <button
                   data-testid="preview-button"
-                  class="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                  class="bg-emerald-500 text-white hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 mk-form-button"
                   :disabled="!isEditorReady"
                   @click="openPreviewPage"
                 >
@@ -935,19 +940,19 @@ function backToPagesPage() {
           <section class="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-700 dark:bg-slate-900" data-testid="page-locale-settings">
             <h3 class="font-semibold text-slate-900 dark:text-white">{{ t('contentLocalization.title') }}</h3>
             <div class="grid gap-3 md:grid-cols-3">
-              <label class="grid gap-1">
+              <label class="mk-form-field">
                 <span>{{ t('contentLocalization.supportedLocales') }}</span>
                 <ContentLocaleMultiSelect :model-value="pageLocaleConfig.supportedLocales" @update:model-value="updateSupportedLocales" />
               </label>
-              <label class="grid gap-1">
+              <label class="mk-form-field">
                 <span>{{ t('contentLocalization.defaultLocale') }}</span>
-                <select class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700" :value="pageLocaleConfig.defaultLocale" @change="updateDefaultLocale">
+                <select class="mk-form-control" :value="pageLocaleConfig.defaultLocale" @change="updateDefaultLocale">
                   <option v-for="locale in pageLocaleConfig.supportedLocales" :key="locale" :value="locale">{{ formatContentLocale(locale) }}</option>
                 </select>
               </label>
-              <label class="grid gap-1">
+              <label class="mk-form-field">
                 <span>{{ t('contentLocalization.editingLocale') }}</span>
-                <select class="rounded border border-slate-300 bg-transparent px-2 py-1.5 dark:border-slate-700" :value="editingLocale" @change="setContentEditingLocale(($event.target as HTMLSelectElement).value)">
+                <select class="mk-form-control" :value="editingLocale" @change="setContentEditingLocale(($event.target as HTMLSelectElement).value)">
                   <option v-for="locale in pageLocaleConfig.supportedLocales" :key="locale" :value="locale">{{ formatContentLocale(locale) }}</option>
                 </select>
               </label>
@@ -1019,7 +1024,7 @@ function backToPagesPage() {
         <template #toolbarLeading>
           <button
             data-testid="back-to-editor-button"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500"
+            class="border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-500 mk-form-button"
             @click="backToEditorPage"
           >
             {{ t('preview.backToEditor') }}

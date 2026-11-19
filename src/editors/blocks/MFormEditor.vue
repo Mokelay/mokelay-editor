@@ -42,7 +42,7 @@ import type { PageEditorBridge } from '@/editors/pageEditor';
 
 type FormItemToolOptions = {
   data?: Record<string, unknown>;
-  config?: Record<string, unknown>;
+  config?: Record<string, unknown> & { getFormItems?: () => MFormItemData[] };
   block?: {
     dispatchChange: () => void;
   };
@@ -77,8 +77,8 @@ const emit = defineEmits<{
 const { t, localeValue } = useI18n();
 const rootRef = ref<HTMLElement | null>(null);
 const holderRef = ref<HTMLElement | null>(null);
-const previewItems = computed(() => normalizeMFormItems(props.items));
 const rendererProps = computed(() => normalizeMFormProps({ ...props, edit: true }));
+const previewItems = computed(() => rendererProps.value.items ?? []);
 
 let editor: EditorJS | null = null;
 let isSyncingFromProps = false;
@@ -164,6 +164,7 @@ function createFormItemTool(
     private toolbarAlignTimer: number | null = null;
     private readonly blockApi?: FormItemToolOptions['block'];
     private readonly pageEditor?: PageEditorBridge;
+    private readonly getFormItems?: () => MFormItemData[];
     private readonly handleToolbarPointer = () => {
       this.scheduleToolbarAlignment();
     };
@@ -171,6 +172,7 @@ function createFormItemTool(
     constructor({ data, config, block }: FormItemToolOptions) {
       this.blockApi = block;
       this.pageEditor = config?.pageEditor as PageEditorBridge | undefined;
+      this.getFormItems = config?.getFormItems;
       const edit = typeof config?.edit === 'boolean' ? config.edit : true;
       const existingEditor = normalizeSelectorBlock(data?.editor);
       this.events = cloneBlockEvents(data?.events);
@@ -258,7 +260,7 @@ function createFormItemTool(
       if (!this.contentRoot) return;
 
       const updateState = (payload: MFormItemProps) => {
-        Object.assign(this.state, normalizeFormItemProps(payload, this.state.variableName));
+        Object.assign(this.state, normalizeFormItemProps({ ...this.state, ...payload }, this.state.variableName));
       };
 
       this.unmountVueApp();
@@ -320,7 +322,7 @@ function createFormItemTool(
       if (!this.wrapper || !this.getPropertyFields().length) return;
 
       const dialog = document.createElement('dialog');
-      dialog.className = 'mokelay-editor-tool__property-dialog';
+      dialog.className = 'mk-form-dialog mokelay-editor-tool__property-dialog';
       dialog.dataset.testid = 'tool-property-dialog';
       dialog.dataset.toolName = 'MFormItem';
 
@@ -328,12 +330,12 @@ function createFormItemTool(
       const fields = this.getPropertyFields().map((field) => this.renderPropertyField(field)).join('');
 
       dialog.innerHTML = `
-        <form method="dialog" class="mokelay-editor-tool__property-panel" data-testid="tool-property-panel">
-          <div class="mokelay-editor-tool__property-header">
+        <form method="dialog" class="mk-form-dialog-panel mokelay-editor-tool__property-panel" data-testid="tool-property-panel">
+          <div class="mk-form-dialog-header mokelay-editor-tool__property-header">
             <h3 class="mokelay-editor-tool__property-title" data-testid="tool-property-title">${escapeHtml(title)}</h3>
-            <button type="submit" class="mokelay-editor-tool__property-close" data-testid="tool-property-close">${escapeHtml(i18n.t('editor.close'))}</button>
+            <button type="submit" class="mk-form-button mokelay-editor-tool__property-close" data-testid="tool-property-close">${escapeHtml(i18n.t('editor.close'))}</button>
           </div>
-          <div class="mokelay-editor-tool__property-body" data-testid="tool-property-body">
+          <div class="mk-form-dialog-body mk-form-stack mk-form-scope mokelay-editor-tool__property-body" data-testid="tool-property-body">
             ${fields}
           </div>
         </form>
@@ -398,6 +400,7 @@ function createFormItemTool(
         [key]: value,
         edit: true
       }, this.state.variableName));
+      this.blockApi?.dispatchChange();
     }
 
     private getPropertyFieldValue(key: string): unknown {
@@ -407,24 +410,24 @@ function createFormItemTool(
     private renderPropertyField(field: EditorToolPropertyField) {
       if (field.type === 'component') {
         return `
-          <div class="mokelay-editor-tool__property-field mokelay-editor-tool__property-field--component">
-            <span class="mokelay-editor-tool__property-label">${escapeHtml(field.label)}</span>
+          <div class="mk-form-field mokelay-editor-tool__property-field mokelay-editor-tool__property-field--component">
+            <span class="mk-form-label mokelay-editor-tool__property-label">${escapeHtml(field.label)}</span>
             <div data-property-component-key="${escapeHtml(field.key)}"></div>
           </div>
         `;
       }
       if (field.type === 'checkbox') {
         return `
-          <label class="mokelay-editor-tool__property-field mokelay-editor-tool__property-field--checkbox">
+          <label class="mk-form-check-row mokelay-editor-tool__property-field mokelay-editor-tool__property-field--checkbox">
             <input
-              class="mokelay-editor-tool__property-checkbox"
+              class="mk-form-check mokelay-editor-tool__property-checkbox"
               data-testid="tool-property-input-${field.key}"
               data-property-key="${field.key}"
               data-property-type="checkbox"
               type="checkbox"
               ${this.getPropertyFieldValue(field.key) === true ? 'checked' : ''}
             />
-            <span class="mokelay-editor-tool__property-label">${escapeHtml(field.label)}</span>
+            <span class="mk-form-label mokelay-editor-tool__property-label">${escapeHtml(field.label)}</span>
           </label>
         `;
       }
@@ -436,10 +439,10 @@ function createFormItemTool(
         `).join('');
 
         return `
-          <label class="mokelay-editor-tool__property-field">
-            <span class="mokelay-editor-tool__property-label">${escapeHtml(field.label)}</span>
+          <label class="mk-form-field mokelay-editor-tool__property-field">
+            <span class="mk-form-label mokelay-editor-tool__property-label">${escapeHtml(field.label)}</span>
             <select
-              class="mokelay-editor-tool__property-input"
+              class="mk-form-control mokelay-editor-tool__property-input"
               data-testid="tool-property-input-${field.key}"
               data-property-key="${field.key}"
               data-property-type="select"
@@ -452,10 +455,10 @@ function createFormItemTool(
 
       const value = this.getPropertyFieldValue(field.key);
       return `
-        <label class="mokelay-editor-tool__property-field">
-          <span class="mokelay-editor-tool__property-label">${escapeHtml(field.label)}</span>
+        <label class="mk-form-field mokelay-editor-tool__property-field">
+          <span class="mk-form-label mokelay-editor-tool__property-label">${escapeHtml(field.label)}</span>
           <input
-            class="mokelay-editor-tool__property-input"
+            class="mk-form-control mokelay-editor-tool__property-input"
             data-testid="tool-property-input-${field.key}"
             data-property-key="${field.key}"
             data-property-type="text"
@@ -491,7 +494,7 @@ function createFormItemTool(
         if (!host) return;
         const app = createApp(field.component, {
           value: this.getPropertyFieldValue(field.key),
-          ...(field.getComponentProps?.({ value: this.getPropertyFieldValue(field.key), state: this.state as unknown as Record<string, unknown>, edit: true }) ?? {}),
+          ...(field.getComponentProps?.({ value: this.getPropertyFieldValue(field.key), state: { ...this.state, getFormItems: this.getFormItems }, edit: true }) ?? {}),
           onToolChange: (value: unknown) => this.updateProperty(field.key, value),
           onChange: (value: unknown) => this.updateProperty(field.key, value)
         });
@@ -540,6 +543,7 @@ async function createFormItemEditorTools(pageEditor?: PageEditorBridge) {
         ),
         config: {
           edit: true,
+          getFormItems: () => getItemsFromOutput(editorDataCache),
           pageEditor
         }
       }
@@ -760,14 +764,13 @@ onMounted(async () => {
 });
 
 watch(
-  () => props.items,
-  async (items) => {
+  previewItems,
+  async (nextItems) => {
     if (skipNextPropSync) {
       skipNextPropSync = false;
       return;
     }
 
-    const nextItems = normalizeMFormItems(items);
     const cachedItems = getItemsFromOutput(editorDataCache);
     if (isSameItems(nextItems, cachedItems)) {
       return;

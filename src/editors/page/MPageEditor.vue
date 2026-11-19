@@ -252,6 +252,8 @@ async function mountEditor() {
   ]);
   if (!holderRef.value || editor) return;
   clientBlockDocsCache = await loadClientBlockDocs();
+  const holder = holderRef.value;
+  if (!holder?.isConnected || editor) return;
   const columnTools: Record<string, ToolSettings> = {
     ...(createEditorTools({
       edit: true,
@@ -273,7 +275,7 @@ async function mountEditor() {
     })
   };
   editor = new EditorJSConstructor({
-    holder: holderRef.value,
+    holder,
     placeholder: t('editor.placeholder'),
     tools: {
       ...columnTools,

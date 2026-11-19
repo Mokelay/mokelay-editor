@@ -80,7 +80,7 @@ export function buildDatasourceFromMokelayApi(
     datasource: normalizeDatasource({
       type: 'API',
       domain,
-      path: `/api/mokelay/${encodeURIComponent(api.uuid)}`,
+      path: `/api/${encodeURIComponent(api.assetApp ?? 'mokelay')}/${encodeURIComponent(api.uuid)}`,
       method,
       headerData: requestDeclarationsToKeyValueItems(apiJson, 'header'),
       queryData: requestDeclarationsToKeyValueItems(apiJson, 'query'),

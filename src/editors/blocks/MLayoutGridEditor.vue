@@ -485,13 +485,13 @@ onBeforeUnmount(async () => {
         <template #area="{ area }">
           <header class="m-layout-grid-editor__area-toolbar">
             <input
-              class="m-layout-grid-editor__area-name"
+              class="m-layout-grid-editor__area-name mk-form-control"
               :value="area.name"
               aria-label="区域名称"
               @input="updateAreaName(area.id, $event)"
             >
             <input
-              class="m-layout-grid-editor__area-width"
+              class="m-layout-grid-editor__area-width mk-form-control"
               :value="area.width ?? ''"
               aria-label="区域宽度"
               placeholder="minmax(0, 1fr)"
@@ -499,7 +499,7 @@ onBeforeUnmount(async () => {
             >
             <button
               type="button"
-              class="m-layout-grid-editor__area-remove"
+              class="m-layout-grid-editor__area-remove mk-form-button mk-form-button--danger"
               :disabled="areas.length <= 1"
               @click="removeArea(area.id)"
             >
@@ -516,7 +516,7 @@ onBeforeUnmount(async () => {
       <button
         v-if="canAddArea"
         type="button"
-        class="m-layout-grid-editor__add"
+        class="m-layout-grid-editor__add mk-form-button"
         @click="addArea"
       >
         添加区域
@@ -540,28 +540,8 @@ onBeforeUnmount(async () => {
   align-items: center;
   margin-bottom: 8px;
 }
-.m-layout-grid-editor__area-name,
-.m-layout-grid-editor__area-width {
-  width: 100%;
-  min-width: 0;
-  height: 30px;
-  padding: 0 8px;
-  color: #0f172a;
-  font-size: 12px;
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
 .m-layout-grid-editor__area-remove,
 .m-layout-grid-editor__add {
-  height: 30px;
-  padding: 0 10px;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 600;
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
   cursor: pointer;
 }
 .m-layout-grid-editor__area-remove:disabled { cursor: not-allowed; opacity: 0.55; }
@@ -572,10 +552,8 @@ onBeforeUnmount(async () => {
 .m-layout-grid-editor__surface :deep(.ce-block__content) { margin: 0; }
 .m-layout-grid-editor__add {
   margin-top: 10px;
-  color: #0f766e;
-  border-color: #99f6e4;
 }
-@media (max-width: 640px) {
+@container (max-width: 640px) {
   .m-layout-grid-editor__area-toolbar { grid-template-columns: minmax(0, 1fr); }
 }
 :global(.dark) .m-layout-grid-editor :deep(.m-layout-grid__area) {

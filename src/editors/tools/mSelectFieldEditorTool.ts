@@ -137,7 +137,14 @@ import type { MSelectFieldProps } from 'mokelay-components/blocks/MSelectField.v
  *       "description": "作为 MForm 字段 key 和 DOM id；为空时仅生成组件本地 DOM id。"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [{
+ *     "event": "change",
+ *     "payload": "payload: MSelectFieldProps (includes value: string)",
+ *     "trigger": "用户选择变化；属性回填不会触发",
+ *     "source": "submodule/mokelay-components/src/blocks/MSelectField.vue",
+ *     "label": "选择变化",
+ *     "description": "动作通过 event.value 读取选中值；程序回填后的联动可以使用 trigger_event 显式调用。"
+ *   }],
  *   "methods": [
  *     {
  *       "name": "getData",

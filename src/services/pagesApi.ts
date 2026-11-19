@@ -37,6 +37,7 @@ export type PageListItem = {
   uuid: string;
   name: string;
   source: PageSource;
+  assetApp?: string;
   subPage: boolean;
   quotes: string[];
   dependencies: string[];
@@ -213,6 +214,7 @@ function normalizePageList(value: PagesResponse, source: PageSource): PageListIt
       uuid,
       name: readString(record.name)?.trim() ?? uuid,
       source,
+      ...(typeof record.assetApp === 'string' ? { assetApp: record.assetApp } : {}),
       subPage: readBoolean(record.subPage ?? record.sub_page),
       quotes: normalizePageUuidList(record.quotes),
       dependencies: normalizePageUuidList(record.dependencies)

@@ -210,7 +210,7 @@ async function executeDryRunGraph(
     }
 
     if (isStandardBlock(block)) {
-      nextBlock = await executeDryRunBlock(block, context, logs, errors, options);
+      nextBlock = await executeDryRunBlock(block, context, logs, errors, options, Boolean(isFragmentApiJson(apiJson) && apiJson.transaction));
       if (errors.length) return terminalUuid;
       terminalUuid = block.uuid;
     }
@@ -224,7 +224,8 @@ async function executeDryRunBlock(
   context: DryRunContext,
   logs: DryRunBlockLog[],
   errors: string[],
-  options: DryRunOptions
+  options: DryRunOptions,
+  inTransaction: boolean
 ) {
   try {
     const inputs = resolveTemplates(block.inputs ?? {}, context) as Record<string, unknown>;
@@ -243,7 +244,7 @@ async function executeDryRunBlock(
     });
   } catch (error) {
     const message = readErrorMessage(error);
-    const catchesError = Object.prototype.hasOwnProperty.call(block, 'errorNextBlock');
+    const catchesError = !inTransaction && Object.prototype.hasOwnProperty.call(block, 'errorNextBlock');
     if (!catchesError) {
       errors.push(message);
     }
@@ -374,6 +375,13 @@ function createMockOutputs(block: ApiStandardBlock, inputs: Record<string, unkno
     const seed = Array.from({ length }, (_, index) => alphabet[index % alphabet.length]).join('');
     const value = `${prefix}${seed}`;
     return { value: inputs.lowerCase === false ? value : value.toLowerCase() };
+  }
+  if (block.functionName === 'assert') {
+    if (inputs.condition !== true) throw new Error(String(inputs.message));
+    return {};
+  }
+  if (block.functionName === 'requireTenantContext') {
+    return { enterpriseUuid: 'mock_enterprise', appUuid: inputs.appUuid ?? '' };
   }
   if (block.functionName === 'assertUnique') {
     return {};
@@ -542,11 +550,30 @@ function applyProcessors(value: unknown, processors: ProcessorConfig[], label: s
     } else if (name === 'is_null') {
       if (!isEmpty(current)) throw new Error(`${label} 必须为空`);
     } else if (name === 'not_null') {
-      current = !isEmpty(current);
+      current = current !== undefined && current !== null;
     } else if (name === 'email_check') {
       if (typeof current !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(current)) {
         throw new Error(`${label} 需要是邮箱格式`);
       }
+    } else if (name === 'default_value') {
+      if (isEmpty(current)) current = readProcessorParam(processor, context)[0];
+    } else if (name === 'equals') {
+      current = sameJsonValue(current, readProcessorParam(processor, context)[0]);
+    } else if (name === 'integer_add') {
+      const [addend] = readProcessorParam(processor, context);
+      const number = typeof current === 'string' && current.trim() ? Number(current) : current;
+      if (typeof number !== 'number' || !Number.isSafeInteger(number) || typeof addend !== 'number'
+        || !Number.isSafeInteger(addend) || !Number.isSafeInteger(number + addend)) throw new Error(`${label} 需要安全整数`);
+      current = number + addend;
+    } else if (name === 'decimal_fixed') {
+      const [scale] = readProcessorParam(processor, context);
+      const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(String(current));
+      const fraction = (match?.[3] ?? '').replace(/0+$/, '');
+      if ((typeof current !== 'string' && typeof current !== 'number') || !match || typeof scale !== 'number' || !Number.isInteger(scale) || scale < 0 || scale > 100
+        || fraction.length > scale) throw new Error(`${label} 定点小数格式无效`);
+      const whole = match[2].replace(/^0+(?=\d)/, '');
+      const sign = match[1] === '-' && (whole !== '0' || fraction) ? '-' : '';
+      current = sign + whole + (scale ? '.' + fraction.padEnd(scale, '0') : '');
     } else if (name === 'number_check') {
       if (!Number.isFinite(Number(current))) {
         throw new Error(`${label} 需要是数字`);
@@ -563,7 +590,7 @@ function applyProcessors(value: unknown, processors: ProcessorConfig[], label: s
       }
     } else if (name === 'eq') {
       const expected = readProcessorParam(processor, context)[0];
-      if (JSON.stringify(current) !== JSON.stringify(expected)) {
+      if (!sameJsonValue(current, expected)) {
         throw new Error(`${label} 必须等于 ${JSON.stringify(expected)}`);
       }
     } else if (name === 'regex') {
@@ -578,6 +605,16 @@ function applyProcessors(value: unknown, processors: ProcessorConfig[], label: s
     }
   }
   return current;
+}
+
+function sameJsonValue(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return left.length === right.length && left.every((value, index) => sameJsonValue(value, right[index]));
+  }
+  if (!isRecord(left) || !isRecord(right)) return false;
+  return Object.keys(left).length === Object.keys(right).length &&
+    Object.keys(left).every(key => Object.prototype.hasOwnProperty.call(right, key) && sameJsonValue(left[key], right[key]));
 }
 
 function readProcessorParam(processor: ProcessorConfig, context: DryRunContext) {

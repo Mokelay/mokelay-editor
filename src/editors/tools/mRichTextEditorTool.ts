@@ -7,7 +7,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *   "blockType": "MRichText",
  *   "displayName": "富文本",
  *   "category": "content",
- *   "description": "富文本 Block，用于渲染和保存 HTML 富文本内容。",
+ *   "description": "正文 Block，按文本显示多行内容，支持静态内容和变量绑定；显式空字符串保持为空。",
  *   "status": "active",
  *   "registration": {
  *     "sourceKind": "mokelay-components",
@@ -29,12 +29,13 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *     {
  *       "key": "content",
  *       "optional": true,
- *       "tsType": "string",
+ *       "tsType": "string | VariableValueConfig",
  *       "source": "submodule/mokelay-components/src/blocks/MRichText.vue",
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "正文",
- *       "type": "textarea"
+ *       "type": "component",
+ *       "component": "MVariableValueEditor"
  *     }
  *   ],
  *   "events": [],

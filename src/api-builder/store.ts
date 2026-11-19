@@ -91,6 +91,7 @@ export function normalizeApiJson(value: unknown): ApiJson {
     ? {
         ...common,
         fragment: true,
+        ...(value.transaction !== undefined ? { transaction: cloneValue(value.transaction) as FragmentApiJson['transaction'] } : {}),
         params: normalizeProcessableKeys(value.params)
       } satisfies FragmentApiJson
     : {

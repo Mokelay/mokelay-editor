@@ -126,6 +126,7 @@ import { getEditorComponentDefinition } from '@/editors/editorComponentRuntimeRe
 import { useI18n } from '@/i18n';
 import { getClientBlockDocSnapshot } from '@/utils/clientBlockDocs';
 import MLocalizedTextEditor from '@/editors/blocks/MLocalizedTextEditor.vue';
+import MFormItemRulesEditor from '@/editors/blocks/MFormItemRulesEditor.vue';
 import {
   normalizeLocalizedValue,
   resolveLocalizedValue,
@@ -365,7 +366,7 @@ watch(
   <div class="ce-form-items-editor" data-testid="form-items-editor">
     <div class="ce-form-items-editor__trigger-row">
       <button
-        class="ce-form-items-editor__primary-button"
+        class="ce-form-items-editor__primary-button mk-form-button mk-form-button--primary"
         type="button"
         data-testid="form-items-settings-open"
         @click="openSettingsDialog"
@@ -379,14 +380,14 @@ watch(
 
     <dialog
       ref="settingsDialogRef"
-      class="ce-form-items-editor__dialog"
+      class="ce-form-items-editor__dialog mk-form-dialog mk-form-dialog--wide"
       data-testid="form-items-dialog"
       :aria-hidden="!isSettingsDialogOpen"
       aria-labelledby="form-items-dialog-title"
       @close="isSettingsDialogOpen = false"
     >
-      <div class="ce-form-items-editor__dialog-panel">
-        <div class="ce-form-items-editor__dialog-header">
+      <div class="ce-form-items-editor__dialog-panel mk-form-dialog-panel mk-form-scope">
+        <div class="ce-form-items-editor__dialog-header mk-form-dialog-header">
           <h3
             id="form-items-dialog-title"
             class="ce-form-items-editor__dialog-title"
@@ -395,7 +396,7 @@ watch(
             {{ t('form.itemsEditor.settingsDialogTitle') }}
           </h3>
           <button
-            class="ce-form-items-editor__secondary-button"
+            class="ce-form-items-editor__secondary-button mk-form-button"
             type="button"
             data-testid="form-items-close"
             @click="closeSettingsDialog"
@@ -404,7 +405,7 @@ watch(
           </button>
         </div>
 
-        <div class="ce-form-items-editor__dialog-body">
+        <div class="ce-form-items-editor__dialog-body mk-form-dialog-body mk-form-scope">
           <section class="ce-form-items-editor__section" data-testid="form-items-fields-section">
             <div class="ce-form-items-editor__section-header">
               <div>
@@ -471,7 +472,7 @@ watch(
                     @keydown.stop
                   />
                   <input
-                    class="ce-form-items-editor__input"
+                    class="ce-form-items-editor__input mk-form-control"
                     :data-testid="`form-item-variable-${index}`"
                     type="text"
                     :readonly="isReadOnly"
@@ -481,7 +482,7 @@ watch(
                     @keydown.stop
                   />
                   <select
-                    class="ce-form-items-editor__input"
+                    class="ce-form-items-editor__input mk-form-control"
                     :data-testid="`form-item-layout-${index}`"
                     :disabled="isReadOnly"
                     :value="item.layout"
@@ -491,7 +492,7 @@ watch(
                     <option value="Horizontal">{{ t('formItem.layouts.horizontal') }}</option>
                   </select>
                   <select
-                    class="ce-form-items-editor__input"
+                    class="ce-form-items-editor__input mk-form-control"
                     :data-testid="`form-item-editor-type-${index}`"
                     :disabled="isReadOnly"
                     :value="getItemEditorToolName(item)"
@@ -506,8 +507,10 @@ watch(
                     </option>
                   </select>
                   <div class="ce-form-items-editor__actions">
+                    <MFormItemRulesEditor :edit="edit" :items="itemsDraft" :value="item.rules" :variable-name="item.variableName"
+                      @tool-change="item.rules = $event" />
                     <button
-                      class="ce-form-items-editor__icon-button"
+                      class="ce-form-items-editor__icon-button mk-form-button"
                       type="button"
                       :data-testid="`form-item-move-up-${index}`"
                       :disabled="isReadOnly || index === 0"
@@ -516,7 +519,7 @@ watch(
                       {{ t('form.itemsEditor.actions.moveUp') }}
                     </button>
                     <button
-                      class="ce-form-items-editor__icon-button"
+                      class="ce-form-items-editor__icon-button mk-form-button"
                       type="button"
                       :data-testid="`form-item-move-down-${index}`"
                       :disabled="isReadOnly || index === itemsDraft.length - 1"
@@ -525,7 +528,7 @@ watch(
                       {{ t('form.itemsEditor.actions.moveDown') }}
                     </button>
                     <button
-                      class="ce-form-items-editor__danger-button"
+                      class="ce-form-items-editor__danger-button mk-form-button mk-form-button--danger"
                       type="button"
                       :data-testid="`form-item-remove-${index}`"
                       :disabled="isReadOnly"
@@ -540,9 +543,9 @@ watch(
           </section>
         </div>
 
-        <div class="ce-form-items-editor__dialog-actions">
+        <div class="ce-form-items-editor__dialog-actions mk-form-dialog-footer">
           <button
-            class="ce-form-items-editor__secondary-button"
+            class="ce-form-items-editor__secondary-button mk-form-button"
             type="button"
             data-testid="form-items-cancel"
             @click="closeSettingsDialog"
@@ -551,7 +554,7 @@ watch(
           </button>
           <button
             v-if="edit"
-            class="ce-form-items-editor__primary-button"
+            class="ce-form-items-editor__primary-button mk-form-button mk-form-button--primary"
             type="button"
             data-testid="form-items-save"
             @click="saveItems"
@@ -580,19 +583,7 @@ watch(
 
 .ce-form-items-editor__primary-button {
   flex: 0 0 auto;
-  min-height: 34px;
-  border: 1px solid rgb(20 184 166 / 0.55);
-  border-radius: 8px;
-  padding: 6px 14px;
-  background: rgb(20 184 166);
-  color: rgb(255 255 255);
-  font: inherit;
-  font-weight: 700;
   cursor: pointer;
-}
-
-.ce-form-items-editor__primary-button:hover {
-  background: rgb(13 148 136);
 }
 
 .ce-form-items-editor__summary {
@@ -607,28 +598,10 @@ watch(
   line-height: 18px;
 }
 
-.ce-form-items-editor__dialog {
-  width: min(calc(100vw - 32px), 1100px);
-  max-height: min(calc(100vh - 32px), 860px);
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  background: transparent;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-  color: rgb(15 23 42);
-}
-
-.ce-form-items-editor__dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
 .ce-form-items-editor__dialog-panel {
   display: flex;
-  max-height: inherit;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 8px;
-  background: rgb(255 255 255);
 }
 
 .ce-form-items-editor__dialog-header,
@@ -637,14 +610,10 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 14px 16px;
 }
 
 .ce-form-items-editor__dialog-actions {
   justify-content: flex-end;
-  border-top: 1px solid rgb(226 232 240);
-  border-bottom: 0;
 }
 
 .ce-form-items-editor__dialog-title {
@@ -658,9 +627,8 @@ watch(
 .ce-form-items-editor__dialog-body {
   display: grid;
   grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.25fr);
-  gap: 14px;
+  gap: var(--mk-form-field-gap);
   overflow: auto;
-  padding: 14px 16px;
 }
 
 .ce-form-items-editor__section {
@@ -739,29 +707,9 @@ watch(
   margin-top: 8px;
 }
 
-.ce-form-items-editor__input {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 7px 9px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font: inherit;
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.ce-form-items-editor__input:focus {
-  border-color: rgb(20 184 166);
-  outline: 2px solid rgb(20 184 166 / 0.18);
-}
-
 .ce-form-items-editor__input:read-only,
 .ce-form-items-editor__input:disabled {
   cursor: not-allowed;
-  background: rgb(241 245 249);
-  color: rgb(100 116 139);
 }
 
 .ce-form-items-editor__actions {
@@ -773,33 +721,7 @@ watch(
 .ce-form-items-editor__secondary-button,
 .ce-form-items-editor__icon-button,
 .ce-form-items-editor__danger-button {
-  min-height: 32px;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 5px 10px;
-  background: rgb(255 255 255);
-  color: rgb(51 65 85);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 650;
   cursor: pointer;
-}
-
-.ce-form-items-editor__icon-button {
-  min-height: 28px;
-  padding: 4px 8px;
-  font-size: 12px;
-}
-
-.ce-form-items-editor__danger-button {
-  border-color: rgb(254 202 202);
-  color: rgb(185 28 28);
-}
-
-.ce-form-items-editor__secondary-button:hover,
-.ce-form-items-editor__icon-button:hover,
-.ce-form-items-editor__danger-button:hover {
-  background: rgb(248 250 252);
 }
 
 .ce-form-items-editor__primary-button:disabled,
@@ -828,11 +750,6 @@ watch(
   background: rgb(30 41 59);
 }
 
-.dark .ce-form-items-editor__dialog-header,
-.dark .ce-form-items-editor__dialog-actions {
-  border-color: rgb(51 65 85);
-}
-
 .dark .ce-form-items-editor__dialog-title,
 .dark .ce-form-items-editor__section-title {
   color: rgb(248 250 252);
@@ -853,13 +770,7 @@ watch(
   color: rgb(226 232 240);
 }
 
-.dark .ce-form-items-editor__input:read-only,
-.dark .ce-form-items-editor__input:disabled {
-  background: rgb(30 41 59);
-  color: rgb(148 163 184);
-}
-
-@media (max-width: 920px) {
+@container (max-width: 960px) {
   .ce-form-items-editor__dialog-body {
     grid-template-columns: 1fr;
   }

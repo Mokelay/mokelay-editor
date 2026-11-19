@@ -141,25 +141,25 @@ watch(() => [props.open, props.field?.path], () => {
       @click.self="emit('close')"
       @keydown.stop
     >
-      <section class="processor-dialog-panel">
-        <header class="processor-dialog-header">
+      <section class="processor-dialog-panel mk-form-dialog-panel mk-form-dialog mk-form-dialog--wide">
+        <header class="processor-dialog-header mk-form-dialog-header">
           <div>
             <h2 data-testid="datasource-processor-dialog-title">{{ t('datasource.processors.dialogTitle') }}</h2>
             <p>{{ field.label }} · {{ field.path }}</p>
           </div>
-          <button type="button" data-testid="datasource-processor-dialog-close" @click="emit('close')">
+          <button class="mk-form-button" type="button" data-testid="datasource-processor-dialog-close" @click="emit('close')">
             {{ t('datasource.actions.cancel') }}
           </button>
         </header>
 
-        <div class="processor-dialog-body">
+        <div class="processor-dialog-body mk-form-dialog-body mk-form-scope">
           <div v-if="!readonly" class="processor-dialog-add-row">
-            <select v-model="selectedProcessorName" data-testid="datasource-processor-select">
+            <select class="mk-form-control" v-model="selectedProcessorName" data-testid="datasource-processor-select">
               <option v-for="definition in availableProcessors" :key="definition.name" :value="definition.name">
                 {{ t(definition.titleKey) }}
               </option>
             </select>
-            <button
+            <button class="mk-form-button"
               type="button"
               data-testid="datasource-processor-add"
               :disabled="!selectedProcessorName"
@@ -177,7 +177,7 @@ watch(() => [props.open, props.field?.path], () => {
             <article
               v-for="(item, index) in draftProcessors"
               :key="item.id"
-              class="processor-dialog-item"
+              class="processor-dialog-item mk-form-scope"
               :data-testid="`datasource-processor-item-${index}`"
             >
               <div class="processor-dialog-item-header">
@@ -186,13 +186,13 @@ watch(() => [props.open, props.field?.path], () => {
                   <span>{{ processorName(item.config) }}</span>
                 </div>
                 <div v-if="!readonly" class="processor-dialog-item-actions">
-                  <button
+                  <button class="mk-form-button"
                     type="button"
                     :data-testid="`datasource-processor-up-${index}`"
                     :disabled="index === 0"
                     @click="moveProcessor(index, -1)"
                   >{{ t('datasource.processors.up') }}</button>
-                  <button
+                  <button class="mk-form-button"
                     type="button"
                     :data-testid="`datasource-processor-down-${index}`"
                     :disabled="index === draftProcessors.length - 1"
@@ -200,7 +200,7 @@ watch(() => [props.open, props.field?.path], () => {
                   >{{ t('datasource.processors.down') }}</button>
                   <button
                     type="button"
-                    class="processor-dialog-remove"
+                    class="processor-dialog-remove mk-form-button mk-form-button--danger"
                     :data-testid="`datasource-processor-remove-${index}`"
                     @click="removeProcessor(index)"
                   >{{ t('datasource.actions.remove') }}</button>
@@ -223,14 +223,14 @@ watch(() => [props.open, props.field?.path], () => {
           </div>
         </div>
 
-        <footer class="processor-dialog-footer">
-          <button type="button" data-testid="datasource-processor-cancel" @click="emit('close')">
+        <footer class="processor-dialog-footer mk-form-dialog-footer">
+          <button class="mk-form-button" type="button" data-testid="datasource-processor-cancel" @click="emit('close')">
             {{ readonly ? t('editor.close') : t('datasource.actions.cancel') }}
           </button>
           <button
             v-if="!readonly"
             type="button"
-            class="processor-dialog-apply"
+            class="processor-dialog-apply mk-form-button mk-form-button--primary"
             data-testid="datasource-processor-apply"
             :disabled="!canApply"
             @click="applyChanges"
@@ -256,14 +256,8 @@ watch(() => [props.open, props.field?.path], () => {
 
 .processor-dialog-panel {
   display: flex;
-  width: min(880px, 100%);
-  max-height: min(780px, calc(100vh - 40px));
   flex-direction: column;
   overflow: hidden;
-  border-radius: 12px;
-  background: white;
-  color: rgb(15 23 42);
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.35);
 }
 
 .processor-dialog-header,
@@ -272,11 +266,6 @@ watch(() => [props.open, props.field?.path], () => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
-}
-
-.processor-dialog-header {
-  border-bottom: 1px solid rgb(226 232 240);
 }
 
 .processor-dialog-header h2,
@@ -299,9 +288,8 @@ watch(() => [props.open, props.field?.path], () => {
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--mk-form-field-gap);
   overflow-y: auto;
-  padding: 16px;
 }
 
 .processor-dialog-add-row {
@@ -310,26 +298,16 @@ watch(() => [props.open, props.field?.path], () => {
   gap: 8px;
 }
 
-.processor-dialog-add-row select {
-  min-width: 0;
-  height: 36px;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  padding: 7px 10px;
-  background: white;
-  color: inherit;
-}
-
 .processor-dialog-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--mk-form-field-gap);
 }
 
 .processor-dialog-item {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--mk-form-field-gap);
   border: 1px solid rgb(203 213 225);
   border-radius: 9px;
   padding: 12px;
@@ -358,15 +336,6 @@ watch(() => [props.open, props.field?.path], () => {
 .processor-dialog-footer button,
 .processor-dialog-item-actions button,
 .processor-dialog-add-row button {
-  min-height: 34px;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 5px 10px;
-  background: white;
-  color: rgb(30 64 175);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 650;
   cursor: pointer;
 }
 
@@ -377,19 +346,8 @@ watch(() => [props.open, props.field?.path], () => {
   opacity: 0.5;
 }
 
-.processor-dialog-item-actions .processor-dialog-remove {
-  color: rgb(185 28 28);
-}
-
 .processor-dialog-footer {
   justify-content: flex-end;
-  border-top: 1px solid rgb(226 232 240);
-}
-
-.processor-dialog-footer .processor-dialog-apply {
-  border-color: rgb(37 99 235);
-  background: rgb(37 99 235);
-  color: white;
 }
 
 .processor-dialog-empty,
@@ -406,11 +364,6 @@ watch(() => [props.open, props.field?.path], () => {
   border-color: rgb(253 230 138);
   background: rgb(254 252 232);
   color: rgb(161 98 7);
-}
-
-.dark .processor-dialog-panel {
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
 }
 
 .dark .processor-dialog-header,

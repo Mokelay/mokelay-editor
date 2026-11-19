@@ -32,6 +32,8 @@ const processorNames = new Set([
   'not_null',
   'email_check',
   'number_check',
+  'decimal_fixed',
+  'integer_add',
   'eq',
   'equals',
   'default_value',
@@ -66,6 +68,14 @@ export function validateApiJson(apiJson: ApiJson): ValidationIssue[] {
   if (isFragmentApiJson(apiJson)) {
     if ('method' in apiJson || 'request' in apiJson) {
       add('error', 'Fragment DSL 不能包含 method 或 request。', 'api');
+    }
+    if (apiJson.transaction !== undefined) {
+      const tx = apiJson.transaction;
+      if (!isRecord(tx) || typeof tx.datasource !== 'string' || !datasourcePattern.test(tx.datasource)
+        || (tx.isolationLevel !== undefined && !['read committed', 'repeatable read', 'serializable'].includes(tx.isolationLevel))
+        || (tx.retries !== undefined && (!Number.isInteger(tx.retries) || tx.retries < 0 || tx.retries > 10))) {
+        add('error', 'Fragment 事务的数据源、隔离级别或重试次数无效。', 'api');
+      }
     }
     validateDeclarations(apiJson.params ?? [], 'params', add);
   } else {

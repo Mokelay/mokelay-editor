@@ -461,9 +461,9 @@ export default class EditorToolFactory {
         if (!this.wrapper || !definition?.propertyPanel?.fields.length) return;
 
         const dialog = document.createElement('dialog');
-        dialog.className = 'mokelay-editor-tool__property-dialog';
+        dialog.className = 'mk-form-dialog mokelay-editor-tool__property-dialog';
         if (definition.propertyPanel.fields.some((field) => field.type === 'component')) {
-          dialog.classList.add('mokelay-editor-tool__property-dialog--wide');
+          dialog.classList.add('mk-form-dialog--wide', 'mokelay-editor-tool__property-dialog--wide');
         }
         dialog.dataset.testid = 'tool-property-dialog';
         dialog.dataset.toolName = toolName;
@@ -472,12 +472,12 @@ export default class EditorToolFactory {
         const fields = definition.propertyPanel.fields.map((field) => this.renderPropertyField(field)).join('');
 
         dialog.innerHTML = `
-          <form method="dialog" class="mokelay-editor-tool__property-panel" data-testid="tool-property-panel">
-            <div class="mokelay-editor-tool__property-header">
+          <form method="dialog" class="mk-form-dialog-panel mokelay-editor-tool__property-panel" data-testid="tool-property-panel">
+            <div class="mk-form-dialog-header mokelay-editor-tool__property-header">
               <h3 class="mokelay-editor-tool__property-title" data-testid="tool-property-title">${this.escapeHtml(title)}</h3>
-              <button type="submit" class="mokelay-editor-tool__property-close" data-testid="tool-property-close">${this.escapeHtml(i18n.t('editor.close'))}</button>
+              <button type="submit" class="mk-form-button mokelay-editor-tool__property-close" data-testid="tool-property-close">${this.escapeHtml(i18n.t('editor.close'))}</button>
             </div>
-            <div class="mokelay-editor-tool__property-body" data-testid="tool-property-body">
+            <div class="mk-form-dialog-body mk-form-stack mk-form-scope mokelay-editor-tool__property-body" data-testid="tool-property-body">
               ${fields}
             </div>
           </form>
@@ -566,8 +566,8 @@ export default class EditorToolFactory {
       private renderPropertyField(field: EditorToolPropertyField) {
         if (field.type === 'component') {
           return `
-            <div class="mokelay-editor-tool__property-field mokelay-editor-tool__property-field--component">
-              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+            <div class="mk-form-field mokelay-editor-tool__property-field mokelay-editor-tool__property-field--component">
+              <span class="mk-form-label mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
               <div
                 class="mokelay-editor-tool__property-component"
                 data-testid="tool-property-component-${field.key}"
@@ -579,16 +579,16 @@ export default class EditorToolFactory {
 
         if (field.type === 'checkbox') {
           return `
-            <label class="mokelay-editor-tool__property-field mokelay-editor-tool__property-field--checkbox">
+            <label class="mk-form-check-row mokelay-editor-tool__property-field mokelay-editor-tool__property-field--checkbox">
               <input
-                class="mokelay-editor-tool__property-checkbox"
+                class="mk-form-check mokelay-editor-tool__property-checkbox"
                 data-testid="tool-property-input-${field.key}"
                 data-property-key="${field.key}"
                 data-property-type="checkbox"
                 type="checkbox"
                 ${this.getPropertyFieldValue(field.key) === true ? 'checked' : ''}
               />
-              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+              <span class="mk-form-label mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
             </label>
           `;
         }
@@ -600,10 +600,10 @@ export default class EditorToolFactory {
           `).join('');
 
           return `
-            <label class="mokelay-editor-tool__property-field">
-              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+            <label class="mk-form-field mokelay-editor-tool__property-field">
+              <span class="mk-form-label mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
               <select
-                class="mokelay-editor-tool__property-input"
+                class="mk-form-control mokelay-editor-tool__property-input"
                 data-testid="tool-property-input-${field.key}"
                 data-property-key="${field.key}"
                 data-property-type="select"
@@ -622,10 +622,10 @@ export default class EditorToolFactory {
           const textareaValue = this.stringifyPropertyInputValue(value, valueType);
 
           return `
-            <label class="mokelay-editor-tool__property-field">
-              <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+            <label class="mk-form-field mokelay-editor-tool__property-field">
+              <span class="mk-form-label mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
               <textarea
-                class="mokelay-editor-tool__property-input mokelay-editor-tool__property-textarea"
+                class="mk-form-control mokelay-editor-tool__property-input mokelay-editor-tool__property-textarea"
                 data-testid="tool-property-input-${field.key}"
                 data-property-key="${field.key}"
                 data-property-type="textarea"
@@ -635,7 +635,7 @@ export default class EditorToolFactory {
                 placeholder="${this.escapeHtml(field.placeholder ?? '')}"
               >${this.escapeHtml(textareaValue)}</textarea>
               <span
-                class="mokelay-editor-tool__property-error"
+                class="mk-form-error mokelay-editor-tool__property-error"
                 data-testid="tool-property-error-${field.key}"
                 data-property-error-for="${field.key}"
                 hidden
@@ -647,10 +647,10 @@ export default class EditorToolFactory {
         const value = this.getPropertyFieldValue(field.key);
         const valueType = field.valueType ?? 'string';
         return `
-          <label class="mokelay-editor-tool__property-field">
-            <span class="mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
+          <label class="mk-form-field mokelay-editor-tool__property-field">
+            <span class="mk-form-label mokelay-editor-tool__property-label">${this.escapeHtml(field.label)}</span>
             <input
-              class="mokelay-editor-tool__property-input"
+              class="mk-form-control mokelay-editor-tool__property-input"
               data-testid="tool-property-input-${field.key}"
               data-property-key="${field.key}"
               data-property-type="text"

@@ -17,6 +17,7 @@ export type MokelayApiRecord = {
   updatedAt: string;
   enterpriseUuid?: string;
   appUuid?: string;
+  assetApp?: string;
 };
 
 export type ListApisParams = {
@@ -25,6 +26,7 @@ export type ListApisParams = {
   source?: MokelayApiSource;
   fragment?: boolean;
   appUuid?: string;
+  assetApp?: string;
 };
 
 export type MokelayApisPagination = {
@@ -86,6 +88,7 @@ export type SaveApiPayload = {
   status: ApiBuilderStatus;
   originalUuid?: string;
   appUuid?: string;
+  assetApp?: string;
 };
 
 export type DeleteApiResult = {
@@ -149,9 +152,7 @@ export async function listApis(params: ListApisParams) {
     const response = await apiClient.get<MokelayApiResponse<BuiltInApisResponse>>(
       '/api/mokelay/list_mokelay_api_jsons',
       {
-        params: params.fragment === undefined
-          ? undefined
-          : { fragment: params.fragment }
+        params: { ...(params.fragment === undefined ? {} : { fragment: params.fragment }), ...(params.assetApp ? { assetApp: params.assetApp } : {}) }
       }
     );
     return normalizeBuiltInApisResponse(unwrapApiResponse(response.data), params);
@@ -181,12 +182,13 @@ export async function getApi(uuid: string) {
   return normalizeApiResponse(unwrapApiResponse(response.data));
 }
 
-export async function getBuiltInApi(uuid: string, options: { fragment?: boolean } = {}) {
+export async function getBuiltInApi(uuid: string, options: { fragment?: boolean; assetApp?: string } = {}) {
   const response = await apiClient.get<MokelayApiResponse<ApiResponse>>(
     '/api/mokelay/read_mokelay_api_json',
     {
       params: {
         uuid,
+        assetApp: options.assetApp ?? 'mokelay',
         ...(options.fragment === undefined ? {} : { fragment: options.fragment })
       }
     }
@@ -203,7 +205,7 @@ export async function getBuiltInApi(uuid: string, options: { fragment?: boolean 
 export async function getApiBySource(
   uuid: string,
   source: MokelayApiSource,
-  options: { fragment?: boolean } = {}
+  options: { fragment?: boolean; assetApp?: string } = {}
 ) {
   return source === 'system' ? await getBuiltInApi(uuid, options) : await getApi(uuid);
 }
@@ -391,6 +393,7 @@ function normalizeApiRecord(value: unknown): MokelayApiRecord {
     ...(layout ? { layout } : {}),
     createdAt: readString(value.createdAt) || readString(value.created_at),
     updatedAt: readString(value.updatedAt) || readString(value.updated_at),
+    assetApp: readString(value.assetApp) || undefined,
     enterpriseUuid: readString(value.enterpriseUuid) || readString(value.enterprise_uuid),
     appUuid: readString(value.appUuid) || readString(value.app_uuid)
   };
@@ -401,14 +404,16 @@ function normalizeBuiltInApiRecord(value: unknown): MokelayApiRecord {
     throw new Error('Invalid API record.');
   }
 
+  const { assetApp, ...apiJson } = value;
   return normalizeApiRecord({
+    assetApp: typeof assetApp === 'string' ? assetApp : 'mokelay',
     uuid: value.uuid,
     name: value.alias,
     method: value.method,
     fragment: value.fragment === true,
     status: 'published',
     source: 'system',
-    apiJson: value
+    apiJson
   });
 }
 

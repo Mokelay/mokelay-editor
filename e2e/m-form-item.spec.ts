@@ -77,7 +77,7 @@ test('adds form item, edits fields, selects editor, saves and previews', async (
   const editor = formItemBlock?.data?.editor as { id?: string; type?: string; data?: Record<string, unknown> } | undefined;
 
   expect(formItemBlock?.data).toEqual(expect.objectContaining({
-    labelName: '用户名',
+    labelName: { $i18n: { 'zh-CN': '用户名', 'en-US': 'Field' } },
     variableName: 'userName',
     layout: 'Horizontal'
   }));

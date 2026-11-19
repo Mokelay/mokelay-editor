@@ -751,7 +751,7 @@ watch(() => boundValue(), (value) => {
     @keydown.stop
   >
     <div class="variable-value-editor__modes" role="tablist" :aria-label="t('variableValue.modeLabel')">
-      <button
+      <button class="mk-form-button"
         type="button"
         :class="{ 'variable-value-editor__mode--active': mode === 'input' }"
         data-testid="variable-mode-input"
@@ -759,7 +759,7 @@ watch(() => boundValue(), (value) => {
       >
         {{ t('variableValue.modes.input') }}
       </button>
-      <button
+      <button class="mk-form-button"
         type="button"
         :class="{ 'variable-value-editor__mode--active': mode === 'variable' }"
         data-testid="variable-mode-variable"
@@ -767,7 +767,7 @@ watch(() => boundValue(), (value) => {
       >
         {{ t('variableValue.modes.variable') }}
       </button>
-      <button
+      <button class="mk-form-button"
         type="button"
         :class="{ 'variable-value-editor__mode--active': mode === 'flow' }"
         data-testid="variable-mode-flow"
@@ -780,7 +780,7 @@ watch(() => boundValue(), (value) => {
     <div v-if="mode === 'input'" class="variable-value-editor__constant">
       <textarea
         v-if="multiline"
-        class="variable-value-editor__input variable-value-editor__input--multiline"
+        class="variable-value-editor__input variable-value-editor__input--multiline mk-form-control"
         :class="{ 'variable-value-editor__input--invalid': inputValidationError }"
         :data-testid="testid"
         :readonly="readonly"
@@ -792,7 +792,7 @@ watch(() => boundValue(), (value) => {
       ></textarea>
       <input
         v-else
-        class="variable-value-editor__input"
+        class="variable-value-editor__input mk-form-control"
         :class="{ 'variable-value-editor__input--invalid': inputValidationError }"
         :data-testid="testid"
         type="text"
@@ -815,7 +815,7 @@ watch(() => boundValue(), (value) => {
 
     <div v-else-if="mode === 'variable'" class="variable-value-editor__variable" :data-testid="testid">
       <select
-        class="variable-value-editor__input variable-value-editor__source"
+        class="variable-value-editor__input variable-value-editor__source mk-form-control"
         data-testid="variable-source-select"
         :disabled="readonly"
         :value="variableSource"
@@ -830,7 +830,7 @@ watch(() => boundValue(), (value) => {
       </span>
       <select
         v-else-if="variableSource === 'Block'"
-        class="variable-value-editor__input"
+        class="variable-value-editor__input mk-form-control"
         data-testid="variable-block-select"
         :disabled="readonly"
         :value="selectedBlock?.blockId ?? blockId"
@@ -843,7 +843,7 @@ watch(() => boundValue(), (value) => {
       </select>
       <select
         v-if="variableSource === 'Block' && availableBlockDataSources.length"
-        class="variable-value-editor__input"
+        class="variable-value-editor__input mk-form-control"
         data-testid="variable-single-select"
         :disabled="readonly || !selectedBlock"
         :value="variableName"
@@ -856,7 +856,7 @@ watch(() => boundValue(), (value) => {
       </select>
       <input
         v-if="variableSource === 'MPage'"
-        class="variable-value-editor__input"
+        class="variable-value-editor__input mk-form-control"
         data-testid="variable-page-id"
         type="text"
         :list="availablePageVariableSources.length ? pageIdListId : undefined"
@@ -875,7 +875,7 @@ watch(() => boundValue(), (value) => {
       </datalist>
       <input
         v-if="variableSource !== 'Block'"
-        class="variable-value-editor__input"
+        class="variable-value-editor__input mk-form-control"
         data-testid="variable-path-input"
         type="text"
         :readonly="readonly"
@@ -885,7 +885,7 @@ watch(() => boundValue(), (value) => {
       >
       <button
         type="button"
-        class="variable-value-editor__processor-button"
+        class="variable-value-editor__processor-button mk-form-button"
         data-testid="variable-single-processors"
         :disabled="readonly || (variableSource === 'Block' ? !selectedField : !variableName.trim())"
         @click="processorOpen = true"
@@ -899,7 +899,7 @@ watch(() => boundValue(), (value) => {
 
     <div v-else class="variable-value-editor__flow" :data-testid="testid">
       <span>{{ t('variableValue.flow.summary') }}: {{ flowValue.nodes.length }} nodes / {{ flowValue.edges.length }} edges</span>
-      <button type="button" data-testid="variable-flow-open" :disabled="readonly" @click="flowOpen = true">
+      <button class="mk-form-button" type="button" data-testid="variable-flow-open" :disabled="readonly" @click="flowOpen = true">
         {{ t('variableValue.flow.open') }}
       </button>
     </div>
@@ -931,9 +931,9 @@ watch(() => boundValue(), (value) => {
   position: relative;
   display: flex;
   min-width: 0;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 6px;
+  align-items: stretch;
+  flex-direction: column;
+  gap: var(--mk-form-label-gap);
 }
 
 .variable-value-editor--multiline {
@@ -952,20 +952,7 @@ watch(() => boundValue(), (value) => {
 }
 
 .variable-value-editor__modes button {
-  min-height: 36px;
-  border: 0;
-  border-right: 1px solid rgb(203 213 225);
-  background: transparent;
-  color: rgb(71 85 105);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 650;
-  padding: 4px 8px;
   cursor: pointer;
-}
-
-.variable-value-editor__modes button:last-child {
-  border-right: 0;
 }
 
 .variable-value-editor__modes .variable-value-editor__mode--active {
@@ -975,14 +962,6 @@ watch(() => boundValue(), (value) => {
 
 .variable-value-editor__input {
   flex: 1 1 auto;
-  min-height: 36px;
-  min-width: 0;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  background: white;
-  color: rgb(15 23 42);
-  font: inherit;
-  padding: 7px 9px;
 }
 
 .variable-value-editor__constant {
@@ -994,7 +973,7 @@ watch(() => boundValue(), (value) => {
 }
 
 .variable-value-editor__input--multiline {
-  min-height: 86px;
+  min-height: 96px;
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
@@ -1019,18 +998,17 @@ watch(() => boundValue(), (value) => {
   flex: 1 1 auto;
   display: flex;
   min-width: 0;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
 
 .variable-value-editor__variable .variable-value-editor__input {
-  flex: 1 1 112px;
-  min-width: 72px;
+  flex: 1 1 180px;
 }
 
 .variable-value-editor__variable .variable-value-editor__source {
-  flex: 0 0 96px;
+  flex: 1 1 140px;
 }
 
 .variable-value-editor__empty {
@@ -1045,15 +1023,6 @@ watch(() => boundValue(), (value) => {
 .variable-value-editor__processor-button,
 .variable-value-editor__flow button {
   flex: 0 0 auto;
-  min-height: 36px;
-  border: 1px solid rgb(191 219 254);
-  border-radius: 8px;
-  background: rgb(239 246 255);
-  color: rgb(29 78 216);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 650;
-  padding: 6px 10px;
   cursor: pointer;
 }
 

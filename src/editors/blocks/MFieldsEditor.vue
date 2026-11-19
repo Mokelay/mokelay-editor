@@ -745,7 +745,7 @@ watch(
   <div ref="rootRef" class="ce-fields-editor" data-testid="editor-fields-tool">
     <div class="ce-fields-editor__trigger-row">
       <button
-        class="ce-fields-editor__settings-button"
+        class="ce-fields-editor__settings-button mk-form-button mk-form-button--primary"
         type="button"
         data-testid="fields-settings-open"
         @click="openSettingsDialog"
@@ -759,14 +759,14 @@ watch(
 
     <dialog
       ref="settingsDialogRef"
-      class="ce-fields-editor__dialog"
+      class="ce-fields-editor__dialog mk-form-dialog mk-form-dialog--wide"
       data-testid="fields-settings-dialog"
       :aria-hidden="!isSettingsDialogOpen"
       aria-labelledby="fields-settings-dialog-title"
       @close="isSettingsDialogOpen = false"
     >
-      <div class="ce-fields-editor__dialog-panel">
-        <div class="ce-fields-editor__dialog-header">
+      <div class="ce-fields-editor__dialog-panel mk-form-dialog-panel mk-form-scope">
+        <div class="ce-fields-editor__dialog-header mk-form-dialog-header">
           <h3
             id="fields-settings-dialog-title"
             class="ce-fields-editor__dialog-title"
@@ -775,7 +775,7 @@ watch(
             {{ t('fieldsEditor.settingsDialogTitle') }}
           </h3>
           <button
-            class="ce-fields-editor__secondary-button"
+            class="ce-fields-editor__secondary-button mk-form-button"
             type="button"
             data-testid="fields-settings-close"
             @click="closeSettingsDialog"
@@ -784,7 +784,7 @@ watch(
           </button>
         </div>
 
-        <div class="ce-fields-editor__dialog-body">
+        <div class="ce-fields-editor__dialog-body mk-form-dialog-body mk-form-scope">
           <section v-if="edit" class="ce-fields-editor__section" data-testid="fields-import-section">
             <div class="ce-fields-editor__section-header">
               <div>
@@ -795,7 +795,7 @@ watch(
             <div class="ce-fields-editor__section-body">
               <div class="ce-fields-editor__import-actions">
                 <button
-                  class="ce-fields-editor__import-button"
+                  class="ce-fields-editor__import-button mk-form-button"
                   type="button"
                   data-testid="fields-import-open-mokelay"
                   @click="openApiImportDialog('mokelay')"
@@ -803,7 +803,7 @@ watch(
                   {{ t('datasource.import.sources.mokelay') }}
                 </button>
                 <button
-                  class="ce-fields-editor__import-button"
+                  class="ce-fields-editor__import-button mk-form-button"
                   type="button"
                   data-testid="fields-import-open-apifox"
                   @click="openApiImportDialog('apifox')"
@@ -811,7 +811,7 @@ watch(
                   {{ t('datasource.import.sources.apifox') }}
                 </button>
                 <button
-                  class="ce-fields-editor__primary-button"
+                  class="ce-fields-editor__primary-button mk-form-button mk-form-button--primary"
                   type="button"
                   data-testid="fields-capture-response-fields"
                   :disabled="!importedDatasource || responseCaptureLoading || apiDomainLoading"
@@ -840,10 +840,10 @@ watch(
               </div>
             </div>
             <div class="ce-fields-editor__section-body ce-fields-editor__section-body--available">
-              <label class="ce-fields-editor__field">
-                <span class="ce-fields-editor__label">{{ t('fieldsEditor.columns.variable') }}</span>
+              <label class="ce-fields-editor__field mk-form-field">
+                <span class="ce-fields-editor__label mk-form-label">{{ t('fieldsEditor.columns.variable') }}</span>
                 <input
-                  class="ce-fields-editor__input"
+                  class="ce-fields-editor__input mk-form-control"
                   data-testid="fields-available-search"
                   type="search"
                   :placeholder="t('fieldsEditor.placeholders.searchFields')"
@@ -861,17 +861,17 @@ watch(
                 <div
                   v-for="field in visibleAvailableFields"
                   :key="field.id"
-                  class="ce-fields-editor__available-field"
+                  class="ce-fields-editor__available-field mk-form-field"
                   :data-testid="`fields-available-field-${field.variable}`"
                 >
                   <span class="ce-fields-editor__available-main">
-                    <span class="ce-fields-editor__available-label">{{ field.label }}</span>
+                    <span class="ce-fields-editor__available-label mk-form-label">{{ field.label }}</span>
                     <span class="ce-fields-editor__available-variable">{{ field.variable }}</span>
                   </span>
                   <span class="ce-fields-editor__available-actions">
                     <span class="ce-fields-editor__badge">{{ field.dataType }}</span>
                     <button
-                      class="ce-fields-editor__field-action"
+                      class="ce-fields-editor__field-action mk-form-button"
                       type="button"
                       :disabled="isReadOnly || field.selected"
                       :data-testid="`fields-available-add-${field.variable}`"
@@ -905,7 +905,7 @@ watch(
               </div>
               <div v-if="edit" class="ce-fields-editor__section-actions">
                 <button
-                  class="ce-fields-editor__secondary-button"
+                  class="ce-fields-editor__secondary-button mk-form-button"
                   type="button"
                   data-testid="fields-add"
                   @click="addField"
@@ -913,7 +913,7 @@ watch(
                   {{ t('fieldsEditor.actions.add') }}
                 </button>
                 <button
-                  class="ce-fields-editor__secondary-button"
+                  class="ce-fields-editor__secondary-button mk-form-button"
                   type="button"
                   data-testid="fields-translate-labels"
                   :disabled="fieldTranslationLoading || !fieldsDraft.length"
@@ -924,7 +924,7 @@ watch(
                     : t('fieldsEditor.actions.translateLabels') }}
                 </button>
                 <button
-                  class="ce-fields-editor__secondary-button"
+                  class="ce-fields-editor__secondary-button mk-form-button"
                   type="button"
                   data-testid="fields-truncate-variables"
                   :disabled="!fieldsDraft.length"
@@ -955,7 +955,7 @@ watch(
                   :data-testid="`fields-row-${index}`"
                 >
                   <input
-                    class="ce-fields-editor__input"
+                    class="ce-fields-editor__input mk-form-control"
                     :data-testid="`fields-label-${index}`"
                     type="text"
                     :readonly="isReadOnly"
@@ -965,7 +965,7 @@ watch(
                     @keydown.stop
                   />
                   <input
-                    class="ce-fields-editor__input"
+                    class="ce-fields-editor__input mk-form-control"
                     :data-testid="`fields-variable-${index}`"
                     type="text"
                     :readonly="isReadOnly"
@@ -975,7 +975,7 @@ watch(
                     @keydown.stop
                   />
                   <select
-                    class="ce-fields-editor__input"
+                    class="ce-fields-editor__input mk-form-control"
                     :data-testid="`fields-data-type-${index}`"
                     :disabled="isReadOnly"
                     :value="field.dataType"
@@ -987,7 +987,7 @@ watch(
                   </select>
                   <button
                     v-if="edit"
-                    class="ce-fields-editor__danger-button"
+                    class="ce-fields-editor__danger-button mk-form-button mk-form-button--danger"
                     type="button"
                     :data-testid="`fields-remove-${index}`"
                     @click="removeField(index)"
@@ -1007,9 +1007,9 @@ watch(
           </section>
         </div>
 
-        <div class="ce-fields-editor__dialog-actions">
+        <div class="ce-fields-editor__dialog-actions mk-form-dialog-footer">
           <button
-            class="ce-fields-editor__secondary-button"
+            class="ce-fields-editor__secondary-button mk-form-button"
             type="button"
             data-testid="fields-cancel"
             @click="closeSettingsDialog"
@@ -1018,7 +1018,7 @@ watch(
           </button>
           <button
             v-if="edit"
-            class="ce-fields-editor__primary-button"
+            class="ce-fields-editor__primary-button mk-form-button mk-form-button--primary"
             type="button"
             data-testid="fields-save"
             @click="saveFields"
@@ -1080,20 +1080,7 @@ watch(
 .ce-fields-editor__settings-button,
 .ce-fields-editor__primary-button {
   flex: 0 0 auto;
-  min-height: 34px;
-  border: 1px solid rgb(20 184 166 / 0.55);
-  border-radius: 8px;
-  padding: 6px 14px;
-  background: rgb(20 184 166);
-  color: rgb(255 255 255);
-  font: inherit;
-  font-weight: 700;
   cursor: pointer;
-}
-
-.ce-fields-editor__settings-button:hover,
-.ce-fields-editor__primary-button:hover {
-  background: rgb(13 148 136);
 }
 
 .ce-fields-editor__primary-button:disabled {
@@ -1113,28 +1100,10 @@ watch(
   line-height: 18px;
 }
 
-.ce-fields-editor__dialog {
-  width: min(calc(100vw - 32px), 1040px);
-  max-height: min(calc(100vh - 32px), 860px);
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  background: transparent;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-  color: rgb(15 23 42);
-}
-
-.ce-fields-editor__dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
 .ce-fields-editor__dialog-panel {
   display: flex;
-  max-height: inherit;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 8px;
-  background: rgb(255 255 255);
 }
 
 .ce-fields-editor__dialog-header,
@@ -1143,14 +1112,10 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 12px 14px;
 }
 
 .ce-fields-editor__dialog-actions {
   justify-content: flex-end;
-  border-top: 1px solid rgb(226 232 240);
-  border-bottom: 0;
 }
 
 .ce-fields-editor__dialog-title {
@@ -1164,9 +1129,8 @@ watch(
   display: flex;
   min-height: 0;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--mk-form-field-gap);
   overflow: auto;
-  padding: 12px;
 }
 
 .ce-fields-editor__section {
@@ -1238,19 +1202,6 @@ watch(
   font-size: 13px;
 }
 
-.ce-fields-editor__field {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ce-fields-editor__label {
-  color: rgb(51 65 85);
-  font-size: 13px;
-  font-weight: 650;
-}
-
 .ce-fields-editor__import-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1265,10 +1216,7 @@ watch(
 }
 
 .ce-fields-editor__available-field {
-  display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
   border: 1px solid rgb(226 232 240);
   border-radius: 8px;
   padding: 7px 8px;
@@ -1284,9 +1232,6 @@ watch(
 
 .ce-fields-editor__available-label {
   overflow: hidden;
-  color: rgb(15 23 42);
-  font-weight: 650;
-  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1321,34 +1266,7 @@ watch(
 .ce-fields-editor__secondary-button,
 .ce-fields-editor__danger-button,
 .ce-fields-editor__field-action {
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 6px 10px;
-  background: rgb(255 255 255);
-  color: rgb(51 65 85);
-  font: inherit;
-  font-weight: 650;
   cursor: pointer;
-}
-
-.ce-fields-editor__import-button {
-  color: rgb(30 64 175);
-}
-
-.ce-fields-editor__danger-button {
-  color: rgb(185 28 28);
-}
-
-.ce-fields-editor__field-action {
-  border-color: rgb(147 197 253);
-  color: rgb(30 64 175);
-}
-
-.ce-fields-editor__import-button:hover,
-.ce-fields-editor__secondary-button:hover,
-.ce-fields-editor__danger-button:hover,
-.ce-fields-editor__field-action:hover {
-  background: rgb(248 250 252);
 }
 
 .ce-fields-editor__field-action:disabled {
@@ -1384,29 +1302,6 @@ watch(
   background: rgb(255 255 255);
 }
 
-.ce-fields-editor__input {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  padding: 7px 9px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font: inherit;
-}
-
-.ce-fields-editor__input:focus {
-  outline: none;
-  border-color: rgb(20 184 166);
-  box-shadow: 0 0 0 2px rgb(20 184 166 / 0.15);
-}
-
-.ce-fields-editor__input:read-only,
-.ce-fields-editor__input:disabled {
-  background: rgb(241 245 249);
-  color: rgb(100 116 139);
-}
-
 .ce-fields-editor__empty,
 .ce-fields-editor__error {
   margin: 0;
@@ -1423,7 +1318,7 @@ watch(
   font-weight: 650;
 }
 
-@media (max-width: 760px) {
+@container (max-width: 760px) {
   .ce-fields-editor__trigger-row,
   .ce-fields-editor__section-header,
   .ce-fields-editor__dialog-header,
@@ -1460,11 +1355,6 @@ watch(
   background: rgb(15 23 42);
 }
 
-.dark .ce-fields-editor__dialog-header,
-.dark .ce-fields-editor__dialog-actions {
-  border-color: rgb(51 65 85);
-}
-
 .dark .ce-fields-editor__dialog-title,
 .dark .ce-fields-editor__section-title {
   color: rgb(226 232 240);
@@ -1478,44 +1368,8 @@ watch(
   color: rgb(148 163 184);
 }
 
-.dark .ce-fields-editor__available-label {
-  color: rgb(226 232 240);
-}
-
 .dark .ce-fields-editor__badge {
   background: rgb(30 58 138 / 0.45);
   color: rgb(191 219 254);
-}
-
-.dark .ce-fields-editor__input {
-  border-color: rgb(71 85 105);
-  background: rgb(2 6 23);
-  color: rgb(226 232 240);
-}
-
-.dark .ce-fields-editor__input:read-only,
-.dark .ce-fields-editor__input:disabled {
-  background: rgb(30 41 59);
-  color: rgb(148 163 184);
-}
-
-.dark .ce-fields-editor__import-button,
-.dark .ce-fields-editor__secondary-button,
-.dark .ce-fields-editor__danger-button,
-.dark .ce-fields-editor__field-action {
-  border-color: rgb(71 85 105);
-  background: rgb(30 41 59);
-  color: rgb(226 232 240);
-}
-
-.dark .ce-fields-editor__danger-button {
-  color: rgb(252 165 165);
-}
-
-.dark .ce-fields-editor__import-button:hover,
-.dark .ce-fields-editor__secondary-button:hover,
-.dark .ce-fields-editor__danger-button:hover,
-.dark .ce-fields-editor__field-action:hover {
-  background: rgb(51 65 85);
 }
 </style>

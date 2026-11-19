@@ -34,11 +34,11 @@ function updatePreset(event: Event) {
 </script>
 
 <template>
-  <div class="processor-date-fields">
-    <label class="processor-date-field">
+  <div class="processor-date-fields mk-form-grid">
+    <label class="processor-date-field mk-form-field">
       <span>{{ t('datasource.processors.dateTimeFormat.fields.preset') }}</span>
       <select
-        class="processor-date-input"
+        class="processor-date-input mk-form-control"
         data-testid="processor-date-time-preset"
         :disabled="readonly"
         :value="selectedPreset"
@@ -48,10 +48,10 @@ function updatePreset(event: Event) {
         <option value="custom">{{ t('datasource.processors.dateTimeFormat.custom') }}</option>
       </select>
     </label>
-    <label class="processor-date-field">
+    <label class="processor-date-field mk-form-field">
       <span>{{ t('datasource.processors.dateTimeFormat.fields.format') }}</span>
       <input
-        class="processor-date-input"
+        class="processor-date-input mk-form-control"
         data-testid="processor-date-time-format"
         :readonly="readonly"
         :value="format"
@@ -66,51 +66,10 @@ function updatePreset(event: Event) {
 </template>
 
 <style scoped>
-.processor-date-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  gap: 10px;
-}
-
-.processor-date-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: rgb(51 65 85);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.processor-date-input {
-  height: 36px;
-  min-width: 0;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  padding: 7px 10px;
-  background: white;
-  color: rgb(15 23 42);
-  font: inherit;
-}
-
 .processor-date-error {
   margin: 0;
   color: rgb(185 28 28);
   font-size: 13px;
 }
 
-.dark .processor-date-field {
-  color: rgb(203 213 225);
-}
-
-.dark .processor-date-input {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
-}
-
-@media (max-width: 640px) {
-  .processor-date-fields {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

@@ -28,6 +28,7 @@ export const enMessages = {
     close: 'Close',
     invalidJson: 'Enter valid JSON.',
     events: {
+      configureActions: 'Configure actions',
       menu: 'Events',
       title: 'Event Settings',
       add: 'Add event',
@@ -282,7 +283,9 @@ export const enMessages = {
     toolboxTitle: 'Component Selector',
     placeholder: 'Select a component'
   },
+  richText: { boundContent: 'Dynamic content (resolved at runtime)' },
   form: {
+    validation: { required: '{label} is required.', pattern: 'Please check {label}.' },
     toolboxTitle: 'Form',
     propertyPanelTitle: 'Form Properties',
     placeholder: 'Add a form item',
@@ -294,6 +297,21 @@ export const enMessages = {
     layouts: {
       vertical: 'Vertical',
       horizontal: 'Horizontal'
+    },
+    itemRules: {
+      rules: 'Field rules',
+      equals: 'Equals',
+      readOnly: 'Read only',
+      description: 'Field description',
+      hint: 'Input hint',
+      visibleWhen: 'Show this field when',
+      alwaysVisible: 'Always visible',
+      operator: 'Condition',
+      truthy: 'Field has a value',
+      value: 'Comparison value',
+      pattern: 'Validation pattern (regex)',
+      invalidMessage: 'Validation error message',
+      invalidPattern: 'Check the regular expression for “{field}”.'
     },
     actionBarEditor: {
       settingsDialogTitle: 'Action toolbar settings',
@@ -315,12 +333,14 @@ export const enMessages = {
         mode: 'Mode',
         id: 'Button ID',
         label: 'Button label',
+        loadingLabel: 'Loading label',
         variant: 'Variant',
         disabled: 'Disabled'
       },
       align: {
         left: 'Left',
         right: 'Right',
+        stretch: 'Stretch',
         spaceBetween: 'Space between'
       },
       size: {

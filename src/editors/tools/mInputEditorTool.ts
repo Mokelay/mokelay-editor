@@ -82,6 +82,15 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "必填"
  *     },
  *     {
+ *       "key": "inputMode",
+ *       "optional": true,
+ *       "tsType": "'decimal'",
+ *       "source": "submodule/mokelay-editor/src/editors/tools/mInputEditorTool.ts",
+ *       "declaredInProps": true,
+ *       "configurable": false,
+ *       "label": "手机数字键盘"
+ *     },
+ *     {
  *       "key": "maxLength",
  *       "optional": true,
  *       "tsType": "number",

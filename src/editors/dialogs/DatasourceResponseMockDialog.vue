@@ -349,19 +349,19 @@ watch(
 <template>
   <dialog
     ref="dialogRef"
-    class="ce-datasource-tool__import-dialog ce-datasource-tool__response-mock-dialog"
+    class="ce-datasource-tool__import-dialog ce-datasource-tool__response-mock-dialog mk-form-dialog mk-form-dialog--wide"
     data-testid="datasource-response-mock-dialog"
     :aria-hidden="!open"
     aria-labelledby="datasource-response-mock-dialog-title"
     @close="emit('close')"
   >
-    <div class="ce-datasource-tool__import-dialog-panel">
-      <div class="ce-datasource-tool__import-dialog-header">
+    <div class="ce-datasource-tool__import-dialog-panel mk-form-dialog-panel">
+      <div class="ce-datasource-tool__import-dialog-header mk-form-dialog-header">
         <h3 id="datasource-response-mock-dialog-title" class="ce-datasource-tool__import-dialog-title">
           {{ t('datasource.responseMock.title') }}
         </h3>
         <button
-          class="ce-datasource-tool__import-dialog-close"
+          class="ce-datasource-tool__import-dialog-close mk-form-button"
           type="button"
           data-testid="datasource-response-mock-close"
           :disabled="loading"
@@ -371,14 +371,14 @@ watch(
         </button>
       </div>
 
-      <div class="ce-datasource-tool__import-dialog-body ce-datasource-tool__response-mock-body">
+      <div class="ce-datasource-tool__import-dialog-body ce-datasource-tool__response-mock-body mk-form-dialog-body mk-form-scope">
         <p class="ce-datasource-tool__section-copy">{{ t('datasource.responseMock.help') }}</p>
 
         <section v-if="shouldShowResponseMockDomain" class="ce-datasource-tool__response-mock-section">
-          <label class="ce-datasource-tool__field">
-            <span class="ce-datasource-tool__label">{{ t('datasource.fields.domain') }}</span>
+          <label class="ce-datasource-tool__field mk-form-field">
+            <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.domain') }}</span>
             <select
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               data-testid="datasource-response-mock-domain"
               :disabled="loading || domainLoading || !apiDomains.length"
               :value="responseMockDomain"
@@ -407,9 +407,9 @@ watch(
             :key="`response-mock-header-${index}`"
             class="ce-datasource-tool__response-mock-row"
           >
-            <input class="ce-datasource-tool__input" type="text" readonly :value="item.key" />
+            <input class="ce-datasource-tool__input mk-form-control" type="text" readonly :value="item.key" />
             <input
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               :data-testid="`datasource-response-mock-header-${index}`"
               type="text"
               :placeholder="t('datasource.fields.mock')"
@@ -427,9 +427,9 @@ watch(
             :key="`response-mock-query-${index}`"
             class="ce-datasource-tool__response-mock-row"
           >
-            <input class="ce-datasource-tool__input" type="text" readonly :value="item.key" />
+            <input class="ce-datasource-tool__input mk-form-control" type="text" readonly :value="item.key" />
             <input
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               :data-testid="`datasource-response-mock-query-${index}`"
               type="text"
               :placeholder="t('datasource.fields.mock')"
@@ -447,11 +447,11 @@ watch(
             :key="`response-mock-body-${index}`"
             class="ce-datasource-tool__response-mock-body-row"
           >
-            <input class="ce-datasource-tool__input" type="text" readonly :value="item.key" />
-            <input class="ce-datasource-tool__input" type="text" readonly :value="item.dataType" />
+            <input class="ce-datasource-tool__input mk-form-control" type="text" readonly :value="item.key" />
+            <input class="ce-datasource-tool__input mk-form-control" type="text" readonly :value="item.dataType" />
             <select
               v-if="item.dataType === 'boolean'"
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               :data-testid="`datasource-response-mock-body-${index}`"
               :value="String(item.value === true)"
               @change="updateResponseMockBodyValue(index, ($event.target as HTMLSelectElement).value)"
@@ -461,7 +461,7 @@ watch(
             </select>
             <input
               v-else-if="item.dataType === 'null'"
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               :data-testid="`datasource-response-mock-body-${index}`"
               type="text"
               readonly
@@ -469,7 +469,7 @@ watch(
             />
             <input
               v-else-if="item.dataType === 'file'"
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               :data-testid="`datasource-response-mock-body-${index}`"
               type="file"
               @change="updateResponseMockBodyFile(index, ($event.target as HTMLInputElement).files?.[0])"
@@ -477,7 +477,7 @@ watch(
             />
             <textarea
               v-else-if="item.dataType === 'object' || item.dataType === 'array'"
-              class="ce-datasource-tool__textarea ce-datasource-tool__textarea--value"
+              class="ce-datasource-tool__textarea ce-datasource-tool__textarea--value mk-form-control"
               :data-testid="`datasource-response-mock-body-${index}`"
               spellcheck="false"
               :value="item.input"
@@ -486,7 +486,7 @@ watch(
             ></textarea>
             <input
               v-else
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               :data-testid="`datasource-response-mock-body-${index}`"
               :type="item.dataType === 'number' ? 'number' : 'text'"
               :placeholder="t('datasource.fields.mock')"
@@ -505,9 +505,9 @@ watch(
         </p>
       </div>
 
-      <div class="ce-datasource-tool__import-dialog-actions">
+      <div class="ce-datasource-tool__import-dialog-actions mk-form-dialog-footer">
         <button
-          class="ce-datasource-tool__action"
+          class="ce-datasource-tool__action mk-form-button"
           type="button"
           :disabled="loading"
           @click="closeDialog"
@@ -515,7 +515,7 @@ watch(
           {{ t('datasource.actions.cancel') }}
         </button>
         <button
-          class="ce-datasource-tool__schema-button"
+          class="ce-datasource-tool__schema-button mk-form-button"
           type="button"
           data-testid="datasource-response-mock-submit"
           :disabled="loading"
@@ -529,28 +529,8 @@ watch(
 </template>
 
 <style scoped>
-.ce-datasource-tool__import-dialog {
-  width: min(calc(100vw - 32px), 560px);
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  background: transparent;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-  color: rgb(15 23 42);
-}
-
-.ce-datasource-tool__response-mock-dialog {
-  width: min(calc(100vw - 32px), 720px);
-}
-
-.ce-datasource-tool__import-dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
 .ce-datasource-tool__import-dialog-panel {
   overflow: hidden;
-  border-radius: 8px;
-  background: rgb(255 255 255);
 }
 
 .ce-datasource-tool__import-dialog-header,
@@ -559,14 +539,10 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 12px 14px;
 }
 
 .ce-datasource-tool__import-dialog-actions {
   justify-content: flex-end;
-  border-top: 1px solid rgb(226 232 240);
-  border-bottom: 0;
 }
 
 .ce-datasource-tool__import-dialog-title {
@@ -579,8 +555,7 @@ watch(
 .ce-datasource-tool__import-dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
+  gap: var(--mk-form-field-gap);
 }
 
 .ce-datasource-tool__response-mock-body {
@@ -618,33 +593,7 @@ watch(
   font-size: 13px;
 }
 
-.ce-datasource-tool__field {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ce-datasource-tool__label {
-  color: rgb(51 65 85);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.ce-datasource-tool__input,
 .ce-datasource-tool__textarea {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  padding: 7px 9px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font: inherit;
-}
-
-.ce-datasource-tool__textarea {
-  min-height: 80px;
   resize: vertical;
 }
 
@@ -655,46 +604,10 @@ watch(
   line-height: 18px;
 }
 
-.ce-datasource-tool__input:focus,
-.ce-datasource-tool__textarea:focus {
-  outline: none;
-  border-color: rgb(20 184 166);
-  box-shadow: 0 0 0 2px rgb(20 184 166 / 0.15);
-}
-
-.ce-datasource-tool__input:read-only,
-.ce-datasource-tool__textarea:read-only,
-.ce-datasource-tool__input:disabled {
-  background: rgb(241 245 249);
-  color: rgb(100 116 139);
-}
-
 .ce-datasource-tool__import-dialog-close,
 .ce-datasource-tool__action,
 .ce-datasource-tool__schema-button {
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 6px 10px;
-  background: rgb(255 255 255);
-  color: rgb(51 65 85);
-  font: inherit;
-  font-weight: 650;
   cursor: pointer;
-}
-
-.ce-datasource-tool__schema-button {
-  border-color: rgb(20 184 166 / 0.55);
-  background: rgb(20 184 166);
-  color: rgb(255 255 255);
-}
-
-.ce-datasource-tool__import-dialog-close:hover,
-.ce-datasource-tool__action:hover {
-  background: rgb(248 250 252);
-}
-
-.ce-datasource-tool__schema-button:hover {
-  background: rgb(13 148 136);
 }
 
 .ce-datasource-tool__action:disabled,
@@ -733,15 +646,6 @@ watch(
   }
 }
 
-.dark .ce-datasource-tool__import-dialog-panel {
-  background: rgb(15 23 42);
-}
-
-.dark .ce-datasource-tool__import-dialog-header,
-.dark .ce-datasource-tool__import-dialog-actions {
-  border-color: rgb(51 65 85);
-}
-
 .dark .ce-datasource-tool__import-dialog-title,
 .dark .ce-datasource-tool__section-title {
   color: rgb(226 232 240);
@@ -750,31 +654,5 @@ watch(
 .dark .ce-datasource-tool__label,
 .dark .ce-datasource-tool__section-copy {
   color: rgb(148 163 184);
-}
-
-.dark .ce-datasource-tool__input,
-.dark .ce-datasource-tool__textarea {
-  border-color: rgb(71 85 105);
-  background: rgb(2 6 23);
-  color: rgb(226 232 240);
-}
-
-.dark .ce-datasource-tool__input:read-only,
-.dark .ce-datasource-tool__textarea:read-only,
-.dark .ce-datasource-tool__input:disabled {
-  background: rgb(30 41 59);
-  color: rgb(148 163 184);
-}
-
-.dark .ce-datasource-tool__import-dialog-close,
-.dark .ce-datasource-tool__action {
-  border-color: rgb(71 85 105);
-  background: rgb(30 41 59);
-  color: rgb(226 232 240);
-}
-
-.dark .ce-datasource-tool__import-dialog-close:hover,
-.dark .ce-datasource-tool__action:hover {
-  background: rgb(51 65 85);
 }
 </style>

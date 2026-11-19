@@ -155,7 +155,7 @@ watch(
           type="button"
           :data-testid="`preview-mode-${mode}`"
           :aria-pressed="previewMode === mode"
-          class="rounded-md px-3 py-1.5 font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500"
+          class="transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500 mk-form-button"
           :class="previewMode === mode ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'"
           @click="setPreviewMode(mode)"
         >

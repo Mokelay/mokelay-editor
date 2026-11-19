@@ -90,12 +90,14 @@ type ApiBuilderShellProps = {
   routeUuid?: string | null;
   routeSource?: MokelayApiSource;
   routeFragment?: boolean;
+  routeAssetApp?: string;
 };
 
 const props = withDefaults(defineProps<ApiBuilderShellProps>(), {
   routeUuid: '',
   routeSource: 'user',
-  routeFragment: false
+  routeFragment: false,
+  routeAssetApp: 'mokelay'
 });
 
 const editorRoot = ref<HTMLElement | null>(null);
@@ -256,7 +258,7 @@ watch(
 );
 
 function fragmentDetailKey(source: MokelayApiSource, uuid: string) {
-  return `${source}:${uuid}`;
+  return `${source}:${props.routeAssetApp}:${uuid}`;
 }
 
 async function loadFragmentOptions(source: MokelayApiSource = activeFragmentSource.value) {
@@ -267,7 +269,7 @@ async function loadFragmentOptions(source: MokelayApiSource = activeFragmentSour
     let page = 1;
     let hasNextPage = true;
     while (hasNextPage) {
-      const result = await listApis({ page, pageSize: 200, source, fragment: true });
+      const result = await listApis({ page, pageSize: 200, source, fragment: true, ...(source === 'system' ? { assetApp: props.routeAssetApp } : {}) });
       records.push(...result.apis);
       hasNextPage = result.pagination.hasNextPage && page < result.pagination.totalPages;
       page += 1;
@@ -288,7 +290,7 @@ async function loadFragmentOptions(source: MokelayApiSource = activeFragmentSour
 
 async function loadFragmentDetail(uuid: string, source: MokelayApiSource = activeFragmentSource.value) {
   try {
-    const record = await getApiBySource(uuid, source, { fragment: true });
+    const record = await getApiBySource(uuid, source, { fragment: true, assetApp: props.routeAssetApp });
     if (record.source !== source || !record.fragment || !record.apiJson || !isFragmentApiJson(record.apiJson)) {
       throw new Error(`${source === 'system' ? '内置' : '用户'} Fragment ${uuid} 不存在或类型不正确。`);
     }
@@ -414,6 +416,7 @@ function draftFromApiRecord(record: MokelayApiRecord, currentDraft?: ApiBuilderD
   }
   draft.status = record.status;
   draft.source = record.source;
+  draft.assetApp = record.assetApp;
   draft.createdAt = record.createdAt || draft.createdAt;
   draft.updatedAt = record.updatedAt || draft.updatedAt;
 
@@ -459,7 +462,7 @@ async function loadApiDetail(
 
   try {
     const api = source === 'system'
-      ? await getBuiltInApi(uuid, fragment ? { fragment: true } : {})
+      ? await getBuiltInApi(uuid, { fragment, assetApp: props.routeAssetApp })
       : await getApi(uuid);
     if (requestId !== apiDetailRequestId) return;
     const currentDraft = drafts.value.find((draft) => draft.id === uuid);
@@ -480,9 +483,9 @@ async function loadApiDetail(
   }
 }
 
-function apiRouteQuery(source: MokelayApiSource, fragment = false) {
+function apiRouteQuery(source: MokelayApiSource, fragment = false, assetApp = props.routeAssetApp) {
   const query = new URLSearchParams();
-  if (source === 'system') query.set('source', 'system');
+  if (source === 'system') { query.set('source', 'system'); query.set('assetApp', assetApp); }
   if (fragment) query.set('fragment', 'true');
   const appUuid = currentAppUuid();
   if (source === 'user' && appUuid) query.set('appUuid', appUuid);
@@ -499,8 +502,8 @@ function apiListHash(source: MokelayApiSource, fragment = false) {
   return `/apis${apiRouteQuery(source, fragment)}`;
 }
 
-function apiDetailHash(uuid: string, source: MokelayApiSource, fragment = false) {
-  return `/apis/${encodeURIComponent(uuid)}${apiRouteQuery(source, fragment)}`;
+function apiDetailHash(uuid: string, source: MokelayApiSource, fragment = false, assetApp = props.routeAssetApp) {
+  return `/apis/${encodeURIComponent(uuid)}${apiRouteQuery(source, fragment, assetApp)}`;
 }
 
 function navigateToList() {
@@ -541,7 +544,7 @@ function switchApiListSource(source: MokelayApiSource) {
 }
 
 function openApiRecord(record: MokelayApiRecord) {
-  window.location.hash = apiDetailHash(record.uuid, record.source, record.fragment);
+  window.location.hash = apiDetailHash(record.uuid, record.source, record.fragment, record.assetApp);
 }
 
 function openCreateDialog(fragment = false, sample?: ApiBuilderSampleRecord) {
@@ -1526,7 +1529,7 @@ async function openFragmentEditor(uuid = selectedFragmentUuid.value) {
     return;
   }
   try {
-    const record = uuid ? await getApiBySource(uuid, source, { fragment: true }) : null;
+    const record = uuid ? await getApiBySource(uuid, source, { fragment: true, assetApp: props.routeAssetApp }) : null;
     if (record && (record.source !== source || !record.fragment || !record.apiJson || !isFragmentApiJson(record.apiJson))) {
       throw new Error(`${source === 'system' ? '内置' : '用户'} Fragment ${uuid} 不存在或类型不正确。`);
     }
@@ -2096,7 +2099,7 @@ async function assertFragmentReferencesForSource(apiJson: ApiJson, source: Mokel
     let record = fragmentDetails.value.get(key);
     if (!record) {
       try {
-        record = await getApiBySource(uuid, source, { fragment: true });
+        record = await getApiBySource(uuid, source, { fragment: true, assetApp: props.routeAssetApp });
       } catch (error) {
         const message = error instanceof Error ? error.message : '目标不存在';
         throw new Error(`${source === 'system' ? '内置' : '用户'} API 只能引用同来源 Fragment：${uuid}（${message}）`);
@@ -2146,7 +2149,7 @@ async function runTest() {
   const source = activeDraft.value.source;
   const result = await runDryApiTest(apiJson, testRequest.value, {
     resolveFragment: async (uuid) => {
-      const record = await getApiBySource(uuid, source, { fragment: true });
+      const record = await getApiBySource(uuid, source, { fragment: true, assetApp: props.routeAssetApp });
       if (record.source !== source || !record.fragment || !record.apiJson || !isFragmentApiJson(record.apiJson)) {
         throw new Error(`${source === 'system' ? '内置' : '用户'} Fragment ${uuid} 不存在或类型不正确。`);
       }
@@ -2190,13 +2193,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">API 与 Fragment 共用同一套编排能力；Fragment 只能通过 ExecuteFragment 调用。</p>
           </div>
           <div v-if="apiListSource === 'user'" class="flex gap-2">
-            <button data-testid="api-builder-new-fragment" class="builder-secondary-button" @click="openCreateDialog(true)">新建 Fragment</button>
-            <button data-testid="api-builder-new" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white" @click="openCreateDialog(false)">新建 API</button>
+            <button data-testid="api-builder-new-fragment" class="builder-secondary-button mk-form-button" @click="openCreateDialog(true)">新建 Fragment</button>
+            <button data-testid="api-builder-new" class="mk-form-button mk-form-button--primary" @click="openCreateDialog(false)">新建 API</button>
           </div>
         </div>
         <div class="mt-4 flex gap-2">
-          <button data-testid="api-source-user" class="builder-nav-button" :class="{ 'builder-nav-button-active': apiListSource === 'user' }" @click="switchApiListSource('user')">用户编排</button>
-          <button data-testid="api-source-system" class="builder-nav-button" :class="{ 'builder-nav-button-active': apiListSource === 'system' }" @click="switchApiListSource('system')">系统内置</button>
+          <button data-testid="api-source-user" class="builder-nav-button mk-form-button" :class="{ 'builder-nav-button-active': apiListSource === 'user' }" @click="switchApiListSource('user')">用户编排</button>
+          <button data-testid="api-source-system" class="builder-nav-button mk-form-button" :class="{ 'builder-nav-button-active': apiListSource === 'system' }" @click="switchApiListSource('system')">系统内置</button>
         </div>
       </section>
 
@@ -2205,7 +2208,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
       <section v-if="apiListSource === 'user' && apiSamples.length" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <h3 class="text-base font-semibold text-slate-950 dark:text-white">内置样例</h3>
         <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <button v-for="sample in apiSamples" :key="sample.uuid" class="rounded-lg border border-slate-200 p-3 text-left hover:border-teal-400 dark:border-slate-700" @click="openCreateDialog(false, sample)">
+          <button v-for="sample in apiSamples" :key="sample.uuid" class="border border-slate-200 text-left hover:border-teal-400 dark:border-slate-700 mk-form-button" @click="openCreateDialog(false, sample)">
             <strong class="block">{{ sample.title }}</strong>
             <small class="mt-1 block text-slate-500">{{ sample.description }}</small>
           </button>
@@ -2226,15 +2229,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-            <tr v-for="record in apiList" :key="record.uuid">
+            <tr v-for="record in apiList" :key="`${record.assetApp ?? 'mokelay'}/${record.uuid}`">
               <td class="px-4 py-3 font-medium">{{ record.name }}</td>
               <td class="px-4 py-3 font-mono text-xs">{{ record.uuid }}</td>
               <td class="px-4 py-3"><span class="rounded bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800">{{ record.fragment ? 'Fragment' : record.method }}</span></td>
               <td v-if="apiListSource === 'user'" class="px-4 py-3">{{ record.status === 'published' ? '已发布' : '草稿' }}</td>
               <td v-if="apiListSource === 'user'" class="px-4 py-3 text-slate-500">{{ record.updatedAt || '-' }}</td>
               <td class="px-4 py-3 text-right">
-                <button class="builder-small-button" @click="openApiRecord(record)">打开</button>
-                <button v-if="record.source !== 'system'" class="ml-2 text-xs text-rose-600" @click="removeApiRecord(record)">删除</button>
+                <button class="builder-small-button mk-form-button" @click="openApiRecord(record)">打开</button>
+                <button v-if="record.source !== 'system'" class="ml-2 text-rose-600 mk-form-button" @click="removeApiRecord(record)">删除</button>
               </td>
             </tr>
             <tr v-if="!apiList.length">
@@ -2250,7 +2253,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
         <p v-if="apiBuilderError" class="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderError }}</p>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <button class="mb-2 text-sm font-medium text-teal-700 hover:text-teal-500 dark:text-teal-300" @click="navigateToList">返回 API 列表</button>
+            <button class="mb-2 text-teal-700 hover:text-teal-500 dark:text-teal-300 mk-form-button" @click="navigateToList">返回 API 列表</button>
             <div class="flex flex-wrap items-center gap-3">
               <h2 class="text-xl font-semibold text-slate-950 dark:text-white">{{ activeDraft.apiJson.alias || (isActiveFragment ? '未命名 Fragment' : '未命名 API') }}</h2>
               <span class="rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-800 dark:bg-sky-500/20 dark:text-sky-100">{{ isActiveFragment ? 'Fragment' : activeDraft.apiJson.method }}</span>
@@ -2258,13 +2261,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 {{ activeDraft.status === 'published' ? '已发布' : '草稿' }}
               </span>
               <span v-else class="rounded-md bg-violet-100 px-2 py-1 text-xs font-semibold text-violet-800 dark:bg-violet-500/20 dark:text-violet-100">系统内置</span>
-              <code class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ isActiveFragment ? activeDraft.apiJson.uuid : `/api/mokelay/${activeDraft.apiJson.uuid}` }}</code>
+              <code class="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">{{ isActiveFragment ? activeDraft.apiJson.uuid : `/api/${activeDraft.assetApp ?? 'mokelay'}/${activeDraft.apiJson.uuid}` }}</code>
             </div>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button class="builder-secondary-button" @click="duplicateCurrentDraft">复制{{ isActiveFragment ? ' Fragment' : ' API' }}</button>
-            <button v-if="!isActiveApiReadonly" class="builder-secondary-button disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="saveActiveDraft">{{ isSavingApi ? '保存中...' : '保存' }}</button>
-            <button v-if="!isActiveApiReadonly" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="publishApi">发布</button>
+            <button class="builder-secondary-button mk-form-button" @click="duplicateCurrentDraft">复制{{ isActiveFragment ? ' Fragment' : ' API' }}</button>
+            <button v-if="!isActiveApiReadonly" class="builder-secondary-button disabled:cursor-not-allowed disabled:opacity-60 mk-form-button" :disabled="isSavingApi" @click="saveActiveDraft">{{ isSavingApi ? '保存中...' : '保存' }}</button>
+            <button v-if="!isActiveApiReadonly" class="disabled:cursor-not-allowed disabled:opacity-60 mk-form-button mk-form-button--primary" :disabled="isSavingApi" @click="publishApi">发布</button>
           </div>
         </div>
       </section>
@@ -2272,15 +2275,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
       <div class="grid min-h-[660px] flex-1 gap-4 xl:grid-cols-[280px_minmax(0,1fr)_380px]">
         <aside class="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div class="grid grid-cols-3 gap-2">
-            <button class="builder-nav-button" :class="{ 'builder-nav-button-active': selection.type === 'api' }" @click="selection = { type: 'api' }">入口</button>
-            <button class="builder-nav-button" :class="{ 'builder-nav-button-active': selection.type === 'request' }" @click="selection = { type: 'request' }">{{ isActiveFragment ? 'Params' : '请求' }}</button>
-            <button class="builder-nav-button" :class="{ 'builder-nav-button-active': selection.type === 'response' }" @click="selection = { type: 'response' }">{{ isActiveFragment ? 'Outputs' : '响应' }}</button>
+            <button class="builder-nav-button mk-form-button" :class="{ 'builder-nav-button-active': selection.type === 'api' }" @click="selection = { type: 'api' }">入口</button>
+            <button class="builder-nav-button mk-form-button" :class="{ 'builder-nav-button-active': selection.type === 'request' }" @click="selection = { type: 'request' }">{{ isActiveFragment ? 'Params' : '请求' }}</button>
+            <button class="builder-nav-button mk-form-button" :class="{ 'builder-nav-button-active': selection.type === 'response' }" @click="selection = { type: 'response' }">{{ isActiveFragment ? 'Outputs' : '响应' }}</button>
           </div>
 
           <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">查询数据</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="block in groupedBlocks.query" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
+              <button v-for="block in groupedBlocks.query" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50 mk-form-button" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
                 <span>{{ block.title }}</span>
                 <small>{{ block.description }}</small>
               </button>
@@ -2290,7 +2293,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">写入数据</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="block in groupedBlocks.write" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
+              <button v-for="block in groupedBlocks.write" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50 mk-form-button" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
                 <span>{{ block.title }}</span>
                 <small>{{ block.description }}</small>
               </button>
@@ -2300,7 +2303,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">登录态</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="block in groupedBlocks.session" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
+              <button v-for="block in groupedBlocks.session" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50 mk-form-button" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
                 <span>{{ block.title }}</span>
                 <small>{{ block.description }}</small>
               </button>
@@ -2310,7 +2313,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">工具</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="block in groupedBlocks.utility" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
+              <button v-for="block in groupedBlocks.utility" :key="block.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50 mk-form-button" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
                 <span>{{ block.title }}</span>
                 <small>{{ block.description }}</small>
               </button>
@@ -2320,7 +2323,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div v-if="!isActiveFragment">
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">逻辑片段</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="block in groupedBlocks.fragment" :key="block.functionName" data-testid="api-add-execute-fragment" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
+              <button v-for="block in groupedBlocks.fragment" :key="block.functionName" data-testid="api-add-execute-fragment" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50 mk-form-button" :disabled="isActiveApiReadonly" @click="addBlock(block.functionName)">
                 <span>{{ block.title }}</span>
                 <small>{{ block.description }}</small>
               </button>
@@ -2330,7 +2333,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <div>
             <h3 class="text-sm font-semibold text-slate-900 dark:text-white">控制器</h3>
             <div class="mt-2 grid gap-2">
-              <button v-for="controller in groupedControllers" :key="controller.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50" :disabled="isActiveApiReadonly" @click="addController(controller.functionName)">
+              <button v-for="controller in groupedControllers" :key="controller.functionName" class="builder-palette-button disabled:cursor-not-allowed disabled:opacity-50 mk-form-button" :disabled="isActiveApiReadonly" @click="addController(controller.functionName)">
                 <span>{{ controller.title }}</span>
                 <small>{{ controller.description }}</small>
               </button>
@@ -2345,7 +2348,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">从 starter 开始，通过连线决定 block 和 controller 的执行流。</p>
             </div>
             <div class="flex items-center gap-2 text-xs">
-              <button data-testid="api-flow-auto-layout" class="builder-secondary-button px-3 py-1.5 text-xs" @click="autoArrangeGraph">
+              <button data-testid="api-flow-auto-layout" class="builder-secondary-button mk-form-button" @click="autoArrangeGraph">
                 自动整理
               </button>
               <span class="rounded-md bg-rose-100 px-2 py-1 font-semibold text-rose-700 dark:bg-rose-500/20 dark:text-rose-100">{{ issueCount('error') }} 错误</span>
@@ -2373,25 +2376,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <template v-if="selection.type === 'api'">
             <h3 class="text-base font-semibold text-slate-950 dark:text-white">{{ isActiveFragment ? 'Fragment 配置' : '接口入口' }}</h3>
             <div class="mt-4 space-y-3">
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>接口名称</span>
-                <input v-model="activeDraft.apiJson.alias" class="builder-input">
+                <input v-model="activeDraft.apiJson.alias" class="builder-input mk-form-control">
               </label>
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>API 标识</span>
-                <input v-model="activeDraft.apiJson.uuid" class="builder-input font-mono">
+                <input v-model="activeDraft.apiJson.uuid" class="builder-input mk-form-control">
               </label>
-              <label v-if="!isActiveFragment" class="builder-field">
+              <label v-if="!isActiveFragment" class="builder-field mk-form-field">
                 <span>请求方法</span>
-                <select v-model="activeDraft.apiJson.method" class="builder-input">
+                <select v-model="activeDraft.apiJson.method" class="builder-input mk-form-control">
                   <option value="GET">GET</option>
                   <option value="POST">POST</option>
                 </select>
               </label>
               <div class="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                {{ isActiveFragment ? 'Fragment UUID：' : '路径预览：' }}<code>{{ isActiveFragment ? activeDraft.apiJson.uuid : `/api/mokelay/${activeDraft.apiJson.uuid}` }}</code>
+                {{ isActiveFragment ? 'Fragment UUID：' : '路径预览：' }}<code>{{ isActiveFragment ? activeDraft.apiJson.uuid : `/api/${activeDraft.assetApp ?? 'mokelay'}/${activeDraft.apiJson.uuid}` }}</code>
               </div>
-              <button class="builder-secondary-button w-full disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApi" @click="saveActiveDraft">
+              <button class="builder-secondary-button w-full disabled:cursor-not-allowed disabled:opacity-60 mk-form-button" :disabled="isSavingApi" @click="saveActiveDraft">
                 {{ isSavingApi ? '保存中...' : '保存基本信息' }}
               </button>
             </div>
@@ -2402,26 +2405,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             <div v-if="isActiveFragment" class="mt-4 space-y-3">
               <div class="flex items-center justify-between">
                 <p class="text-sm text-slate-500 dark:text-slate-400">声明调用 Fragment 时必须映射的输入参数。</p>
-                <button data-testid="fragment-add-param" class="builder-small-button" @click="addFragmentParam">添加参数</button>
+                <button data-testid="fragment-add-param" class="builder-small-button mk-form-button" @click="addFragmentParam">添加参数</button>
               </div>
               <div v-for="(param, index) in getFragmentParams()" :key="`params-${index}`" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                  <input class="builder-input" :value="getRequestKey(param)" data-testid="fragment-param-key" placeholder="参数名" @input="updateFragmentParamKey(index, ($event.target as HTMLInputElement).value)">
-                  <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <input type="checkbox" :checked="isRequestRequired(param)" @change="toggleFragmentParamRequired(index)">
+                <div class="mk-form-grid">
+                  <input class="builder-input mk-form-control" :value="getRequestKey(param)" data-testid="fragment-param-key" placeholder="参数名" @input="updateFragmentParamKey(index, ($event.target as HTMLInputElement).value)">
+                  <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 mk-form-check-row">
+                    <input class="mk-form-check" type="checkbox" :checked="isRequestRequired(param)" @change="toggleFragmentParamRequired(index)">
                     必填
                   </label>
                 </div>
                 <div class="mt-2 flex flex-wrap gap-2">
                   <span v-for="(processor, processorIndex) in getRequestProcessors(param)" :key="processorIndex" class="rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-500/20 dark:text-teal-100">
                     {{ processorLabel(processor) }}
-                    <button class="ml-1" @click="removeFragmentParamProcessor(index, processorIndex)">×</button>
+                    <button class="ml-1 mk-form-button" @click="removeFragmentParamProcessor(index, processorIndex)">×</button>
                   </span>
-                  <select class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-950" @change="addFragmentParamProcessor(index, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                  <select class="mk-form-control" @change="addFragmentParamProcessor(index, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                     <option value="">添加规则</option>
                     <option v-for="processor in processorDefinitions" :key="processor.name" :value="processor.name">{{ processor.title }}</option>
                   </select>
-                  <button class="ml-auto text-xs text-rose-600" @click="removeFragmentParam(index)">删除</button>
+                  <button class="ml-auto text-rose-600 mk-form-button" @click="removeFragmentParam(index)">删除</button>
                 </div>
               </div>
             </div>
@@ -2429,27 +2432,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               <section v-for="location in requestLocations" :key="location.value">
                 <div class="mb-2 flex items-center justify-between">
                   <h4 class="text-sm font-semibold text-slate-900 dark:text-white">{{ location.title }}</h4>
-                  <button class="builder-small-button" @click="addRequestParam(location.value)">添加参数</button>
+                  <button class="builder-small-button mk-form-button" @click="addRequestParam(location.value)">添加参数</button>
                 </div>
                 <div class="space-y-2">
                   <div v-for="(param, index) in getRequestList(location.value)" :key="`${location.value}-${index}`" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                    <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                      <input class="builder-input" :value="getRequestKey(param)" placeholder="参数名" @input="updateRequestKey(location.value, index, ($event.target as HTMLInputElement).value)">
-                      <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                        <input type="checkbox" :checked="isRequestRequired(param)" @change="toggleRequired(location.value, index)">
+                    <div class="mk-form-grid">
+                      <input class="builder-input mk-form-control" :value="getRequestKey(param)" placeholder="参数名" @input="updateRequestKey(location.value, index, ($event.target as HTMLInputElement).value)">
+                      <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 mk-form-check-row">
+                        <input class="mk-form-check" type="checkbox" :checked="isRequestRequired(param)" @change="toggleRequired(location.value, index)">
                         必填
                       </label>
                     </div>
                     <div class="mt-2 flex flex-wrap gap-2">
                       <span v-for="(processor, processorIndex) in getRequestProcessors(param)" :key="processorIndex" class="rounded-full bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-500/20 dark:text-teal-100">
                         {{ processorLabel(processor) }}
-                        <button class="ml-1" @click="removeRequestProcessor(location.value, index, processorIndex)">×</button>
+                        <button class="ml-1 mk-form-button" @click="removeRequestProcessor(location.value, index, processorIndex)">×</button>
                       </span>
-                      <select class="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-950" @change="addRequestProcessor(location.value, index, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                      <select class="mk-form-control" @change="addRequestProcessor(location.value, index, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                         <option value="">添加规则</option>
                         <option v-for="processor in processorDefinitions" :key="processor.name" :value="processor.name">{{ processor.title }}</option>
                       </select>
-                      <button class="ml-auto text-xs text-rose-600" @click="removeRequestParam(location.value, index)">删除</button>
+                      <button class="ml-auto text-rose-600 mk-form-button" @click="removeRequestParam(location.value, index)">删除</button>
                     </div>
                   </div>
                 </div>
@@ -2465,7 +2468,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <button
                   v-for="terminal in responseTerminals"
                   :key="terminal.uuid"
-                  class="builder-small-button"
+                  class="builder-small-button mk-form-button"
                   :class="{ 'border-teal-500 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-500/10 dark:text-teal-100': selectedResponseTerminalUuid === terminal.uuid }"
                   :data-testid="`api-response-terminal-${terminal.uuid}`"
                   @click="selectResponseTerminal(terminal.uuid)"
@@ -2477,30 +2480,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             </div>
             <div class="mt-4 space-y-3">
               <div v-for="([key, value], index) in getResponseEntries()" :key="`${selectedResponseTerminalUuid || 'default'}-${index}`" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                <input class="builder-input" :value="key" data-testid="api-response-field-key" @input="updateResponseField(index, ($event.target as HTMLInputElement).value, value)">
+                <input class="builder-input mk-form-control" :value="key" data-testid="api-response-field-key" @input="updateResponseField(index, ($event.target as HTMLInputElement).value, value)">
                 <div class="mt-2 grid gap-2">
-                  <input class="builder-input font-mono text-xs" :value="formatUnknown(value)" @input="updateResponseField(index, key, parseLooseValue(($event.target as HTMLInputElement).value))">
-                  <select class="builder-input" @change="setTemplateValue((next) => updateResponseField(index, key, next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                  <input class="builder-input mk-form-control" :value="formatUnknown(value)" @input="updateResponseField(index, key, parseLooseValue(($event.target as HTMLInputElement).value))">
+                  <select class="builder-input mk-form-control" @change="setTemplateValue((next) => updateResponseField(index, key, next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                     <option value="">从变量选择器填入</option>
                     <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }} · {{ option.path }}</option>
                   </select>
                 </div>
-                <button class="mt-2 text-xs text-rose-600" @click="removeResponseField(index)">删除字段</button>
+                <button class="mt-2 text-rose-600 mk-form-button" @click="removeResponseField(index)">删除字段</button>
               </div>
-              <button class="builder-secondary-button w-full" @click="addResponseField">添加{{ isActiveFragment ? ' output' : '响应字段' }}</button>
+              <button class="builder-secondary-button w-full mk-form-button" @click="addResponseField">添加{{ isActiveFragment ? ' output' : '响应字段' }}</button>
             </div>
           </template>
 
           <template v-else-if="selection.type === 'starter'">
             <h3 class="text-base font-semibold text-slate-950 dark:text-white">Starter Block</h3>
             <div class="mt-4 space-y-3">
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>UUID</span>
-                <input value="starter" class="builder-input font-mono" disabled>
+                <input value="starter" class="builder-input mk-form-control" disabled>
               </label>
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>下一个节点</span>
-                <select class="builder-input" :value="starterBlock?.nextBlock ?? ''" @change="setNextBlock('starter', 'next', ($event.target as HTMLSelectElement).value || null)">
+                <select class="builder-input mk-form-control" :value="starterBlock?.nextBlock ?? ''" @change="setNextBlock('starter', 'next', ($event.target as HTMLSelectElement).value || null)">
                   <option value="">null</option>
                   <option v-for="option in executableTargetOptions()" :key="option.uuid" :value="option.uuid">{{ option.label }}</option>
                 </select>
@@ -2511,30 +2514,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <template v-else-if="activeStandardBlock">
             <h3 class="text-base font-semibold text-slate-950 dark:text-white">步骤配置</h3>
             <div class="mt-4 space-y-3">
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>业务名称</span>
-                <input v-model="activeStandardBlock.alias" class="builder-input">
+                <input v-model="activeStandardBlock.alias" class="builder-input mk-form-control">
               </label>
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>Block UUID</span>
-                <input :value="activeStandardBlock.uuid" class="builder-input font-mono" @input="updateActiveBlockUuid(($event.target as HTMLInputElement).value)">
+                <input :value="activeStandardBlock.uuid" class="builder-input mk-form-control" @input="updateActiveBlockUuid(($event.target as HTMLInputElement).value)">
               </label>
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>类型</span>
-                <input :value="getBlockDefinition(activeStandardBlock.functionName)?.title || activeStandardBlock.functionName" class="builder-input" disabled>
+                <input :value="getBlockDefinition(activeStandardBlock.functionName)?.title || activeStandardBlock.functionName" class="builder-input mk-form-control" disabled>
               </label>
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>下一个节点</span>
-                <select class="builder-input" :value="activeStandardBlock.nextBlock ?? ''" @change="setNextBlock(activeStandardBlock.uuid, 'next', ($event.target as HTMLSelectElement).value || null)">
+                <select class="builder-input mk-form-control" :value="activeStandardBlock.nextBlock ?? ''" @change="setNextBlock(activeStandardBlock.uuid, 'next', ($event.target as HTMLSelectElement).value || null)">
                   <option value="">null</option>
                   <option v-for="option in executableTargetOptions(activeStandardBlock.uuid)" :key="option.uuid" :value="option.uuid">{{ option.label }}</option>
                 </select>
               </label>
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>错误处理</span>
                 <select
                   data-testid="block-error-next-block"
-                  class="builder-input"
+                  class="builder-input mk-form-control"
                   :value="errorNextBlockSelectValue(activeStandardBlock)"
                   @change="updateErrorNextBlock(activeStandardBlock, ($event.target as HTMLSelectElement).value)"
                 >
@@ -2545,16 +2548,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               </label>
 
               <template v-if="activeStandardBlock.functionName === 'executeFragment'">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>目标 Fragment</span>
-                  <select data-testid="execute-fragment-picker" class="builder-input" :value="selectedFragmentUuid" @change="selectFragment(($event.target as HTMLSelectElement).value)">
+                  <select data-testid="execute-fragment-picker" class="builder-input mk-form-control" :value="selectedFragmentUuid" @change="selectFragment(($event.target as HTMLSelectElement).value)">
                     <option value="">{{ isLoadingFragments ? '加载中...' : '请选择已发布 Fragment' }}</option>
                     <option v-for="fragment in fragmentOptions" :key="fragment.uuid" :value="fragment.uuid">{{ fragment.name }} · {{ fragment.uuid }}</option>
                   </select>
                 </label>
                 <div class="flex gap-2">
-                  <button v-if="!isActiveApiReadonly" type="button" class="builder-secondary-button flex-1" :disabled="!selectedFragmentUuid" @click="openFragmentEditor()">编排 Fragment</button>
-                  <button v-if="!isActiveApiReadonly" type="button" class="builder-secondary-button flex-1" @click="openFragmentEditor('')">新建 Fragment</button>
+                  <button v-if="!isActiveApiReadonly" type="button" class="builder-secondary-button flex-1 mk-form-button" :disabled="!selectedFragmentUuid" @click="openFragmentEditor()">编排 Fragment</button>
+                  <button v-if="!isActiveApiReadonly" type="button" class="builder-secondary-button flex-1 mk-form-button" @click="openFragmentEditor('')">新建 Fragment</button>
                 </div>
                 <div class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
                   <div class="mb-2 flex items-center justify-between">
@@ -2562,10 +2565,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                     <code class="text-xs text-slate-500">outputs: ['result']</code>
                   </div>
                   <p v-if="!selectedFragmentParams.length" class="text-xs text-slate-500 dark:text-slate-400">选择 Fragment 后按其 params 配置输入。</p>
-                  <label v-for="param in selectedFragmentParams" :key="declarationKey(param)" class="builder-field mt-2">
+                  <label v-for="param in selectedFragmentParams" :key="declarationKey(param)" class="builder-field mt-2 mk-form-field">
                     <span>{{ declarationKey(param) }}</span>
-                    <input class="builder-input font-mono text-xs" :data-testid="`execute-fragment-param-${declarationKey(param)}`" :value="formatUnknown(fragmentParamMappings()[declarationKey(param)])" @input="updateFragmentParamMapping(declarationKey(param), parseLooseValue(($event.target as HTMLInputElement).value))">
-                    <select class="builder-input" @change="setTemplateValue((next) => updateFragmentParamMapping(declarationKey(param), next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                    <input class="builder-input mk-form-control" :data-testid="`execute-fragment-param-${declarationKey(param)}`" :value="formatUnknown(fragmentParamMappings()[declarationKey(param)])" @input="updateFragmentParamMapping(declarationKey(param), parseLooseValue(($event.target as HTMLInputElement).value))">
+                    <select class="builder-input mk-form-control" @change="setTemplateValue((next) => updateFragmentParamMapping(declarationKey(param), next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                       <option value="">选择变量</option>
                       <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                     </select>
@@ -2574,53 +2577,53 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               </template>
 
               <template v-if="activeStandardBlock.functionName === 'cascadeDelete'">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>数据源</span>
-                  <input data-testid="cascade-delete-datasource" class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
+                  <input data-testid="cascade-delete-datasource" class="builder-input mk-form-control" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
                 </label>
 
                 <section class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
                   <div class="mb-3 flex items-center justify-between gap-2">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white">Root 节点</h4>
-                    <button data-testid="cascade-add-root-condition" class="builder-small-button" @click="addCascadeCondition(cascadeRootInput())">添加条件</button>
+                    <button data-testid="cascade-add-root-condition" class="builder-small-button mk-form-button" @click="addCascadeCondition(cascadeRootInput())">添加条件</button>
                   </div>
                   <div class="grid gap-2 sm:grid-cols-3">
-                    <label class="builder-field">
+                    <label class="builder-field mk-form-field">
                       <span>节点 ID</span>
-                      <input data-testid="cascade-root-id" class="builder-input" :value="cascadeRootInput().id" @input="cascadeRootInput().id = ($event.target as HTMLInputElement).value">
+                      <input data-testid="cascade-root-id" class="builder-input mk-form-control" :value="cascadeRootInput().id" @input="cascadeRootInput().id = ($event.target as HTMLInputElement).value">
                     </label>
-                    <label class="builder-field">
+                    <label class="builder-field mk-form-field">
                       <span>表名</span>
-                      <input data-testid="cascade-root-table" class="builder-input" :value="cascadeRootInput().table" @input="cascadeRootInput().table = ($event.target as HTMLInputElement).value">
+                      <input data-testid="cascade-root-table" class="builder-input mk-form-control" :value="cascadeRootInput().table" @input="cascadeRootInput().table = ($event.target as HTMLInputElement).value">
                     </label>
-                    <label class="builder-field">
+                    <label class="builder-field mk-form-field">
                       <span>主键字段</span>
-                      <input data-testid="cascade-root-key-field" class="builder-input" :value="cascadeRootInput().keyField" @input="cascadeRootInput().keyField = ($event.target as HTMLInputElement).value">
+                      <input data-testid="cascade-root-key-field" class="builder-input mk-form-control" :value="cascadeRootInput().keyField" @input="cascadeRootInput().keyField = ($event.target as HTMLInputElement).value">
                     </label>
                   </div>
                   <div class="mt-3 space-y-2">
                     <div v-for="(condition, index) in cascadeConditions(cascadeRootInput())" :key="index" class="rounded-lg bg-slate-50 p-2 dark:bg-slate-800">
                       <template v-if="!condition.group">
-                        <div class="grid gap-2 sm:grid-cols-2">
-                          <input v-model="condition.fieldName" class="builder-input" placeholder="字段">
-                          <select v-model="condition.conditionType" class="builder-input">
+                        <div class="mk-form-grid">
+                          <input v-model="condition.fieldName" class="builder-input mk-form-control" placeholder="字段">
+                          <select v-model="condition.conditionType" class="builder-input mk-form-control">
                             <option v-for="item in conditionTypes" :key="item.value" :value="item.value">{{ item.title }}</option>
                           </select>
                         </div>
-                        <input class="builder-input mt-2 font-mono text-xs" :value="formatUnknown(condition.fieldValue)" @input="condition.fieldValue = parseLooseValue(($event.target as HTMLInputElement).value)">
-                        <select class="builder-input mt-2" @change="setTemplateValue((next) => condition.fieldValue = next, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                        <input class="builder-input mt-2 mk-form-control" :value="formatUnknown(condition.fieldValue)" @input="condition.fieldValue = parseLooseValue(($event.target as HTMLInputElement).value)">
+                        <select class="builder-input mt-2 mk-form-control" @change="setTemplateValue((next) => condition.fieldValue = next, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                           <option value="">选择变量</option>
                           <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                         </select>
                       </template>
                       <template v-else>
-                        <select v-model="condition.groupType" class="builder-input">
+                        <select v-model="condition.groupType" class="builder-input mk-form-control">
                           <option value="AND">AND</option>
                           <option value="OR">OR</option>
                         </select>
-                        <textarea class="builder-input mt-2 min-h-24 font-mono text-xs" :value="stringifyJson(condition.groups)" @input="updateConditionGroupJson(condition, ($event.target as HTMLTextAreaElement).value)"></textarea>
+                        <textarea class="builder-input mt-2 mk-form-control" :value="stringifyJson(condition.groups)" @input="updateConditionGroupJson(condition, ($event.target as HTMLTextAreaElement).value)"></textarea>
                       </template>
-                      <button class="mt-2 text-xs text-rose-600" @click="removeCascadeCondition(cascadeRootInput(), index)">删除条件</button>
+                      <button class="mt-2 text-rose-600 mk-form-button" @click="removeCascadeCondition(cascadeRootInput(), index)">删除条件</button>
                     </div>
                   </div>
                 </section>
@@ -2631,65 +2634,65 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                       <h4 class="text-sm font-semibold text-slate-900 dark:text-white">Relations</h4>
                       <p class="mt-1 text-xs text-slate-500">显式配置父子关系；每张表只能对应一个节点。</p>
                     </div>
-                    <button data-testid="cascade-add-relation" class="builder-small-button" @click="addCascadeRelation">添加关系</button>
+                    <button data-testid="cascade-add-relation" class="builder-small-button mk-form-button" @click="addCascadeRelation">添加关系</button>
                   </div>
                   <div class="space-y-3">
                     <article v-for="(relation, relationIndex) in cascadeRelations()" :key="relationIndex" class="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
-                      <div class="grid gap-2 sm:grid-cols-2">
-                        <label class="builder-field">
+                      <div class="mk-form-grid">
+                        <label class="builder-field mk-form-field">
                           <span>节点 ID</span>
-                          <input v-model="relation.id" :data-testid="`cascade-relation-${relationIndex}-id`" class="builder-input">
+                          <input v-model="relation.id" :data-testid="`cascade-relation-${relationIndex}-id`" class="builder-input mk-form-control">
                         </label>
-                        <label class="builder-field">
+                        <label class="builder-field mk-form-field">
                           <span>表名</span>
-                          <input v-model="relation.table" :data-testid="`cascade-relation-${relationIndex}-table`" class="builder-input">
+                          <input v-model="relation.table" :data-testid="`cascade-relation-${relationIndex}-table`" class="builder-input mk-form-control">
                         </label>
-                        <label class="builder-field">
+                        <label class="builder-field mk-form-field">
                           <span>主键字段</span>
-                          <input v-model="relation.keyField" :data-testid="`cascade-relation-${relationIndex}-key-field`" class="builder-input">
+                          <input v-model="relation.keyField" :data-testid="`cascade-relation-${relationIndex}-key-field`" class="builder-input mk-form-control">
                         </label>
-                        <label class="builder-field">
+                        <label class="builder-field mk-form-field">
                           <span>父节点</span>
-                          <select v-model="relation.parent" :data-testid="`cascade-relation-${relationIndex}-parent`" class="builder-input">
+                          <select v-model="relation.parent" :data-testid="`cascade-relation-${relationIndex}-parent`" class="builder-input mk-form-control">
                             <option value="">请选择父节点</option>
                             <option v-for="nodeId in cascadeNodeOptions()" :key="nodeId" :value="nodeId">{{ nodeId }}</option>
                           </select>
                         </label>
-                        <label class="builder-field sm:col-span-2">
+                        <label class="builder-field sm:col-span-2 mk-form-field">
                           <span>外键字段</span>
-                          <input v-model="relation.foreignKey" :data-testid="`cascade-relation-${relationIndex}-foreign-key`" class="builder-input">
+                          <input v-model="relation.foreignKey" :data-testid="`cascade-relation-${relationIndex}-foreign-key`" class="builder-input mk-form-control">
                         </label>
                       </div>
                       <div class="mt-3 flex items-center justify-between gap-2">
                         <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">附加条件</span>
-                        <button class="builder-small-button" @click="addCascadeCondition(relation)">添加条件</button>
+                        <button class="builder-small-button mk-form-button" @click="addCascadeCondition(relation)">添加条件</button>
                       </div>
                       <div class="mt-2 space-y-2">
                         <div v-for="(condition, conditionIndex) in cascadeConditions(relation)" :key="conditionIndex" class="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
                           <template v-if="!condition.group">
-                            <div class="grid gap-2 sm:grid-cols-2">
-                              <input v-model="condition.fieldName" class="builder-input" placeholder="字段">
-                              <select v-model="condition.conditionType" class="builder-input">
+                            <div class="mk-form-grid">
+                              <input v-model="condition.fieldName" class="builder-input mk-form-control" placeholder="字段">
+                              <select v-model="condition.conditionType" class="builder-input mk-form-control">
                                 <option v-for="item in conditionTypes" :key="item.value" :value="item.value">{{ item.title }}</option>
                               </select>
                             </div>
-                            <input class="builder-input mt-2 font-mono text-xs" :value="formatUnknown(condition.fieldValue)" @input="condition.fieldValue = parseLooseValue(($event.target as HTMLInputElement).value)">
-                            <select class="builder-input mt-2" @change="setTemplateValue((next) => condition.fieldValue = next, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                            <input class="builder-input mt-2 mk-form-control" :value="formatUnknown(condition.fieldValue)" @input="condition.fieldValue = parseLooseValue(($event.target as HTMLInputElement).value)">
+                            <select class="builder-input mt-2 mk-form-control" @change="setTemplateValue((next) => condition.fieldValue = next, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                               <option value="">选择变量</option>
                               <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                             </select>
                           </template>
                           <template v-else>
-                            <select v-model="condition.groupType" class="builder-input">
+                            <select v-model="condition.groupType" class="builder-input mk-form-control">
                               <option value="AND">AND</option>
                               <option value="OR">OR</option>
                             </select>
-                            <textarea class="builder-input mt-2 min-h-24 font-mono text-xs" :value="stringifyJson(condition.groups)" @input="updateConditionGroupJson(condition, ($event.target as HTMLTextAreaElement).value)"></textarea>
+                            <textarea class="builder-input mt-2 mk-form-control" :value="stringifyJson(condition.groups)" @input="updateConditionGroupJson(condition, ($event.target as HTMLTextAreaElement).value)"></textarea>
                           </template>
-                          <button class="mt-2 text-xs text-rose-600" @click="removeCascadeCondition(relation, conditionIndex)">删除条件</button>
+                          <button class="mt-2 text-rose-600 mk-form-button" @click="removeCascadeCondition(relation, conditionIndex)">删除条件</button>
                         </div>
                       </div>
-                      <button class="mt-3 text-xs text-rose-600" @click="removeCascadeRelation(relationIndex)">删除关系</button>
+                      <button class="mt-3 text-rose-600 mk-form-button" @click="removeCascadeRelation(relationIndex)">删除关系</button>
                     </article>
                     <p v-if="!cascadeRelations().length" class="text-xs text-slate-500">没有子节点时可保持空数组。</p>
                   </div>
@@ -2701,31 +2704,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                       <h4 class="text-sm font-semibold text-slate-900 dark:text-white">Collect</h4>
                       <p class="mt-1 text-xs text-slate-500">在删除前收集节点字段，供后续 Block 使用。</p>
                     </div>
-                    <button data-testid="cascade-add-collect" class="builder-small-button" @click="addCascadeCollect">添加收集项</button>
+                    <button data-testid="cascade-add-collect" class="builder-small-button mk-form-button" @click="addCascadeCollect">添加收集项</button>
                   </div>
                   <div class="space-y-3">
                     <article v-for="(collect, collectIndex) in cascadeCollectItems()" :key="collectIndex" class="rounded-lg bg-slate-50 p-3 dark:bg-slate-800">
-                      <div class="grid gap-2 sm:grid-cols-2">
-                        <label class="builder-field">
+                      <div class="mk-form-grid">
+                        <label class="builder-field mk-form-field">
                           <span>输出 key</span>
-                          <input v-model="collect.key" :data-testid="`cascade-collect-${collectIndex}-key`" class="builder-input">
+                          <input v-model="collect.key" :data-testid="`cascade-collect-${collectIndex}-key`" class="builder-input mk-form-control">
                         </label>
-                        <label class="builder-field">
+                        <label class="builder-field mk-form-field">
                           <span>节点</span>
-                          <select v-model="collect.node" :data-testid="`cascade-collect-${collectIndex}-node`" class="builder-input">
+                          <select v-model="collect.node" :data-testid="`cascade-collect-${collectIndex}-node`" class="builder-input mk-form-control">
                             <option value="">请选择节点</option>
                             <option v-for="nodeId in cascadeNodeOptions()" :key="nodeId" :value="nodeId">{{ nodeId }}</option>
                           </select>
                         </label>
-                        <label class="builder-field">
+                        <label class="builder-field mk-form-field">
                           <span>模式</span>
-                          <select v-model="collect.mode" :data-testid="`cascade-collect-${collectIndex}-mode`" class="builder-input">
+                          <select v-model="collect.mode" :data-testid="`cascade-collect-${collectIndex}-mode`" class="builder-input mk-form-control">
                             <option value="values">values</option>
                             <option value="rows">rows</option>
                           </select>
                         </label>
-                        <label class="flex items-center gap-2 self-end pb-2 text-sm text-slate-600 dark:text-slate-300">
-                          <input v-model="collect.distinct" type="checkbox">
+                        <label class="flex items-center gap-2 self-end pb-2 text-sm text-slate-600 dark:text-slate-300 mk-form-check-row">
+                          <input class="mk-form-check" v-model="collect.distinct" type="checkbox">
                           去重 distinct
                         </label>
                       </div>
@@ -2733,13 +2736,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                       <div class="mt-3">
                         <div class="mb-2 flex items-center justify-between">
                           <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Fields</span>
-                          <button class="builder-small-button" @click="addCascadeCollectField(collect)">添加字段</button>
+                          <button class="builder-small-button mk-form-button" @click="addCascadeCollectField(collect)">添加字段</button>
                         </div>
                         <div class="space-y-2">
                           <div v-for="(field, fieldIndex) in cascadeCollectFields(collect)" :key="fieldIndex" class="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
-                            <input class="builder-input" :data-testid="`cascade-collect-${collectIndex}-field-${fieldIndex}`" :value="declarationKey(field)" @input="updateCascadeCollectFieldKey(collect, fieldIndex, ($event.target as HTMLInputElement).value)">
-                            <textarea class="builder-input mt-2 min-h-20 font-mono text-xs" :data-testid="`cascade-collect-${collectIndex}-field-${fieldIndex}-processors`" :value="stringifyJson(cascadeCollectFieldProcessors(field))" placeholder="processors JSON（可选）" @input="updateCascadeCollectFieldProcessors(collect, fieldIndex, ($event.target as HTMLTextAreaElement).value)"></textarea>
-                            <button class="mt-2 text-xs text-rose-600" @click="removeCascadeCollectField(collect, fieldIndex)">删除字段</button>
+                            <input class="builder-input mk-form-control" :data-testid="`cascade-collect-${collectIndex}-field-${fieldIndex}`" :value="declarationKey(field)" @input="updateCascadeCollectFieldKey(collect, fieldIndex, ($event.target as HTMLInputElement).value)">
+                            <textarea class="builder-input mt-2 mk-form-control" :data-testid="`cascade-collect-${collectIndex}-field-${fieldIndex}-processors`" :value="stringifyJson(cascadeCollectFieldProcessors(field))" placeholder="processors JSON（可选）" @input="updateCascadeCollectFieldProcessors(collect, fieldIndex, ($event.target as HTMLTextAreaElement).value)"></textarea>
+                            <button class="mt-2 text-rose-600 mk-form-button" @click="removeCascadeCollectField(collect, fieldIndex)">删除字段</button>
                           </div>
                         </div>
                       </div>
@@ -2747,20 +2750,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                       <div class="mt-3">
                         <div class="mb-2 flex items-center justify-between">
                           <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Order By</span>
-                          <button class="builder-small-button" @click="addCascadeCollectOrderBy(collect)">添加排序</button>
+                          <button class="builder-small-button mk-form-button" @click="addCascadeCollectOrderBy(collect)">添加排序</button>
                         </div>
                         <div class="space-y-2">
                           <div v-for="(order, orderIndex) in cascadeCollectOrderBy(collect)" :key="orderIndex" class="grid grid-cols-[minmax(0,1fr)_96px_auto] gap-2">
-                            <input v-model="order.fieldName" class="builder-input" placeholder="字段">
-                            <select v-model="order.direction" class="builder-input">
+                            <input v-model="order.fieldName" class="builder-input mk-form-control" placeholder="字段">
+                            <select v-model="order.direction" class="builder-input mk-form-control">
                               <option value="ASC">ASC</option>
                               <option value="DESC">DESC</option>
                             </select>
-                            <button class="text-xs text-rose-600" @click="removeCascadeCollectOrderBy(collect, orderIndex)">删除</button>
+                            <button class="text-rose-600 mk-form-button" @click="removeCascadeCollectOrderBy(collect, orderIndex)">删除</button>
                           </div>
                         </div>
                       </div>
-                      <button class="mt-3 text-xs text-rose-600" @click="removeCascadeCollect(collectIndex)">删除收集项</button>
+                      <button class="mt-3 text-rose-600 mk-form-button" @click="removeCascadeCollect(collectIndex)">删除收集项</button>
                     </article>
                     <p v-if="!cascadeCollectItems().length" class="text-xs text-slate-500">不需要向后续步骤传值时可保持空数组。</p>
                   </div>
@@ -2769,129 +2772,129 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <section class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
                   <h4 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">安全限制 Limits</h4>
                   <div class="grid gap-2 sm:grid-cols-3">
-                    <label class="builder-field">
+                    <label class="builder-field mk-form-field">
                       <span>maxRootRows</span>
-                      <input data-testid="cascade-limit-max-root-rows" type="number" min="0" max="10000" class="builder-input" :value="cascadeLimitsInput().maxRootRows" @input="cascadeLimitsInput().maxRootRows = Number(($event.target as HTMLInputElement).value)">
+                      <input data-testid="cascade-limit-max-root-rows" type="number" min="0" max="10000" class="builder-input mk-form-control" :value="cascadeLimitsInput().maxRootRows" @input="cascadeLimitsInput().maxRootRows = Number(($event.target as HTMLInputElement).value)">
                     </label>
-                    <label class="builder-field">
+                    <label class="builder-field mk-form-field">
                       <span>maxAffectedRows</span>
-                      <input data-testid="cascade-limit-max-affected-rows" type="number" min="0" max="1000000" class="builder-input" :value="cascadeLimitsInput().maxAffectedRows" @input="cascadeLimitsInput().maxAffectedRows = Number(($event.target as HTMLInputElement).value)">
+                      <input data-testid="cascade-limit-max-affected-rows" type="number" min="0" max="1000000" class="builder-input mk-form-control" :value="cascadeLimitsInput().maxAffectedRows" @input="cascadeLimitsInput().maxAffectedRows = Number(($event.target as HTMLInputElement).value)">
                     </label>
-                    <label class="builder-field">
+                    <label class="builder-field mk-form-field">
                       <span>maxCollectedRows</span>
-                      <input data-testid="cascade-limit-max-collected-rows" type="number" min="0" max="100000" class="builder-input" :value="cascadeLimitsInput().maxCollectedRows" @input="cascadeLimitsInput().maxCollectedRows = Number(($event.target as HTMLInputElement).value)">
+                      <input data-testid="cascade-limit-max-collected-rows" type="number" min="0" max="100000" class="builder-input mk-form-control" :value="cascadeLimitsInput().maxCollectedRows" @input="cascadeLimitsInput().maxCollectedRows = Number(($event.target as HTMLInputElement).value)">
                     </label>
                   </div>
                 </section>
               </template>
 
               <template v-if="activeStandardBlock.functionName === 'dropSchemas'">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>数据源</span>
-                  <input data-testid="drop-schemas-datasource" class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
+                  <input data-testid="drop-schemas-datasource" class="builder-input mk-form-control" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
                 </label>
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>Schemas 数组或模板</span>
-                  <input data-testid="drop-schemas-value" class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().schemas)" @input="updateBlockInput('schemas', parseLooseValue(($event.target as HTMLInputElement).value))">
+                  <input data-testid="drop-schemas-value" class="builder-input mk-form-control" :value="formatUnknown(blockInputs().schemas)" @input="updateBlockInput('schemas', parseLooseValue(($event.target as HTMLInputElement).value))">
                 </label>
-                <select data-testid="drop-schemas-variable" class="builder-input" @change="setTemplateValue((next) => updateBlockInput('schemas', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                <select data-testid="drop-schemas-variable" class="builder-input mk-form-control" @change="setTemplateValue((next) => updateBlockInput('schemas', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                   <option value="">选择变量</option>
                   <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                 </select>
-                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  <input data-testid="drop-schemas-cascade" type="checkbox" :checked="blockInputs().cascade === true" @change="updateBlockInput('cascade', ($event.target as HTMLInputElement).checked)">
+                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 mk-form-check-row">
+                  <input class="mk-form-check" data-testid="drop-schemas-cascade" type="checkbox" :checked="blockInputs().cascade === true" @change="updateBlockInput('cascade', ($event.target as HTMLInputElement).checked)">
                   使用 DROP SCHEMA CASCADE
                 </label>
               </template>
 
               <template v-if="['list', 'page', 'count', 'read', 'delete', 'create', 'upsert', 'update', 'assertUnique'].includes(activeStandardBlock.functionName)">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>数据源</span>
-                  <input class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
                 </label>
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>表名</span>
-                  <input class="builder-input" :value="stringInput('table')" @input="updateBlockInput('table', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="stringInput('table')" @input="updateBlockInput('table', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
 
               <template v-if="activeStandardBlock.functionName === 'assertUnique'">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>唯一字段</span>
-                  <input class="builder-input" :value="stringInput('fieldName')" @input="updateBlockInput('fieldName', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="stringInput('fieldName')" @input="updateBlockInput('fieldName', ($event.target as HTMLInputElement).value)">
                 </label>
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>校验值</span>
-                  <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().value)" @input="updateBlockInput('value', parseLooseValue(($event.target as HTMLInputElement).value))">
+                  <input class="builder-input mk-form-control" :value="formatUnknown(blockInputs().value)" @input="updateBlockInput('value', parseLooseValue(($event.target as HTMLInputElement).value))">
                 </label>
-                <select class="builder-input" @change="setTemplateValue((next) => updateBlockInput('value', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                <select class="builder-input mk-form-control" @change="setTemplateValue((next) => updateBlockInput('value', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                   <option value="">选择变量</option>
                   <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                 </select>
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>冲突提示</span>
-                  <input class="builder-input" :value="stringInput('message')" @input="updateBlockInput('message', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="stringInput('message')" @input="updateBlockInput('message', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
 
               <template v-if="activeStandardBlock.functionName === 'createSchema'">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>数据源</span>
-                  <input class="builder-input" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="stringInput('datasource')" @input="updateBlockInput('datasource', ($event.target as HTMLInputElement).value)">
                 </label>
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>Schema</span>
-                  <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().schema)" @input="updateBlockInput('schema', parseLooseValue(($event.target as HTMLInputElement).value))">
+                  <input class="builder-input mk-form-control" :value="formatUnknown(blockInputs().schema)" @input="updateBlockInput('schema', parseLooseValue(($event.target as HTMLInputElement).value))">
                 </label>
-                <select class="builder-input" @change="setTemplateValue((next) => updateBlockInput('schema', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                <select class="builder-input mk-form-control" @change="setTemplateValue((next) => updateBlockInput('schema', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                   <option value="">选择变量</option>
                   <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                 </select>
               </template>
 
               <template v-if="activeStandardBlock.functionName === 'randomId'">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>Prefix</span>
-                  <input class="builder-input" :value="stringInput('prefix')" @input="updateBlockInput('prefix', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="stringInput('prefix')" @input="updateBlockInput('prefix', ($event.target as HTMLInputElement).value)">
                 </label>
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>Length</span>
-                  <input type="number" min="1" max="32" class="builder-input" :value="Number(blockInputs().length ?? 6)" @input="updateBlockInput('length', Number(($event.target as HTMLInputElement).value))">
+                  <input type="number" min="1" max="32" class="builder-input mk-form-control" :value="Number(blockInputs().length ?? 6)" @input="updateBlockInput('length', Number(($event.target as HTMLInputElement).value))">
                 </label>
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>Alphabet</span>
-                  <input class="builder-input font-mono text-xs" :value="stringInput('alphabet')" @input="updateBlockInput('alphabet', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="stringInput('alphabet')" @input="updateBlockInput('alphabet', ($event.target as HTMLInputElement).value)">
                 </label>
-                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  <input type="checkbox" :checked="blockInputs().lowerCase !== false" @change="updateBlockInput('lowerCase', ($event.target as HTMLInputElement).checked)">
+                <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 mk-form-check-row">
+                  <input class="mk-form-check" type="checkbox" :checked="blockInputs().lowerCase !== false" @change="updateBlockInput('lowerCase', ($event.target as HTMLInputElement).checked)">
                   转为小写
                 </label>
               </template>
 
               <template v-if="['list', 'page', 'read'].includes(activeStandardBlock.functionName)">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>查询字段</span>
-                  <input class="builder-input" :value="arrayInput('fields')" placeholder="id, name, email" @input="updateArrayInput('fields', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="arrayInput('fields')" placeholder="id, name, email" @input="updateArrayInput('fields', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
 
               <template v-if="activeStandardBlock.functionName === 'page'">
                 <div class="grid grid-cols-2 gap-2">
-                  <label class="builder-field">
+                  <label class="builder-field mk-form-field">
                     <span>页码</span>
-                    <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().page)" @input="updateBlockInput('page', parseLooseValue(($event.target as HTMLInputElement).value))">
+                    <input class="builder-input mk-form-control" :value="formatUnknown(blockInputs().page)" @input="updateBlockInput('page', parseLooseValue(($event.target as HTMLInputElement).value))">
                   </label>
-                  <label class="builder-field">
+                  <label class="builder-field mk-form-field">
                     <span>每页数量</span>
-                    <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().pageSize)" @input="updateBlockInput('pageSize', parseLooseValue(($event.target as HTMLInputElement).value))">
+                    <input class="builder-input mk-form-control" :value="formatUnknown(blockInputs().pageSize)" @input="updateBlockInput('pageSize', parseLooseValue(($event.target as HTMLInputElement).value))">
                   </label>
                 </div>
               </template>
 
               <template v-if="['create', 'upsert'].includes(activeStandardBlock.functionName)">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>ID 字段</span>
-                  <input class="builder-input" :value="stringInput('idField')" @input="updateBlockInput('idField', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="stringInput('idField')" @input="updateBlockInput('idField', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
 
@@ -2899,17 +2902,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <div>
                   <div class="mb-2 flex items-center justify-between">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white">写入字段</h4>
-                    <button class="builder-small-button" @click="addFieldMapping">添加字段</button>
+                    <button class="builder-small-button mk-form-button" @click="addFieldMapping">添加字段</button>
                   </div>
                   <div class="space-y-2">
                     <div v-for="[fieldKey, fieldValue] in getFieldEntries()" :key="fieldKey" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                      <input class="builder-input" :value="fieldKey" @input="updateFieldMapping(fieldKey, ($event.target as HTMLInputElement).value, fieldValue)">
-                      <input class="builder-input mt-2 font-mono text-xs" :value="formatUnknown(fieldValue)" @input="updateFieldMapping(fieldKey, fieldKey, parseLooseValue(($event.target as HTMLInputElement).value))">
-                      <select class="builder-input mt-2" @change="setTemplateValue((next) => updateFieldMapping(fieldKey, fieldKey, next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                      <input class="builder-input mk-form-control" :value="fieldKey" @input="updateFieldMapping(fieldKey, ($event.target as HTMLInputElement).value, fieldValue)">
+                      <input class="builder-input mt-2 mk-form-control" :value="formatUnknown(fieldValue)" @input="updateFieldMapping(fieldKey, fieldKey, parseLooseValue(($event.target as HTMLInputElement).value))">
+                      <select class="builder-input mt-2 mk-form-control" @change="setTemplateValue((next) => updateFieldMapping(fieldKey, fieldKey, next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                         <option value="">选择变量</option>
                         <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                       </select>
-                      <button class="mt-2 text-xs text-rose-600" @click="removeFieldMapping(fieldKey)">删除字段</button>
+                      <button class="mt-2 text-rose-600 mk-form-button" @click="removeFieldMapping(fieldKey)">删除字段</button>
                     </div>
                   </div>
                 </div>
@@ -2920,36 +2923,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                   <div class="mb-2 flex items-center justify-between">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white">条件</h4>
                     <div class="flex gap-1">
-                      <button class="builder-small-button" @click="addCondition">添加条件</button>
-                      <button class="builder-small-button" @click="addConditionGroup">添加 OR 组</button>
+                      <button class="builder-small-button mk-form-button" @click="addCondition">添加条件</button>
+                      <button class="builder-small-button mk-form-button" @click="addConditionGroup">添加 OR 组</button>
                     </div>
                   </div>
                   <div class="space-y-2">
                     <div v-for="(condition, index) in conditionList()" :key="index" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
                       <template v-if="!condition.group">
-                        <div class="grid gap-2 sm:grid-cols-2">
-                          <input v-model="condition.fieldName" class="builder-input" placeholder="字段">
-                          <select v-model="condition.conditionType" class="builder-input">
+                        <div class="mk-form-grid">
+                          <input v-model="condition.fieldName" class="builder-input mk-form-control" placeholder="字段">
+                          <select v-model="condition.conditionType" class="builder-input mk-form-control">
                             <option v-for="item in conditionTypes" :key="item.value" :value="item.value">{{ item.title }}</option>
                           </select>
                         </div>
-                        <input class="builder-input mt-2 font-mono text-xs" :value="formatUnknown(condition.fieldValue)" @input="condition.fieldValue = parseLooseValue(($event.target as HTMLInputElement).value)">
-                        <select class="builder-input mt-2" @change="setTemplateValue((next) => condition.fieldValue = next, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                        <input class="builder-input mt-2 mk-form-control" :value="formatUnknown(condition.fieldValue)" @input="condition.fieldValue = parseLooseValue(($event.target as HTMLInputElement).value)">
+                        <select class="builder-input mt-2 mk-form-control" @change="setTemplateValue((next) => condition.fieldValue = next, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                           <option value="">选择变量</option>
                           <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                         </select>
                       </template>
                       <template v-else>
                         <div class="flex items-center justify-between gap-2">
-                          <select v-model="condition.groupType" class="builder-input">
+                          <select v-model="condition.groupType" class="builder-input mk-form-control">
                             <option value="AND">AND</option>
                             <option value="OR">OR</option>
                           </select>
                           <span class="text-xs text-slate-500">条件组包含 {{ condition.groups.length }} 条，JSON 预览会保留嵌套结构。</span>
                         </div>
-                        <textarea class="builder-input mt-2 min-h-28 font-mono text-xs" :value="stringifyJson(condition.groups)" @input="updateConditionGroupJson(condition, ($event.target as HTMLTextAreaElement).value)"></textarea>
+                        <textarea class="builder-input mt-2 mk-form-control" :value="stringifyJson(condition.groups)" @input="updateConditionGroupJson(condition, ($event.target as HTMLTextAreaElement).value)"></textarea>
                       </template>
-                      <button class="mt-2 text-xs text-rose-600" @click="removeCondition(index)">删除条件</button>
+                      <button class="mt-2 text-rose-600 mk-form-button" @click="removeCondition(index)">删除条件</button>
                     </div>
                   </div>
                 </div>
@@ -2959,41 +2962,41 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <div>
                   <div class="mb-2 flex items-center justify-between">
                     <h4 class="text-sm font-semibold text-slate-900 dark:text-white">排序</h4>
-                    <button class="builder-small-button" @click="addOrderBy">添加排序</button>
+                    <button class="builder-small-button mk-form-button" @click="addOrderBy">添加排序</button>
                   </div>
                   <div class="space-y-2">
                     <div v-for="(order, index) in orderList()" :key="index" class="grid grid-cols-[minmax(0,1fr)_96px_auto] gap-2">
-                      <input v-model="order.fieldName" class="builder-input" placeholder="字段">
-                      <select v-model="order.direction" class="builder-input">
+                      <input v-model="order.fieldName" class="builder-input mk-form-control" placeholder="字段">
+                      <select v-model="order.direction" class="builder-input mk-form-control">
                         <option value="ASC">ASC</option>
                         <option value="DESC">DESC</option>
                       </select>
-                      <button class="text-xs text-rose-600" @click="removeOrderBy(index)">删除</button>
+                      <button class="text-rose-600 mk-form-button" @click="removeOrderBy(index)">删除</button>
                     </div>
                   </div>
                 </div>
               </template>
 
               <template v-if="['addSession', 'removeSession', 'readSession'].includes(activeStandardBlock.functionName)">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>Session key</span>
-                  <input class="builder-input" :value="stringInput('key')" @input="updateBlockInput('key', ($event.target as HTMLInputElement).value)">
+                  <input class="builder-input mk-form-control" :value="stringInput('key')" @input="updateBlockInput('key', ($event.target as HTMLInputElement).value)">
                 </label>
               </template>
               <template v-if="activeStandardBlock.functionName === 'addSession'">
-                <label class="builder-field">
+                <label class="builder-field mk-form-field">
                   <span>Session value</span>
-                  <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().value)" @input="updateBlockInput('value', parseLooseValue(($event.target as HTMLInputElement).value))">
+                  <input class="builder-input mk-form-control" :value="formatUnknown(blockInputs().value)" @input="updateBlockInput('value', parseLooseValue(($event.target as HTMLInputElement).value))">
                 </label>
-                <select class="builder-input" @change="setTemplateValue((next) => updateBlockInput('value', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                <select class="builder-input mk-form-control" @change="setTemplateValue((next) => updateBlockInput('value', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                   <option value="">选择变量</option>
                   <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
                 </select>
               </template>
               <div class="flex gap-1">
-                <button class="builder-icon-button" @click="toggleBlockDisabled(activeStandardBlock)">{{ isBlockDisabled(activeStandardBlock) ? '启用' : '禁用' }}</button>
-                <button class="builder-icon-button" @click="duplicateBlock(activeStandardBlock)">复制</button>
-                <button class="builder-icon-button text-rose-700 dark:text-rose-200" @click="removeBlock(activeStandardBlock)">删除</button>
+                <button class="builder-icon-button mk-form-button" @click="toggleBlockDisabled(activeStandardBlock)">{{ isBlockDisabled(activeStandardBlock) ? '启用' : '禁用' }}</button>
+                <button class="builder-icon-button mk-form-button" @click="duplicateBlock(activeStandardBlock)">复制</button>
+                <button class="builder-icon-button text-rose-700 dark:text-rose-200 mk-form-button" @click="removeBlock(activeStandardBlock)">删除</button>
               </div>
             </div>
           </template>
@@ -3001,30 +3004,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
           <template v-else-if="activeController">
             <h3 class="text-base font-semibold text-slate-950 dark:text-white">控制器配置</h3>
             <div class="mt-4 space-y-3">
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>业务名称</span>
-                <input v-model="activeController.alias" class="builder-input">
+                <input v-model="activeController.alias" class="builder-input mk-form-control">
               </label>
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>Controller UUID</span>
-                <input :value="activeController.uuid" class="builder-input font-mono" @input="updateActiveBlockUuid(($event.target as HTMLInputElement).value)">
+                <input :value="activeController.uuid" class="builder-input mk-form-control" @input="updateActiveBlockUuid(($event.target as HTMLInputElement).value)">
               </label>
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>类型</span>
-                <input :value="getControllerDefinition(activeController.functionName)?.title || activeController.functionName" class="builder-input" disabled>
+                <input :value="getControllerDefinition(activeController.functionName)?.title || activeController.functionName" class="builder-input mk-form-control" disabled>
               </label>
-              <label class="builder-field">
+              <label class="builder-field mk-form-field">
                 <span>inputs.value</span>
-                <input class="builder-input font-mono text-xs" :value="formatUnknown(blockInputs().value)" @input="updateBlockInput('value', parseLooseValue(($event.target as HTMLInputElement).value))">
+                <input class="builder-input mk-form-control" :value="formatUnknown(blockInputs().value)" @input="updateBlockInput('value', parseLooseValue(($event.target as HTMLInputElement).value))">
               </label>
-              <select class="builder-input" @change="setTemplateValue((next) => updateBlockInput('value', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+              <select class="builder-input mk-form-control" @change="setTemplateValue((next) => updateBlockInput('value', next), ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                 <option value="">选择变量</option>
                 <option v-for="option in variableOptions" :key="option.id" :value="option.path">{{ option.label }}</option>
               </select>
 
-              <label v-if="activeController.functionName === 'switch_controller'" class="builder-field">
+              <label v-if="activeController.functionName === 'switch_controller'" class="builder-field mk-form-field">
                 <span>inputs.dataType</span>
-                <select class="builder-input" :value="String(blockInputs().dataType || 'string')" @change="updateBlockInput('dataType', ($event.target as HTMLSelectElement).value)">
+                <select class="builder-input mk-form-control" :value="String(blockInputs().dataType || 'string')" @change="updateBlockInput('dataType', ($event.target as HTMLSelectElement).value)">
                   <option value="string">string</option>
                   <option value="number">number</option>
                   <option value="boolean">boolean</option>
@@ -3035,49 +3038,49 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                 <div class="mb-2 flex items-center justify-between gap-2">
                   <h4 class="text-sm font-semibold text-slate-900 dark:text-white">分支节点</h4>
                   <div v-if="activeController.functionName === 'switch_controller'" class="flex gap-1">
-                    <button class="builder-small-button" @click="addSwitchCase(activeController)">添加 Case</button>
-                    <button class="builder-small-button" @click="addSwitchDefault(activeController)">添加 DEFAULT</button>
+                    <button class="builder-small-button mk-form-button" @click="addSwitchCase(activeController)">添加 Case</button>
+                    <button class="builder-small-button mk-form-button" @click="addSwitchDefault(activeController)">添加 DEFAULT</button>
                   </div>
                 </div>
                 <div class="space-y-2">
                   <div v-for="(node, index) in activeController.nodes" :key="node.uuid" class="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
                     <div class="grid gap-2">
-                      <label class="builder-field">
+                      <label class="builder-field mk-form-field">
                         <span>Node UUID</span>
-                        <input :value="node.uuid" class="builder-input font-mono" @input="updateControllerNodeUuid(node, ($event.target as HTMLInputElement).value)">
+                        <input :value="node.uuid" class="builder-input mk-form-control" @input="updateControllerNodeUuid(node, ($event.target as HTMLInputElement).value)">
                       </label>
-                      <label class="builder-field">
+                      <label class="builder-field mk-form-field">
                         <span>别名</span>
-                        <input v-model="node.alias" class="builder-input">
+                        <input v-model="node.alias" class="builder-input mk-form-control">
                       </label>
-                      <label v-if="activeController.functionName === 'switch_controller'" class="builder-field">
+                      <label v-if="activeController.functionName === 'switch_controller'" class="builder-field mk-form-field">
                         <span>类型</span>
-                        <select class="builder-input" :value="node.type === 'DEFAULT' ? 'DEFAULT' : 'CASE'" @change="updateControllerNodeType(node, ($event.target as HTMLSelectElement).value as 'CASE' | 'DEFAULT', activeController)">
+                        <select class="builder-input mk-form-control" :value="node.type === 'DEFAULT' ? 'DEFAULT' : 'CASE'" @change="updateControllerNodeType(node, ($event.target as HTMLSelectElement).value as 'CASE' | 'DEFAULT', activeController)">
                           <option value="CASE">CASE</option>
                           <option value="DEFAULT">DEFAULT</option>
                         </select>
                       </label>
-                      <label v-if="node.type !== 'DEFAULT'" class="builder-field">
+                      <label v-if="node.type !== 'DEFAULT'" class="builder-field mk-form-field">
                         <span>value</span>
-                        <input class="builder-input font-mono text-xs" :value="String(node.value ?? '')" :disabled="activeController.functionName === 'if_controller'" @input="node.value = parseControllerNodeValue(($event.target as HTMLInputElement).value, activeController)">
+                        <input class="builder-input mk-form-control" :value="String(node.value ?? '')" :disabled="activeController.functionName === 'if_controller'" @input="node.value = parseControllerNodeValue(($event.target as HTMLInputElement).value, activeController)">
                       </label>
-                      <label class="builder-field">
+                      <label class="builder-field mk-form-field">
                         <span>nextBlock</span>
-                        <select class="builder-input" :value="node.nextBlock ?? ''" @change="node.nextBlock = (($event.target as HTMLSelectElement).value || null)">
+                        <select class="builder-input mk-form-control" :value="node.nextBlock ?? ''" @change="node.nextBlock = (($event.target as HTMLSelectElement).value || null)">
                           <option value="">null</option>
                           <option v-for="option in executableTargetOptions(activeController.uuid)" :key="option.uuid" :value="option.uuid">{{ option.label }}</option>
                         </select>
                       </label>
                     </div>
-                    <button v-if="activeController.functionName === 'switch_controller'" class="mt-2 text-xs text-rose-600" @click="removeControllerNode(activeController, index)">删除分支</button>
+                    <button v-if="activeController.functionName === 'switch_controller'" class="mt-2 text-rose-600 mk-form-button" @click="removeControllerNode(activeController, index)">删除分支</button>
                   </div>
                 </div>
               </div>
 
               <div class="flex gap-1">
-                <button class="builder-icon-button" @click="toggleBlockDisabled(activeController)">{{ isBlockDisabled(activeController) ? '启用' : '禁用' }}</button>
-                <button class="builder-icon-button" @click="duplicateBlock(activeController)">复制</button>
-                <button class="builder-icon-button text-rose-700 dark:text-rose-200" @click="removeBlock(activeController)">删除</button>
+                <button class="builder-icon-button mk-form-button" @click="toggleBlockDisabled(activeController)">{{ isBlockDisabled(activeController) ? '启用' : '禁用' }}</button>
+                <button class="builder-icon-button mk-form-button" @click="duplicateBlock(activeController)">复制</button>
+                <button class="builder-icon-button text-rose-700 dark:text-rose-200 mk-form-button" @click="removeBlock(activeController)">删除</button>
               </div>
             </div>
           </template>
@@ -3086,7 +3089,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             v-if="isActiveApiReadonly && activeExecuteFragmentBlock"
             type="button"
             data-testid="view-system-fragment"
-            class="builder-secondary-button mt-3 w-full"
+            class="builder-secondary-button mt-3 w-full mk-form-button"
             :disabled="!selectedFragmentUuid"
             @click="openFragmentEditor()"
           >查看内置 Fragment</button>
@@ -3095,15 +3098,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
       <section class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div class="flex flex-wrap gap-2 border-b border-slate-200 p-3 dark:border-slate-700">
-          <button class="builder-tab-button" :class="{ 'builder-tab-button-active': bottomTab === 'json' }" @click="bottomTab = 'json'">JSON 预览</button>
-          <button class="builder-tab-button" :class="{ 'builder-tab-button-active': bottomTab === 'validation' }" @click="bottomTab = 'validation'">校验 {{ validationIssues.length }}</button>
-          <button class="builder-tab-button" :class="{ 'builder-tab-button-active': bottomTab === 'test' }" @click="bottomTab = 'test'">测试</button>
+          <button class="builder-tab-button mk-form-button" :class="{ 'builder-tab-button-active': bottomTab === 'json' }" @click="bottomTab = 'json'">JSON 预览</button>
+          <button class="builder-tab-button mk-form-button" :class="{ 'builder-tab-button-active': bottomTab === 'validation' }" @click="bottomTab = 'validation'">校验 {{ validationIssues.length }}</button>
+          <button class="builder-tab-button mk-form-button" :class="{ 'builder-tab-button-active': bottomTab === 'test' }" @click="bottomTab = 'test'">测试</button>
         </div>
 
         <div class="p-4">
           <div v-if="bottomTab === 'json'">
             <div class="mb-3 flex justify-end">
-              <button class="builder-secondary-button" @click="copyJson">复制 JSON</button>
+              <button class="builder-secondary-button mk-form-button" @click="copyJson">复制 JSON</button>
             </div>
             <pre data-testid="api-builder-json" class="max-h-[420px] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100">{{ stringifyJson(activeApiJson) }}</pre>
           </div>
@@ -3113,7 +3116,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             <button
               v-for="issue in validationIssues"
               :key="issue.id"
-              class="block w-full rounded-lg border p-3 text-left text-sm"
+              class="block w-full border text-left mk-form-button"
               :class="issue.severity === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100' : 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100'"
               @click="selectIssue(issue)"
             >
@@ -3126,9 +3129,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               <section v-if="isActiveFragment">
                 <h4 class="mb-2 text-sm font-semibold text-slate-900 dark:text-white">Params</h4>
                 <div class="space-y-2">
-                  <label v-for="param in activeApiJson.params || []" :key="`params-${declarationKey(param)}`" class="builder-field">
+                  <label v-for="param in activeApiJson.params || []" :key="`params-${declarationKey(param)}`" class="builder-field mk-form-field">
                     <span>{{ declarationKey(param) }}</span>
-                    <input class="builder-input" :value="formatUnknown(testRequest.params[declarationKey(param)])" @input="updateTestParam(declarationKey(param), ($event.target as HTMLInputElement).value)">
+                    <input class="builder-input mk-form-control" :value="formatUnknown(testRequest.params[declarationKey(param)])" @input="updateTestParam(declarationKey(param), ($event.target as HTMLInputElement).value)">
                   </label>
                   <p v-if="!(activeApiJson.params || []).length" class="text-xs text-slate-500 dark:text-slate-400">没有 Params 参数。</p>
                 </div>
@@ -3136,16 +3139,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
               <section v-for="location in (isActiveFragment ? [] : requestLocations)" :key="location.value">
                 <h4 class="mb-2 text-sm font-semibold text-slate-900 dark:text-white">{{ location.title }}</h4>
                 <div class="space-y-2">
-                  <label v-for="param in activeApiJson.request?.[location.value] || []" :key="`${location.value}-${declarationKey(param)}`" class="builder-field">
+                  <label v-for="param in activeApiJson.request?.[location.value] || []" :key="`${location.value}-${declarationKey(param)}`" class="builder-field mk-form-field">
                     <span>{{ declarationKey(param) }}</span>
-                    <input class="builder-input" :value="formatUnknown(testRequest[location.value]?.[declarationKey(param)])" @input="updateTestValue(location.value, declarationKey(param), ($event.target as HTMLInputElement).value)">
+                    <input class="builder-input mk-form-control" :value="formatUnknown(testRequest[location.value]?.[declarationKey(param)])" @input="updateTestValue(location.value, declarationKey(param), ($event.target as HTMLInputElement).value)">
                   </label>
                   <p v-if="!(activeApiJson.request?.[location.value] || []).length" class="text-xs text-slate-500 dark:text-slate-400">没有 {{ location.title }} 参数。</p>
                 </div>
               </section>
               <div class="flex gap-2">
-                <button class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="runTest">运行 Dry-run</button>
-                <button class="builder-secondary-button" @click="resetTestForm">重置表单</button>
+                <button class="mk-form-button mk-form-button--primary" @click="runTest">运行 Dry-run</button>
+                <button class="builder-secondary-button mk-form-button" @click="resetTestForm">重置表单</button>
               </div>
             </div>
             <div>
@@ -3183,7 +3186,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
       <h2 class="text-xl font-semibold text-slate-950 dark:text-white">找不到这个 API</h2>
       <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">服务端没有返回这个接口，可以返回列表重新创建。</p>
       <p v-if="apiBuilderError" class="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiBuilderError }}</p>
-      <button class="mt-4 rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-500" @click="navigateToList">返回 API 列表</button>
+      <button class="mt-4 mk-form-button mk-form-button--primary" @click="navigateToList">返回 API 列表</button>
     </section>
 
     <div v-if="isFragmentEditorOpen && fragmentEditorDraft" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/55 p-4">
@@ -3196,9 +3199,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
             <h2 id="fragment-editor-dialog-title" class="text-xl font-semibold text-slate-950 dark:text-white">{{ fragmentEditorDraft.apiJson.alias || '未命名 Fragment' }}</h2>
           </div>
           <div class="flex gap-2">
-            <button class="builder-secondary-button" :disabled="isSavingFragment" @click="closeFragmentEditor">取消</button>
-            <button v-if="fragmentEditorDraft.source !== 'system' && fragmentEditorDraft.status !== 'published'" class="builder-secondary-button" :disabled="isSavingFragment" @click="saveFragmentFromModal('draft')">保存草稿</button>
-            <button v-if="fragmentEditorDraft.source !== 'system'" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="isSavingFragment" @click="saveFragmentFromModal('published')">发布</button>
+            <button class="builder-secondary-button mk-form-button" :disabled="isSavingFragment" @click="closeFragmentEditor">取消</button>
+            <button v-if="fragmentEditorDraft.source !== 'system' && fragmentEditorDraft.status !== 'published'" class="builder-secondary-button mk-form-button" :disabled="isSavingFragment" @click="saveFragmentFromModal('draft')">保存草稿</button>
+            <button v-if="fragmentEditorDraft.source !== 'system'" class="disabled:opacity-50 mk-form-button mk-form-button--primary" :disabled="isSavingFragment" @click="saveFragmentFromModal('published')">发布</button>
           </div>
         </div>
         <p v-if="fragmentEditorError" class="mb-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{{ fragmentEditorError }}</p>
@@ -3214,8 +3217,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     </div>
 
     <div v-if="isApiInfoDialogOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
-      <section class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="api-info-dialog-title">
-        <form class="space-y-4" @submit.prevent="submitApiInfoDialog">
+      <section class="mk-form-dialog" role="dialog" aria-modal="true" aria-labelledby="api-info-dialog-title">
+        <form class="mk-form-dialog-panel" @submit.prevent="submitApiInfoDialog">
+          <div class="mk-form-dialog-body mk-form-stack mk-form-scope">
           <div>
             <p class="text-sm font-medium text-teal-700 dark:text-teal-300">API Builder</p>
             <h2 id="api-info-dialog-title" class="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
@@ -3225,31 +3229,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
           <p v-if="apiInfoError" class="rounded-lg bg-rose-50 p-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-100">{{ apiInfoError }}</p>
 
-          <label class="builder-field">
+          <label class="builder-field mk-form-field">
             <span>接口名称</span>
-            <input v-model="apiInfoForm.name" data-testid="api-info-name" class="builder-input" maxlength="120" autofocus>
+            <input v-model="apiInfoForm.name" data-testid="api-info-name" class="builder-input mk-form-control" maxlength="120" autofocus>
           </label>
 
-          <label class="builder-field">
+          <label class="builder-field mk-form-field">
             <span>API 标识</span>
-            <input v-model="apiInfoForm.uuid" data-testid="api-info-uuid" class="builder-input font-mono" maxlength="128">
+            <input v-model="apiInfoForm.uuid" data-testid="api-info-uuid" class="builder-input mk-form-control" maxlength="128">
           </label>
 
-          <label v-if="apiInfoForm.method !== 'FRAGMENT'" class="builder-field">
+          <label v-if="apiInfoForm.method !== 'FRAGMENT'" class="builder-field mk-form-field">
             <span>请求方法</span>
-            <select v-model="apiInfoForm.method" data-testid="api-info-method" class="builder-input">
+            <select v-model="apiInfoForm.method" data-testid="api-info-method" class="builder-input mk-form-control">
               <option value="GET">GET</option>
               <option value="POST">POST</option>
             </select>
           </label>
 
           <div class="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-            {{ apiInfoForm.method === 'FRAGMENT' ? 'Fragment UUID：' : '路径预览：' }}<code>{{ apiInfoForm.method === 'FRAGMENT' ? (apiInfoForm.uuid || '-') : `/api/mokelay/${apiInfoForm.uuid || '-'}` }}</code>
+            {{ apiInfoForm.method === 'FRAGMENT' ? 'Fragment UUID：' : '路径预览：' }}<code>{{ apiInfoForm.method === 'FRAGMENT' ? (apiInfoForm.uuid || '-') : `/api/${activeDraft?.assetApp ?? 'mokelay'}/${apiInfoForm.uuid || '-'}` }}</code>
           </div>
 
-          <div class="flex justify-end gap-2">
-            <button type="button" class="builder-secondary-button" :disabled="isSavingApiInfo" @click="closeApiInfoDialog">取消</button>
-            <button data-testid="api-info-submit" type="submit" class="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-500 disabled:cursor-not-allowed disabled:opacity-60" :disabled="isSavingApiInfo">
+          </div>
+          <div class="mk-form-dialog-footer">
+            <button type="button" class="builder-secondary-button mk-form-button" :disabled="isSavingApiInfo" @click="closeApiInfoDialog">取消</button>
+            <button data-testid="api-info-submit" type="submit" class="disabled:cursor-not-allowed disabled:opacity-60 mk-form-button mk-form-button--primary" :disabled="isSavingApiInfo">
               {{ isSavingApiInfo ? '保存中...' : '保存并打开' }}
             </button>
           </div>
@@ -3260,21 +3265,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 </template>
 
 <style scoped>
-.builder-input {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-800;
-}
 
-.builder-field {
-  @apply flex flex-col gap-1 text-sm font-medium text-slate-700 dark:text-slate-200;
-}
 
-.builder-secondary-button {
-  @apply rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800;
-}
 
-.builder-small-button {
-  @apply rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800;
-}
 
 .builder-icon-button {
   @apply rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-slate-900;

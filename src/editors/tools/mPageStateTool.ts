@@ -1,4 +1,5 @@
 import { defineEditorTool } from "@/editors/editorToolDefinition";
+import { getPageStateDataFields } from 'mokelay-components/blocks/MPageState.vue';
 
 /**
  * @clientBlockDoc
@@ -242,6 +243,7 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  * }
  */
 export const mPageStateTool = defineEditorTool({
+  getDataFields: ({ data }) => getPageStateDataFields(data),
   documentFieldsOnly: true,
   normalizeProps: (props) => ({ ...props, edit: props.edit ?? false }),
   serialize: (props) => Object.fromEntries(

@@ -5,6 +5,7 @@ import { getClientBlockDocSnapshot } from '@/utils/clientBlockDocs';
 import type { VariableValueDataType } from 'mokelay-components/runtime';
 
 const MFormItemsEditor = defineAsyncComponent(() => import('@/editors/blocks/MFormItemsEditor.vue'));
+const MFormItemRulesEditor = defineAsyncComponent(() => import('@/editors/blocks/MFormItemRulesEditor.vue'));
 const MActionToolBarEditor = defineAsyncComponent(() => import('@/editors/blocks/MActionToolBarEditor.vue'));
 const MActionEditor = defineAsyncComponent(() => import('@/editors/blocks/MActionEditor.vue'));
 const MAdvanceTableColumnsEditor = defineAsyncComponent(() => import('@/editors/blocks/MAdvanceTableColumnsEditor.vue'));
@@ -92,6 +93,14 @@ const propertyComponentBindings: Record<string, PropertyComponentBinding> = {
   'MForm.items': {
     component: MFormItemsEditor
   },
+  'MFormItem.rules': {
+    component: MFormItemRulesEditor,
+    getComponentProps: ({ state, edit }) => ({
+      edit,
+      variableName: state.variableName,
+      items: typeof state.getFormItems === 'function' ? state.getFormItems() : []
+    })
+  },
   'MForm.actionBar': {
     component: MActionToolBarEditor
   },
@@ -139,6 +148,9 @@ const propertyComponentBindings: Record<string, PropertyComponentBinding> = {
   'MUploadImport.uploadAction': {
     component: MActionEditor
   },
+  'MButton.disabled': variableValueBinding({ valueType: 'boolean' }),
+  'MButton.hidden': variableValueBinding({ valueType: 'boolean' }),
+  'MRichText.content': variableValueBinding({ valueType: 'string', multiline: true }),
   'MInput.value': variableValueBinding({ valueType: 'string' }),
   'MTextField.value': variableValueBinding({ valueType: 'string' }),
   'MEmailField.value': variableValueBinding({ valueType: 'string' }),

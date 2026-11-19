@@ -109,11 +109,11 @@ watch(() => props.modelValue, syncFromProps, { immediate: true, deep: true });
 </script>
 
 <template>
-  <div class="processor-ai-context-fields">
-    <label class="processor-ai-context-field">
+  <div class="processor-ai-context-fields mk-form-grid">
+    <label class="processor-ai-context-field mk-form-field">
       <span>{{ t('datasource.processors.aiDslRequestContext.fields.history') }}</span>
       <textarea
-        class="processor-ai-context-textarea"
+        class="processor-ai-context-textarea mk-form-control"
         data-testid="processor-ai-dsl-history"
         :readonly="readonly"
         :value="historyText"
@@ -125,10 +125,10 @@ watch(() => props.modelValue, syncFromProps, { immediate: true, deep: true });
       {{ historyError }}
     </p>
 
-    <label class="processor-ai-context-field">
+    <label class="processor-ai-context-field mk-form-field">
       <span>{{ t('datasource.processors.aiDslRequestContext.fields.historyOrder') }}</span>
       <select
-        class="processor-ai-context-input"
+        class="processor-ai-context-input mk-form-control"
         data-testid="processor-ai-dsl-history-order"
         :disabled="readonly"
         :value="historyOrder"
@@ -139,10 +139,10 @@ watch(() => props.modelValue, syncFromProps, { immediate: true, deep: true });
       </select>
     </label>
 
-    <label class="processor-ai-context-field processor-ai-context-limit">
+    <label class="processor-ai-context-field processor-ai-context-limit mk-form-field">
       <span>{{ t('datasource.processors.aiDslRequestContext.fields.historyLimit') }}</span>
       <input
-        class="processor-ai-context-input"
+        class="processor-ai-context-input mk-form-control"
         data-testid="processor-ai-dsl-history-limit"
         type="number"
         min="0"
@@ -157,8 +157,8 @@ watch(() => props.modelValue, syncFromProps, { immediate: true, deep: true });
       {{ limitError }}
     </p>
 
-    <label class="processor-ai-context-toggle">
-      <input
+    <label class="processor-ai-context-toggle mk-form-check-row">
+      <input class="mk-form-check"
         type="checkbox"
         data-testid="processor-ai-dsl-include-requirement"
         :checked="includeHistoryInRequirement"
@@ -167,8 +167,8 @@ watch(() => props.modelValue, syncFromProps, { immediate: true, deep: true });
       >
       <span>{{ t('datasource.processors.aiDslRequestContext.fields.includeHistoryInRequirement') }}</span>
     </label>
-    <label class="processor-ai-context-toggle">
-      <input
+    <label class="processor-ai-context-toggle mk-form-check-row">
+      <input class="mk-form-check"
         type="checkbox"
         data-testid="processor-ai-dsl-include-context"
         :checked="includeHistoryInDslContext"
@@ -182,51 +182,11 @@ watch(() => props.modelValue, syncFromProps, { immediate: true, deep: true });
 
 <style scoped>
 .processor-ai-context-fields {
-  display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.processor-ai-context-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: rgb(51 65 85);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.processor-ai-context-textarea,
-.processor-ai-context-input {
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: white;
-  color: rgb(15 23 42);
-  font: 13px/19px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .processor-ai-context-textarea {
-  min-height: 130px;
   resize: vertical;
-}
-
-.processor-ai-context-input {
-  height: 36px;
-  width: min(180px, 100%);
-}
-
-.processor-ai-context-textarea:read-only,
-.processor-ai-context-input:read-only {
-  background: rgb(248 250 252);
-}
-
-.processor-ai-context-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: rgb(51 65 85);
-  font-size: 13px;
 }
 
 .processor-ai-context-error {
@@ -238,12 +198,5 @@ watch(() => props.modelValue, syncFromProps, { immediate: true, deep: true });
 .dark .processor-ai-context-field,
 .dark .processor-ai-context-toggle {
   color: rgb(203 213 225);
-}
-
-.dark .processor-ai-context-textarea,
-.dark .processor-ai-context-input {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
 }
 </style>

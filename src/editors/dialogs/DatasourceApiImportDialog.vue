@@ -53,6 +53,7 @@ const mokelayApiOptionsBySource = ref<Record<MokelayApiSource, MokelayApiRecord[
   system: []
 });
 const selectedMokelayApiUuid = ref('');
+const apiOptionKey = (api: MokelayApiRecord) => api.source === 'system' && api.assetApp && api.assetApp !== 'mokelay' ? `${api.assetApp}/${api.uuid}` : api.uuid;
 const apifoxProjectOptions = ref<ApifoxProjectRecord[]>([]);
 const selectedApifoxProjectId = ref('');
 const apifoxApiId = ref('');
@@ -81,11 +82,11 @@ const canImportApi = computed(() => {
 });
 
 function selectDefaultMokelayApi() {
-  if (mokelayApiOptions.value.some((api) => api.uuid === selectedMokelayApiUuid.value)) {
+  if (mokelayApiOptions.value.some((api) => apiOptionKey(api) === selectedMokelayApiUuid.value)) {
     return;
   }
 
-  selectedMokelayApiUuid.value = mokelayApiOptions.value[0]?.uuid ?? '';
+  selectedMokelayApiUuid.value = mokelayApiOptions.value[0] ? apiOptionKey(mokelayApiOptions.value[0]) : '';
 }
 
 function selectDefaultApifoxProject() {
@@ -236,9 +237,11 @@ async function importSelectedApi() {
     await ensureApiDomainOptions();
 
     if (props.source === 'mokelay') {
+      const selected = mokelayApiOptions.value.find(api => apiOptionKey(api) === selectedMokelayApiUuid.value);
+      if (!selected) throw new Error(t('datasource.import.errors.loadOptions'));
       const api = mokelayApiSource.value === 'system'
-        ? await getBuiltInApi(selectedMokelayApiUuid.value)
-        : await getApi(selectedMokelayApiUuid.value);
+        ? await getBuiltInApi(selected.uuid, { assetApp: selected.assetApp })
+        : await getApi(selected.uuid);
       const domainUuid = getImportApiDomainUuid(DEFAULT_API_DOMAIN_UUID) || getDefaultApiDomainUuid(apiDomainOptions.value);
       if (!domainUuid) {
         throw new Error(t('datasource.import.errors.apiDomainNotFound'));
@@ -313,14 +316,14 @@ watch(
 <template>
   <dialog
     ref="dialogRef"
-    class="ce-datasource-tool__import-dialog"
+    class="ce-datasource-tool__import-dialog mk-form-dialog"
     data-testid="datasource-api-import-dialog"
     :aria-hidden="!open"
     aria-labelledby="datasource-api-import-dialog-title"
     @close="emit('close')"
   >
-    <div class="ce-datasource-tool__import-dialog-panel">
-      <div class="ce-datasource-tool__import-dialog-header">
+    <div class="ce-datasource-tool__import-dialog-panel mk-form-dialog-panel">
+      <div class="ce-datasource-tool__import-dialog-header mk-form-dialog-header">
         <h3
           id="datasource-api-import-dialog-title"
           class="ce-datasource-tool__import-dialog-title"
@@ -329,7 +332,7 @@ watch(
           {{ apiImportDialogTitle }}
         </h3>
         <button
-          class="ce-datasource-tool__import-dialog-close"
+          class="ce-datasource-tool__import-dialog-close mk-form-button"
           type="button"
           data-testid="datasource-api-import-dialog-close"
           @click="closeDialog"
@@ -338,12 +341,12 @@ watch(
         </button>
       </div>
 
-      <div class="ce-datasource-tool__import-dialog-body">
+      <div class="ce-datasource-tool__import-dialog-body mk-form-dialog-body mk-form-scope">
         <template v-if="source === 'mokelay'">
-          <label class="ce-datasource-tool__field">
-            <span class="ce-datasource-tool__label">{{ t('datasource.fields.apiSource') }}</span>
+          <label class="ce-datasource-tool__field mk-form-field">
+            <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.apiSource') }}</span>
             <select
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               data-testid="datasource-import-mokelay-source"
               :disabled="isApiImportBusy"
               :value="mokelayApiSource"
@@ -353,10 +356,10 @@ watch(
               <option value="system">{{ t('datasource.import.apiSources.system') }}</option>
             </select>
           </label>
-          <label class="ce-datasource-tool__field">
-            <span class="ce-datasource-tool__label">{{ t('datasource.fields.mokelayApi') }}</span>
+          <label class="ce-datasource-tool__field mk-form-field">
+            <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.mokelayApi') }}</span>
             <select
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               data-testid="datasource-import-mokelay-api"
               :disabled="isApiImportBusy || !mokelayApiOptions.length"
               :value="selectedMokelayApiUuid"
@@ -365,17 +368,17 @@ watch(
               <option v-if="!mokelayApiOptions.length" value="">
                 {{ t('datasource.import.emptyMokelayApis') }}
               </option>
-              <option v-for="api in mokelayApiOptions" :key="api.uuid" :value="api.uuid">
-                {{ api.name }} ({{ api.method }})
+              <option v-for="api in mokelayApiOptions" :key="apiOptionKey(api)" :value="apiOptionKey(api)">
+                {{ api.name }} ({{ api.method }}) · {{ api.assetApp ?? 'mokelay' }}
               </option>
             </select>
           </label>
         </template>
         <template v-else>
-          <label class="ce-datasource-tool__field">
-            <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxProject') }}</span>
+          <label class="ce-datasource-tool__field mk-form-field">
+            <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.apifoxProject') }}</span>
             <select
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               data-testid="datasource-import-apifox-project"
               :disabled="isApiImportBusy || !apifoxProjectOptions.length"
               :value="selectedApifoxProjectId"
@@ -389,10 +392,10 @@ watch(
               </option>
             </select>
           </label>
-          <label class="ce-datasource-tool__field">
-            <span class="ce-datasource-tool__label">{{ t('datasource.fields.apifoxApiId') }}</span>
+          <label class="ce-datasource-tool__field mk-form-field">
+            <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.apifoxApiId') }}</span>
             <input
-              class="ce-datasource-tool__input"
+              class="ce-datasource-tool__input mk-form-control"
               data-testid="datasource-import-apifox-api-id"
               type="text"
               :readonly="isApiImportBusy"
@@ -408,9 +411,9 @@ watch(
         </p>
       </div>
 
-      <div class="ce-datasource-tool__import-dialog-actions">
+      <div class="ce-datasource-tool__import-dialog-actions mk-form-dialog-footer">
         <button
-          class="ce-datasource-tool__action"
+          class="ce-datasource-tool__action mk-form-button"
           type="button"
           data-testid="datasource-import-refresh"
           :disabled="isApiImportBusy"
@@ -419,7 +422,7 @@ watch(
           {{ apiImportOptionsLoading ? t('datasource.actions.refreshing') : t('datasource.actions.refresh') }}
         </button>
         <button
-          class="ce-datasource-tool__schema-button"
+          class="ce-datasource-tool__schema-button mk-form-button"
           type="button"
           data-testid="datasource-import-apply"
           :disabled="!canImportApi"
@@ -433,24 +436,8 @@ watch(
 </template>
 
 <style scoped>
-.ce-datasource-tool__import-dialog {
-  width: min(calc(100vw - 32px), 560px);
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  background: transparent;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-  color: rgb(15 23 42);
-}
-
-.ce-datasource-tool__import-dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
 .ce-datasource-tool__import-dialog-panel {
   overflow: hidden;
-  border-radius: 8px;
-  background: rgb(255 255 255);
 }
 
 .ce-datasource-tool__import-dialog-header,
@@ -459,14 +446,10 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 12px 14px;
 }
 
 .ce-datasource-tool__import-dialog-actions {
   justify-content: flex-end;
-  border-top: 1px solid rgb(226 232 240);
-  border-bottom: 0;
 }
 
 .ce-datasource-tool__import-dialog-title {
@@ -479,29 +462,7 @@ watch(
 .ce-datasource-tool__import-dialog-close,
 .ce-datasource-tool__action,
 .ce-datasource-tool__schema-button {
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 6px 10px;
-  background: rgb(255 255 255);
-  color: rgb(51 65 85);
-  font: inherit;
-  font-weight: 650;
   cursor: pointer;
-}
-
-.ce-datasource-tool__schema-button {
-  border-color: rgb(20 184 166 / 0.55);
-  background: rgb(20 184 166);
-  color: rgb(255 255 255);
-}
-
-.ce-datasource-tool__import-dialog-close:hover,
-.ce-datasource-tool__action:hover {
-  background: rgb(248 250 252);
-}
-
-.ce-datasource-tool__schema-button:hover {
-  background: rgb(13 148 136);
 }
 
 .ce-datasource-tool__action:disabled,
@@ -513,44 +474,7 @@ watch(
 .ce-datasource-tool__import-dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-}
-
-.ce-datasource-tool__field {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.ce-datasource-tool__label {
-  color: rgb(51 65 85);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.ce-datasource-tool__input {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  padding: 7px 9px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font: inherit;
-}
-
-.ce-datasource-tool__input:focus {
-  outline: none;
-  border-color: rgb(20 184 166);
-  box-shadow: 0 0 0 2px rgb(20 184 166 / 0.15);
-}
-
-.ce-datasource-tool__input:read-only,
-.ce-datasource-tool__input:disabled {
-  background: rgb(241 245 249);
-  color: rgb(100 116 139);
+  gap: var(--mk-form-field-gap);
 }
 
 .ce-datasource-tool__error {
@@ -560,44 +484,7 @@ watch(
   font-weight: 650;
 }
 
-.dark .ce-datasource-tool__import-dialog-panel {
-  background: rgb(15 23 42);
-}
-
-.dark .ce-datasource-tool__import-dialog-header,
-.dark .ce-datasource-tool__import-dialog-actions {
-  border-color: rgb(51 65 85);
-}
-
 .dark .ce-datasource-tool__import-dialog-title {
   color: rgb(226 232 240);
-}
-
-.dark .ce-datasource-tool__label {
-  color: rgb(203 213 225);
-}
-
-.dark .ce-datasource-tool__input {
-  border-color: rgb(71 85 105);
-  background: rgb(2 6 23);
-  color: rgb(226 232 240);
-}
-
-.dark .ce-datasource-tool__input:read-only,
-.dark .ce-datasource-tool__input:disabled {
-  background: rgb(30 41 59);
-  color: rgb(148 163 184);
-}
-
-.dark .ce-datasource-tool__import-dialog-close,
-.dark .ce-datasource-tool__action {
-  border-color: rgb(71 85 105);
-  background: rgb(30 41 59);
-  color: rgb(226 232 240);
-}
-
-.dark .ce-datasource-tool__import-dialog-close:hover,
-.dark .ce-datasource-tool__action:hover {
-  background: rgb(51 65 85);
 }
 </style>

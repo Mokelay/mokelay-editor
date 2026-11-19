@@ -1,0 +1,35 @@
+/* Editor-specific composition; field/control/dialog primitives live in mokelay-components. */
+.mokelay-editor-tool__property-title { margin: 0; font-size: 18px; font-weight: 600; line-height: 26px; }
+.mokelay-editor-tool__property-textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.mokelay-editor-tool__events-body { gap: var(--mk-form-section-gap); }
+.mokelay-editor-tool__events-footer { justify-content: flex-start; }
+.mokelay-editor-tool__events-empty { margin: 0; padding: 24px 0; text-align: center; color: var(--mk-form-muted); font-size: 14px; }
+.mokelay-editor-tool__event-row {
+  display: flex; flex: none; flex-direction: column; min-width: 0; gap: var(--mk-form-field-gap);
+  border: 1px solid var(--mk-form-border); border-radius: 12px; padding: 20px;
+}
+.mokelay-editor-tool__event-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mokelay-editor-tool__event-header h4 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; }
+.mokelay-editor-tool__event-header h4 span { color: var(--mk-form-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.mokelay-editor-tool__event-actions-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--mk-form-field-gap); }
+.mokelay-editor-tool__event-action-label { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.mokelay-editor-tool__event-actions { min-width: 0; }
+.mokelay-editor-tool__event-actions .m-action-editor__open { width: 100%; }
+.mokelay-editor-tool__event-policy { border-top: 1px solid var(--mk-form-border); padding-top: 16px; }
+.mokelay-editor-tool__event-policy summary { cursor: pointer; color: var(--mk-form-label); font-size: 13px; font-weight: 600; line-height: 24px; }
+.mokelay-editor-tool__event-policy summary:focus-visible { outline: 2px solid var(--mk-form-accent); outline-offset: 4px; border-radius: 4px; }
+.mokelay-editor-tool__event-policy-fields { margin-top: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mokelay-editor-tool__event-lifecycle { display: grid; gap: 4px; }
+
+/* Native controls are explicitly opted in; third-party JSON/graph controls are untouched. */
+.mk-form-field:has(> .mk-form-check) { flex-direction: row; align-items: center; gap: 8px; }
+.mk-form-field > .mk-form-label { flex: none; }
+.mk-form-field > :is(div, fieldset) { min-width: 0; }
+.mk-form-dialog-header, .mk-form-dialog-footer { flex-shrink: 0; }
+.mk-form-dialog-body { flex: 1 1 auto; }
+.mk-form-dialog-panel { overflow: hidden; }
+
+@container (max-width: 600px) {
+  .mokelay-editor-tool__event-actions-grid, .mokelay-editor-tool__event-policy-fields { grid-template-columns: minmax(0, 1fr); }
+  .mokelay-editor-tool__event-row { padding: 16px; }
+}

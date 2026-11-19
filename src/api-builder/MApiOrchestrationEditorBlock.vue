@@ -689,13 +689,14 @@ defineExpose({ flush, flowId });
 </script>
 
 <template>
-  <section ref="root" data-testid="orchestration-editor-block" class="grid min-h-[620px] gap-3 lg:grid-cols-[230px_minmax(0,1fr)_320px]">
+  <section ref="root" data-testid="orchestration-editor-block" class="mk-form-scope">
+    <div class="api-orchestration-layout">
     <aside class="space-y-3 overflow-auto rounded-lg border border-slate-200 p-3 dark:border-slate-700">
       <div class="grid grid-cols-2 gap-2">
-        <button class="editor-button" :class="{ active: panel === 'params' }" @click="panel = 'params'">{{ fragment ? 'Params' : 'Request' }}</button>
-        <button class="editor-button" :class="{ active: panel === 'outputs' }" @click="panel = 'outputs'">{{ fragment ? 'Outputs' : 'Response' }}</button>
-        <button class="editor-button" :class="{ active: panel === 'json' }" @click="panel = 'json'">JSON</button>
-        <button class="editor-button" :class="{ active: panel === 'test' }" @click="panel = 'test'">Dry-run</button>
+        <button class="editor-button mk-form-button" :class="{ active: panel === 'params' }" @click="panel = 'params'">{{ fragment ? 'Params' : 'Request' }}</button>
+        <button class="editor-button mk-form-button" :class="{ active: panel === 'outputs' }" @click="panel = 'outputs'">{{ fragment ? 'Outputs' : 'Response' }}</button>
+        <button class="editor-button mk-form-button" :class="{ active: panel === 'json' }" @click="panel = 'json'">JSON</button>
+        <button class="editor-button mk-form-button" :class="{ active: panel === 'test' }" @click="panel = 'test'">Dry-run</button>
       </div>
       <div v-for="group in ['query', 'write', 'session', 'utility', 'fragment']" :key="group">
         <h4 class="mb-2 text-xs font-semibold uppercase text-slate-500">{{ group }}</h4>
@@ -703,7 +704,7 @@ defineExpose({ flush, flowId });
           <button
             v-for="definition in palette.filter((item) => item.group === group)"
             :key="definition.functionName"
-            class="editor-palette"
+            class="editor-palette mk-form-button"
             :disabled="readonly"
             @click="addStep(definition.functionName)"
           >{{ definition.title }}</button>
@@ -712,8 +713,8 @@ defineExpose({ flush, flowId });
       <div>
         <h4 class="mb-2 text-xs font-semibold uppercase text-slate-500">controller</h4>
         <div class="grid gap-1">
-          <button class="editor-palette" :disabled="readonly" @click="addFlowController('if_controller')">IF 控制器</button>
-          <button class="editor-palette" :disabled="readonly" @click="addFlowController('switch_controller')">Switch 控制器</button>
+          <button class="editor-palette mk-form-button" :disabled="readonly" @click="addFlowController('if_controller')">IF 控制器</button>
+          <button class="editor-palette mk-form-button" :disabled="readonly" @click="addFlowController('switch_controller')">Switch 控制器</button>
         </div>
       </div>
     </aside>
@@ -724,7 +725,7 @@ defineExpose({ flush, flowId });
           <h3 class="font-semibold text-slate-950 dark:text-white">{{ fragment ? 'Fragment 编排' : 'API 编排' }}</h3>
           <p class="text-xs text-slate-500">VueFlow instance: {{ flowId }}</p>
         </div>
-        <button class="editor-button" @click="fitView({ padding: 0.2 })">适应画布</button>
+        <button class="editor-button mk-form-button" @click="fitView({ padding: 0.2 })">适应画布</button>
       </div>
       <MApiOrchestrationFlowCanvas
         class="h-[530px]"
@@ -746,20 +747,20 @@ defineExpose({ flush, flowId });
         <template v-if="fragment">
           <div class="mb-3 flex items-center justify-between">
             <h3 class="font-semibold">Params</h3>
-            <button class="editor-button" :disabled="readonly" @click="addParam">添加</button>
+            <button class="editor-button mk-form-button" :disabled="readonly" @click="addParam">添加</button>
           </div>
           <div v-for="(param, index) in params()" :key="index" class="mb-2 rounded border border-slate-200 p-2 dark:border-slate-700">
-            <input class="editor-input" :data-testid="`fragment-editor-param-${declarationKey(param)}`" :value="declarationKey(param)" :disabled="readonly" @input="updateParam(index, ($event.target as HTMLInputElement).value)">
-            <label class="mt-2 flex gap-2 text-xs"><input type="checkbox" :checked="isRequired(param)" :disabled="readonly" @change="toggleRequired(index)">必填</label>
+            <input class="editor-input mk-form-control" :data-testid="`fragment-editor-param-${declarationKey(param)}`" :value="declarationKey(param)" :disabled="readonly" @input="updateParam(index, ($event.target as HTMLInputElement).value)">
+            <label class="mt-2 flex gap-2 text-xs mk-form-check-row"><input class="mk-form-check" type="checkbox" :checked="isRequired(param)" :disabled="readonly" @change="toggleRequired(index)">必填</label>
             <div class="mt-2 space-y-1">
               <div v-for="(processor, processorIndex) in getProcessors(param)" :key="processorIndex" class="rounded bg-teal-50 p-1.5 text-xs dark:bg-teal-500/10">
                 <div class="flex items-center justify-between gap-2">
                   <span>{{ getProcessorDefinition(processorName(processor))?.title || processorName(processor) }}</span>
-                  <button class="text-rose-600" :disabled="readonly" @click="removeProcessor(params(), index, processorIndex)">删除</button>
+                  <button class="text-rose-600 mk-form-button" :disabled="readonly" @click="removeProcessor(params(), index, processorIndex)">删除</button>
                 </div>
                 <input
                   v-if="typeof processor !== 'string'"
-                  class="editor-input mt-1 font-mono text-xs"
+                  class="editor-input mt-1 mk-form-control"
                   :value="JSON.stringify(processor.param)"
                   :disabled="readonly"
                   @change="updateProcessorParam(params(), index, processorIndex, ($event.target as HTMLInputElement).value)"
@@ -767,11 +768,11 @@ defineExpose({ flush, flowId });
               </div>
             </div>
             <div class="mt-2 flex gap-2">
-              <select class="editor-input text-xs" :disabled="readonly" @change="addProcessor(params(), index, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+              <select class="editor-input mk-form-control" :disabled="readonly" @change="addProcessor(params(), index, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                 <option value="">添加规则</option>
                 <option v-for="processor in processorDefinitions" :key="processor.name" :value="processor.name">{{ processor.title }}</option>
               </select>
-              <button class="text-xs text-rose-600" :disabled="readonly" @click="removeParam(index)">删除参数</button>
+              <button class="text-rose-600 mk-form-button" :disabled="readonly" @click="removeParam(index)">删除参数</button>
             </div>
           </div>
         </template>
@@ -779,20 +780,20 @@ defineExpose({ flush, flowId });
           <section v-for="location in requestLocations" :key="location.value" class="mb-4">
             <div class="mb-2 flex items-center justify-between">
               <h3 class="font-semibold">{{ location.title }}</h3>
-              <button class="editor-button" :disabled="readonly" @click="addRequestParam(location.value)">添加</button>
+              <button class="editor-button mk-form-button" :disabled="readonly" @click="addRequestParam(location.value)">添加</button>
             </div>
             <div v-for="(param, index) in requestParams(location.value)" :key="index" class="mb-2 rounded border border-slate-200 p-2 dark:border-slate-700">
-              <input class="editor-input" :value="declarationKey(param)" :disabled="readonly" @input="updateRequestParam(location.value, index, ($event.target as HTMLInputElement).value)">
-              <label class="mt-2 flex gap-2 text-xs"><input type="checkbox" :checked="isRequired(param)" :disabled="readonly" @change="toggleRequestRequired(location.value, index)">必填</label>
+              <input class="editor-input mk-form-control" :value="declarationKey(param)" :disabled="readonly" @input="updateRequestParam(location.value, index, ($event.target as HTMLInputElement).value)">
+              <label class="mt-2 flex gap-2 text-xs mk-form-check-row"><input class="mk-form-check" type="checkbox" :checked="isRequired(param)" :disabled="readonly" @change="toggleRequestRequired(location.value, index)">必填</label>
               <div class="mt-2 space-y-1">
                 <div v-for="(processor, processorIndex) in getProcessors(param)" :key="processorIndex" class="rounded bg-teal-50 p-1.5 text-xs dark:bg-teal-500/10">
                   <div class="flex items-center justify-between gap-2">
                     <span>{{ getProcessorDefinition(processorName(processor))?.title || processorName(processor) }}</span>
-                    <button class="text-rose-600" :disabled="readonly" @click="removeProcessor(requestParams(location.value), index, processorIndex)">删除</button>
+                    <button class="text-rose-600 mk-form-button" :disabled="readonly" @click="removeProcessor(requestParams(location.value), index, processorIndex)">删除</button>
                   </div>
                   <input
                     v-if="typeof processor !== 'string'"
-                    class="editor-input mt-1 font-mono text-xs"
+                    class="editor-input mt-1 mk-form-control"
                     :value="JSON.stringify(processor.param)"
                     :disabled="readonly"
                     @change="updateProcessorParam(requestParams(location.value), index, processorIndex, ($event.target as HTMLInputElement).value)"
@@ -800,11 +801,11 @@ defineExpose({ flush, flowId });
                 </div>
               </div>
               <div class="mt-2 flex gap-2">
-                <select class="editor-input text-xs" :disabled="readonly" @change="addProcessor(requestParams(location.value), index, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
+                <select class="editor-input mk-form-control" :disabled="readonly" @change="addProcessor(requestParams(location.value), index, ($event.target as HTMLSelectElement).value); ($event.target as HTMLSelectElement).value = ''">
                   <option value="">添加规则</option>
                   <option v-for="processor in processorDefinitions" :key="processor.name" :value="processor.name">{{ processor.title }}</option>
                 </select>
-                <button class="text-xs text-rose-600" :disabled="readonly" @click="removeRequestParam(location.value, index)">删除参数</button>
+                <button class="text-rose-600 mk-form-button" :disabled="readonly" @click="removeRequestParam(location.value, index)">删除参数</button>
               </div>
             </div>
           </section>
@@ -813,37 +814,37 @@ defineExpose({ flush, flowId });
       <template v-else-if="panel === 'block'">
         <template v-if="selectedBlock">
           <h3 class="font-semibold">{{ selectedBlock.alias || selectedBlock.uuid }}</h3>
-          <label class="mt-3 block text-xs">
+          <label class="mt-3 mk-form-field">
             Alias
-            <input v-model="selectedBlock.alias" class="editor-input mt-1" :disabled="readonly" @change="emitChange">
+            <input v-model="selectedBlock.alias" class="editor-input mt-1 mk-form-control" :disabled="readonly" @change="emitChange">
           </label>
-          <label class="mt-2 block text-xs">
+          <label class="mt-2 mk-form-field">
             UUID
-            <input :value="selectedBlock.uuid" class="editor-input mt-1 font-mono" :disabled="readonly" @change="renameSelectedBlock(($event.target as HTMLInputElement).value)">
+            <input :value="selectedBlock.uuid" class="editor-input mt-1 mk-form-control" :disabled="readonly" @change="renameSelectedBlock(($event.target as HTMLInputElement).value)">
           </label>
           <template v-if="isControllerBlock(selectedBlock)">
-            <textarea class="editor-input mt-3 min-h-32 font-mono text-xs" :value="JSON.stringify(selectedBlock.inputs ?? {}, null, 2)" :disabled="readonly" @input="updateControllerInputs(($event.target as HTMLTextAreaElement).value)" />
+            <textarea class="editor-input mt-3 mk-form-control" :value="JSON.stringify(selectedBlock.inputs ?? {}, null, 2)" :disabled="readonly" @input="updateControllerInputs(($event.target as HTMLTextAreaElement).value)" />
             <div v-for="node in selectedBlock.nodes" :key="node.uuid" class="mt-2 rounded border border-slate-200 p-2 dark:border-slate-700">
               <strong class="block text-xs">{{ node.alias || node.uuid }}</strong>
-              <select :value="node.nextBlock ?? ''" class="editor-input mt-1" :disabled="readonly" @change="updateControllerNodeNextBlock(node, ($event.target as HTMLSelectElement).value || null); emitChange()">
+              <select :value="node.nextBlock ?? ''" class="editor-input mt-1 mk-form-control" :disabled="readonly" @change="updateControllerNodeNextBlock(node, ($event.target as HTMLSelectElement).value || null); emitChange()">
                 <option value="">null</option>
                 <option v-for="target in targetOptions(selectedBlock.uuid)" :key="target.uuid" :value="target.uuid">{{ target.alias || target.uuid }}</option>
               </select>
             </div>
           </template>
           <template v-else>
-            <label class="mt-2 block text-xs">
+            <label class="mt-2 mk-form-field">
               nextBlock
-              <select :value="selectedBlock.nextBlock ?? ''" class="editor-input mt-1" :disabled="readonly" @change="updateSelectedNextBlock(($event.target as HTMLSelectElement).value)">
+              <select :value="selectedBlock.nextBlock ?? ''" class="editor-input mt-1 mk-form-control" :disabled="readonly" @change="updateSelectedNextBlock(($event.target as HTMLSelectElement).value)">
                 <option value="">null</option>
                 <option v-for="target in targetOptions(selectedBlock.uuid)" :key="target.uuid" :value="target.uuid">{{ target.alias || target.uuid }}</option>
               </select>
             </label>
-            <label class="mt-2 block text-xs">
+            <label class="mt-2 mk-form-field">
               errorNextBlock
               <select
                 data-testid="orchestration-error-next-block"
-                class="editor-input mt-1"
+                class="editor-input mt-1 mk-form-control"
                 :value="errorNextBlockSelectValue(selectedBlock)"
                 :disabled="readonly"
                 @change="updateErrorNextBlock(($event.target as HTMLSelectElement).value)"
@@ -853,22 +854,22 @@ defineExpose({ flush, flowId });
                 <option v-for="target in targetOptions(selectedBlock.uuid)" :key="target.uuid" :value="target.uuid">目标：{{ target.alias || target.uuid }}</option>
               </select>
             </label>
-            <label class="mt-2 block text-xs">
+            <label class="mt-2 mk-form-field">
               outputs
-              <textarea class="editor-input mt-1 min-h-20 font-mono text-xs" :value="JSON.stringify(selectedBlock.outputs ?? null, null, 2)" :disabled="readonly" @input="updateDeclaredOutputs(($event.target as HTMLTextAreaElement).value)" />
+              <textarea class="editor-input mt-1 mk-form-control" :value="JSON.stringify(selectedBlock.outputs ?? null, null, 2)" :disabled="readonly" @input="updateDeclaredOutputs(($event.target as HTMLTextAreaElement).value)" />
             </label>
-            <label class="mt-2 block text-xs">
+            <label class="mt-2 mk-form-field">
               inputs
-              <textarea class="editor-input mt-1 min-h-52 font-mono text-xs" :value="JSON.stringify(selectedBlock.inputs ?? {}, null, 2)" :disabled="readonly" @input="updateBlockJson(($event.target as HTMLTextAreaElement).value)" />
+              <textarea class="editor-input mt-1 mk-form-control" :value="JSON.stringify(selectedBlock.inputs ?? {}, null, 2)" :disabled="readonly" @input="updateBlockJson(($event.target as HTMLTextAreaElement).value)" />
             </label>
           </template>
-          <button class="mt-3 text-sm text-rose-600" :disabled="readonly" @click="removeSelected">删除步骤</button>
+          <button class="mt-3 text-rose-600 mk-form-button" :disabled="readonly" @click="removeSelected">删除步骤</button>
         </template>
         <template v-else-if="selection === 'starter' && starter">
           <h3 class="font-semibold">Starter</h3>
-          <label class="mt-3 block text-xs">
+          <label class="mt-3 mk-form-field">
             nextBlock
-            <select :value="starter.nextBlock ?? ''" class="editor-input mt-1" :disabled="readonly" @change="updateStarterNextBlock(($event.target as HTMLSelectElement).value || null); emitChange()">
+            <select :value="starter.nextBlock ?? ''" class="editor-input mt-1 mk-form-control" :disabled="readonly" @change="updateStarterNextBlock(($event.target as HTMLSelectElement).value || null); emitChange()">
               <option value="">null</option>
               <option v-for="target in targetOptions('starter')" :key="target.uuid" :value="target.uuid">{{ target.alias || target.uuid }}</option>
             </select>
@@ -882,36 +883,41 @@ defineExpose({ flush, flowId });
           <button
             v-for="terminal in responseTerminals"
             :key="terminal.uuid"
-            class="editor-button"
+            class="editor-button mk-form-button"
             :class="{ active: selectedResponseTerminalUuid === terminal.uuid }"
             @click="selectResponseTerminal(terminal.uuid)"
           >{{ terminal.label }}</button>
         </div>
-        <textarea class="editor-input mt-3 min-h-80 font-mono text-xs" :value="responseText" :disabled="readonly" @input="updateOutputs(($event.target as HTMLTextAreaElement).value)" />
+        <textarea class="editor-input mt-3 mk-form-control" :value="responseText" :disabled="readonly" @input="updateOutputs(($event.target as HTMLTextAreaElement).value)" />
       </template>
       <template v-else-if="panel === 'json'">
         <h3 class="font-semibold">DSL JSON</h3>
-        <textarea class="editor-input mt-3 min-h-[430px] font-mono text-xs" :value="JSON.stringify(apiJson, null, 2)" :disabled="readonly" @input="updateWholeJson(($event.target as HTMLTextAreaElement).value)" />
+        <textarea class="editor-input mt-3 mk-form-control" :value="JSON.stringify(apiJson, null, 2)" :disabled="readonly" @input="updateWholeJson(($event.target as HTMLTextAreaElement).value)" />
         <p class="mt-2 text-xs text-slate-500">{{ issues.length }} 个校验问题</p>
       </template>
       <template v-else>
         <h3 class="font-semibold">Dry-run</h3>
         <div v-if="fragment" class="mt-3 space-y-2">
-          <label v-for="param in apiJson.params ?? []" :key="declarationKey(param)" class="block text-xs">
+          <label v-for="param in apiJson.params ?? []" :key="declarationKey(param)" class="mk-form-field">
             {{ declarationKey(param) }}
-            <input v-model="testInput.params[declarationKey(param)]" class="editor-input mt-1">
+            <input v-model="testInput.params[declarationKey(param)]" class="editor-input mt-1 mk-form-control">
           </label>
         </div>
-        <button class="editor-button mt-3" @click="runTest">运行</button>
+        <button class="editor-button mt-3 mk-form-button" @click="runTest">运行</button>
         <pre v-if="testResult" class="mt-3 max-h-72 overflow-auto rounded bg-slate-950 p-2 text-xs text-white">{{ JSON.stringify(testResult, null, 2) }}</pre>
       </template>
     </aside>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.editor-button { @apply rounded border border-slate-300 px-2 py-1 text-xs font-semibold dark:border-slate-700; }
+.api-orchestration-layout { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 620px; gap: var(--mk-form-field-gap); }
+.api-orchestration-layout > aside { min-width: 0; }
+@container (min-width: 1000px) {
+  .api-orchestration-layout { grid-template-columns: 230px minmax(0, 1fr) 320px; }
+}
+
 .editor-button.active { @apply border-teal-500 bg-teal-50 text-teal-800 dark:bg-teal-500/10 dark:text-teal-100; }
 .editor-palette { @apply rounded border border-slate-200 px-2 py-1.5 text-left text-xs hover:border-teal-400 disabled:opacity-50 dark:border-slate-700; }
-.editor-input { @apply w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-950; }
 </style>

@@ -367,7 +367,7 @@ watch(
   <div class="ce-advance-table-columns-editor" data-testid="advance-table-columns-editor">
     <div class="ce-advance-table-columns-editor__trigger-row">
       <button
-        class="ce-advance-table-columns-editor__primary-button"
+        class="ce-advance-table-columns-editor__primary-button mk-form-button mk-form-button--primary"
         type="button"
         data-testid="advance-table-columns-settings-open"
         @click="openSettingsDialog"
@@ -381,14 +381,14 @@ watch(
 
     <dialog
       ref="settingsDialogRef"
-      class="ce-advance-table-columns-editor__dialog"
+      class="ce-advance-table-columns-editor__dialog mk-form-dialog mk-form-dialog--wide"
       data-testid="advance-table-columns-dialog"
       :aria-hidden="!isSettingsDialogOpen"
       aria-labelledby="advance-table-columns-dialog-title"
       @close="isSettingsDialogOpen = false"
     >
-      <div class="ce-advance-table-columns-editor__dialog-panel">
-        <div class="ce-advance-table-columns-editor__dialog-header">
+      <div class="ce-advance-table-columns-editor__dialog-panel mk-form-dialog-panel">
+        <div class="ce-advance-table-columns-editor__dialog-header mk-form-dialog-header">
           <h3
             id="advance-table-columns-dialog-title"
             class="ce-advance-table-columns-editor__dialog-title"
@@ -397,7 +397,7 @@ watch(
             {{ t('advanceTable.columnsEditor.settingsDialogTitle') }}
           </h3>
           <button
-            class="ce-advance-table-columns-editor__secondary-button"
+            class="ce-advance-table-columns-editor__secondary-button mk-form-button"
             type="button"
             data-testid="advance-table-columns-close"
             @click="closeSettingsDialog"
@@ -406,7 +406,7 @@ watch(
           </button>
         </div>
 
-        <div class="ce-advance-table-columns-editor__dialog-body">
+        <div class="ce-advance-table-columns-editor__dialog-body mk-form-dialog-body mk-form-scope">
           <section class="ce-advance-table-columns-editor__section" data-testid="advance-table-columns-fields-section">
             <div class="ce-advance-table-columns-editor__section-header">
               <div>
@@ -465,7 +465,7 @@ watch(
                   :data-testid="`advance-table-column-row-${index}`"
                 >
                   <input
-                    class="ce-advance-table-columns-editor__input"
+                    class="ce-advance-table-columns-editor__input mk-form-control"
                     :data-testid="`advance-table-column-name-${index}`"
                     type="text"
                     :readonly="isReadOnly"
@@ -475,7 +475,7 @@ watch(
                     @keydown.stop
                   />
                   <input
-                    class="ce-advance-table-columns-editor__input"
+                    class="ce-advance-table-columns-editor__input mk-form-control"
                     :data-testid="`advance-table-column-variable-${index}`"
                     type="text"
                     :readonly="isReadOnly"
@@ -485,7 +485,7 @@ watch(
                     @keydown.stop
                   />
                   <input
-                    class="ce-advance-table-columns-editor__input"
+                    class="ce-advance-table-columns-editor__input mk-form-control"
                     :data-testid="`advance-table-column-width-${index}`"
                     type="number"
                     min="1"
@@ -497,7 +497,7 @@ watch(
                     @keydown.stop
                   />
                   <select
-                    class="ce-advance-table-columns-editor__input"
+                    class="ce-advance-table-columns-editor__input mk-form-control"
                     :data-testid="`advance-table-column-fixed-${index}`"
                     :disabled="isReadOnly"
                     :value="column.fixed ?? ''"
@@ -511,7 +511,7 @@ watch(
                   <div class="ce-advance-table-columns-editor__template-cell">
                     <textarea
                       v-if="!hasCustomColumnContent(column)"
-                      class="ce-advance-table-columns-editor__input ce-advance-table-columns-editor__template"
+                      class="ce-advance-table-columns-editor__input ce-advance-table-columns-editor__template mk-form-control"
                       :data-testid="`advance-table-column-template-${index}`"
                       :readonly="isReadOnly"
                       rows="2"
@@ -531,7 +531,7 @@ watch(
 
                   <div class="ce-advance-table-columns-editor__actions">
                     <button
-                      class="ce-advance-table-columns-editor__icon-button"
+                      class="ce-advance-table-columns-editor__icon-button mk-form-button"
                       type="button"
                       :data-testid="`advance-table-column-move-up-${index}`"
                       :disabled="isReadOnly || index === 0"
@@ -540,7 +540,7 @@ watch(
                       {{ t('advanceTable.columnsEditor.actions.moveUp') }}
                     </button>
                     <button
-                      class="ce-advance-table-columns-editor__icon-button"
+                      class="ce-advance-table-columns-editor__icon-button mk-form-button"
                       type="button"
                       :data-testid="`advance-table-column-move-down-${index}`"
                       :disabled="isReadOnly || index === columnsDraft.length - 1"
@@ -549,7 +549,7 @@ watch(
                       {{ t('advanceTable.columnsEditor.actions.moveDown') }}
                     </button>
                     <button
-                      class="ce-advance-table-columns-editor__icon-button"
+                      class="ce-advance-table-columns-editor__icon-button mk-form-button"
                       type="button"
                       :data-testid="`advance-table-column-reset-template-${index}`"
                       :disabled="isReadOnly"
@@ -558,7 +558,7 @@ watch(
                       {{ t('advanceTable.columnsEditor.actions.resetTemplate') }}
                     </button>
                     <button
-                      class="ce-advance-table-columns-editor__danger-button"
+                      class="ce-advance-table-columns-editor__danger-button mk-form-button mk-form-button--danger"
                       type="button"
                       :data-testid="`advance-table-column-remove-${index}`"
                       :disabled="isReadOnly"
@@ -573,9 +573,9 @@ watch(
           </section>
         </div>
 
-        <div class="ce-advance-table-columns-editor__dialog-actions">
+        <div class="ce-advance-table-columns-editor__dialog-actions mk-form-dialog-footer">
           <button
-            class="ce-advance-table-columns-editor__secondary-button"
+            class="ce-advance-table-columns-editor__secondary-button mk-form-button"
             type="button"
             data-testid="advance-table-columns-cancel"
             @click="closeSettingsDialog"
@@ -584,7 +584,7 @@ watch(
           </button>
           <button
             v-if="edit"
-            class="ce-advance-table-columns-editor__primary-button"
+            class="ce-advance-table-columns-editor__primary-button mk-form-button mk-form-button--primary"
             type="button"
             data-testid="advance-table-columns-save"
             @click="saveColumns"
@@ -613,19 +613,7 @@ watch(
 
 .ce-advance-table-columns-editor__primary-button {
   flex: 0 0 auto;
-  min-height: 34px;
-  border: 1px solid rgb(20 184 166 / 0.55);
-  border-radius: 8px;
-  padding: 6px 14px;
-  background: rgb(20 184 166);
-  color: rgb(255 255 255);
-  font: inherit;
-  font-weight: 700;
   cursor: pointer;
-}
-
-.ce-advance-table-columns-editor__primary-button:hover {
-  background: rgb(13 148 136);
 }
 
 .ce-advance-table-columns-editor__summary {
@@ -640,28 +628,10 @@ watch(
   line-height: 18px;
 }
 
-.ce-advance-table-columns-editor__dialog {
-  width: min(calc(100vw - 32px), 1180px);
-  max-height: min(calc(100vh - 32px), 880px);
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  background: transparent;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-  color: rgb(15 23 42);
-}
-
-.ce-advance-table-columns-editor__dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
 .ce-advance-table-columns-editor__dialog-panel {
   display: flex;
-  max-height: inherit;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 8px;
-  background: rgb(255 255 255);
 }
 
 .ce-advance-table-columns-editor__dialog-header,
@@ -670,14 +640,10 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 12px 14px;
 }
 
 .ce-advance-table-columns-editor__dialog-actions {
   justify-content: flex-end;
-  border-top: 1px solid rgb(226 232 240);
-  border-bottom: 0;
 }
 
 .ce-advance-table-columns-editor__dialog-title {
@@ -691,9 +657,8 @@ watch(
   display: flex;
   min-height: 0;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--mk-form-field-gap);
   overflow: auto;
-  padding: 12px;
 }
 
 .ce-advance-table-columns-editor__section {
@@ -776,32 +741,8 @@ watch(
   background: rgb(255 255 255);
 }
 
-.ce-advance-table-columns-editor__input {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  padding: 7px 9px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font: inherit;
-}
-
 .ce-advance-table-columns-editor__template {
-  min-height: 58px;
   resize: vertical;
-}
-
-.ce-advance-table-columns-editor__input:focus {
-  outline: none;
-  border-color: rgb(20 184 166);
-  box-shadow: 0 0 0 2px rgb(20 184 166 / 0.15);
-}
-
-.ce-advance-table-columns-editor__input:read-only,
-.ce-advance-table-columns-editor__input:disabled {
-  background: rgb(241 245 249);
-  color: rgb(100 116 139);
 }
 
 .ce-advance-table-columns-editor__template-cell {
@@ -828,33 +769,7 @@ watch(
 .ce-advance-table-columns-editor__secondary-button,
 .ce-advance-table-columns-editor__icon-button,
 .ce-advance-table-columns-editor__danger-button {
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 6px 10px;
-  background: rgb(255 255 255);
-  color: rgb(51 65 85);
-  font: inherit;
-  font-weight: 650;
   cursor: pointer;
-}
-
-.ce-advance-table-columns-editor__icon-button {
-  min-height: 32px;
-  padding: 5px 8px;
-  font-size: 12px;
-}
-
-.ce-advance-table-columns-editor__danger-button {
-  min-height: 32px;
-  padding: 5px 8px;
-  color: rgb(185 28 28);
-  font-size: 12px;
-}
-
-.ce-advance-table-columns-editor__secondary-button:hover,
-.ce-advance-table-columns-editor__icon-button:hover,
-.ce-advance-table-columns-editor__danger-button:hover {
-  background: rgb(248 250 252);
 }
 
 .ce-advance-table-columns-editor__primary-button:disabled,
@@ -884,11 +799,6 @@ watch(
   background: rgb(15 23 42);
 }
 
-.dark .ce-advance-table-columns-editor__dialog-header,
-.dark .ce-advance-table-columns-editor__dialog-actions {
-  border-color: rgb(51 65 85);
-}
-
 .dark .ce-advance-table-columns-editor__dialog-title,
 .dark .ce-advance-table-columns-editor__section-title {
   color: rgb(241 245 249);
@@ -907,11 +817,5 @@ watch(
   border-color: rgb(71 85 105);
   background: rgb(15 23 42);
   color: rgb(226 232 240);
-}
-
-.dark .ce-advance-table-columns-editor__input:read-only,
-.dark .ce-advance-table-columns-editor__input:disabled {
-  background: rgb(30 41 59);
-  color: rgb(148 163 184);
 }
 </style>

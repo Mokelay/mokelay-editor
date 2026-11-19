@@ -89,6 +89,8 @@ export type BlockFunctionName =
   | 'upsert'
   | 'update'
   | 'randomId'
+  | 'assert'
+  | 'requireTenantContext'
   | 'assertUnique'
   | 'createSchema'
   | 'cascadeDelete'
@@ -161,6 +163,11 @@ export type EndpointApiJson = ApiJsonCommon & {
 
 export type FragmentApiJson = ApiJsonCommon & {
   fragment: true;
+  transaction?: {
+    datasource: string;
+    isolationLevel?: 'read committed' | 'repeatable read' | 'serializable';
+    retries?: number;
+  };
   params?: ProcessableKey[];
   method?: never;
   request?: never;
@@ -205,6 +212,7 @@ export type ApiBuilderDraft = {
   layout: ApiBuilderLayout;
   status: ApiBuilderStatus;
   source: ApiBuilderSource;
+  assetApp?: string;
   disabledBlockIds: string[];
   testCases: ApiBuilderTestCase[];
   createdAt: string;

@@ -98,7 +98,9 @@ import { getContentEditingLocale, getContentLocaleConfig } from '@/composables/u
  *       "source": "submodule/mokelay-editor/src/editors/tools/mFormEditorTool.ts",
  *       "declaredInProps": true,
  *       "configurable": true,
- *       "localizablePaths": ["[].labelName"],
+ *       "localizablePaths": [
+ *         "[].labelName"
+ *       ],
  *       "label": "表单项配置",
  *       "type": "component",
  *       "component": "MFormItemsEditor"
@@ -162,11 +164,18 @@ import { getContentEditingLocale, getContentLocaleConfig } from '@/composables/u
  *   ],
  *   "events": [
  *     {
+ *       "event": "init",
+ *       "payload": "payload: { values: Record<string, unknown> }",
+ *       "trigger": "All initial field controls rendered and registered (runtime only)",
+ *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
+ *       "label": "初始化完成"
+ *     },
+ *     {
  *       "event": "change",
- *       "payload": "items: MFormItemData[]",
+ *       "payload": "payload: { values: Record<string, unknown>; changedFields: string[]; source: 'user' | 'programmatic'; valid: boolean; errors: unknown[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "label": "变更"
+ *       "label": "字段值变化"
  *     },
  *     {
  *       "event": "reset",
@@ -185,15 +194,6 @@ import { getContentEditingLocale, getContentLocaleConfig } from '@/composables/u
  *   ],
  *   "methods": [
  *     {
- *       "name": "saveEditor",
- *       "exposed": true,
- *       "async": true,
- *       "params": "not declared in defineExpose object",
- *       "returns": "unknown",
- *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "label": "保存编辑器"
- *     },
- *     {
  *       "name": "getData",
  *       "exposed": true,
  *       "async": true,
@@ -206,19 +206,21 @@ import { getContentEditingLocale, getContentLocaleConfig } from '@/composables/u
  *       "name": "setValues",
  *       "exposed": true,
  *       "async": true,
- *       "params": "not declared in defineExpose object",
+ *       "params": "{ values?: Record<string, unknown>, emitChange?: boolean }",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "label": "设置表单值"
+ *       "label": "设置表单值",
+ *       "description": "默认静默回填；emitChange=true 时触发字段值 change。"
  *     },
  *     {
  *       "name": "reset",
  *       "exposed": true,
  *       "async": true,
- *       "params": "not declared in defineExpose object",
+ *       "params": "{ values?: Record<string, unknown>, emitChange?: boolean }",
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "label": "重置"
+ *       "label": "重置",
+ *       "description": "默认静默回填；emitChange=true 时触发字段值 change。"
  *     },
  *     {
  *       "name": "submit",
@@ -228,6 +230,25 @@ import { getContentEditingLocale, getContentLocaleConfig } from '@/composables/u
  *       "returns": "unknown",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
  *       "label": "提交"
+ *     },
+ *     {
+ *       "name": "setFieldOptions",
+ *       "label": "设置字段选项",
+ *       "params": "{ options: Record<string, unknown[]> }",
+ *       "returns": "object",
+ *       "async": false,
+ *       "exposed": true,
+ *       "source": "submodule/mokelay-components/src/blocks/MForm.vue"
+ *     },
+ *     {
+ *       "name": "setStatus",
+ *       "label": "设置表单状态",
+ *       "params": "{ disabled?: boolean, loading?: boolean, showHints?: boolean, errors?: Array<{ field?: string, message: string }> }",
+ *       "description": "showHints 控制字段 rules.hint 的显隐，不改变值、不触发 change，也不影响常驻说明。",
+ *       "returns": "object",
+ *       "async": false,
+ *       "exposed": true,
+ *       "source": "submodule/mokelay-components/src/blocks/MForm.vue"
  *     }
  *   ],
  *   "dataFields": [
@@ -285,13 +306,16 @@ import { getContentEditingLocale, getContentLocaleConfig } from '@/composables/u
  * }
  */
 export const mFormEditorTool = defineEditorTool<MFormProps>({
-  getDataFields: (context) => normalizeMFormItems(context.data.items).map((item) => ({
-    label: typeof item.labelName === 'string'
-      ? item.labelName
-      : resolveLocalizedValue(item.labelName, getContentEditingLocale(), getContentLocaleConfig()),
-    variable: item.variableName,
-    dataType: normalizeVariableDataType(item.fieldDataType)
-  })),
+  getDataFields: ({ data }) => {
+    const fields = normalizeMFormItems(data.items).map((item) => ({
+      label: typeof item.labelName === 'string'
+        ? item.labelName
+        : resolveLocalizedValue(item.labelName, getContentEditingLocale(), getContentLocaleConfig()),
+      variable: item.variableName,
+      dataType: normalizeVariableDataType(item.fieldDataType)
+    }));
+    return fields;
+  },
   normalizeProps: (props) => normalizeMFormProps(props),
   serialize: (props) => serializeMFormProps(props)
 });

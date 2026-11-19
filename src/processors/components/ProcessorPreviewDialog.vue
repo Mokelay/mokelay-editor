@@ -107,8 +107,8 @@ watch(() => validExampleIndexes.value.join(','), () => {
       @click.self="emit('close')"
       @keydown.stop
     >
-      <section class="processor-preview-panel">
-        <header class="processor-preview-header">
+      <section class="processor-preview-panel mk-form-dialog-panel mk-form-dialog mk-form-dialog--wide">
+        <header class="processor-preview-header mk-form-dialog-header">
           <div class="processor-preview-heading">
             <h2 data-testid="datasource-processor-preview-title">
               {{ t('datasource.processors.preview.title') }}
@@ -120,15 +120,15 @@ watch(() => validExampleIndexes.value.join(','), () => {
               </span>
             </div>
           </div>
-          <button type="button" data-testid="datasource-processor-preview-close" @click="emit('close')">
+          <button class="mk-form-button" type="button" data-testid="datasource-processor-preview-close" @click="emit('close')">
             {{ t('editor.close') }}
           </button>
         </header>
 
-        <div class="processor-preview-body">
-          <label class="processor-preview-example-field">
+        <div class="processor-preview-body mk-form-dialog-body mk-form-scope">
+          <label class="processor-preview-example-field mk-form-field">
             <span>{{ t('datasource.processors.preview.example') }}</span>
-            <select
+            <select class="mk-form-control"
               v-model.number="selectedExampleIndex"
               data-testid="datasource-processor-preview-example-select"
               :disabled="!validExampleIndexes.length"
@@ -197,14 +197,8 @@ watch(() => validExampleIndexes.value.join(','), () => {
 
 .processor-preview-panel {
   display: flex;
-  width: min(980px, 100%);
-  max-height: min(780px, calc(100vh - 40px));
   flex-direction: column;
   overflow: hidden;
-  border-radius: 12px;
-  background: white;
-  color: rgb(15 23 42);
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.35);
 }
 
 .processor-preview-header {
@@ -212,8 +206,6 @@ watch(() => validExampleIndexes.value.join(','), () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 14px 16px;
 }
 
 .processor-preview-heading {
@@ -254,13 +246,6 @@ watch(() => validExampleIndexes.value.join(','), () => {
 
 .processor-preview-header button {
   flex: 0 0 auto;
-  min-height: 34px;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 5px 10px;
-  background: white;
-  color: rgb(71 85 105);
-  font: inherit;
   cursor: pointer;
 }
 
@@ -271,27 +256,6 @@ watch(() => validExampleIndexes.value.join(','), () => {
   flex-direction: column;
   gap: 14px;
   overflow-y: auto;
-  padding: 16px;
-}
-
-.processor-preview-example-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: rgb(51 65 85);
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.processor-preview-example-field select {
-  width: min(420px, 100%);
-  min-height: 36px;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  padding: 6px 10px;
-  background: white;
-  color: inherit;
-  font: inherit;
 }
 
 .processor-preview-results {

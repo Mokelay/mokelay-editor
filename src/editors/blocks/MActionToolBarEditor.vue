@@ -333,7 +333,7 @@ watch(
   <div class="ce-form-action-bar-editor" data-testid="form-action-bar-editor">
     <div class="ce-form-action-bar-editor__trigger-row">
       <button
-        class="ce-form-action-bar-editor__primary-button"
+        class="ce-form-action-bar-editor__primary-button mk-form-button mk-form-button--primary"
         type="button"
         data-testid="form-action-bar-settings-open"
         @click="openDialog"
@@ -347,14 +347,14 @@ watch(
 
     <dialog
       ref="dialogRef"
-      class="ce-form-action-bar-editor__dialog"
+      class="ce-form-action-bar-editor__dialog mk-form-dialog"
       data-testid="form-action-bar-dialog"
       :aria-hidden="!isOpen"
       aria-labelledby="form-action-bar-dialog-title"
       @close="isOpen = false"
     >
-      <div class="ce-form-action-bar-editor__dialog-panel">
-        <div class="ce-form-action-bar-editor__dialog-header">
+      <div class="ce-form-action-bar-editor__dialog-panel mk-form-dialog-panel">
+        <div class="ce-form-action-bar-editor__dialog-header mk-form-dialog-header">
           <h3
             id="form-action-bar-dialog-title"
             class="ce-form-action-bar-editor__dialog-title"
@@ -363,7 +363,7 @@ watch(
             {{ t('form.actionBarEditor.settingsDialogTitle') }}
           </h3>
           <button
-            class="ce-form-action-bar-editor__secondary-button"
+            class="ce-form-action-bar-editor__secondary-button mk-form-button"
             type="button"
             data-testid="form-action-bar-close"
             @click="closeDialog"
@@ -372,7 +372,7 @@ watch(
           </button>
         </div>
 
-        <div class="ce-form-action-bar-editor__dialog-body">
+        <div class="ce-form-action-bar-editor__dialog-body mk-form-dialog-body mk-form-scope">
           <section class="ce-form-action-bar-editor__section">
             <div class="ce-form-action-bar-editor__section-header">
               <div>
@@ -385,10 +385,10 @@ watch(
               </div>
             </div>
             <div class="ce-form-action-bar-editor__form-grid">
-              <label>
+              <label class="mk-form-field">
                 <span>{{ t('form.actionBarEditor.fields.align') }}</span>
                 <select
-                  class="ce-form-action-bar-editor__input"
+                  class="ce-form-action-bar-editor__input mk-form-control"
                   data-testid="form-action-bar-align"
                   :disabled="isReadOnly"
                   :value="draftToolbar.align"
@@ -396,13 +396,14 @@ watch(
                 >
                   <option value="left">{{ t('form.actionBarEditor.align.left') }}</option>
                   <option value="right">{{ t('form.actionBarEditor.align.right') }}</option>
+                  <option value="stretch">{{ t('form.actionBarEditor.align.stretch') }}</option>
                   <option value="space-between">{{ t('form.actionBarEditor.align.spaceBetween') }}</option>
                 </select>
               </label>
-              <label>
+              <label class="mk-form-field">
                 <span>{{ t('form.actionBarEditor.fields.size') }}</span>
                 <select
-                  class="ce-form-action-bar-editor__input"
+                  class="ce-form-action-bar-editor__input mk-form-control"
                   data-testid="form-action-bar-size"
                   :disabled="isReadOnly"
                   :value="draftToolbar.size"
@@ -413,10 +414,10 @@ watch(
                   <option value="large">{{ t('form.actionBarEditor.size.large') }}</option>
                 </select>
               </label>
-              <label>
+              <label class="mk-form-field">
                 <span>{{ t('form.actionBarEditor.fields.mode') }}</span>
                 <select
-                  class="ce-form-action-bar-editor__input"
+                  class="ce-form-action-bar-editor__input mk-form-control"
                   data-testid="form-action-bar-mode"
                   :disabled="isReadOnly"
                   :value="draftToolbar.mode"
@@ -442,7 +443,7 @@ watch(
               </div>
               <button
                 v-if="edit"
-                class="ce-form-action-bar-editor__primary-button"
+                class="ce-form-action-bar-editor__primary-button mk-form-button mk-form-button--primary"
                 type="button"
                 data-testid="form-action-bar-add-button"
                 @click="addButton"
@@ -468,10 +469,10 @@ watch(
                   :data-testid="`form-action-bar-button-${index}`"
                 >
                   <div class="ce-form-action-bar-editor__button-grid">
-                    <label>
+                    <label class="mk-form-field">
                       <span>{{ t('form.actionBarEditor.fields.id') }}</span>
                       <input
-                        class="ce-form-action-bar-editor__input"
+                        class="ce-form-action-bar-editor__input mk-form-control"
                         :data-testid="`form-action-bar-button-id-${index}`"
                         type="text"
                         :readonly="isReadOnly"
@@ -480,10 +481,10 @@ watch(
                         @keydown.stop
                       />
                     </label>
-                    <label>
+                    <label class="mk-form-field">
                       <span>{{ t('form.actionBarEditor.fields.label') }}</span>
                       <input
-                        class="ce-form-action-bar-editor__input"
+                        class="ce-form-action-bar-editor__input mk-form-control"
                         :data-testid="`form-action-bar-button-label-${index}`"
                         type="text"
                         :readonly="isReadOnly"
@@ -492,10 +493,21 @@ watch(
                         @keydown.stop
                       />
                     </label>
-                    <label>
+                    <label class="mk-form-field">
+                      <span>{{ t('form.actionBarEditor.fields.loadingLabel') }}</span>
+                      <input
+                        class="ce-form-action-bar-editor__input mk-form-control"
+                        :data-testid="`form-action-bar-button-loading-label-${index}`"
+                        type="text"
+                        :readonly="isReadOnly"
+                        :value="button.loadingLabel"
+                        @input="updateButton(index, { loadingLabel: ($event.target as HTMLInputElement).value })"
+                      >
+                    </label>
+                    <label class="mk-form-field">
                       <span>{{ t('form.actionBarEditor.fields.variant') }}</span>
                       <select
-                        class="ce-form-action-bar-editor__input"
+                        class="ce-form-action-bar-editor__input mk-form-control"
                         :data-testid="`form-action-bar-button-variant-${index}`"
                         :disabled="isReadOnly"
                         :value="button.variant"
@@ -509,10 +521,10 @@ watch(
                         <option value="text">{{ t('form.actionBarEditor.variant.text') }}</option>
                       </select>
                     </label>
-                    <label>
+                    <label class="mk-form-check-row">
                       <span>{{ t('form.actionBarEditor.fields.disabled') }}</span>
                       <input
-                        class="ce-form-action-bar-editor__checkbox"
+                        class="ce-form-action-bar-editor__checkbox mk-form-check"
                         :data-testid="`form-action-bar-button-disabled-${index}`"
                         type="checkbox"
                         :disabled="isReadOnly"
@@ -533,7 +545,7 @@ watch(
                     />
                     <div class="ce-form-action-bar-editor__row-actions">
                       <button
-                        class="ce-form-action-bar-editor__icon-button"
+                        class="ce-form-action-bar-editor__icon-button mk-form-button"
                         type="button"
                         :data-testid="`form-action-bar-button-up-${index}`"
                         :disabled="isReadOnly || index === 0"
@@ -542,7 +554,7 @@ watch(
                         {{ t('form.actionBarEditor.actions.moveUp') }}
                       </button>
                       <button
-                        class="ce-form-action-bar-editor__icon-button"
+                        class="ce-form-action-bar-editor__icon-button mk-form-button"
                         type="button"
                         :data-testid="`form-action-bar-button-down-${index}`"
                         :disabled="isReadOnly || index === draftButtons.length - 1"
@@ -551,7 +563,7 @@ watch(
                         {{ t('form.actionBarEditor.actions.moveDown') }}
                       </button>
                       <button
-                        class="ce-form-action-bar-editor__danger-button"
+                        class="ce-form-action-bar-editor__danger-button mk-form-button mk-form-button--danger"
                         type="button"
                         :data-testid="`form-action-bar-button-remove-${index}`"
                         :disabled="isReadOnly"
@@ -567,9 +579,9 @@ watch(
           </section>
         </div>
 
-        <div class="ce-form-action-bar-editor__dialog-actions">
+        <div class="ce-form-action-bar-editor__dialog-actions mk-form-dialog-footer">
           <button
-            class="ce-form-action-bar-editor__secondary-button"
+            class="ce-form-action-bar-editor__secondary-button mk-form-button"
             type="button"
             data-testid="form-action-bar-cancel"
             @click="closeDialog"
@@ -578,7 +590,7 @@ watch(
           </button>
           <button
             v-if="edit"
-            class="ce-form-action-bar-editor__primary-button"
+            class="ce-form-action-bar-editor__primary-button mk-form-button mk-form-button--primary"
             type="button"
             data-testid="form-action-bar-save"
             @click="saveToolbar"
@@ -622,40 +634,7 @@ watch(
 .ce-form-action-bar-editor__icon-button,
 .ce-form-action-bar-editor__danger-button {
   flex: 0 0 auto;
-  min-height: 32px;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 5px 10px;
-  background: rgb(255 255 255);
-  color: rgb(51 65 85);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 650;
   cursor: pointer;
-}
-
-.ce-form-action-bar-editor__primary-button {
-  min-height: 34px;
-  border-color: rgb(20 184 166 / 0.55);
-  padding: 6px 14px;
-  background: rgb(20 184 166);
-  color: rgb(255 255 255);
-  font-weight: 700;
-}
-
-.ce-form-action-bar-editor__primary-button:hover {
-  background: rgb(13 148 136);
-}
-
-.ce-form-action-bar-editor__secondary-button:hover,
-.ce-form-action-bar-editor__icon-button:hover,
-.ce-form-action-bar-editor__danger-button:hover {
-  background: rgb(248 250 252);
-}
-
-.ce-form-action-bar-editor__danger-button {
-  border-color: rgb(254 202 202);
-  color: rgb(185 28 28);
 }
 
 .ce-form-action-bar-editor__primary-button:disabled,
@@ -666,28 +645,10 @@ watch(
   opacity: 0.55;
 }
 
-.ce-form-action-bar-editor__dialog {
-  width: min(calc(100vw - 32px), 1100px);
-  max-height: min(calc(100vh - 32px), 860px);
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  background: transparent;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-  color: rgb(15 23 42);
-}
-
-.ce-form-action-bar-editor__dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
 .ce-form-action-bar-editor__dialog-panel {
   display: flex;
-  max-height: inherit;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 8px;
-  background: rgb(255 255 255);
 }
 
 .ce-form-action-bar-editor__dialog-header,
@@ -696,14 +657,10 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 14px 16px;
 }
 
 .ce-form-action-bar-editor__dialog-actions {
   justify-content: flex-end;
-  border-top: 1px solid rgb(226 232 240);
-  border-bottom: 0;
 }
 
 .ce-form-action-bar-editor__dialog-title {
@@ -717,9 +674,8 @@ watch(
 .ce-form-action-bar-editor__dialog-body {
   display: grid;
   grid-template-columns: minmax(240px, 0.55fr) minmax(0, 1.45fr);
-  gap: 14px;
+  gap: var(--mk-form-field-gap);
   overflow: auto;
-  padding: 14px 16px;
 }
 
 .ce-form-action-bar-editor__section {
@@ -761,7 +717,7 @@ watch(
 
 .ce-form-action-bar-editor__form-grid {
   display: grid;
-  gap: 12px;
+  gap: var(--mk-form-field-gap);
 }
 
 .ce-form-action-bar-editor__button-list {
@@ -783,37 +739,9 @@ watch(
   gap: 8px;
 }
 
-.ce-form-action-bar-editor label {
-  display: grid;
-  gap: 5px;
-  color: rgb(71 85 105);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.ce-form-action-bar-editor__input {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 7px 9px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font: inherit;
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.ce-form-action-bar-editor__input:focus {
-  border-color: rgb(20 184 166);
-  outline: 2px solid rgb(20 184 166 / 0.18);
-}
-
 .ce-form-action-bar-editor__input:read-only,
 .ce-form-action-bar-editor__input:disabled {
   cursor: not-allowed;
-  background: rgb(241 245 249);
-  color: rgb(100 116 139);
 }
 
 .ce-form-action-bar-editor__checkbox {
@@ -860,11 +788,6 @@ watch(
   background: rgb(30 41 59);
 }
 
-.dark .ce-form-action-bar-editor__dialog-header,
-.dark .ce-form-action-bar-editor__dialog-actions {
-  border-color: rgb(51 65 85);
-}
-
 .dark .ce-form-action-bar-editor__dialog-title,
 .dark .ce-form-action-bar-editor__section-title {
   color: rgb(248 250 252);
@@ -885,13 +808,7 @@ watch(
   color: rgb(226 232 240);
 }
 
-.dark .ce-form-action-bar-editor__input:read-only,
-.dark .ce-form-action-bar-editor__input:disabled {
-  background: rgb(30 41 59);
-  color: rgb(148 163 184);
-}
-
-@media (max-width: 920px) {
+@container (max-width: 960px) {
   .ce-form-action-bar-editor__dialog-body,
   .ce-form-action-bar-editor__button-grid {
     grid-template-columns: 1fr;

@@ -28,14 +28,15 @@ export const zhMessages = {
     close: '关闭',
     invalidJson: '请输入有效 JSON。',
     events: {
+      configureActions: '配置动作',
       menu: '事件',
       title: '事件设置',
       add: '添加事件',
       remove: '删除事件',
       empty: '暂无事件。',
       fields: {
-        event: '触发事件 event',
-        actions: 'Action配置'
+        event: '触发事件',
+        actions: '动作配置'
       }
     }
   },
@@ -282,7 +283,9 @@ export const zhMessages = {
     toolboxTitle: '组件选择器',
     placeholder: '选择组件'
   },
+  richText: { boundContent: '动态内容（运行时显示绑定值）' },
   form: {
+    validation: { required: '请填写{label}。', pattern: '请检查{label}。' },
     toolboxTitle: '表单',
     propertyPanelTitle: '表单属性',
     placeholder: '添加表单项',
@@ -294,6 +297,21 @@ export const zhMessages = {
     layouts: {
       vertical: '垂直',
       horizontal: '水平'
+    },
+    itemRules: {
+      rules: '字段规则',
+      equals: '等于',
+      readOnly: '只读',
+      description: '常驻说明',
+      hint: '填写提示',
+      visibleWhen: '显示条件的控制字段',
+      alwaysVisible: '始终显示',
+      operator: '判断方式',
+      truthy: '字段有值',
+      value: '比较值',
+      pattern: '校验正则表达式',
+      invalidMessage: '校验失败提示',
+      invalidPattern: '请检查「{field}」的正则表达式。'
     },
     actionBarEditor: {
       settingsDialogTitle: '动作工具栏设置',
@@ -315,12 +333,14 @@ export const zhMessages = {
         mode: '模式',
         id: '按钮 ID',
         label: '按钮文案',
+        loadingLabel: '执行中文案',
         variant: '样式',
         disabled: '禁用'
       },
       align: {
         left: '左对齐',
         right: '右对齐',
+        stretch: '铺满宽度',
         spaceBetween: '两端对齐'
       },
       size: {

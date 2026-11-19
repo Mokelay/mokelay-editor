@@ -94,6 +94,17 @@ import {
  *       ]
  *     },
  *     {
+ *       "key": "rules",
+ *       "optional": true,
+ *       "tsType": "MFormItemRules",
+ *       "source": "submodule/mokelay-components/src/blocks/mFormItemProps.ts",
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "字段规则",
+ *       "type": "component",
+ *       "component": "MFormItemRulesEditor"
+ *     },
+ *     {
  *       "key": "editor",
  *       "optional": true,
  *       "tsType": "StoredBlock",

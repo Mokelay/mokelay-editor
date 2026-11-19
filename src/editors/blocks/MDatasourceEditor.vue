@@ -1428,7 +1428,7 @@ watch(
   <div ref="rootRef" class="ce-datasource-tool" data-testid="editor-datasource-tool">
     <div class="ce-datasource-tool__trigger-row">
       <button
-        class="ce-datasource-tool__settings-button"
+        class="ce-datasource-tool__settings-button mk-form-button mk-form-button--primary"
         type="button"
         data-testid="datasource-settings-open"
         @click="openSettingsDialog"
@@ -1438,15 +1438,15 @@ watch(
       <div class="ce-datasource-tool__summary" data-testid="datasource-summary">
         <span class="ce-datasource-tool__summary-item ce-datasource-tool__summary-item--type">API</span>
         <span class="ce-datasource-tool__summary-item">
-          <span class="ce-datasource-tool__summary-label">{{ t('datasource.summary.domain') }}</span>
+          <span class="ce-datasource-tool__summary-label mk-form-label">{{ t('datasource.summary.domain') }}</span>
           <span class="ce-datasource-tool__summary-value">{{ datasourceSummaryDomain }}</span>
         </span>
         <span class="ce-datasource-tool__summary-item">
-          <span class="ce-datasource-tool__summary-label">{{ t('datasource.summary.path') }}</span>
+          <span class="ce-datasource-tool__summary-label mk-form-label">{{ t('datasource.summary.path') }}</span>
           <span class="ce-datasource-tool__summary-value">{{ datasourceSummaryPath }}</span>
         </span>
         <span class="ce-datasource-tool__summary-item">
-          <span class="ce-datasource-tool__summary-label">{{ t('datasource.summary.method') }}</span>
+          <span class="ce-datasource-tool__summary-label mk-form-label">{{ t('datasource.summary.method') }}</span>
           <span class="ce-datasource-tool__summary-value">{{ datasourceSummaryMethod }}</span>
         </span>
       </div>
@@ -1454,14 +1454,14 @@ watch(
 
     <dialog
       ref="settingsDialogRef"
-      class="ce-datasource-tool__settings-dialog"
+      class="ce-datasource-tool__settings-dialog mk-form-dialog mk-form-dialog--wide"
       data-testid="datasource-settings-dialog"
       :aria-hidden="!isSettingsDialogOpen"
       aria-labelledby="datasource-settings-dialog-title"
       @close="isSettingsDialogOpen = false"
     >
-      <div class="ce-datasource-tool__settings-dialog-panel">
-        <div class="ce-datasource-tool__import-dialog-header">
+      <div class="ce-datasource-tool__settings-dialog-panel mk-form-dialog-panel">
+        <div class="ce-datasource-tool__import-dialog-header mk-form-dialog-header">
           <h3
             id="datasource-settings-dialog-title"
             class="ce-datasource-tool__import-dialog-title"
@@ -1470,7 +1470,7 @@ watch(
             {{ t('datasource.settingsDialogTitle') }}
           </h3>
           <button
-            class="ce-datasource-tool__import-dialog-close"
+            class="ce-datasource-tool__import-dialog-close mk-form-button"
             type="button"
             data-testid="datasource-settings-close"
             @click="closeSettingsDialog"
@@ -1478,7 +1478,7 @@ watch(
             {{ t('editor.close') }}
           </button>
         </div>
-        <div class="ce-datasource-tool__settings-dialog-body">
+        <div class="ce-datasource-tool__settings-dialog-body mk-form-dialog-body mk-form-scope">
           <div class="ce-datasource-tool__panel" data-testid="datasource-api-panel">
       <section v-if="edit" class="ce-datasource-tool__config-section" data-testid="datasource-import-config">
         <div class="ce-datasource-tool__config-section-header">
@@ -1487,7 +1487,7 @@ watch(
         <div class="ce-datasource-tool__config-section-body" data-testid="datasource-api-import-panel">
           <div class="ce-datasource-tool__import-sources">
             <button
-              class="ce-datasource-tool__import-source-button"
+              class="ce-datasource-tool__import-source-button mk-form-button"
               type="button"
               data-testid="datasource-import-open-mokelay"
               :disabled="isReadOnly"
@@ -1499,10 +1499,10 @@ watch(
                   <path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" fill="none" stroke="currentColor" stroke-width="2" />
                 </svg>
               </span>
-              <span class="ce-datasource-tool__import-source-label">{{ t('datasource.import.sources.mokelay') }}</span>
+              <span class="ce-datasource-tool__import-source-label mk-form-label">{{ t('datasource.import.sources.mokelay') }}</span>
             </button>
             <button
-              class="ce-datasource-tool__import-source-button"
+              class="ce-datasource-tool__import-source-button mk-form-button"
               type="button"
               data-testid="datasource-import-open-apifox"
               :disabled="isReadOnly"
@@ -1514,7 +1514,7 @@ watch(
                   <path d="M12 8v8M8.5 10.2l7 3.6M15.5 10.2l-7 3.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                 </svg>
               </span>
-              <span class="ce-datasource-tool__import-source-label">{{ t('datasource.import.sources.apifox') }}</span>
+              <span class="ce-datasource-tool__import-source-label mk-form-label">{{ t('datasource.import.sources.apifox') }}</span>
             </button>
           </div>
         </div>
@@ -1537,11 +1537,11 @@ watch(
           <div class="ce-datasource-tool__config-section-title">{{ t('datasource.sections.requestConfig') }}</div>
         </div>
         <div class="ce-datasource-tool__config-section-body">
-      <div class="ce-datasource-tool__grid">
-        <label class="ce-datasource-tool__field">
-          <span class="ce-datasource-tool__label">{{ t('datasource.fields.domain') }}</span>
+      <div class="ce-datasource-tool__grid mk-form-grid">
+        <label class="ce-datasource-tool__field mk-form-field">
+          <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.domain') }}</span>
           <select
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             data-testid="datasource-domain"
             :disabled="isApiDomainSelectDisabled"
             :value="apiState.domain"
@@ -1561,10 +1561,10 @@ watch(
             {{ apiDomainError }}
           </p>
         </label>
-        <label class="ce-datasource-tool__field">
-          <span class="ce-datasource-tool__label">{{ t('datasource.fields.path') }}</span>
+        <label class="ce-datasource-tool__field mk-form-field">
+          <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.path') }}</span>
           <input
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             data-testid="datasource-path"
             type="text"
             :readonly="isReadOnly"
@@ -1573,10 +1573,10 @@ watch(
             @keydown.stop
           />
         </label>
-        <label class="ce-datasource-tool__field">
-          <span class="ce-datasource-tool__label">{{ t('datasource.fields.method') }}</span>
+        <label class="ce-datasource-tool__field mk-form-field">
+          <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.method') }}</span>
           <select
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             data-testid="datasource-method"
             :disabled="isReadOnly"
             :value="apiState.method"
@@ -1593,7 +1593,7 @@ watch(
           <span class="ce-datasource-tool__list-title">{{ t('datasource.sections.headers') }}</span>
           <button
             v-if="edit"
-            class="ce-datasource-tool__action"
+            class="ce-datasource-tool__action mk-form-button"
             type="button"
             data-testid="datasource-header-add"
             @click.stop.prevent="addKeyValueItem('headerData')"
@@ -1610,7 +1610,7 @@ watch(
           class="ce-datasource-tool__row"
         >
           <input
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             :data-testid="`datasource-header-key-${index}`"
             type="text"
             :readonly="isReadOnly"
@@ -1633,7 +1633,7 @@ watch(
           />
           <button
             v-if="edit"
-            class="ce-datasource-tool__remove"
+            class="ce-datasource-tool__remove mk-form-button mk-form-button--danger"
             type="button"
             :data-testid="`datasource-header-remove-${index}`"
             :aria-label="t('datasource.actions.remove')"
@@ -1649,7 +1649,7 @@ watch(
           <span class="ce-datasource-tool__list-title">{{ t('datasource.sections.queries') }}</span>
           <button
             v-if="edit"
-            class="ce-datasource-tool__action"
+            class="ce-datasource-tool__action mk-form-button"
             type="button"
             data-testid="datasource-query-add"
             @click.stop.prevent="addKeyValueItem('queryData')"
@@ -1666,7 +1666,7 @@ watch(
           class="ce-datasource-tool__row"
         >
           <input
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             :data-testid="`datasource-query-key-${index}`"
             type="text"
             :readonly="isReadOnly"
@@ -1689,7 +1689,7 @@ watch(
           />
           <button
             v-if="edit"
-            class="ce-datasource-tool__remove"
+            class="ce-datasource-tool__remove mk-form-button mk-form-button--danger"
             type="button"
             :data-testid="`datasource-query-remove-${index}`"
             :aria-label="t('datasource.actions.remove')"
@@ -1705,7 +1705,7 @@ watch(
           <span class="ce-datasource-tool__list-title">{{ t('datasource.sections.body') }}</span>
           <button
             v-if="edit"
-            class="ce-datasource-tool__action"
+            class="ce-datasource-tool__action mk-form-button"
             type="button"
             data-testid="datasource-body-add"
             @click.stop.prevent="addBodyItem"
@@ -1722,7 +1722,7 @@ watch(
           class="ce-datasource-tool__body-row"
         >
           <input
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             :data-testid="`datasource-body-key-${index}`"
             type="text"
             :readonly="isReadOnly"
@@ -1732,7 +1732,7 @@ watch(
             @keydown.stop
           />
           <select
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             :data-testid="`datasource-body-type-${index}`"
             :disabled="isReadOnly"
             :value="body.dataType"
@@ -1744,7 +1744,7 @@ watch(
           </select>
           <input
             v-if="body.dataType === 'null'"
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             :data-testid="`datasource-body-value-${index}`"
             type="text"
             readonly
@@ -1752,7 +1752,7 @@ watch(
           />
           <input
             v-else-if="body.dataType === 'file' && edit"
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             :data-testid="`datasource-body-value-${index}`"
             type="file"
             :disabled="isReadOnly"
@@ -1761,7 +1761,7 @@ watch(
           />
           <input
             v-else-if="body.dataType === 'file'"
-            class="ce-datasource-tool__input"
+            class="ce-datasource-tool__input mk-form-control"
             :data-testid="`datasource-body-value-${index}`"
             type="text"
             readonly
@@ -1783,7 +1783,7 @@ watch(
           />
           <button
             v-if="edit"
-            class="ce-datasource-tool__remove"
+            class="ce-datasource-tool__remove mk-form-button mk-form-button--danger"
             type="button"
             :data-testid="`datasource-body-remove-${index}`"
             :aria-label="t('datasource.actions.remove')"
@@ -1823,7 +1823,7 @@ watch(
           </div>
           <button
             v-if="edit"
-            class="ce-datasource-tool__action"
+            class="ce-datasource-tool__action mk-form-button"
             type="button"
             data-testid="datasource-response-example-add"
             @click="addResponseExample"
@@ -1846,7 +1846,7 @@ watch(
                 <div class="ce-datasource-tool__response-example-header-actions">
                   <button
                     type="button"
-                    class="ce-datasource-tool__full-schema-button"
+                    class="ce-datasource-tool__full-schema-button mk-form-button"
                     :data-testid="index === 0 ? 'datasource-full-schema-open' : `datasource-full-schema-open-${index}`"
                     @click="openFullSchemaDialog(index)"
                   >
@@ -1857,7 +1857,7 @@ watch(
                   </button>
                   <button
                     v-if="edit"
-                    class="ce-datasource-tool__schema-button"
+                    class="ce-datasource-tool__schema-button mk-form-button"
                     type="button"
                     :data-testid="index === 0 ? 'datasource-response-schema-select-button' : `datasource-response-schema-select-button-${index}`"
                     @click="selectResponseSchema(index)"
@@ -1866,7 +1866,7 @@ watch(
                   </button>
                   <button
                     v-if="edit"
-                    class="ce-datasource-tool__remove"
+                    class="ce-datasource-tool__remove mk-form-button mk-form-button--danger"
                     type="button"
                     :data-testid="`datasource-response-example-remove-${index}`"
                     @click="removeResponseExample(index)"
@@ -1878,7 +1878,7 @@ watch(
               <div class="ce-datasource-tool__generate-actions">
                 <button
                   v-if="edit"
-                  class="ce-datasource-tool__schema-button"
+                  class="ce-datasource-tool__schema-button mk-form-button"
                   type="button"
                   :data-testid="index === 0 ? 'datasource-json-schema-parse-button' : `datasource-json-schema-parse-button-${index}`"
                   :disabled="isResponseCaptureBusy"
@@ -1890,11 +1890,11 @@ watch(
                   {{ t('datasource.fields.generatedFields') }}: {{ flattenedSchemaNodes.length }}
                 </span>
               </div>
-              <div class="ce-datasource-tool__response-example-grid">
-                <label class="ce-datasource-tool__field">
-                  <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExampleInput') }}</span>
+              <div class="ce-datasource-tool__response-example-grid mk-form-grid">
+                <label class="ce-datasource-tool__field mk-form-field">
+                  <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.responseExampleInput') }}</span>
                   <textarea
-                    class="ce-datasource-tool__textarea ce-datasource-tool__textarea--response-example"
+                    class="ce-datasource-tool__textarea ce-datasource-tool__textarea--response-example mk-form-control"
                     :data-testid="index === 0 ? 'datasource-response-example' : `datasource-response-example-${index}`"
                     spellcheck="false"
                     :readonly="isReadOnly"
@@ -1904,8 +1904,8 @@ watch(
                     @keydown.stop
                   ></textarea>
                 </label>
-                <div class="ce-datasource-tool__field">
-                  <span class="ce-datasource-tool__label">{{ t('datasource.fields.responseExamplePreview') }}</span>
+                <div class="ce-datasource-tool__field mk-form-field">
+                  <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.responseExamplePreview') }}</span>
                   <div
                     class="ce-datasource-tool__response-example-preview"
                     :data-testid="index === 0 ? 'datasource-response-example-preview' : `datasource-response-example-preview-${index}`"
@@ -1956,11 +1956,11 @@ watch(
             {{ t('datasource.noSelectableFields') }}
           </p>
 
-          <div v-if="combinedSelectionFields.length" class="ce-datasource-tool__schema-filters">
-            <label class="ce-datasource-tool__field">
-              <span class="ce-datasource-tool__label">{{ t('datasource.fields.pathDepth') }}</span>
+          <div v-if="combinedSelectionFields.length" class="ce-datasource-tool__schema-filters mk-form-grid">
+            <label class="ce-datasource-tool__field mk-form-field">
+              <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.pathDepth') }}</span>
               <input
-                class="ce-datasource-tool__input"
+                class="ce-datasource-tool__input mk-form-control"
                 data-testid="datasource-schema-path-depth"
                 type="number"
                 min="1"
@@ -1972,10 +1972,10 @@ watch(
               />
             </label>
 
-            <label class="ce-datasource-tool__field">
-              <span class="ce-datasource-tool__label">{{ t('datasource.fields.dataType') }}</span>
+            <label class="ce-datasource-tool__field mk-form-field">
+              <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.dataType') }}</span>
               <select
-                class="ce-datasource-tool__input"
+                class="ce-datasource-tool__input mk-form-control"
                 data-testid="datasource-schema-data-type-filter"
                 :value="schemaDataTypeFilter"
                 @change="schemaDataTypeFilter = ($event.target as HTMLSelectElement).value as SchemaDataTypeFilter"
@@ -1989,10 +1989,10 @@ watch(
               </select>
             </label>
 
-            <label class="ce-datasource-tool__field">
-              <span class="ce-datasource-tool__label">{{ t('datasource.fields.fieldPath') }}</span>
+            <label class="ce-datasource-tool__field mk-form-field">
+              <span class="ce-datasource-tool__label mk-form-label">{{ t('datasource.fields.fieldPath') }}</span>
               <input
-                class="ce-datasource-tool__input"
+                class="ce-datasource-tool__input mk-form-control"
                 data-testid="datasource-schema-search"
                 type="search"
                 :placeholder="t('datasource.fields.searchFieldsByPath')"
@@ -2007,11 +2007,11 @@ watch(
             <div
               v-for="field in visibleSelectionFields"
               :key="`${field.source}:${field.path}`"
-              class="ce-datasource-tool__schema-field"
+              class="ce-datasource-tool__schema-field mk-form-field"
               :data-testid="`datasource-${field.source}-field-${field.path}`"
             >
               <span class="ce-datasource-tool__schema-field-main">
-                <span class="ce-datasource-tool__schema-field-label" :data-testid="`datasource-${field.source}-field-label-${field.path}`">
+                <span class="ce-datasource-tool__schema-field-label mk-form-label" :data-testid="`datasource-${field.source}-field-label-${field.path}`">
                   {{ field.label }}
                 </span>
                 <span class="ce-datasource-tool__schema-path">{{ field.path }}</span>
@@ -2020,7 +2020,7 @@ watch(
                 <span class="ce-datasource-tool__schema-badge">{{ getSchemaTypeLabel(field.type) }}</span>
                 <button
                   type="button"
-                  class="ce-datasource-tool__field-action"
+                  class="ce-datasource-tool__field-action mk-form-button"
                   :disabled="isReadOnly || field.selected"
                   :data-testid="`datasource-${field.source}-field-add-${field.path}`"
                   @click="addSchemaSelection(field.path)"
@@ -2046,7 +2046,7 @@ watch(
             </div>
             <button
               type="button"
-              class="ce-datasource-tool__schema-button"
+              class="ce-datasource-tool__schema-button mk-form-button"
               :disabled="isReadOnly || schemaTranslationLoading || !schemaSelectionsValue.length"
               data-testid="datasource-selected-fields-translate"
               @click="translateSchemaSelectionLabels"
@@ -2060,11 +2060,11 @@ watch(
             <div
               v-for="field in schemaSelectionsValue"
               :key="field.path"
-              class="ce-datasource-tool__schema-field"
+              class="ce-datasource-tool__schema-field mk-form-field"
               :data-testid="`datasource-selected-field-${field.path}`"
             >
               <span class="ce-datasource-tool__schema-field-main">
-                <span class="ce-datasource-tool__schema-field-label" :data-testid="`datasource-selected-field-label-${field.path}`">
+                <span class="ce-datasource-tool__schema-field-label mk-form-label" :data-testid="`datasource-selected-field-label-${field.path}`">
                   {{ field.label }}
                 </span>
                 <span class="ce-datasource-tool__schema-path">{{ field.path }}</span>
@@ -2095,7 +2095,7 @@ watch(
                 <span class="ce-datasource-tool__selected-field-actions">
                   <button
                     type="button"
-                    class="ce-datasource-tool__field-action"
+                    class="ce-datasource-tool__field-action mk-form-button"
                     :data-testid="`datasource-selected-field-preview-${field.path}`"
                     @click="openProcessorPreviewDialog(field.path)"
                   >
@@ -2103,7 +2103,7 @@ watch(
                   </button>
                   <button
                     type="button"
-                    class="ce-datasource-tool__field-action"
+                    class="ce-datasource-tool__field-action mk-form-button"
                     :data-testid="`datasource-selected-field-processors-config-${field.path}`"
                     @click="openProcessorDialog(field.path)"
                   >
@@ -2111,7 +2111,7 @@ watch(
                   </button>
                   <button
                     type="button"
-                    class="ce-datasource-tool__field-action ce-datasource-tool__field-action--remove"
+                    class="ce-datasource-tool__field-action ce-datasource-tool__field-action--remove mk-form-button mk-form-button--danger"
                     :disabled="isReadOnly"
                     :data-testid="`datasource-selected-field-remove-${field.path}`"
                     @click="removeSchemaSelection(field.path)"
@@ -2157,18 +2157,18 @@ watch(
             <div
               v-for="field in matchingExternalFieldsValue"
               :key="field.variable"
-              class="ce-datasource-tool__schema-field"
+              class="ce-datasource-tool__schema-field mk-form-field"
               :data-testid="`datasource-external-field-${field.variable}`"
             >
               <span class="ce-datasource-tool__schema-field-main">
-                <span class="ce-datasource-tool__schema-field-label">
+                <span class="ce-datasource-tool__schema-field-label mk-form-label">
                   {{ field.label }}
                 </span>
                 <span class="ce-datasource-tool__schema-path">{{ field.variable }}</span>
               </span>
               <span class="ce-datasource-tool__schema-badges ce-datasource-tool__schema-badges--matching">
                 <select
-                  class="ce-datasource-tool__input ce-datasource-tool__matching-select"
+                  class="ce-datasource-tool__input ce-datasource-tool__matching-select mk-form-control"
                   :data-testid="`datasource-external-field-match-${field.variable}`"
                   :disabled="isReadOnly || !schemaSelectionsValue.length"
                   :value="field.matchFieldPath"
@@ -2194,14 +2194,14 @@ watch(
       <Teleport to="body">
         <dialog
           ref="fullSchemaDialogRef"
-          class="ce-datasource-tool__import-dialog ce-datasource-tool__schema-dialog"
+          class="ce-datasource-tool__import-dialog ce-datasource-tool__schema-dialog mk-form-dialog mk-form-dialog--wide"
           data-testid="datasource-full-schema-dialog"
           :aria-hidden="!isFullSchemaDialogOpen"
           aria-labelledby="datasource-full-schema-dialog-title"
           @close="isFullSchemaDialogOpen = false"
         >
-          <div class="ce-datasource-tool__import-dialog-panel">
-          <div class="ce-datasource-tool__import-dialog-header">
+          <div class="ce-datasource-tool__import-dialog-panel mk-form-dialog-panel">
+          <div class="ce-datasource-tool__import-dialog-header mk-form-dialog-header">
             <h3
               id="datasource-full-schema-dialog-title"
               class="ce-datasource-tool__import-dialog-title"
@@ -2210,7 +2210,7 @@ watch(
               {{ t('datasource.actions.fullSchema') }}
             </h3>
             <button
-              class="ce-datasource-tool__import-dialog-close"
+              class="ce-datasource-tool__import-dialog-close mk-form-button"
               type="button"
               data-testid="datasource-full-schema-close"
               @click="closeFullSchemaDialog"
@@ -2218,9 +2218,9 @@ watch(
               {{ t('editor.close') }}
             </button>
           </div>
-          <div class="ce-datasource-tool__import-dialog-body">
+          <div class="ce-datasource-tool__import-dialog-body mk-form-dialog-body mk-form-scope">
             <textarea
-              class="ce-datasource-tool__textarea ce-datasource-tool__textarea--schema ce-datasource-tool__textarea--full-schema"
+              class="ce-datasource-tool__textarea ce-datasource-tool__textarea--schema ce-datasource-tool__textarea--full-schema mk-form-control"
               data-testid="datasource-json-schema"
               spellcheck="false"
               readonly
@@ -2273,19 +2273,7 @@ watch(
 
 .ce-datasource-tool__settings-button {
   flex: 0 0 auto;
-  min-height: 34px;
-  border: 1px solid rgb(20 184 166 / 0.55);
-  border-radius: 8px;
-  padding: 6px 14px;
-  background: rgb(20 184 166);
-  color: rgb(255 255 255);
-  font: inherit;
-  font-weight: 700;
   cursor: pointer;
-}
-
-.ce-datasource-tool__settings-button:hover {
-  background: rgb(13 148 136);
 }
 
 .ce-datasource-tool__summary {
@@ -2320,7 +2308,6 @@ watch(
 
 .ce-datasource-tool__summary-label {
   flex: 0 0 auto;
-  color: rgb(100 116 139);
 }
 
 .ce-datasource-tool__summary-value {
@@ -2331,28 +2318,10 @@ watch(
   white-space: nowrap;
 }
 
-.ce-datasource-tool__settings-dialog {
-  width: min(calc(100vw - 32px), 1120px);
-  max-height: min(calc(100vh - 32px), 900px);
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  background: transparent;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-  color: rgb(15 23 42);
-}
-
-.ce-datasource-tool__settings-dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
 .ce-datasource-tool__settings-dialog-panel {
   display: flex;
-  max-height: inherit;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 8px;
-  background: rgb(255 255 255);
 }
 
 .ce-datasource-tool__settings-dialog-body {
@@ -2438,12 +2407,6 @@ watch(
   gap: 8px;
 }
 
-.ce-datasource-tool__response-example-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
 .ce-datasource-tool__response-example-preview {
   min-height: 260px;
   max-height: 420px;
@@ -2497,16 +2460,7 @@ watch(
 }
 
 .ce-datasource-tool__schema-filters {
-  display: grid;
-  grid-template-columns: minmax(110px, 0.2fr) minmax(180px, 0.35fr) minmax(260px, 1fr);
-  gap: 10px;
   align-items: end;
-}
-
-.ce-datasource-tool__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(120px, 0.4fr);
-  gap: 10px;
 }
 
 .ce-datasource-tool__import-sources {
@@ -2520,20 +2474,8 @@ watch(
   min-width: 0;
   align-items: center;
   gap: 9px;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 9px 10px;
-  background: rgb(255 255 255);
-  color: rgb(30 64 175);
-  font: inherit;
-  font-weight: 650;
   text-align: left;
   cursor: pointer;
-}
-
-.ce-datasource-tool__import-source-button:hover {
-  border-color: rgb(37 99 235 / 0.55);
-  background: rgb(239 246 255);
 }
 
 .ce-datasource-tool__import-source-button:disabled {
@@ -2557,23 +2499,7 @@ watch(
 }
 
 .ce-datasource-tool__import-source-label {
-  min-width: 0;
   overflow-wrap: anywhere;
-  line-height: 1.35;
-}
-
-.ce-datasource-tool__import-dialog {
-  width: min(100%, 520px);
-  border: 0;
-  border-radius: 8px;
-  padding: 0;
-  background: transparent;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-  color: rgb(15 23 42);
-}
-
-.ce-datasource-tool__schema-dialog {
-  width: min(100%, 760px);
 }
 
 .ce-datasource-tool__response-mock-dialog {
@@ -2607,15 +2533,8 @@ watch(
   grid-column: 3;
 }
 
-.ce-datasource-tool__import-dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
 .ce-datasource-tool__import-dialog-panel {
-  margin: 0;
   overflow: hidden;
-  border-radius: 8px;
-  background: rgb(255 255 255);
 }
 
 .ce-datasource-tool__import-dialog-header,
@@ -2625,10 +2544,6 @@ watch(
   justify-content: space-between;
   gap: 10px;
   padding: 14px 16px;
-}
-
-.ce-datasource-tool__import-dialog-header {
-  border-bottom: 1px solid rgb(226 232 240);
 }
 
 .ce-datasource-tool__import-dialog-actions {
@@ -2645,37 +2560,17 @@ watch(
 }
 
 .ce-datasource-tool__import-dialog-close {
-  min-height: 32px;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 5px 10px;
-  background: rgb(255 255 255);
-  color: rgb(71 85 105);
-  font: inherit;
-  font-weight: 650;
   cursor: pointer;
-}
-
-.ce-datasource-tool__import-dialog-close:hover {
-  background: rgb(248 250 252);
 }
 
 .ce-datasource-tool__import-dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-}
-
-.ce-datasource-tool__field {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 6px;
+  gap: var(--mk-form-field-gap);
 }
 
 .ce-datasource-tool__field--wide {
-  grid-column: span 2;
+  grid-column: 1 / -1;
 }
 
 .ce-datasource-tool__label,
@@ -2686,25 +2581,8 @@ watch(
   font-weight: 650;
 }
 
-.ce-datasource-tool__input,
-.ce-datasource-tool__textarea {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 8px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font: inherit;
-}
-
-.ce-datasource-tool__input {
-  height: 36px;
-  padding: 7px 10px;
-}
-
 .ce-datasource-tool__textarea {
   resize: vertical;
-  padding: 9px 10px;
 }
 
 .ce-datasource-tool__textarea--schema {
@@ -2730,19 +2608,6 @@ watch(
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 13px;
   line-height: 18px;
-}
-
-.ce-datasource-tool__input:focus,
-.ce-datasource-tool__textarea:focus {
-  outline: none;
-  border-color: rgb(37 99 235);
-  box-shadow: 0 0 0 2px rgb(37 99 235 / 0.15);
-}
-
-.ce-datasource-tool__input:read-only,
-.ce-datasource-tool__textarea:read-only,
-.ce-datasource-tool__input:disabled {
-  background: rgb(248 250 252);
 }
 
 .ce-datasource-tool__error,
@@ -2779,13 +2644,6 @@ watch(
 .ce-datasource-tool__remove,
 .ce-datasource-tool__schema-button,
 .ce-datasource-tool__full-schema-button {
-  min-height: 32px;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  background: rgb(255 255 255);
-  color: rgb(30 64 175);
-  font: inherit;
-  font-weight: 650;
   cursor: pointer;
 }
 
@@ -2794,7 +2652,6 @@ watch(
   align-items: center;
   gap: 7px;
   flex: 0 0 auto;
-  padding: 5px 10px;
 }
 
 .ce-datasource-tool__full-schema-button svg {
@@ -2802,25 +2659,8 @@ watch(
   height: 18px;
 }
 
-.ce-datasource-tool__action {
-  padding: 5px 12px;
-}
-
 .ce-datasource-tool__schema-button {
-  padding: 5px 12px;
   white-space: nowrap;
-}
-
-.ce-datasource-tool__remove {
-  padding: 5px 10px;
-  color: rgb(185 28 28);
-}
-
-.ce-datasource-tool__action:hover,
-.ce-datasource-tool__remove:hover,
-.ce-datasource-tool__schema-button:hover,
-.ce-datasource-tool__full-schema-button:hover {
-  background: rgb(248 250 252);
 }
 
 .ce-datasource-tool__schema-button:disabled {
@@ -2880,10 +2720,7 @@ watch(
 }
 
 .ce-datasource-tool__schema-field {
-  display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
   border: 1px solid rgb(226 232 240);
   border-radius: 8px;
   padding: 7px 8px;
@@ -2899,9 +2736,6 @@ watch(
 
 .ce-datasource-tool__schema-field-label {
   overflow: hidden;
-  color: rgb(15 23 42);
-  font-weight: 600;
-  line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2949,7 +2783,6 @@ watch(
 
 .ce-datasource-tool__selected-fields .ce-datasource-tool__schema-field {
   grid-template-columns: minmax(0, 1fr);
-  align-items: start;
 }
 
 .ce-datasource-tool__selected-fields .ce-datasource-tool__schema-badges {
@@ -2985,7 +2818,6 @@ watch(
 
 .ce-datasource-tool__selected-field-actions .ce-datasource-tool__field-action {
   min-width: 0;
-  padding-inline: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3014,21 +2846,9 @@ watch(
   color: rgb(146 64 14);
 }
 
-.ce-datasource-tool__matching-select {
-  min-width: min(100%, 260px);
-}
-
 .ce-datasource-tool__field-action {
   min-width: 52px;
-  border: 1px solid rgb(191 219 254);
-  border-radius: 6px;
-  padding: 4px 9px;
-  background: rgb(239 246 255);
-  color: rgb(29 78 216);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 18px;
 }
 
 .ce-datasource-tool__field-action--remove {
@@ -3119,7 +2939,7 @@ watch(
   grid-column: 3 / 5;
 }
 
-@media (max-width: 720px) {
+@container (max-width: 720px) {
   .ce-datasource-tool__trigger-row {
     align-items: stretch;
     flex-direction: column;
@@ -3169,7 +2989,7 @@ watch(
   }
 }
 
-@media (max-width: 420px) {
+@container (max-width: 420px) {
   .ce-datasource-tool__selected-fields .ce-datasource-tool__schema-badges {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3214,16 +3034,6 @@ watch(
   color: rgb(241 245 249);
 }
 
-.dark .ce-datasource-tool__settings-button {
-  border-color: rgb(45 212 191 / 0.55);
-  background: rgb(15 118 110);
-  color: rgb(240 253 250);
-}
-
-.dark .ce-datasource-tool__settings-button:hover {
-  background: rgb(13 148 136);
-}
-
 .dark .ce-datasource-tool__summary-item {
   border-color: rgb(51 65 85);
   background: rgb(30 41 59);
@@ -3236,16 +3046,8 @@ watch(
   color: rgb(191 219 254);
 }
 
-.dark .ce-datasource-tool__summary-label {
-  color: rgb(148 163 184);
-}
-
 .dark .ce-datasource-tool__summary-value {
   color: rgb(241 245 249);
-}
-
-.dark .ce-datasource-tool__settings-dialog-panel {
-  background: rgb(15 23 42);
 }
 
 .dark .ce-datasource-tool__section-title,
@@ -3265,23 +3067,8 @@ watch(
   color: rgb(203 213 225);
 }
 
-.dark .ce-datasource-tool__import-source-button {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-  color: rgb(191 219 254);
-}
-
-.dark .ce-datasource-tool__import-source-button:hover {
-  border-color: rgb(96 165 250 / 0.7);
-  background: rgb(30 41 59);
-}
-
 .dark .ce-datasource-tool__import-source-icon {
   background: rgb(30 64 175 / 0.45);
-}
-
-.dark .ce-datasource-tool__import-dialog-panel {
-  background: rgb(15 23 42);
 }
 
 .dark .ce-datasource-tool__import-dialog-header,
@@ -3291,44 +3078,6 @@ watch(
 
 .dark .ce-datasource-tool__import-dialog-title {
   color: rgb(241 245 249);
-}
-
-.dark .ce-datasource-tool__import-dialog-close {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-  color: rgb(203 213 225);
-}
-
-.dark .ce-datasource-tool__import-dialog-close:hover {
-  background: rgb(30 41 59);
-}
-
-.dark .ce-datasource-tool__input,
-.dark .ce-datasource-tool__textarea {
-  border-color: rgb(71 85 105 / 0.9);
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
-}
-
-.dark .ce-datasource-tool__input:read-only,
-.dark .ce-datasource-tool__textarea:read-only,
-.dark .ce-datasource-tool__input:disabled {
-  background: rgb(30 41 59);
-}
-
-.dark .ce-datasource-tool__action,
-.dark .ce-datasource-tool__remove,
-.dark .ce-datasource-tool__schema-button,
-.dark .ce-datasource-tool__full-schema-button {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-}
-
-.dark .ce-datasource-tool__action:hover,
-.dark .ce-datasource-tool__remove:hover,
-.dark .ce-datasource-tool__schema-button:hover,
-.dark .ce-datasource-tool__full-schema-button:hover {
-  background: rgb(30 41 59);
 }
 
 .dark .ce-datasource-tool__empty {
@@ -3350,20 +3099,10 @@ watch(
   border-top-color: rgb(30 41 59);
 }
 
-.dark .ce-datasource-tool__field-action {
-  border-color: rgb(30 64 175);
-  background: rgb(30 64 175 / 0.25);
-  color: rgb(191 219 254);
-}
-
 .dark .ce-datasource-tool__field-action--remove {
   border-color: rgb(153 27 27);
   background: rgb(127 29 29 / 0.25);
   color: rgb(254 202 202);
-}
-
-.dark .ce-datasource-tool__schema-field-label {
-  color: rgb(226 232 240);
 }
 
 .dark .ce-datasource-tool__schema-badge {

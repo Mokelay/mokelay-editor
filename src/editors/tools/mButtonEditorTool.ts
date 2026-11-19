@@ -1,4 +1,5 @@
 import { defineEditorTool } from "@/editors/editorToolDefinition";
+import { isVariableValueConfig } from 'mokelay-components/runtime';
 import {
   normalizeButtonProps,
   type MButtonProps
@@ -109,14 +110,24 @@ import {
  *       ]
  *     },
  *     {
+ *       "key": "width",
+ *       "optional": true,
+ *       "tsType": "string",
+ *       "declaredInProps": true,
+ *       "configurable": true,
+ *       "label": "按钮宽度（CSS）",
+ *       "type": "text"
+ *     },
+ *     {
  *       "key": "disabled",
  *       "optional": true,
- *       "tsType": "boolean",
+ *       "tsType": "boolean | VariableValueConfig",
  *       "source": "submodule/mokelay-components/src/blocks/MButton.vue",
  *       "declaredInProps": true,
  *       "configurable": true,
  *       "label": "禁用",
- *       "type": "checkbox"
+ *       "type": "component",
+ *       "component": "MVariableValueEditor"
  *     },
  *     {
  *       "key": "action",
@@ -151,12 +162,13 @@ import {
  *     {
  *       "key": "hidden",
  *       "optional": true,
- *       "tsType": "boolean",
+ *       "tsType": "boolean | VariableValueConfig",
  *       "source": "submodule/mokelay-components/src/blocks/MButton.vue",
  *       "declaredInProps": true,
- *       "configurable": false,
+ *       "configurable": true,
  *       "label": "隐藏条件",
- *       "type": "checkbox"
+ *       "type": "component",
+ *       "component": "MVariableValueEditor"
  *     }
  *   ],
  *   "events": [
@@ -179,7 +191,7 @@ import {
  *     {
  *       "key": "disabled",
  *       "type": "omitWhenFalse",
- *       "description": "disabled 仅在 true 时写入；默认 false 不保存。"
+ *       "description": "保存禁用条件的变量绑定或布尔值 true。"
  *     },
  *     {
  *       "key": "action",
@@ -194,7 +206,7 @@ import {
  *     {
  *       "key": "hidden",
  *       "type": "omitWhenFalse",
- *       "description": "hidden 默认 false；仅在 true 时写入，用于页面 DSL 的条件隐藏。"
+ *       "description": "保存隐藏条件的变量绑定或布尔值 true。"
  *     }
  *   ],
  *   "examples": [
@@ -231,17 +243,18 @@ import {
  * }
  */
 export const mButtonEditorTool = defineEditorTool<MButtonProps>({
-  normalizeProps: normalizeButtonProps,
+  normalizeProps: (props) => ({ ...normalizeButtonProps(props), ...props, edit: props.edit ?? false }),
   serialize: (props) => {
     const normalized = normalizeButtonProps(props);
     return {
-      label: normalized.label,
+      label: props.label ?? normalized.label,
       variant: normalized.variant,
       align: normalized.align,
+      ...(normalized.width ? { width: normalized.width } : {}),
       action: normalized.action,
-      ...(normalized.disabled ? { disabled: true } : {}),
+      ...(isVariableValueConfig(props.disabled) ? { disabled: props.disabled } : normalized.disabled ? { disabled: true } : {}),
       ...(normalized.visible ? {} : { visible: false }),
-      ...(normalized.hidden ? { hidden: true } : {})
+      ...(isVariableValueConfig(props.hidden) ? { hidden: props.hidden } : normalized.hidden ? { hidden: true } : {})
     };
   }
 });

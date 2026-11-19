@@ -641,7 +641,7 @@ watch(
   <div class="chart-data-editor" :data-testid="testid || 'chart-data-editor'">
     <div class="chart-data-editor__trigger-row">
       <button
-        class="chart-data-editor__primary-button"
+        class="chart-data-editor__primary-button mk-form-button mk-form-button--primary"
         type="button"
         data-testid="chart-data-settings-open"
         @click="openDialog"
@@ -655,19 +655,19 @@ watch(
 
     <dialog
       ref="dialogRef"
-      class="chart-data-editor__dialog"
+      class="chart-data-editor__dialog mk-form-dialog mk-form-dialog--wide"
       data-testid="chart-data-dialog"
       :aria-hidden="!isOpen"
       aria-labelledby="chart-data-dialog-title"
       @close="isOpen = false"
     >
-      <div class="chart-data-editor__dialog-panel">
-        <div class="chart-data-editor__dialog-header">
+      <div class="chart-data-editor__dialog-panel mk-form-dialog-panel">
+        <div class="chart-data-editor__dialog-header mk-form-dialog-header">
           <h3 id="chart-data-dialog-title" class="chart-data-editor__dialog-title">
             {{ t('chart.dataEditor.title') }}
           </h3>
           <button
-            class="chart-data-editor__secondary-button"
+            class="chart-data-editor__secondary-button mk-form-button"
             type="button"
             data-testid="chart-data-close"
             @click="closeDialog"
@@ -676,7 +676,7 @@ watch(
           </button>
         </div>
 
-        <div class="chart-data-editor__dialog-body">
+        <div class="chart-data-editor__dialog-body mk-form-dialog-body mk-form-scope">
           <section class="chart-data-editor__section">
             <div class="chart-data-editor__section-header">
               <div>
@@ -686,7 +686,7 @@ watch(
               <div class="chart-data-editor__section-actions">
                 <button
                   v-if="edit"
-                  class="chart-data-editor__secondary-button"
+                  class="chart-data-editor__secondary-button mk-form-button"
                   type="button"
                   data-testid="chart-data-add-category"
                   :disabled="isReadOnly"
@@ -696,7 +696,7 @@ watch(
                 </button>
                 <button
                   v-if="edit"
-                  class="chart-data-editor__secondary-button"
+                  class="chart-data-editor__secondary-button mk-form-button"
                   type="button"
                   data-testid="chart-data-add-series"
                   :disabled="isReadOnly"
@@ -715,7 +715,7 @@ watch(
                     <th v-for="(category, index) in draftData.xAxis" :key="`category-head-${index}`">
                       <div class="chart-data-editor__category-head">
                         <input
-                          class="chart-data-editor__input chart-data-editor__category-input"
+                          class="chart-data-editor__input chart-data-editor__category-input mk-form-control"
                           :data-testid="`chart-data-category-${index}`"
                           type="text"
                           :readonly="isReadOnly"
@@ -725,7 +725,7 @@ watch(
                         />
                         <button
                           v-if="edit"
-                          class="chart-data-editor__icon-button"
+                          class="chart-data-editor__icon-button mk-form-button"
                           type="button"
                           :data-testid="`chart-data-category-remove-${index}`"
                           :disabled="isReadOnly || draftData.xAxis.length <= 1"
@@ -742,7 +742,7 @@ watch(
                   <tr v-for="(series, seriesIndex) in draftData.series" :key="`series-${seriesIndex}`">
                     <th>
                       <input
-                        class="chart-data-editor__input chart-data-editor__series-input"
+                        class="chart-data-editor__input chart-data-editor__series-input mk-form-control"
                         :data-testid="`chart-data-series-name-${seriesIndex}`"
                         type="text"
                         :readonly="isReadOnly"
@@ -753,7 +753,7 @@ watch(
                     </th>
                     <td v-for="(_, dataIndex) in draftData.xAxis" :key="`series-${seriesIndex}-data-${dataIndex}`">
                       <input
-                        class="chart-data-editor__input chart-data-editor__number-input"
+                        class="chart-data-editor__input chart-data-editor__number-input mk-form-control"
                         :data-testid="`chart-data-value-${seriesIndex}-${dataIndex}`"
                         type="number"
                         step="any"
@@ -766,7 +766,7 @@ watch(
                     <td>
                       <button
                         v-if="edit"
-                        class="chart-data-editor__danger-button"
+                        class="chart-data-editor__danger-button mk-form-button mk-form-button--danger"
                         type="button"
                         :data-testid="`chart-data-series-remove-${seriesIndex}`"
                         :disabled="isReadOnly || draftData.series.length <= 1"
@@ -840,9 +840,9 @@ watch(
           </section>
         </div>
 
-        <div class="chart-data-editor__dialog-actions">
+        <div class="chart-data-editor__dialog-actions mk-form-dialog-footer">
           <button
-            class="chart-data-editor__secondary-button"
+            class="chart-data-editor__secondary-button mk-form-button"
             type="button"
             data-testid="chart-data-cancel"
             @click="closeDialog"
@@ -851,7 +851,7 @@ watch(
           </button>
           <button
             v-if="edit"
-            class="chart-data-editor__primary-button"
+            class="chart-data-editor__primary-button mk-form-button mk-form-button--primary"
             type="button"
             data-testid="chart-data-save"
             :disabled="isReadOnly || Boolean(validationMessage)"
@@ -892,33 +892,7 @@ watch(
 .chart-data-editor__secondary-button,
 .chart-data-editor__danger-button,
 .chart-data-editor__icon-button {
-  min-height: 32px;
-  border: 1px solid rgb(191 219 254);
-  border-radius: 8px;
-  background: rgb(239 246 255);
-  color: rgb(29 78 216);
   cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 6px 10px;
-}
-
-.chart-data-editor__primary-button {
-  border-color: rgb(37 99 235);
-  background: rgb(37 99 235);
-  color: white;
-}
-
-.chart-data-editor__danger-button {
-  border-color: rgb(254 202 202);
-  background: rgb(254 242 242);
-  color: rgb(185 28 28);
-}
-
-.chart-data-editor__icon-button {
-  min-height: 26px;
-  padding: 3px 7px;
 }
 
 .chart-data-editor__primary-button:disabled,
@@ -929,37 +903,14 @@ watch(
   opacity: 0.55;
 }
 
-.chart-data-editor__dialog {
-  width: min(960px, calc(100vw - 32px));
-  max-height: min(760px, calc(100vh - 32px));
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 12px;
-  background: white;
-  color: rgb(15 23 42);
-}
-
-.chart-data-editor__dialog::backdrop {
-  background: rgb(15 23 42 / 0.36);
-}
-
 .chart-data-editor__dialog-panel {
   display: flex;
-  max-height: min(760px, calc(100vh - 32px));
   flex-direction: column;
 }
 
 .chart-data-editor__dialog-header,
 .chart-data-editor__dialog-actions {
   flex: 0 0 auto;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 14px 16px;
-}
-
-.chart-data-editor__dialog-actions {
-  border-top: 1px solid rgb(226 232 240);
-  border-bottom: 0;
 }
 
 .chart-data-editor__dialog-title,
@@ -974,9 +925,8 @@ watch(
 .chart-data-editor__dialog-body {
   display: grid;
   min-height: 0;
-  gap: 14px;
+  gap: var(--mk-form-field-gap);
   overflow: auto;
-  padding: 14px 16px;
 }
 
 .chart-data-editor__section {
@@ -1033,28 +983,6 @@ watch(
   gap: 6px;
 }
 
-.chart-data-editor__input {
-  width: 100%;
-  min-height: 32px;
-  min-width: 0;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  background: white;
-  color: rgb(15 23 42);
-  font: inherit;
-  font-size: 12px;
-  padding: 6px 8px;
-}
-
-.chart-data-editor__series-input {
-  min-width: 120px;
-}
-
-.chart-data-editor__number-input,
-.chart-data-editor__category-input {
-  min-width: 96px;
-}
-
 .chart-data-editor__error {
   margin: 0;
   color: rgb(220 38 38);
@@ -1102,12 +1030,6 @@ watch(
   border-radius: 999px;
 }
 
-.dark .chart-data-editor__dialog {
-  border-color: rgb(51 65 85);
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
-}
-
 .dark .chart-data-editor__dialog-header,
 .dark .chart-data-editor__dialog-actions,
 .dark .chart-data-editor__table th,
@@ -1132,11 +1054,5 @@ watch(
 .dark .chart-data-editor__summary,
 .dark .chart-data-editor__section-copy {
   color: rgb(148 163 184);
-}
-
-.dark .chart-data-editor__input {
-  border-color: rgb(71 85 105);
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
 }
 </style>

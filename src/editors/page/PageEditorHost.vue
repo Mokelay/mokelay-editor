@@ -356,7 +356,7 @@ defineExpose({ open });
 <template>
   <dialog
     ref="dialogRef"
-    class="page-editor-host"
+    class="page-editor-host mk-form-dialog"
     data-testid="page-editor-host"
     @cancel="handleDialogCancel"
   >
@@ -371,7 +371,7 @@ defineExpose({ open });
         </div>
 
         <div class="page-editor-host__actions">
-          <button
+          <button class="mk-form-button"
             type="button"
             data-testid="page-editor-preview-toggle"
             :disabled="activeFrame.phase !== 'ready' && activeFrame.phase !== 'save-error'"
@@ -382,14 +382,14 @@ defineExpose({ open });
           <button
             v-if="activeFrame.canPersist"
             type="button"
-            class="page-editor-host__save"
+            class="page-editor-host__save mk-form-button mk-form-button--primary"
             data-testid="page-editor-save"
             :disabled="activeFrame.phase !== 'ready' && activeFrame.phase !== 'save-error'"
             @click="saveFrame(activeFrame)"
           >
             {{ activeFrame.phase === 'saving' ? '保存中…' : '保存' }}
           </button>
-          <button
+          <button class="mk-form-button"
             type="button"
             data-testid="page-editor-cancel"
             :disabled="activeFrame.phase === 'saving'"
@@ -406,7 +406,7 @@ defineExpose({ open });
         </div>
         <div v-else-if="activeFrame.phase === 'load-error'" class="page-editor-host__state page-editor-host__state--error" data-testid="page-editor-load-error">
           <p>{{ activeFrame.error }}</p>
-          <button type="button" data-testid="page-editor-retry" @click="loadFrame(activeFrame)">重试</button>
+          <button class="mk-form-button" type="button" data-testid="page-editor-retry" @click="loadFrame(activeFrame)">重试</button>
         </div>
         <p v-else-if="activeFrame.error" class="page-editor-host__error" data-testid="page-editor-save-error">
           {{ activeFrame.error }}
@@ -423,10 +423,10 @@ defineExpose({ open });
         >
           <label
             v-if="frame.intent === 'create'"
-            class="page-editor-host__slug-field"
+            class="page-editor-host__slug-field mk-form-field"
           >
             <span>页面标识</span>
-            <input
+            <input class="mk-form-control"
               :value="frame.pageSlug"
               :maxlength="PAGE_SLUG_MAX_LENGTH"
               :disabled="frame.phase === 'saving' || frame.mode !== 'edit'"
@@ -456,18 +456,7 @@ defineExpose({ open });
 
 <style scoped>
 .page-editor-host {
-  width: 100vw;
-  max-width: none;
   height: 100vh;
-  max-height: none;
-  margin: 0;
-  border: 0;
-  padding: 0;
-  background: rgb(241 245 249);
-}
-
-.page-editor-host::backdrop {
-  background: rgb(15 23 42 / 0.55);
 }
 
 .page-editor-host__panel {
@@ -504,23 +493,12 @@ defineExpose({ open });
 
 .page-editor-host__actions button,
 .page-editor-host__state button {
-  border: 1px solid rgb(203 213 225);
-  border-radius: 9px;
-  background: white;
-  padding: 8px 12px;
-  color: rgb(30 41 59);
   cursor: pointer;
 }
 
 .page-editor-host__actions button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
-}
-
-.page-editor-host__actions .page-editor-host__save {
-  border-color: rgb(13 148 136);
-  background: rgb(13 148 136);
-  color: white;
 }
 
 .page-editor-host__body {
@@ -540,28 +518,14 @@ defineExpose({ open });
 }
 
 .page-editor-host__slug-field {
-  display: grid;
   grid-template-columns: minmax(90px, auto) minmax(220px, 1fr);
-  align-items: center;
-  gap: 6px 12px;
   border: 1px solid rgb(203 213 225);
   border-radius: 10px;
   background: white;
   padding: 12px 14px;
-  color: rgb(51 65 85);
-  font-size: 13px;
-}
-
-.page-editor-host__slug-field input {
-  min-width: 0;
-  border: 1px solid rgb(148 163 184);
-  border-radius: 8px;
-  padding: 8px 10px;
-  color: rgb(15 23 42);
 }
 
 .page-editor-host__slug-field input:disabled {
-  background: rgb(241 245 249);
   cursor: not-allowed;
 }
 

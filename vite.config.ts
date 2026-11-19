@@ -1,9 +1,28 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
 
 function normalizeModuleId(id: string) {
   return id.replace(/\\/g, '/');
+}
+
+function componentsBuildHash() {
+  const packageDir = path.resolve(__dirname, 'node_modules/mokelay-components');
+  const hash = createHash('sha256').update(readFileSync(path.join(packageDir, 'package.json')));
+  const visit = (directory: string) => {
+    const entries = readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(file);
+      else if (/\.(?:[cm]?js|css|json)$/.test(entry.name)) {
+        hash.update(path.relative(packageDir, file)).update('\0').update(readFileSync(file)).update('\0');
+      }
+    }
+  };
+  visit(path.join(packageDir, 'dist'));
+  return hash.digest('hex');
 }
 
 export default defineConfig(() => ({
@@ -88,6 +107,12 @@ export default defineConfig(() => ({
     }
   },
   optimizeDeps: {
+    // Local component syncs keep the package version and lockfile unchanged.
+    // Let the content hash invalidate the cache. Unconditional force also deletes
+    // a running server's cache when a second Vite process fails to bind its port.
+    esbuildOptions: {
+      define: { __MOKELAY_COMPONENTS_BUILD_HASH__: JSON.stringify(componentsBuildHash()) }
+    },
     // Element Plus imports the CommonJS dayjs distribution from lazy editor modules.
     // Pre-bundling it guarantees a stable ESM default export after cache rebuilds.
     include: ['dayjs']

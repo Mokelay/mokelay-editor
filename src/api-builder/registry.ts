@@ -68,6 +68,8 @@ export const processorDefinitions: ProcessorDefinition[] = [
   { name: 'is_null', title: '必须为空', description: '值必须为空。', needsParam: false },
   { name: 'not_null', title: '是否有值', description: '返回布尔值。', needsParam: false },
   { name: 'email_check', title: '邮箱格式', description: '校验邮箱。', needsParam: false },
+  { name: 'integer_add', title: '整数加法', description: '返回两个安全整数之和。', needsParam: true, defaultParam: 1 },
+  { name: 'decimal_fixed', title: '定点小数格式化', description: '按指定位数补零，保留十进制精度。', needsParam: true, defaultParam: 2 },
   { name: 'number_check', title: '数字格式', description: '校验数字。', needsParam: false },
   { name: 'eq', title: '必须等于', description: '值必须等于参数。', needsParam: true, defaultParam: ['expected'] },
   { name: 'min', title: '最小长度', description: '字符串或数组长度下限。', needsParam: true, defaultParam: [1] },
@@ -78,6 +80,16 @@ export const processorDefinitions: ProcessorDefinition[] = [
 ];
 
 export const blockDefinitions: BlockDefinition[] = [
+  {
+    functionName: 'assert', title: '断言条件', shortTitle: '断言', group: 'utility',
+    description: '条件为 false 时抛出配置的错误。', outputs: [],
+    defaultInputs: () => ({ condition: true, code: 'REQUEST_INVALID_BODY', message: '校验失败。' })
+  },
+  {
+    functionName: 'requireTenantContext', title: '校验企业上下文', shortTitle: '企业上下文', group: 'session',
+    description: '读取当前会话的企业并校验资源归属。', outputs: ['enterpriseUuid', 'appUuid'],
+    defaultInputs: () => ({ datasource: 'Mokelay' })
+  },
   {
     functionName: 'list',
     title: '列表查询',

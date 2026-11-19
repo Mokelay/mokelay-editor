@@ -522,7 +522,7 @@ watch(
         </div>
         <button
           type="button"
-          class="m-block-playground__button m-block-playground__button--secondary"
+          class="m-block-playground__button m-block-playground__button--secondary mk-form-button"
           data-testid="m-block-playground-reset"
           :disabled="!normalizedDoc"
           @click="resetPlayground"
@@ -593,10 +593,10 @@ watch(
             <div
               v-for="field in propertyFields"
               :key="field.key"
-              class="m-block-playground__field"
+              class="m-block-playground__field mk-form-field"
             >
               <template v-if="field.type === 'component'">
-                <span class="m-block-playground__label">
+                <span class="m-block-playground__label mk-form-label">
                   {{ field.label }}
                 </span>
                 <component
@@ -611,9 +611,9 @@ watch(
 
               <label
                 v-else-if="field.type === 'checkbox'"
-                class="m-block-playground__checkbox"
+                class="m-block-playground__checkbox mk-form-check-row"
               >
-                <input
+                <input class="mk-form-check"
                   :data-testid="`m-block-playground-field-${field.key}`"
                   type="checkbox"
                   :checked="propertyCheckboxValue(field)"
@@ -622,13 +622,13 @@ watch(
                 <span>{{ field.label }}</span>
               </label>
 
-              <label v-else class="m-block-playground__label-wrap">
-                <span class="m-block-playground__label">
+              <label v-else class="m-block-playground__label-wrap mk-form-field">
+                <span class="m-block-playground__label mk-form-label">
                   {{ field.label }}
                 </span>
                 <select
                   v-if="field.type === 'select'"
-                  class="m-block-playground__input"
+                  class="m-block-playground__input mk-form-control"
                   :data-testid="`m-block-playground-field-${field.key}`"
                   :value="propertyFieldValue(field)"
                   @[propertyInputEvent(field)]="(event: Event) => updatePropertyField(field, event)"
@@ -643,7 +643,7 @@ watch(
                 </select>
                 <textarea
                   v-else-if="field.type === 'textarea'"
-                  class="m-block-playground__input m-block-playground__textarea"
+                  class="m-block-playground__input m-block-playground__textarea mk-form-control"
                   :class="{ 'm-block-playground__input--invalid': propertyError(field) }"
                   :data-testid="`m-block-playground-field-${field.key}`"
                   :value="propertyFieldValue(field)"
@@ -653,7 +653,7 @@ watch(
                 />
                 <input
                   v-else
-                  class="m-block-playground__input"
+                  class="m-block-playground__input mk-form-control"
                   :class="{ 'm-block-playground__input--invalid': propertyError(field) }"
                   :data-testid="`m-block-playground-field-${field.key}`"
                   type="text"
@@ -681,7 +681,7 @@ watch(
             </span>
             <button
               type="button"
-              class="m-block-playground__button"
+              class="m-block-playground__button mk-form-button"
               data-testid="m-block-playground-format"
               @click="formatJsonEditor"
             >
@@ -689,7 +689,7 @@ watch(
             </button>
           </div>
           <textarea
-            class="m-block-playground__input m-block-playground__textarea m-block-playground__json"
+            class="m-block-playground__input m-block-playground__textarea m-block-playground__json mk-form-control"
             :class="{ 'm-block-playground__input--invalid': jsonError }"
             data-testid="m-block-playground-json"
             :rows="normalizedProps.jsonRows"
@@ -795,55 +795,8 @@ watch(
   margin-bottom: 16px;
 }
 
-.m-block-playground__field {
-  min-width: 0;
-}
-
-.m-block-playground__label-wrap {
-  display: grid;
-  gap: 5px;
-}
-
-.m-block-playground__label {
-  color: #475569;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.dark .m-block-playground__label {
-  color: #cbd5e1;
-}
-
 .m-block-playground__checkbox {
-  display: flex;
-  gap: 8px;
-  align-items: center;
   min-height: 32px;
-  color: #334155;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.dark .m-block-playground__checkbox {
-  color: #e2e8f0;
-}
-
-.m-block-playground__input {
-  width: 100%;
-  min-width: 0;
-  padding: 8px 10px;
-  color: #0f172a;
-  font-size: 13px;
-  line-height: 1.4;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-}
-
-.dark .m-block-playground__input {
-  color: #f8fafc;
-  background: #111827;
-  border-color: #475569;
 }
 
 .m-block-playground__input--invalid {
@@ -855,10 +808,6 @@ watch(
   resize: vertical;
 }
 
-.m-block-playground__json {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-}
-
 .m-block-playground__json-header {
   display: flex;
   gap: 8px;
@@ -868,14 +817,6 @@ watch(
 }
 
 .m-block-playground__button {
-  height: 32px;
-  padding: 0 10px;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 700;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
   cursor: pointer;
 }
 
@@ -886,12 +827,6 @@ watch(
 
 .m-block-playground__button--secondary {
   white-space: nowrap;
-}
-
-.dark .m-block-playground__button {
-  color: #e2e8f0;
-  background: #111827;
-  border-color: #475569;
 }
 
 .m-block-playground__error {

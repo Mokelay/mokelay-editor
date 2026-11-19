@@ -128,6 +128,7 @@ export const mActionEditorTool = defineEditorTool<MActionEditorProps>({
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useI18n } from '@/i18n';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
 import {
@@ -153,6 +154,9 @@ import {
 } from '@/services/pagesApi';
 
 const actionDefinitions = [
+  { action: 'trigger_event', title: '触发 Block 事件', alias: '触发 Block 事件', inputs: { blockId: '', event: 'change', payload: {} }, outputs: ['result'] },
+  { action: 'flush_event', title: '等待事件完成', alias: '等待事件完成', inputs: { blockId: '', event: 'change' }, outputs: ['result'] },
+  { action: 'retry_event', title: '重试事件', alias: '重试事件', inputs: { blockId: '', event: 'change' }, outputs: ['result'] },
   {
     action: 'execute_ds',
     title: '调用数据源',
@@ -245,6 +249,7 @@ const emit = defineEmits<{
   (event: 'change', value: ActionConfig[]): void;
 }>();
 
+const { t } = useI18n();
 const isOpen = ref(false);
 const selectedUuid = ref('');
 const draftActions = ref<ActionConfig[]>(cloneActions(props.modelValue ?? props.value));
@@ -614,6 +619,13 @@ function updateInputs(value: string) {
   }
 }
 
+function updateEventPayload(value: string) {
+  try {
+    const payload: unknown = JSON.parse(value);
+    updateInputs(JSON.stringify({ ...selectedAction.value?.inputs, payload }));
+  } catch { inputsError.value = '请输入有效的 payload JSON。'; }
+}
+
 function updateOutputs(value: string) {
   const action = selectedAction.value;
   if (!action) return;
@@ -737,16 +749,16 @@ function cloneValue<T>(value: T): T {
 
 <template>
   <div class="m-action-editor" data-testid="m-action-editor">
-    <button type="button" class="m-action-editor__open" data-testid="m-action-editor-open" @click="openDialog">
-      配置Actions
+    <button type="button" class="m-action-editor__open mk-form-button" data-testid="m-action-editor-open" @click="openDialog">
+      {{ t('editor.events.configureActions') }}
     </button>
 
     <div v-if="isOpen" class="m-action-editor__overlay" data-testid="m-action-editor-dialog">
-      <section class="m-action-editor__dialog" role="dialog" aria-modal="true">
-        <header class="m-action-editor__header">
-          <h3>Action配置</h3>
-          <button type="button" class="m-action-editor__close" data-testid="m-action-editor-close" @click="closeDialog">
-            关闭
+      <section class="m-action-editor__dialog mk-form-dialog mk-form-dialog--canvas mk-form-dialog-panel mk-form-scope" role="dialog" aria-modal="true">
+        <header class="m-action-editor__header mk-form-dialog-header">
+          <h3>{{ t('editor.events.fields.actions') }}</h3>
+          <button type="button" class="m-action-editor__close mk-form-button" data-testid="m-action-editor-close" @click="closeDialog">
+            {{ t('editor.close') }}
           </button>
         </header>
 
@@ -757,7 +769,7 @@ function cloneValue<T>(value: T): T {
               v-for="definition in actionDefinitions"
               :key="definition.action"
               type="button"
-              class="m-action-editor__palette-button"
+              class="m-action-editor__palette-button mk-form-button"
               :data-testid="`m-action-add-${definition.action}`"
               @click="addAction(definition)"
             >
@@ -809,32 +821,32 @@ function cloneValue<T>(value: T): T {
             </VueFlow>
           </main>
 
-          <aside class="m-action-editor__inspector">
+          <aside class="m-action-editor__inspector mk-form-scope">
             <template v-if="selectedAction">
               <div class="m-action-editor__inspector-header">
                 <h4>Action设置</h4>
-                <button type="button" @click="removeSelectedAction">删除</button>
+                <button class="mk-form-button" type="button" @click="removeSelectedAction">删除</button>
               </div>
 
-              <label>
+              <label class="mk-form-field">
                 <span>uuid</span>
-                <input :value="selectedAction.uuid" data-testid="m-action-uuid" @change="updateSelectedUuid(($event.target as HTMLInputElement).value)" />
+                <input class="mk-form-control" :value="selectedAction.uuid" data-testid="m-action-uuid" @change="updateSelectedUuid(($event.target as HTMLInputElement).value)" />
               </label>
 
-              <label>
+              <label class="mk-form-field">
                 <span>alias</span>
-                <input v-model="selectedAction.alias" data-testid="m-action-alias" @input="emitChanges" />
+                <input class="mk-form-control" v-model="selectedAction.alias" data-testid="m-action-alias" @input="emitChanges" />
               </label>
 
-              <label>
+              <label class="mk-form-field">
                 <span>action</span>
-                <input :value="selectedAction.action" disabled />
+                <input class="mk-form-control" :value="selectedAction.action" disabled />
               </label>
 
               <div v-if="selectedAction.action === 'open_dialog'" class="m-action-editor__page-reference" data-testid="m-action-open-dialog-fields">
-                <label>
+                <label class="mk-form-field">
                   <span>弹窗标题</span>
-                  <input
+                  <input class="mk-form-control"
                     :value="typeof selectedAction.inputs?.title === 'string' ? selectedAction.inputs.title : ''"
                     data-testid="m-action-dialog-title"
                     @input="updateOpenDialogInputs({ title: ($event.target as HTMLInputElement).value })"
@@ -842,17 +854,17 @@ function cloneValue<T>(value: T): T {
                 </label>
 
                 <div class="m-action-editor__page-filters">
-                  <input v-model="pageSearch" type="search" placeholder="按名称或 UUID 搜索" data-testid="m-action-page-search" />
-                  <select v-model="pageKindFilter" data-testid="m-action-page-kind-filter">
+                  <input class="mk-form-control" v-model="pageSearch" type="search" placeholder="按名称或 UUID 搜索" data-testid="m-action-page-search" />
+                  <select class="mk-form-control" v-model="pageKindFilter" data-testid="m-action-page-kind-filter">
                     <option value="all">全部页面</option>
                     <option value="main">主页面</option>
                     <option value="sub">子页面</option>
                   </select>
                 </div>
 
-                <label>
+                <label class="mk-form-field">
                   <span>固定页面目标</span>
-                  <select
+                  <select class="mk-form-control"
                     :value="selectedPageOptionValue()"
                     data-testid="m-action-dialog-page"
                     @change="selectOpenDialogPage(($event.target as HTMLSelectElement).value)"
@@ -880,10 +892,10 @@ function cloneValue<T>(value: T): T {
                 </p>
 
                 <div class="m-action-editor__page-actions">
-                  <button type="button" :disabled="!pageEditor || !edit || !pageEditor.canCreateSubPage" data-testid="m-action-create-subpage" @click="createOpenDialogPage">
+                  <button class="mk-form-button" type="button" :disabled="!pageEditor || !edit || !pageEditor.canCreateSubPage" data-testid="m-action-create-subpage" @click="createOpenDialogPage">
                     新建子页面
                   </button>
-                  <button
+                  <button class="mk-form-button"
                     type="button"
                     :disabled="!pageEditor || !selectedOpenDialogTarget.target"
                     data-testid="m-action-edit-subpage"
@@ -891,14 +903,14 @@ function cloneValue<T>(value: T): T {
                   >
                     {{ selectedOpenDialogTarget.target?.source === 'system' || !pageEditor?.canPersist ? '临时编排页面' : '编排页面' }}
                   </button>
-                  <button type="button" :disabled="pagesLoading" data-testid="m-action-refresh-pages" @click="refreshPageOptions">
+                  <button class="mk-form-button" type="button" :disabled="pagesLoading" data-testid="m-action-refresh-pages" @click="refreshPageOptions">
                     {{ pagesLoading ? '加载中…' : '刷新列表' }}
                   </button>
                 </div>
 
-                <label>
+                <label class="mk-form-field">
                   <span>context</span>
-                  <textarea
+                  <textarea class="mk-form-control"
                     :value="formatJson(selectedAction.inputs?.context)"
                     rows="5"
                     data-testid="m-action-dialog-context"
@@ -909,10 +921,15 @@ function cloneValue<T>(value: T): T {
                 <p v-if="relationNotice" class="m-action-editor__notice" data-testid="m-action-relation-notice">{{ relationNotice }}</p>
               </div>
 
+              <template v-else-if="['flush_event', 'retry_event', 'trigger_event'].includes(selectedAction.action)">
+                <label class="mk-form-field"><span>Block ID</span><input class="mk-form-control" data-testid="m-action-event-block" :value="selectedAction.inputs?.blockId" @input="updateInputs(JSON.stringify({ ...selectedAction.inputs, blockId: ($event.target as HTMLInputElement).value }))"></label>
+                <label class="mk-form-field"><span>事件</span><input class="mk-form-control" data-testid="m-action-event-name" :value="selectedAction.inputs?.event" @input="updateInputs(JSON.stringify({ ...selectedAction.inputs, event: ($event.target as HTMLInputElement).value }))"></label>
+                <label class="mk-form-field" v-if="selectedAction.action === 'trigger_event'"><span>payload</span><textarea class="mk-form-control" data-testid="m-action-event-payload" :value="formatJson(selectedAction.inputs?.payload ?? {})" rows="5" @change="updateEventPayload(($event.target as HTMLTextAreaElement).value)"></textarea></label>
+              </template>
               <template v-else>
-                <label>
+                <label class="mk-form-field">
                   <span>inputs</span>
-                  <textarea
+                  <textarea class="mk-form-control"
                     :value="formatJson(selectedAction.inputs)"
                     rows="8"
                     data-testid="m-action-inputs"
@@ -922,9 +939,9 @@ function cloneValue<T>(value: T): T {
               </template>
               <p v-if="inputsError" class="m-action-editor__error">{{ inputsError }}</p>
 
-              <label>
+              <label class="mk-form-field">
                 <span>outputs</span>
-                <textarea
+                <textarea class="mk-form-control"
                   :value="formatOutputs(selectedAction.outputs)"
                   rows="4"
                   data-testid="m-action-outputs"
@@ -933,9 +950,9 @@ function cloneValue<T>(value: T): T {
               </label>
               <p v-if="outputsError" class="m-action-editor__error">{{ outputsError }}</p>
 
-              <label v-if="selectedAction.type !== 'controller'">
+              <label class="mk-form-field" v-if="selectedAction.type !== 'controller'">
                 <span>nextAction</span>
-                <select :value="selectedAction.nextAction ?? ''" @change="updateNextAction(selectedAction, ($event.target as HTMLSelectElement).value)">
+                <select class="mk-form-control" :value="selectedAction.nextAction ?? ''" @change="updateNextAction(selectedAction, ($event.target as HTMLSelectElement).value)">
                   <option value="">null</option>
                   <option v-for="option in targetOptions" :key="option.uuid" :value="option.uuid" :disabled="option.uuid === selectedAction.uuid">
                     {{ option.label }}
@@ -947,45 +964,45 @@ function cloneValue<T>(value: T): T {
                 <div class="m-action-editor__nodes-header">
                   <h5>nodes</h5>
                   <template v-if="selectedAction.action === 'switch_controller'">
-                    <button type="button" @click="addSwitchCase(selectedAction)">添加 Case</button>
-                    <button type="button" @click="addSwitchDefault(selectedAction)">添加 DEFAULT</button>
+                    <button class="mk-form-button" type="button" @click="addSwitchCase(selectedAction)">添加 Case</button>
+                    <button class="mk-form-button" type="button" @click="addSwitchDefault(selectedAction)">添加 DEFAULT</button>
                   </template>
                 </div>
 
                 <div v-for="(node, index) in selectedAction.nodes" :key="node.uuid" class="m-action-editor__node-card">
-                  <label>
+                  <label class="mk-form-field">
                     <span>node uuid</span>
-                    <input :value="node.uuid" @change="updateNodeUuid(selectedAction, node, ($event.target as HTMLInputElement).value)" />
+                    <input class="mk-form-control" :value="node.uuid" @change="updateNodeUuid(selectedAction, node, ($event.target as HTMLInputElement).value)" />
                   </label>
-                  <label>
+                  <label class="mk-form-field">
                     <span>alias</span>
-                    <input v-model="node.alias" @input="emitChanges" />
+                    <input class="mk-form-control" v-model="node.alias" @input="emitChanges" />
                   </label>
-                  <label v-if="selectedAction.action === 'switch_controller'">
+                  <label class="mk-form-field" v-if="selectedAction.action === 'switch_controller'">
                     <span>type</span>
-                    <select :value="node.type === 'DEFAULT' ? 'DEFAULT' : 'CASE'" @change="updateNode(node, { type: ($event.target as HTMLSelectElement).value === 'DEFAULT' ? 'DEFAULT' : undefined })">
+                    <select class="mk-form-control" :value="node.type === 'DEFAULT' ? 'DEFAULT' : 'CASE'" @change="updateNode(node, { type: ($event.target as HTMLSelectElement).value === 'DEFAULT' ? 'DEFAULT' : undefined })">
                       <option value="CASE">CASE</option>
                       <option value="DEFAULT">DEFAULT</option>
                     </select>
                   </label>
-                  <label v-if="node.type !== 'DEFAULT'">
+                  <label class="mk-form-field" v-if="node.type !== 'DEFAULT'">
                     <span>value</span>
-                    <input
+                    <input class="mk-form-control"
                       :value="String(node.value ?? '')"
                       :disabled="selectedAction.action === 'if_controller'"
                       @input="updateNode(node, { value: parseNodeValue(($event.target as HTMLInputElement).value, selectedAction) })"
                     />
                   </label>
-                  <label>
+                  <label class="mk-form-field">
                     <span>nextAction</span>
-                    <select :value="node.nextAction ?? ''" @change="updateNode(node, { nextAction: (($event.target as HTMLSelectElement).value || null) })">
+                    <select class="mk-form-control" :value="node.nextAction ?? ''" @change="updateNode(node, { nextAction: (($event.target as HTMLSelectElement).value || null) })">
                       <option value="">null</option>
                       <option v-for="option in targetOptions" :key="option.uuid" :value="option.uuid" :disabled="option.uuid === selectedAction.uuid">
                         {{ option.label }}
                       </option>
                     </select>
                   </label>
-                  <button v-if="selectedAction.action === 'switch_controller'" type="button" class="m-action-editor__remove-node" @click="removeNode(selectedAction, index)">删除分支</button>
+                  <button v-if="selectedAction.action === 'switch_controller'" type="button" class="m-action-editor__remove-node mk-form-button" @click="removeNode(selectedAction, index)">删除分支</button>
                 </div>
               </div>
             </template>
@@ -1003,20 +1020,6 @@ function cloneValue<T>(value: T): T {
   display: block;
 }
 
-.m-action-editor__open,
-.m-action-editor__close,
-.m-action-editor__palette-button,
-.m-action-editor__inspector button,
-.m-action-editor__nodes-header button {
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  background: white;
-  padding: 8px 10px;
-  color: rgb(15 23 42);
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .m-action-editor__open {
   width: 100%;
   text-align: center;
@@ -1030,20 +1033,14 @@ function cloneValue<T>(value: T): T {
   align-items: center;
   justify-content: center;
   background: rgb(15 23 42 / 0.55);
-  padding: 24px;
+  padding: 16px;
 }
 
 .m-action-editor__dialog {
   display: flex;
-  width: min(1180px, 96vw);
   height: min(760px, 92vh);
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgb(226 232 240);
-  border-radius: 12px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
 }
 
 .m-action-editor__header {
@@ -1051,8 +1048,6 @@ function cloneValue<T>(value: T): T {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgb(226 232 240);
-  padding: 14px 16px;
 }
 
 .m-action-editor__header h3,
@@ -1073,7 +1068,7 @@ function cloneValue<T>(value: T): T {
 .m-action-editor__inspector {
   min-height: 0;
   overflow: auto;
-  padding: 14px;
+  padding: 16px;
 }
 
 .m-action-editor__palette {
@@ -1115,29 +1110,7 @@ function cloneValue<T>(value: T): T {
 
 .m-action-editor__inspector label,
 .m-action-editor__node-card label {
-  display: grid;
-  gap: 5px;
-  margin-bottom: 10px;
-  color: rgb(71 85 105);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.m-action-editor__inspector input,
-.m-action-editor__inspector textarea,
-.m-action-editor__inspector select {
-  width: 100%;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 8px;
-  padding: 8px 10px;
-  color: rgb(15 23 42);
-  font-family: inherit;
-  font-size: 13px;
-}
-
-.m-action-editor__inspector textarea {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
+  margin-bottom: var(--mk-form-field-gap);
 }
 
 .m-action-editor__flow-node {
@@ -1204,10 +1177,6 @@ function cloneValue<T>(value: T): T {
   padding: 10px;
 }
 
-.m-action-editor__remove-node {
-  color: rgb(190 18 60);
-}
-
 .m-action-editor__page-reference {
   margin-bottom: 12px;
   border: 1px solid rgb(226 232 240);
@@ -1218,8 +1187,9 @@ function cloneValue<T>(value: T): T {
 .m-action-editor__page-filters,
 .m-action-editor__page-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: var(--mk-form-field-gap);
 }
 
 .m-action-editor__page-actions button {
@@ -1264,12 +1234,18 @@ function cloneValue<T>(value: T): T {
 .dark .m-action-editor__inspector {
   border-color: rgb(51 65 85);
 }
-
-.dark .m-action-editor__inspector input,
-.dark .m-action-editor__inspector textarea,
-.dark .m-action-editor__inspector select {
-  border-color: rgb(51 65 85);
-  background: rgb(2 6 23);
-  color: rgb(226 232 240);
+.m-action-editor__inspector textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+@container (max-width: 900px) {
+  .m-action-editor__layout { grid-template-columns: 160px minmax(0, 1fr); overflow: auto; }
+  .m-action-editor__canvas { min-height: 300px; }
+  .m-action-editor__inspector { grid-column: 1 / -1; overflow: visible; border-top: 1px solid var(--mk-form-border); }
+}
+@container (max-width: 520px) {
+  .m-action-editor__layout { display: flex; flex-direction: column; }
+  .m-action-editor__palette { display: flex; flex-wrap: wrap; gap: 8px; flex: none; max-height: 160px; }
+  .m-action-editor__palette h4 { width: 100%; }
+  .m-action-editor__palette-button { width: auto; margin-top: 0; }
+  .m-action-editor__canvas { flex: none; height: 300px; }
+  .m-action-editor__inspector { flex: none; }
 }
 </style>

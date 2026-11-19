@@ -7,6 +7,8 @@ import {
   type MockMokelayPage
 } from './helpers/editor';
 
+test.use({ locale: 'zh-CN' });
+
 const serverRoot = resolve(process.cwd(), '../mokelay-server/server/assets');
 const datasourcePageUuids = [
   'datasources',
@@ -43,6 +45,12 @@ function datasourceSystemOptions() {
 }
 
 test('opens datasource management as a Page DSL route from navigation', async ({ page }) => {
+  const moduleErrors: string[] = [];
+  page.on('response', (response) => {
+    if (response.request().resourceType() === 'script' && response.status() >= 400) {
+      moduleErrors.push(`${response.status()} ${response.url()}`);
+    }
+  });
   await resetEditor(page, {
     initialRoute: '/',
     ...datasourceSystemOptions(),
@@ -66,6 +74,8 @@ test('opens datasource management as a Page DSL route from navigation', async ({
   await expect(page.getByTestId('preview-panel')).toBeVisible();
   await expect(page.getByRole('heading', { name: '数据源管理' })).toBeVisible();
   await expect(page.getByRole('row', { name: /Analytics/ })).toContainText('2 张表');
+  await expect(page.getByTestId('m-action-toolbar-action-create')).toBeVisible();
+  expect(moduleErrors).toEqual([]);
 });
 
 test('creates and edits a datasource through DSL actions', async ({ page }) => {
@@ -195,9 +205,10 @@ test('paginates datasource records in the DSL table', async ({ page }) => {
   });
 
   await expect(page.getByRole('row', { name: /Datasource 11/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Next' })).toBeEnabled();
-  await page.getByRole('button', { name: 'Next' }).click();
-  await expect(page.getByRole('row', { name: /Datasource 1/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Previous' })).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();
+  const nextPage = page.getByRole('button', { name: '下一页' });
+  await expect(nextPage).toBeEnabled();
+  await nextPage.click();
+  await expect(page.getByRole('cell', { name: 'Datasource 1', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '上一页' })).toBeEnabled();
+  await expect(nextPage).toBeDisabled();
 });

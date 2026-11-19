@@ -495,7 +495,7 @@ watch(
           v-for="[type, definition] in getInlineCustomComponentEntries()"
           :key="type"
           type="button"
-          class="ce-advance-input-tool__menu-item"
+          class="ce-advance-input-tool__menu-item mk-form-button"
           :data-testid="`editor-advance-input-menu-item-${type}`"
           @mousedown.prevent="insertInlineComponent(type)"
         >
@@ -508,46 +508,46 @@ watch(
 
     <dialog
       ref="embeddedDialogRef"
-      class="ce-advance-input-tool__dialog"
+      class="ce-advance-input-tool__dialog mk-form-dialog"
       data-testid="advance-input-embedded-property-dialog"
       @close="activeEmbeddedComponent = null"
     >
-      <form method="dialog" class="ce-advance-input-tool__dialog-panel" @submit.prevent="closeEmbeddedDialog">
-        <div class="ce-advance-input-tool__dialog-header">
+      <form method="dialog" class="ce-advance-input-tool__dialog-panel mk-form-dialog-panel" @submit.prevent="closeEmbeddedDialog">
+        <div class="ce-advance-input-tool__dialog-header mk-form-dialog-header">
           <h3 class="ce-advance-input-tool__dialog-title" data-testid="advance-input-embedded-property-title">
             {{ activeEmbeddedComponent?.title }}
           </h3>
           <button
             type="submit"
-            class="ce-advance-input-tool__dialog-close"
+            class="ce-advance-input-tool__dialog-close mk-form-button"
             data-testid="advance-input-embedded-property-close"
           >
             {{ t('editor.close') }}
           </button>
         </div>
 
-        <div v-if="activeEmbeddedComponent" class="ce-advance-input-tool__dialog-body">
+        <div v-if="activeEmbeddedComponent" class="ce-advance-input-tool__dialog-body mk-form-dialog-body mk-form-scope">
           <label
             v-for="field in activeEmbeddedComponent.fields"
             :key="field.key"
-            class="ce-advance-input-tool__dialog-field"
+            class="ce-advance-input-tool__dialog-field mk-form-check-row"
             :class="{ 'ce-advance-input-tool__dialog-field--checkbox': field.type === 'checkbox' }"
           >
             <template v-if="field.type === 'checkbox'">
               <input
-                class="ce-advance-input-tool__dialog-checkbox"
+                class="ce-advance-input-tool__dialog-checkbox mk-form-check"
                 type="checkbox"
                 :checked="activeEmbeddedComponent.values[field.key] === true"
                 :data-testid="`advance-input-embedded-property-input-${field.key}`"
                 @change="updateEmbeddedComponentField(field.key, ($event.target as HTMLInputElement).checked)"
               />
-              <span class="ce-advance-input-tool__dialog-label">{{ field.label }}</span>
+              <span class="ce-advance-input-tool__dialog-label mk-form-label">{{ field.label }}</span>
             </template>
 
             <template v-else-if="field.type === 'select'">
-              <span class="ce-advance-input-tool__dialog-label">{{ field.label }}</span>
+              <span class="ce-advance-input-tool__dialog-label mk-form-label">{{ field.label }}</span>
               <select
-                class="ce-advance-input-tool__dialog-input"
+                class="ce-advance-input-tool__dialog-input mk-form-control"
                 :value="String(activeEmbeddedComponent.values[field.key] ?? '')"
                 :data-testid="`advance-input-embedded-property-input-${field.key}`"
                 @change="updateEmbeddedComponentField(field.key, ($event.target as HTMLSelectElement).value)"
@@ -559,9 +559,9 @@ watch(
             </template>
 
             <template v-else>
-              <span class="ce-advance-input-tool__dialog-label">{{ field.label }}</span>
+              <span class="ce-advance-input-tool__dialog-label mk-form-label">{{ field.label }}</span>
               <input
-                class="ce-advance-input-tool__dialog-input"
+                class="ce-advance-input-tool__dialog-input mk-form-control"
                 type="text"
                 :value="String(activeEmbeddedComponent.values[field.key] ?? '')"
                 :placeholder="field.placeholder"
@@ -625,17 +625,8 @@ watch(
 .ce-advance-input-tool__menu-item {
   display: flex;
   width: 100%;
-  border: 0;
-  border-radius: 8px;
-  padding: 8px 10px;
-  background: transparent;
-  color: rgb(15 23 42);
   cursor: pointer;
   text-align: left;
-}
-
-.ce-advance-input-tool__menu-item:hover {
-  background: rgb(241 245 249);
 }
 
 
@@ -662,30 +653,11 @@ watch(
   font-size: 12px;
 }
 
-.ce-advance-input-tool__dialog {
-  width: min(100%, 480px);
-  border: 0;
-  border-radius: 16px;
-  padding: 0;
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.32);
-}
-
-.ce-advance-input-tool__dialog::backdrop {
-  background: rgb(15 23 42 / 0.45);
-}
-
-.ce-advance-input-tool__dialog-panel {
-  margin: 0;
-  padding: 20px;
-  background: rgb(255 255 255);
-}
-
 .ce-advance-input-tool__dialog-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 16px;
 }
 
 .ce-advance-input-tool__dialog-title {
@@ -696,24 +668,13 @@ watch(
 }
 
 .ce-advance-input-tool__dialog-close {
-  border: 0;
-  border-radius: 10px;
-  padding: 8px 12px;
-  background: rgb(226 232 240);
-  color: rgb(51 65 85);
   cursor: pointer;
 }
 
 .ce-advance-input-tool__dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.ce-advance-input-tool__dialog-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: var(--mk-form-field-gap);
 }
 
 .ce-advance-input-tool__dialog-field--checkbox {
@@ -722,33 +683,10 @@ watch(
   gap: 10px;
 }
 
-.ce-advance-input-tool__dialog-label {
-  color: rgb(51 65 85);
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .ce-advance-input-tool__dialog-checkbox {
   width: 16px;
   height: 16px;
   margin: 0;
-}
-
-.ce-advance-input-tool__dialog-input {
-  width: 100%;
-  border: 1px solid rgb(148 163 184 / 0.65);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: rgb(255 255 255);
-  color: rgb(15 23 42);
-  font-size: 14px;
-  line-height: 20px;
-}
-
-.ce-advance-input-tool__dialog-input:focus {
-  outline: none;
-  border-color: rgb(99 102 241);
-  box-shadow: 0 0 0 2px rgb(99 102 241 / 0.15);
 }
 
 .dark .ce-advance-input-tool__editor-shell,
@@ -758,34 +696,7 @@ watch(
   background: rgb(15 23 42);
 }
 
-.dark .ce-advance-input-tool__menu-item {
-  color: rgb(226 232 240);
-}
-
-.dark .ce-advance-input-tool__menu-item:hover {
-  background: rgb(30 41 59);
-}
-
-.dark .ce-advance-input-tool__dialog-panel {
-  background: rgb(15 23 42);
-}
-
 .dark .ce-advance-input-tool__dialog-title {
   color: rgb(241 245 249);
-}
-
-.dark .ce-advance-input-tool__dialog-close {
-  background: rgb(51 65 85);
-  color: rgb(241 245 249);
-}
-
-.dark .ce-advance-input-tool__dialog-label {
-  color: rgb(203 213 225);
-}
-
-.dark .ce-advance-input-tool__dialog-input {
-  background: rgb(15 23 42);
-  color: rgb(226 232 240);
-  border-color: rgb(71 85 105 / 0.9);
 }
 </style>
