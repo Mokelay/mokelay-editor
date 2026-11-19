@@ -1,0 +1,1 @@
+import{_ as o}from"./MTabs2.vue-DdfTKz_0.js";import{n as f}from"./MTabs2.vue-DdfTKz_0.js";import{_ as a}from"./index-DXo7QneV.js";import"./element-plus-DKiXtHQ5.js";import"./json-editor-K5rsuUd-.js";const p=a(o,[["__scopeId","data-v-c28e81d2"]]);export{p as default,f as normalizeTabs};
