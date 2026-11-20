@@ -131,13 +131,11 @@ export const mActionEditorTool = defineEditorTool<MActionEditorProps>({
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from '@/i18n';
-import '@vue-flow/core/dist/style.css';
-import '@vue-flow/core/dist/theme-default.css';
+import MActionFlowCanvas from '@/editors/components/MActionFlowCanvas.vue';
 import {
   Handle,
   MarkerType,
   Position,
-  VueFlow,
   type Connection,
   type Edge,
   type Node
@@ -328,7 +326,9 @@ watch(
 );
 
 function openDialog() {
-  draftActions.value = cloneActions(props.modelValue ?? props.value);
+  // Root-mounted editors do not necessarily receive their emitted value back as props.
+  // External updates are synchronized by the closed-dialog watchers above.
+  draftActions.value = cloneActions(draftActions.value);
   selectedUuid.value = draftActions.value[0]?.uuid ?? '';
   inputsError.value = '';
   outputsError.value = '';
@@ -781,18 +781,7 @@ function cloneValue<T>(value: T): T {
           </aside>
 
           <main class="m-action-editor__canvas">
-            <VueFlow
-              id="m-action-editor-flow"
-              :nodes="flowNodes"
-              :edges="flowEdges"
-              :default-viewport="{ zoom: 0.8, x: 0, y: 0 }"
-              :min-zoom="0.35"
-              :max-zoom="1.2"
-              :nodes-draggable="true"
-              :nodes-connectable="true"
-              @connect="onConnect"
-              @node-click="(payload) => payload.node?.id && selectAction(payload.node.id)"
-            >
+            <MActionFlowCanvas :nodes="flowNodes" :edges="flowEdges" @connect="onConnect" @select="selectAction">
               <template #node-commonAction="{ data }">
                 <div class="m-action-editor__flow-node" :class="{ 'is-selected': data.selected }">
                   <Handle type="target" :position="Position.Left" />
@@ -804,7 +793,8 @@ function cloneValue<T>(value: T): T {
               </template>
 
               <template #node-controllerAction="{ data }">
-                <div class="m-action-editor__flow-node m-action-editor__flow-node--controller" :class="{ 'is-selected': data.selected }">
+                <div class="m-action-editor__flow-node m-action-editor__flow-node--controller" :class="{ 'is-selected': data.selected }"
+                  :style="{ minHeight: `${Math.max(138, 102 + Math.max(0, (data.action.nodes?.length ?? 0) - 1) * 28)}px` }">
                   <Handle type="target" :position="Position.Left" />
                   <p>{{ data.action.action }}</p>
                   <strong>{{ data.label }}</strong>
@@ -820,7 +810,7 @@ function cloneValue<T>(value: T): T {
                   </div>
                 </div>
               </template>
-            </VueFlow>
+            </MActionFlowCanvas>
           </main>
 
           <aside class="m-action-editor__inspector mk-form-scope">
@@ -837,7 +827,7 @@ function cloneValue<T>(value: T): T {
 
               <label class="mk-form-field">
                 <span>alias</span>
-                <input class="mk-form-control" v-model="selectedAction.alias" data-testid="m-action-alias" @input="emitChanges" />
+                <input class="mk-form-control" :value="selectedAction.alias" data-testid="m-action-alias" @input="updateSelectedAction({ alias: ($event.target as HTMLInputElement).value })" />
               </label>
 
               <label class="mk-form-field">
@@ -1093,7 +1083,11 @@ function cloneValue<T>(value: T): T {
 }
 
 .m-action-editor__canvas {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background: rgb(248 250 252);
 }
 

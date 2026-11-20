@@ -108,18 +108,12 @@ test('edits the nested field event and trigger action without moving them to ite
   const formEvents = await openFormPanel(page, 'events');
   await formEvents.getByTestId('tool-event-actions-0').getByTestId('m-action-editor-open').click();
   const triggerNode = page.locator('.vue-flow__node').filter({ hasText: 'trigger_event' });
-  // The init graph extends beyond the canvas; pan it as a user would before selecting the node.
-  const canvas = (await page.locator('.m-action-editor__canvas').boundingBox())!;
-  for (let attempt = 0; attempt < 5; attempt++) {
+  await expect.poll(async () => {
+    const canvas = (await page.getByTestId('m-action-flow').boundingBox())!;
     const node = (await triggerNode.boundingBox())!;
-    const distance = node.x + node.width / 2 - (canvas.x + canvas.width / 2);
-    if (Math.abs(distance) < canvas.width / 3) break;
-    const startX = canvas.x + (distance > 0 ? canvas.width - 20 : 20);
-    await page.mouse.move(startX, canvas.y + canvas.height - 30);
-    await page.mouse.down();
-    await page.mouse.move(startX - Math.sign(distance) * Math.min(Math.abs(distance), canvas.width - 40), canvas.y + canvas.height - 30, { steps: 10 });
-    await page.mouse.up();
-  }
+    return node.x >= canvas.x && node.x + node.width <= canvas.x + canvas.width
+      && node.y >= canvas.y && node.y + node.height <= canvas.y + canvas.height;
+  }).toBe(true);
   await triggerNode.click();
   await expect(page.getByTestId('m-action-event-block')).toHaveValue('expense-show_help');
   await expect(page.getByTestId('m-action-event-name')).toHaveValue('change');

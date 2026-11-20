@@ -27,6 +27,13 @@ export const enMessages = {
     configJson: 'Config JSON',
     close: 'Close',
     invalidJson: 'Enter valid JSON.',
+    actionCanvas: {
+      controls: 'Canvas zoom',
+      zoomOut: 'Zoom out',
+      zoomIn: 'Zoom in',
+      zoomLevel: 'Zoom level',
+      fitView: 'Fit to view'
+    },
     events: {
       configureActions: 'Configure actions',
       menu: 'Events',

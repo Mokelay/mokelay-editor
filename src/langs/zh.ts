@@ -27,6 +27,13 @@ export const zhMessages = {
     configJson: '配置 JSON',
     close: '关闭',
     invalidJson: '请输入有效 JSON。',
+    actionCanvas: {
+      controls: '画布缩放',
+      zoomOut: '缩小',
+      zoomIn: '放大',
+      zoomLevel: '缩放比例',
+      fitView: '适应画布'
+    },
     events: {
       configureActions: '配置动作',
       menu: '事件',
