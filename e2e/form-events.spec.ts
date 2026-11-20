@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { getSavedBlocks, openToolPropertyPanel, openToolEventsPanel, resetEditor, seedSavedConfig, switchLocaleToChinese } from './helpers/editor';
 // Exercise form behavior independently of the application's shell/layout selection.
-const reimbursement = { ...JSON.parse(readFileSync(resolve(process.cwd(), '../mokelay-server/server/assets/lark/pages/reimbursement_201.json'), 'utf8')), layoutUuid: null };
+const reimbursement = { ...JSON.parse(readFileSync(resolve(process.cwd(), '../mokelay-server/server/assets/lark/pages/reimbursement.json'), 'utf8')), layoutUuid: null };
 test.use({ locale: 'zh-CN' });
 
 for (const showHelp of ['no', 'yes']) {
@@ -22,7 +22,7 @@ for (const showHelp of ['no', 'yes']) {
       }
       await route.fulfill({ headers, body: JSON.stringify({ ok: true, data: { record, options: { category: [{ value: 'travel', label: '差旅费' }] } } }) });
     });
-    await resetEditor(page, { initialRoute: '/#/pages/reimbursement_201/preview?source=system', systemPages: [reimbursement], seedDefaultPage: false });
+    await resetEditor(page, { initialRoute: '/#/pages/reimbursement/preview?source=system', systemPages: [reimbursement], seedDefaultPage: false });
     const control = page.getByTestId('editor-form-tool').locator('select').first();
     await expect(control).toBeEnabled();
     await expect(control).toHaveValue(showHelp);
@@ -169,7 +169,7 @@ test('loads and saves the reimbursement page using event actions, including exac
     }
     return route.fulfill({ headers, body: JSON.stringify({ ok: true, data: { record, options: { category: [{ value: 'travel', label: '差旅费' }] } } }) });
   });
-  await resetEditor(page, { initialRoute: '/#/pages/reimbursement_201/preview?source=system', systemPages: [reimbursement], seedDefaultPage: false });
+  await resetEditor(page, { initialRoute: '/#/pages/reimbursement/preview?source=system', systemPages: [reimbursement], seedDefaultPage: false });
   const note = page.locator('textarea');
   await expect(note).toHaveValue('restored');
   await expect(note).toBeEnabled();
@@ -189,8 +189,8 @@ test('loads and saves the reimbursement page using event actions, including exac
   await expect(page.getByTestId('reimbursement-submit')).toHaveCount(0);
   expect(loads).toBe(beforeEdit);
   expect(writes.map(write => [write.api.split('/').pop(), write.body.version, write.body.note])).toEqual([
-    ['reimbursement_201_save_draft', 0, 'first'], ['reimbursement_201_save_draft', 0, 'first'],
-    ['reimbursement_201_save_draft', 1, 'latest'], ['reimbursement_201_submit', 2, 'latest']
+    ['reimbursement_save_draft', 0, 'first'], ['reimbursement_save_draft', 0, 'first'],
+    ['reimbursement_save_draft', 1, 'latest'], ['reimbursement_submit', 2, 'latest']
   ]);
 });
 
@@ -242,7 +242,7 @@ test('keeps a failed initialization locked, allows retry, and stops invalid subm
     if (request.method() === 'POST') Object.assign(record, request.postDataJSON(), { version: record.version + 1 });
     return route.fulfill({ headers, body: JSON.stringify({ ok: true, data: { record, options: { category: [{ value: 'travel', label: '差旅费' }] } } }) });
   });
-  await resetEditor(page, { initialRoute: '/#/reimbursement_201', systemPages: [reimbursement], seedDefaultPage: false });
+  await resetEditor(page, { initialRoute: '/#/reimbursement', systemPages: [reimbursement], seedDefaultPage: false });
   const submit = page.getByTestId('reimbursement-submit');
   const note = page.locator('textarea');
   await expect(page.getByText('初始化暂时失败', { exact: true })).toBeVisible();
