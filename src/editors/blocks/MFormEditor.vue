@@ -355,6 +355,7 @@ function createFormItemTool(
       this.eventsDialog = new BlockEventsDialogController({
         owner: this.wrapper,
         toolName,
+        eventBlockType: 'MFormItem',
         getEvents: () => cloneBlockEvents(this.events),
         setEvents: (events) => {
           this.events = cloneBlockEvents(events);

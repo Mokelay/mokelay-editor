@@ -151,7 +151,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "description": "仅在 requireObject=false 时生效。false 拒绝数组但允许 JSON 标量；true 允许数组和标量。"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "JSON 内容变化",
+ *       "description": "用户编辑 JSON，或调用设置内容、格式化方法时触发；event.value 为当前 JSON 文本，可能尚未通过校验。",
+ *       "payload": "payload: MJsonEditorProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MJsonEditor.vue"
+ *     }
+ *   ],
  *   "methods": [
  *     {
  *       "name": "getData",

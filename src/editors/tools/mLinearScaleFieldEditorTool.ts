@@ -81,7 +81,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "type": "text"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "量表选择变化",
+ *       "description": "用户点击量表选项时触发；通过 event.value 读取选中数值的字符串。",
+ *       "payload": "payload: MLinearScaleFieldProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MLinearScaleField.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [
  *     {

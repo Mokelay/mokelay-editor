@@ -14,6 +14,7 @@
 .mokelay-editor-tool__event-actions-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--mk-form-field-gap); }
 .mokelay-editor-tool__event-action-label { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
 .mokelay-editor-tool__event-actions { min-width: 0; }
+.mokelay-editor-tool__event-description { margin: -8px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .mokelay-editor-tool__event-actions .m-action-editor__open { width: 100%; }
 .mokelay-editor-tool__event-policy { border-top: 1px solid var(--mk-form-border); padding-top: 16px; }
 .mokelay-editor-tool__event-policy summary { cursor: pointer; color: var(--mk-form-label); font-size: 13px; font-weight: 600; line-height: 24px; }

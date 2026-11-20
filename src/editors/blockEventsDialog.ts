@@ -7,17 +7,16 @@ import {
   type BlockEvent
 } from 'mokelay-components/blocks';
 import type { PageEditorBridge } from '@/editors/pageEditor';
+import { getClientBlockEvents, type ClientBlockEventDefinition } from '@/utils/clientBlockDocs';
 
 type BlockEventsDialogOptions = {
   owner: HTMLElement;
   toolName: string;
+  eventBlockType?: string;
   getEvents: () => BlockEvent[];
   setEvents: (events: BlockEvent[]) => void;
   pageEditor?: PageEditorBridge;
 };
-
-const eventFieldNames = ['event'] as const;
-type EventFieldName = typeof eventFieldNames[number];
 
 export const blockEventsIcon = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 5h4v4H5V5Zm10 0h4v4h-4V5ZM5 15h4v4H5v-4Zm10.5-.5 3.5 3.5m0-3.5-3.5 3.5M9 7h6M7 9v6M17 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -29,15 +28,14 @@ function escapeHtml(value: string) {
     .replace(/>/g, '&gt;');
 }
 
-function fieldValue(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
-
-function isEventFieldName(value: unknown): value is EventFieldName {
-  return typeof value === 'string' && (eventFieldNames as readonly string[]).includes(value);
-}
-
 const eventLabel = (zh: string, en: string) => i18n.locale === 'en' ? en : zh;
+
+function eventDescription(event: string, definitions: readonly ClientBlockEventDefinition[]) {
+  if (!event) return eventLabel('选择事件后查看触发时机和说明。', 'Select an event to see when it fires.');
+  const definition = definitions.find(item => item.event === event);
+  if (!definition) return eventLabel('此事件尚未登记，原有配置会保留。可继续编辑动作，或改选已登记事件。', 'This event is not registered. Its configuration is preserved; edit its actions or choose a registered event.');
+  return definition.description || eventLabel('暂无事件介绍。', 'No description available.');
+}
 function renderExecution(event: BlockEvent, index: number) {
   const policy = event.execution ?? {};
   const select = (field: string, current: string, options: [string, string][]) => `<select class="mk-form-control" data-policy-index="${index}" data-policy-field="${field}">${options.map(([value, label]) => `<option value="${value}" ${value === current ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
@@ -58,7 +56,8 @@ function actionCountLabel(count: number) {
   return eventLabel(`${count} 个动作`, `${count} ${count === 1 ? 'action' : 'actions'}`);
 }
 
-function renderEventRow(event: BlockEvent, index: number) {
+function renderEventRow(event: BlockEvent, index: number, definitions: readonly ClientBlockEventDefinition[]) {
+  const unknownEvent = event.event && !definitions.some(item => item.event === event.event);
   return `
     <section class="mokelay-editor-tool__event-row" data-testid="tool-event-row-${index}">
       <div class="mokelay-editor-tool__event-header">
@@ -67,8 +66,13 @@ function renderEventRow(event: BlockEvent, index: number) {
       </div>
       <label class="mk-form-field">
         <span>${escapeHtml(i18n.t('editor.events.fields.event'))}</span>
-        <input class="mk-form-control" data-testid="tool-event-input-${index}-event" data-event-index="${index}" data-event-field="event" type="text" value="${escapeHtml(fieldValue(event.event))}">
+        <select class="mk-form-control" data-testid="tool-event-input-${index}-event" data-event-index="${index}" data-event-field="event" ${definitions.length ? '' : 'disabled'}>
+          <option value="" disabled ${event.event ? '' : 'selected'}>${eventLabel('请选择事件', 'Select an event')}</option>
+          ${unknownEvent ? `<option value="${escapeHtml(event.event)}" selected disabled>${eventLabel('未登记事件', 'Unregistered event')} (${escapeHtml(event.event)})</option>` : ''}
+          ${definitions.map(item => `<option value="${escapeHtml(item.event)}" ${item.event === event.event ? 'selected' : ''}>${escapeHtml(item.label)} (${escapeHtml(item.event)})</option>`).join('')}
+        </select>
       </label>
+      <p class="mk-form-help mokelay-editor-tool__event-description" data-testid="tool-event-description-${index}" aria-live="polite">${escapeHtml(eventDescription(event.event, definitions))}</p>
       <div class="mokelay-editor-tool__event-actions-grid">
         ${(['actions', 'onError', 'onFinally'] as const).map(chain => `
         <div class="mk-form-field mokelay-editor-tool__event-action-field">
@@ -91,6 +95,7 @@ export class BlockEventsDialogController {
   private actionEditorApps: App<Element>[] = [];
   private expandedPolicies = new Set<BlockEvent>();
   private renderVersion = 0;
+  private eventDefinitions: readonly ClientBlockEventDefinition[] = [];
 
   constructor(options: BlockEventsDialogOptions) {
     this.options = options;
@@ -116,6 +121,7 @@ export class BlockEventsDialogController {
     if (!this.dialog) return;
 
     this.expandedPolicies.clear();
+    this.eventDefinitions = getClientBlockEvents(this.options.eventBlockType ?? this.options.toolName);
     this.draftEvents = cloneBlockEvents(this.options.getEvents());
     this.render();
 
@@ -134,7 +140,7 @@ export class BlockEventsDialogController {
     this.renderVersion += 1;
 
     const eventsHtml = this.draftEvents.length
-      ? this.draftEvents.map((event, index) => renderEventRow(event, index)).join('')
+      ? this.draftEvents.map((event, index) => renderEventRow(event, index, this.eventDefinitions)).join('')
       : `<p class="mokelay-editor-tool__events-empty" data-testid="tool-events-empty">${escapeHtml(i18n.t('editor.events.empty'))}</p>`;
 
     this.dialog.innerHTML = `
@@ -145,9 +151,10 @@ export class BlockEventsDialogController {
         </div>
         <div class="mk-form-dialog-body mk-form-stack mk-form-scope mokelay-editor-tool__events-body" data-testid="tool-events-body">
           ${eventsHtml}
+          ${this.eventDefinitions.length ? '' : `<p class="mk-form-help" data-testid="tool-events-unavailable">${eventLabel('当前组件没有已登记的事件。', 'This component has no registered events.')}</p>`}
         </div>
         <div class="mk-form-dialog-footer mokelay-editor-tool__events-footer">
-          <button type="button" class="mk-form-button mk-form-button--primary" data-testid="tool-events-add">${escapeHtml(i18n.t('editor.events.add'))}</button>
+          <button type="button" class="mk-form-button mk-form-button--primary" data-testid="tool-events-add" ${this.eventDefinitions.length ? '' : 'disabled'}>${escapeHtml(i18n.t('editor.events.add'))}</button>
         </div>
       </form>
     `;
@@ -166,13 +173,18 @@ export class BlockEventsDialogController {
   private bindEvents() {
     if (!this.dialog) return;
 
-    this.dialog.querySelectorAll<HTMLInputElement>('[data-event-field]').forEach((input) => {
-      input.addEventListener('input', () => {
+    this.dialog.querySelectorAll<HTMLSelectElement>('[data-event-field]').forEach((input) => {
+      input.addEventListener('change', () => {
         const index = Number(input.dataset.eventIndex);
-        const field = input.dataset.eventField;
-        if (!Number.isInteger(index) || !isEventFieldName(field)) return;
+        const event = this.draftEvents[index];
+        if (!event || !this.eventDefinitions.some(item => item.event === input.value)) return;
 
-        this.draftEvents[index][field] = input.value;
+        event.event = input.value;
+        input.querySelectorAll('option:disabled').forEach(option => {
+          if ((option as HTMLOptionElement).value) option.remove();
+        });
+        const description = this.dialog?.querySelector(`[data-testid="tool-event-description-${index}"]`);
+        if (description) description.textContent = eventDescription(event.event, this.eventDefinitions);
         this.saveDraftEvents();
       });
     });
@@ -209,9 +221,10 @@ export class BlockEventsDialogController {
     });
 
     this.dialog.querySelector<HTMLButtonElement>('[data-testid="tool-events-add"]')?.addEventListener('click', () => {
+      if (!this.eventDefinitions.length) return;
       this.draftEvents.push(createEmptyBlockEvent());
       this.render();
-      this.dialog?.querySelector<HTMLInputElement>(`[data-testid="tool-event-input-${this.draftEvents.length - 1}-event"]`)?.focus();
+      this.dialog?.querySelector<HTMLSelectElement>(`[data-testid="tool-event-input-${this.draftEvents.length - 1}-event"]`)?.focus();
     });
   }
 

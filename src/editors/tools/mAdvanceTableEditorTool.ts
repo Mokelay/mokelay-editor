@@ -108,14 +108,16 @@ import {
  *       "payload": "payload: {\n    selectedRows: Record<string, unknown>[];\n    selection: ReturnType<typeof getSelectionState>;\n  }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "label": "已选中行"
+ *       "label": "已选中行",
+ *       "description": "表格选择变化且仍有选中行时触发；通过 event.selectedRows 和 event.selection 读取当前行与选择状态。"
  *     },
  *     {
  *       "event": "emptySelectedRow",
  *       "payload": "payload: {\n    selectedRows: Record<string, unknown>[];\n    selection: ReturnType<typeof getSelectionState>;\n  }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MAdvanceTable.vue",
- *       "label": "清空选中行"
+ *       "label": "清空选中行",
+ *       "description": "表格选择变化并清空选中行时触发；通过 event.selectedRows 和 event.selection 读取空选择状态。"
  *     }
  *   ],
  *   "methods": [

@@ -159,7 +159,16 @@ function normalizeApiDatasource(value: unknown): MDatasourceApiObject {
  *       "label": "显示分页"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "数据源配置变化",
+ *       "description": "编辑态下数据源配置修改并提交变更时触发；通过 event.value 读取当前数据源配置。",
+ *       "payload": "payload: MDatasourceEditorProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MDatasourceEditor.vue"
+ *     }
+ *   ],
  *   "methods": [
  *     {
  *       "name": "getData",

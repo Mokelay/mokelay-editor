@@ -168,28 +168,32 @@ import { getContentEditingLocale, getContentLocaleConfig } from '@/composables/u
  *       "payload": "payload: { values: Record<string, unknown> }",
  *       "trigger": "All initial field controls rendered and registered (runtime only)",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "label": "初始化完成"
+ *       "label": "初始化完成",
+ *       "description": "初始可见字段渲染并注册完成后触发一次，仅在运行时执行；通过 event.values 读取初始表单值。"
  *     },
  *     {
  *       "event": "change",
  *       "payload": "payload: { values: Record<string, unknown>; changedFields: string[]; source: 'user' | 'programmatic'; valid: boolean; errors: unknown[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "label": "字段值变化"
+ *       "label": "字段值变化",
+ *       "description": "用户修改字段值时触发；通过 event.values、event.changedFields、event.source、event.valid 和 event.errors 读取值、变更来源及校验结果。setValues/reset 默认静默，显式 emitChange: true 时才触发程序变更。"
  *     },
  *     {
  *       "event": "reset",
  *       "payload": "payload: { values: Record<string, unknown> }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "label": "重置"
+ *       "label": "重置",
+ *       "description": "调用 reset 方法重置表单后触发；通过 event.values 读取重置后的值。默认不会同时触发 change。"
  *     },
  *     {
  *       "event": "submit",
  *       "payload": "payload: { values: Record<string, unknown>; valid: boolean; errors: unknown[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MForm.vue",
- *       "label": "提交"
+ *       "label": "提交",
+ *       "description": "调用 submit 方法完成校验后触发，无论校验是否通过；通过 event.values、event.valid 和 event.errors 读取结果。提交方法本身不请求接口。"
  *     }
  *   ],
  *   "methods": [

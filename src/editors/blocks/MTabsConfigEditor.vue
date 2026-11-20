@@ -243,14 +243,16 @@ export function normalizeMTabsConfigEditorProps(
  *       "payload": "{ value: MTabsConfigEditorData, patch?: { tabs: MTabsTab[], activeTabId: string }, oldValue?: MTabsConfigEditorData }",
  *       "trigger": "保存页签配置或方法更新时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MTabsConfigEditor.vue",
- *       "label": "变更"
+ *       "label": "变更",
+ *       "description": "保存页签配置或使用方法更新配置时触发；通过 event.value、event.patch 和 event.oldValue 读取配置与变更。"
  *     },
  *     {
  *       "event": "clear",
  *       "payload": "{ oldValue: MTabsConfigEditorData }",
  *       "trigger": "清空页签配置时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MTabsConfigEditor.vue",
- *       "label": "清空"
+ *       "label": "清空",
+ *       "description": "清空页签配置时触发；通过 event.oldValue 读取清空前的配置。"
  *     }
  *   ],
  *   "methods": [

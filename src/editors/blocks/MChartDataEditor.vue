@@ -262,14 +262,16 @@ export function normalizeMChartDataEditorProps(props: Partial<MChartDataEditorPr
  *       "payload": "value: MChartDataEditorData",
  *       "trigger": "图表数据保存时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
- *       "label": "更新绑定值"
+ *       "label": "更新绑定值",
+ *       "description": "图表数据配置保存时触发；event 为最新图表数据配置。"
  *     },
  *     {
  *       "event": "change",
  *       "payload": "{ value?: MChartDataEditorData; patch?: Pick<MChartDataEditorData, 'xAxis' | 'series'> }",
  *       "trigger": "图表数据保存时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MChartDataEditor.vue",
- *       "label": "变更"
+ *       "label": "变更",
+ *       "description": "图表数据配置保存时触发；通过 event.value 或 event.patch 读取数据及坐标轴、系列变更。"
  *     }
  *   ],
  *   "methods": [

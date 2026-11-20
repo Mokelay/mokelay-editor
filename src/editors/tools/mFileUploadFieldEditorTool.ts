@@ -82,7 +82,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "字段 ID"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "文件选择变化",
+ *       "description": "用户选择本地文件时触发；event.value 为文件元数据数组，包含 name、size、type，不代表文件已上传。",
+ *       "payload": "payload: MFileUploadFieldProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MFileUploadField.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [],
  *   "saveRules": [

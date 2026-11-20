@@ -82,7 +82,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "字段 ID"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "选择变化",
+ *       "description": "用户选择图片选项时触发；通过 event.value 读取选中值，多选模式下为数组。",
+ *       "payload": "payload: MImageChoiceFieldProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MImageChoiceField.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [],
  *   "saveRules": [

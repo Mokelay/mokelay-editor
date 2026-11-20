@@ -56,7 +56,16 @@ import {
  *       "label": "激活页签 ID"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "页签变化",
+ *       "description": "切换到不同的有效页签并通知变更时触发；通过 event.activeTabId 和 event.tabs 读取活动页签及列表。",
+ *       "payload": "payload: MTabsProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MTabs.vue"
+ *     }
+ *   ],
  *   "methods": [
  *     {
  *       "name": "getData",

@@ -120,7 +120,8 @@ import {
  *       "payload": "payload: MouseEvent",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MFormItem.vue",
- *       "label": "点击表单项"
+ *       "label": "点击表单项",
+ *       "description": "运行时点击表单项区域时触发；event 为原生鼠标事件。字段自身的值变化请在内部字段组件上配置。"
  *     }
  *   ],
  *   "methods": [],

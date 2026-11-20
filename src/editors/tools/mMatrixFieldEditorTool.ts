@@ -95,7 +95,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "字段 ID"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "矩阵选择变化",
+ *       "description": "用户选择矩阵某一行的选项时触发；event.value 为以行标识为键、选中值为值的对象。",
+ *       "payload": "payload: MMatrixFieldProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MMatrixField.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [
  *     {

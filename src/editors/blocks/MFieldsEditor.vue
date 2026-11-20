@@ -96,7 +96,16 @@ export function normalizeFieldsEditorValue(value: unknown): MFieldsEditorField[]
  *       "label": "字段配置"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "字段配置变化",
+ *       "description": "保存字段配置时触发；通过 event.value 读取最新字段列表。",
+ *       "payload": "payload: MFieldsEditorProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MFieldsEditor.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [
  *     {

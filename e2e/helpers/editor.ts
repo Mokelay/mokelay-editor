@@ -1084,7 +1084,8 @@ export async function addEditorTool(page: Page, toolTitle: string | RegExp) {
 
 export async function expectToolToolbarBeside(page: Page, toolTestId: string) {
   const tool = page.getByTestId(toolTestId);
-  await tool.hover();
+  // Hover the form edge so its nested editor does not capture the toolbar.
+  await tool.hover(toolTestId === 'editor-form-tool' ? { position: { x: 8, y: 8 } } : {});
 
   // 嵌套 MForm/MLayoutGrid 会同时存在多个 EditorJS toolbar，应校验目标 block
   // 所属的最近一层 editor，不使用页面级全局 locator。
@@ -1143,7 +1144,7 @@ export async function fillEventRow(
   values: { event?: string }
 ) {
   if (values.event !== undefined) {
-    await eventsDialog.getByTestId(`tool-event-input-${index}-event`).fill(values.event);
+    await eventsDialog.getByTestId(`tool-event-input-${index}-event`).selectOption(values.event);
   }
 }
 

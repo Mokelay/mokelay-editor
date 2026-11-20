@@ -74,14 +74,16 @@ function normalizeMActionEditorProps(props: Partial<MActionEditorProps>): MActio
  *       "payload": "value: ActionConfig[]",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
- *       "label": "更新绑定值"
+ *       "label": "更新绑定值",
+ *       "description": "动作链配置变化时触发；event 为最新 ActionConfig 数组。"
  *     },
  *     {
  *       "event": "change",
  *       "payload": "value: ActionConfig[]",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionEditor.vue",
- *       "label": "变更"
+ *       "label": "变更",
+ *       "description": "动作链配置变化时触发；event 为最新 ActionConfig 数组。"
  *     }
  *   ],
  *   "methods": [],

@@ -169,7 +169,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "type": "checkbox"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "关闭标签",
+ *       "description": "点击标签关闭按钮时通过 change 回调触发；event 包含 tagName、closable 等标签配置。",
+ *       "payload": "payload: MTagProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MTag.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [],
  *   "saveRules": [

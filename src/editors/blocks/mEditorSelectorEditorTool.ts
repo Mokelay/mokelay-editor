@@ -61,7 +61,16 @@ export interface MEditorSelectorProps {
  *       "label": "排除工具名称"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "组件配置变化",
+ *       "description": "选中组件或内部组件配置变更时触发；通过 event.value 读取选中的 Block 配置。",
+ *       "payload": "payload: MEditorSelectorProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-editor/src/editors/blocks/MEditorSelector.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [],
  *   "saveRules": [

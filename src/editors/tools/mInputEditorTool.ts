@@ -109,7 +109,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "禁用"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "输入变化",
+ *       "description": "用户输入文本时触发；通过 event.value 读取当前文本，event 同时包含输入框配置。属性回填不会触发。",
+ *       "payload": "payload: MInputProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MInput.vue"
+ *     }
+ *   ],
  *   "methods": [
  *     {
  *       "name": "focus",

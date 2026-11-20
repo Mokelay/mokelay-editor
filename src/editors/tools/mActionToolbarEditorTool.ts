@@ -105,28 +105,32 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: ButtonEventPayload & { nativeEvent?: MouseEvent }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "label": "点击按钮"
+ *       "label": "点击按钮",
+ *       "description": "运行时点击工具栏按钮时触发；通过 event.buttonId、event.button 和 event.nativeEvent 读取按钮信息及鼠标事件。"
  *     },
  *     {
  *       "event": "before-execute",
  *       "payload": "payload: ButtonEventPayload",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "label": "执行前"
+ *       "label": "执行前",
+ *       "description": "工具栏按钮的点击动作链执行前触发；通过 event.buttonId 和 event.button 读取当前按钮。"
  *     },
  *     {
  *       "event": "execute-success",
  *       "payload": "payload: ButtonEventPayload & { result?: unknown }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "label": "执行成功"
+ *       "label": "执行成功",
+ *       "description": "工具栏按钮的点击动作链执行成功后触发；通过 event.buttonId 和 event.button 读取当前按钮。"
  *     },
  *     {
  *       "event": "execute-error",
  *       "payload": "payload: ButtonEventPayload & { error: unknown }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionToolbar.vue",
- *       "label": "执行失败"
+ *       "label": "执行失败",
+ *       "description": "工具栏按钮的点击动作链执行失败时触发；通过 event.error 读取错误，event.buttonId 和 event.button 标识当前按钮。"
  *     }
  *   ],
  *   "methods": [

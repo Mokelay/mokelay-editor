@@ -72,7 +72,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "字段 ID"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "选择变化",
+ *       "description": "用户选择单选项时触发；通过 event.value 读取选中值。",
+ *       "payload": "payload: MRadioGroupFieldProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MRadioGroupField.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [
  *     {

@@ -96,7 +96,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "禁用"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "文本变化",
+ *       "description": "用户输入多行文本时触发；通过 event.value 读取当前文本。属性回填不会触发。",
+ *       "payload": "payload: MTextareaFieldProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MTextareaField.vue"
+ *     }
+ *   ],
  *   "methods": [
  *     {
  *       "name": "focus",

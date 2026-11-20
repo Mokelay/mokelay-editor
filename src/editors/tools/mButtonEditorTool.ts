@@ -177,7 +177,8 @@ import {
  *       "payload": "payload: MouseEvent",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MButton.vue",
- *       "label": "点击按钮"
+ *       "label": "点击按钮",
+ *       "description": "运行时点击可用按钮时触发；event 为原生鼠标事件。按钮禁用或处于编辑态时不触发。"
  *     }
  *   ],
  *   "methods": [],

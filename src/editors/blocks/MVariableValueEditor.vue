@@ -157,14 +157,16 @@ function normalizeMVariableValueEditorProps(props: Partial<MVariableValueEditorP
  *       "payload": "value: unknown",
  *       "trigger": "值配置变化时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
- *       "label": "更新绑定值"
+ *       "label": "更新绑定值",
+ *       "description": "值绑定配置变化时触发；event 为最新的常量、变量或流程配置。"
  *     },
  *     {
  *       "event": "change",
  *       "payload": "{ value: unknown }",
  *       "trigger": "值配置变化时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MVariableValueEditor.vue",
- *       "label": "变更"
+ *       "label": "变更",
+ *       "description": "值绑定配置变化时触发；通过 event.value 读取最新配置。"
  *     }
  *   ],
  *   "methods": [

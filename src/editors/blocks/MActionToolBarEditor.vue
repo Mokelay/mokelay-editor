@@ -123,14 +123,16 @@ export function normalizeMActionToolBarEditorProps(
  *       "payload": "{ value?: MActionToolBarEditorData; patch?: MActionToolBarEditorData }",
  *       "trigger": "属性编辑器保存时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
- *       "label": "工具变更"
+ *       "label": "工具变更",
+ *       "description": "工具栏配置保存时通知宿主同步配置；通过 event.value 或 event.patch 读取配置。"
  *     },
  *     {
  *       "event": "change",
  *       "payload": "{ value?: MActionToolBarEditorData; patch?: MActionToolBarEditorData }",
  *       "trigger": "属性编辑器保存时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MActionToolBarEditor.vue",
- *       "label": "变更"
+ *       "label": "变更",
+ *       "description": "工具栏配置保存时触发；通过 event.value 或 event.patch 读取配置。"
  *     }
  *   ],
  *   "methods": [],

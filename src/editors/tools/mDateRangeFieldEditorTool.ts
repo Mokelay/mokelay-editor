@@ -50,7 +50,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "字段 ID"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "日期范围变化",
+ *       "description": "用户选择或清空日期范围时触发；通过 event.value.start 和 event.value.end 读取起止日期。",
+ *       "payload": "payload: MDateRangeFieldProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MDateRangeField.vue"
+ *     }
+ *   ],
  *   "methods": [
  *     {
  *       "name": "getData",

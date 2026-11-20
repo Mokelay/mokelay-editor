@@ -70,7 +70,24 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "type": "checkbox"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "click",
+ *       "label": "点击链接",
+ *       "description": "点击链接时通过根节点透传触发；event 为原生鼠标事件，链接默认导航行为仍按组件配置执行。",
+ *       "payload": "MouseEvent",
+ *       "trigger": "DOM click event forwarding",
+ *       "source": "submodule/mokelay-components/src/blocks/MLink.vue"
+ *     },
+ *     {
+ *       "event": "change",
+ *       "label": "链接交互",
+ *       "description": "点击链接并更新链接交互状态时触发；通过 event.text、event.url、event.open 读取当前链接配置。",
+ *       "payload": "payload: MLinkProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MLink.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [],
  *   "saveRules": [

@@ -58,7 +58,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "label": "字段 ID"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "邮箱变化",
+ *       "description": "用户输入邮箱时触发；通过 event.value 读取输入文本，不表示邮箱已经通过校验。",
+ *       "payload": "payload: MEmailFieldProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MEmailField.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [
  *     {

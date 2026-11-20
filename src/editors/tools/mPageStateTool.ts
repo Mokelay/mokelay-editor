@@ -87,14 +87,16 @@ import { getPageStateDataFields } from 'mokelay-components/blocks/MPageState.vue
  *       "payload": "{ value: Record<string, unknown>, path?: string, oldValue?: unknown }",
  *       "trigger": "setValue、merge、append 成功修改状态，或 clear 恢复 initialState",
  *       "source": "submodule/mokelay-components/src/blocks/MPageState.vue",
- *       "label": "状态变化"
+ *       "label": "状态变化",
+ *       "description": "setValue、merge、append 修改状态或 clear 恢复初始状态后触发；通过 event.value 读取当前状态，event.oldValue 和 event.path 按操作提供。"
  *     },
  *     {
  *       "event": "clear",
  *       "payload": "{ value: Record<string, unknown>, oldValue: Record<string, unknown> }",
  *       "trigger": "clear 恢复 initialState 后",
  *       "source": "submodule/mokelay-components/src/blocks/MPageState.vue",
- *       "label": "状态重置"
+ *       "label": "状态重置",
+ *       "description": "调用 clear 恢复初始状态后触发，在 change 之后触发；通过 event.value 和 event.oldValue 读取新旧状态。"
  *     }
  *   ],
  *   "methods": [

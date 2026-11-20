@@ -164,14 +164,24 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: MActionCardListEventPayload",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "label": "选择卡片"
+ *       "label": "选择卡片",
+ *       "description": "点击卡片并完成选中处理后触发；通过 event.item、event.itemKey、event.index 读取卡片数据、键和值在列表中的位置。"
  *     },
  *     {
  *       "event": "click",
  *       "payload": "payload: MActionCardListEventPayload",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue",
- *       "label": "点击卡片"
+ *       "label": "点击卡片",
+ *       "description": "运行时点击卡片时触发，与 select 分别执行各自的动作；通过 event.item、event.itemKey、event.index 读取卡片信息。"
+ *     },
+ *     {
+ *       "event": "change",
+ *       "label": "选中状态变化",
+ *       "description": "卡片选中状态更新并通知变更时触发；通过 event.activeKey 读取当前选中键，event 同时包含组件配置。",
+ *       "payload": "payload: MActionCardListProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MActionCardList.vue"
  *     }
  *   ],
  *   "methods": [

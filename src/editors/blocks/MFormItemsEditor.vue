@@ -69,14 +69,16 @@ export function normalizeMFormItemsEditorProps(
  *       "payload": "{ value: MFormItemData[] }",
  *       "trigger": "属性编辑器保存时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MFormItemsEditor.vue",
- *       "label": "工具变更"
+ *       "label": "工具变更",
+ *       "description": "表单项配置保存时通知宿主同步配置；通过 event.value 读取表单项列表。"
  *     },
  *     {
  *       "event": "change",
  *       "payload": "{ value: MFormItemData[] }",
  *       "trigger": "属性编辑器保存时",
  *       "source": "submodule/mokelay-editor/src/editors/blocks/MFormItemsEditor.vue",
- *       "label": "变更"
+ *       "label": "变更",
+ *       "description": "表单项配置保存时触发；通过 event.value 读取表单项列表。"
  *     }
  *   ],
  *   "methods": [],

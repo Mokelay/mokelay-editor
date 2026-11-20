@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { getSavedBlocks, openToolPropertyPanel, openToolEventsPanel, resetEditor, seedSavedConfig, switchLocaleToChinese } from './helpers/editor';
 // Exercise form behavior independently of the application's shell/layout selection.
 const reimbursement = { ...JSON.parse(readFileSync(resolve(process.cwd(), '../mokelay-server/server/assets/lark/pages/reimbursement.json'), 'utf8')), layoutUuid: null };
+const reimbursementTitle = reimbursement.blocks.find((block: { type: string }) => block.type === 'MHeading').data.text;
 test.use({ locale: 'zh-CN' });
 
 for (const showHelp of ['no', 'yes']) {
@@ -26,7 +27,7 @@ for (const showHelp of ['no', 'yes']) {
     const control = page.getByTestId('editor-form-tool').locator('select').first();
     await expect(control).toBeEnabled();
     await expect(control).toHaveValue(showHelp);
-    await expect(page.getByTestId('page-dsl-block-MHeading')).toHaveText('201.报销申请');
+    await expect(page.getByTestId('page-dsl-block-MHeading')).toHaveText(typeof reimbursementTitle === 'string' ? reimbursementTitle : reimbursementTitle.$i18n['zh-CN']);
     await expect(page.getByTestId('page-dsl-block-MRichText')).toHaveText('将自动保存填写内容');
     await expect(page.getByTestId('editor-form-tool').locator('header, h1')).toHaveCount(0);
     if (showHelp === 'yes') {

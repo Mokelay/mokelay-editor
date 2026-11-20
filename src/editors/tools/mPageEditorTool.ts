@@ -57,14 +57,16 @@ export type MPageToolProps = {
  *       "payload": "blocks: OutputData['blocks']",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MPage.vue",
- *       "label": "变更"
+ *       "label": "变更",
+ *       "description": "页面编辑器内容变化时触发，event 为页面 Block 列表；页面预览运行时不主动触发此事件。"
  *     },
  *     {
  *       "event": "close",
  *       "payload": "result?: unknown",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MPage.vue",
- *       "label": "关闭"
+ *       "label": "关闭",
+ *       "description": "调用页面 close 方法时触发；event 为传入的关闭结果，可供弹窗或上层页面接收。"
  *     }
  *   ],
  *   "methods": [

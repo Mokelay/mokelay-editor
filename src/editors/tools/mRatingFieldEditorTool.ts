@@ -70,7 +70,16 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "type": "text"
  *     }
  *   ],
- *   "events": [],
+ *   "events": [
+ *     {
+ *       "event": "change",
+ *       "label": "评分变化",
+ *       "description": "用户点击评分项时触发；通过 event.value 读取评分数值的字符串。",
+ *       "payload": "payload: MRatingFieldProps",
+ *       "trigger": "Public onChange callback",
+ *       "source": "submodule/mokelay-components/src/blocks/MRatingField.vue"
+ *     }
+ *   ],
  *   "methods": [],
  *   "dataFields": [
  *     {

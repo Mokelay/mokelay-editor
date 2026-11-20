@@ -81,7 +81,7 @@ test('adds events to a block with properties and saves them at block level', asy
     method: 'refresh'
   });
   await eventsDialog.getByTestId('tool-events-add').click();
-  await fillEventRow(eventsDialog, 1, { event: 'save' });
+  await fillEventRow(eventsDialog, 1, { event: 'click' });
   await addCallBlockMethodAction(page, eventsDialog, 1, {
     uuid: 'close_second',
     blockId: 'yyyyy',
@@ -95,7 +95,7 @@ test('adds events to a block with properties and saves them at block level', asy
 
   expect(linkBlock?.events).toEqual([
     { event: 'click', actions: [callBlockMethodAction('refresh_first', 'xxxxx', 'refresh')] },
-    { event: 'save', actions: [callBlockMethodAction('close_second', 'yyyyy', 'close')] }
+    { event: 'click', actions: [callBlockMethodAction('close_second', 'yyyyy', 'close')] }
   ]);
   expect(linkBlock?.events?.[0]).not.toHaveProperty('block');
   expect(linkBlock?.events?.[0]).not.toHaveProperty('method');
@@ -116,6 +116,8 @@ test('shows events for a block without properties and saves an empty event list'
 
   const eventsDialog = page.locator('[data-testid="tool-events-dialog"][open]');
   await expect(eventsDialog.getByTestId('tool-events-empty')).toBeVisible();
+  await expect(eventsDialog.getByTestId('tool-events-unavailable')).toBeVisible();
+  await expect(eventsDialog.getByTestId('tool-events-add')).toBeDisabled();
   await eventsDialog.getByTestId('tool-events-close').click();
 
   await page.getByTestId('save-button').click();
@@ -236,7 +238,8 @@ test('saves MForm internal item events on the item data', async ({ page }) => {
 
   const eventsDialog = await openNestedFormItemEventsPanel(page);
   await eventsDialog.getByTestId('tool-events-add').click();
-  await fillEventRow(eventsDialog, 0, { event: 'save' });
+  await expect(eventsDialog.getByTestId('tool-event-input-0-event').locator('option:not([disabled])')).toHaveText(['点击表单项 (click)']);
+  await fillEventRow(eventsDialog, 0, { event: 'click' });
   await addCallBlockMethodAction(page, eventsDialog, 0, {
     uuid: 'form_item_close',
     blockId: 'formItem',
@@ -250,7 +253,7 @@ test('saves MForm internal item events on the item data', async ({ page }) => {
   const items = formBlock?.data?.items as Array<{ events?: unknown }> | undefined;
 
   expect(items?.[0]?.events).toEqual([
-    { event: 'save', actions: [callBlockMethodAction('form_item_close', 'formItem', 'close')] }
+    { event: 'click', actions: [callBlockMethodAction('form_item_close', 'formItem', 'close')] }
   ]);
 });
 
@@ -317,6 +320,19 @@ test('runs preview events by calling exposed target block methods', async ({ pag
     }
   ]));
 
+  const eventsDialog = await openToolEventsPanel(page, 'editor-tool-MButton');
+  await eventsDialog.getByTestId('tool-events-add').click();
+  await fillEventRow(eventsDialog, 1, { event: 'click' });
+  await addCallBlockMethodAction(page, eventsDialog, 1, {
+    uuid: 'focus_after_edit', blockId: 'target-input', method: 'focus'
+  });
+  await eventsDialog.getByTestId('tool-event-remove-0').click();
+  await eventsDialog.getByTestId('tool-events-close').click();
+  await page.getByTestId('save-button').click();
+  await page.reload();
+  const reopened = await openToolEventsPanel(page, 'editor-tool-MButton');
+  await expect(reopened.getByTestId('tool-event-input-0-event')).toHaveValue('click');
+  await reopened.getByTestId('tool-events-close').click();
   await openPreview(page);
   const targetInput = page.getByTestId('target-input');
   await expect(targetInput).toBeVisible({ timeout: 15000 });
@@ -985,3 +1001,79 @@ async function openNestedFormItemEventsPanel(page: Page) {
   await expect(eventsDialog).toBeVisible();
   return eventsDialog;
 }
+
+test('lists only form events and changes the selection without remounting actions or losing policies', async ({ page }) => {
+  const handler = {
+    event: 'init',
+    actions: [callBlockMethodAction('main', 'form', 'getData')],
+    onError: [callBlockMethodAction('error', 'form', 'getData')],
+    onFinally: [callBlockMethodAction('finally', 'form', 'getData')],
+    execution: { debounceMs: 200, concurrency: 'serialLatest' }
+  };
+  await seedSavedConfig(page, createSeededOutput([{ id: 'form', type: 'MForm', data: { items: [] }, events: [handler] }]));
+  await switchLocaleToChinese(page);
+  const dialog = await openToolEventsPanel(page, 'editor-form-tool');
+  const select = dialog.getByTestId('tool-event-input-0-event');
+  await expect(select.locator('option:not([disabled])')).toHaveText(['初始化完成 (init)', '字段值变化 (change)', '重置 (reset)', '提交 (submit)']);
+  await expect(dialog.getByTestId('tool-event-description-0')).toContainText('初始可见字段');
+  await expect(dialog.getByTestId('m-action-editor-open')).toHaveCount(3);
+  const actionButton = await dialog.getByTestId('m-action-editor-open').first().elementHandle();
+  await dialog.locator('summary').click();
+  await select.selectOption('change');
+  await expect(dialog.getByTestId('tool-event-description-0')).toContainText('event.changedFields');
+  expect(await actionButton!.evaluate(element => element.isConnected)).toBe(true);
+  await expect(dialog.locator('details')).toHaveAttribute('open', '');
+  await dialog.getByTestId('tool-events-add').click();
+  await expect(dialog.getByTestId('tool-event-input-1-event')).toHaveValue('');
+  await expect(dialog.getByTestId('tool-event-input-1-event')).toBeFocused();
+  await dialog.getByTestId('tool-events-close').click();
+  await page.getByTestId('save-button').click();
+  const [saved] = await getSavedBlocks(page);
+  expect(saved.events).toEqual([{ ...handler, event: 'change' }]);
+  expect(saved.events![0]).not.toHaveProperty('label');
+  expect(saved.events![0]).not.toHaveProperty('description');
+  await page.reload();
+  const reopened = await openToolEventsPanel(page, 'editor-form-tool');
+  await expect(reopened.getByTestId('tool-event-input-0-event')).toHaveValue('change');
+});
+
+test('preserves unknown events and allows replacing them without offering new custom names', async ({ page }) => {
+  const name = 'legacy_custom_event_with_a_very_long_name_for_narrow_layout';
+  const handler = { event: name, actions: [callBlockMethodAction('legacy', 'target', 'focus')] };
+  await seedSavedConfig(page, createSeededOutput([{ id: 'button', type: 'MButton', data: { label: 'Legacy' }, events: [handler] }]));
+  await switchLocaleToChinese(page);
+  let dialog = await openToolEventsPanel(page, 'editor-tool-MButton');
+  await page.setViewportSize({ width: 390, height: 844 });
+  const select = dialog.getByTestId('tool-event-input-0-event');
+  await expect(select).toHaveValue(name);
+  await expect(select.locator('option:checked')).toHaveText(`未登记事件 (${name})`);
+  await expect(dialog.getByTestId('tool-event-description-0')).toContainText('原有配置会保留');
+  expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await dialog.getByTestId('tool-events-close').click();
+  await page.getByTestId('save-button').click();
+  expect((await getSavedBlocks(page))[0].events).toEqual([handler]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.reload();
+  dialog = await openToolEventsPanel(page, 'editor-tool-MButton');
+  await editFirstActionInputs(page, dialog, 0, { blockId: 'another', method: 'focus' });
+  await dialog.getByTestId('tool-events-add').click();
+  await expect(dialog.getByTestId('tool-event-input-1-event').locator('option:not([disabled])')).toHaveText(['点击按钮 (click)']);
+  await dialog.getByTestId('tool-event-remove-1').click();
+  await dialog.getByTestId('tool-event-input-0-event').selectOption('click');
+  await expect(dialog.getByTestId('tool-event-input-0-event').locator('option')).toHaveCount(2);
+  await dialog.getByTestId('tool-events-close').click();
+  await page.getByTestId('save-button').click();
+  expect((await getSavedBlocks(page))[0].events).toEqual([{ event: 'click', actions: [callBlockMethodAction('legacy', 'another', 'focus')] }]);
+});
+
+test('keeps legacy chains editable on a component without registered events', async ({ page }) => {
+  const handler = { event: 'legacy', actions: [callBlockMethodAction('legacy', 'target', 'focus')] };
+  await seedSavedConfig(page, createSeededOutput([{ id: 'text', type: 'MRichText', data: { content: 'Legacy events' }, events: [handler] }]));
+  const dialog = await openToolEventsPanel(page, 'editor-tool-MRichText');
+  await expect(dialog.getByTestId('tool-event-input-0-event')).toHaveValue('legacy');
+  await expect(dialog.getByTestId('tool-events-add')).toBeDisabled();
+  await editFirstActionInputs(page, dialog, 0, { blockId: 'target', method: 'getData' });
+  await dialog.getByTestId('tool-events-close').click();
+  await page.getByTestId('save-button').click();
+  expect((await getSavedBlocks(page))[0].events).toEqual([{ event: 'legacy', actions: [callBlockMethodAction('legacy', 'target', 'getData')] }]);
+});

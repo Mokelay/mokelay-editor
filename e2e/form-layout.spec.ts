@@ -10,12 +10,12 @@ async function noHorizontalOverflow(locator: Locator) {
 for (const width of [1440, 768, 390]) {
   test(`event cards align and scroll within the dialog at ${width}px`, async ({ page }) => {
     await resetEditor(page);
-    await seedSavedConfig(page, { blocks: [{ id: 'text', type: 'MRichText', data: { content: '事件排版' }, events: [
+    await seedSavedConfig(page, { blocks: [{ id: 'text', type: 'MForm', data: { items: [] }, events: [
       { event: 'init', actions: initialActions }, { event: 'change', actions: initialActions, execution: { debounceMs: 400, concurrency: 'serialLatest' } }
     ] }] });
     await switchLocaleToChinese(page);
     if (width === 768) await page.getByRole('combobox', { name: '语言', exact: true }).selectOption('en');
-    const dialog = await openToolEventsPanel(page, 'editor-tool-MRichText');
+    const dialog = await openToolEventsPanel(page, 'editor-form-tool');
     await page.setViewportSize({ width, height: 844 });
     if (width === 768) await page.evaluate(() => document.documentElement.classList.add('dark'));
     await expect(dialog.getByTestId('m-action-editor-open')).toHaveCount(6);
@@ -35,7 +35,7 @@ for (const width of [1440, 768, 390]) {
     await dialog.getByTestId('tool-events-add').click();
     await expect(dialog.locator('details').first()).toHaveAttribute('open', '');
     await expect(dialog.getByTestId('tool-event-input-2-event')).toBeFocused();
-    await dialog.getByTestId('tool-event-input-2-event').fill('a_very_long_custom_event_name_for_layout_validation');
+    await dialog.getByTestId('tool-event-input-2-event').selectOption('submit');
     await noHorizontalOverflow(dialog.getByTestId('tool-events-body'));
     await expect(dialog.getByTestId('tool-events-add')).toBeInViewport();
     await expect(dialog.getByTestId('tool-events-close')).toBeInViewport();
@@ -57,8 +57,8 @@ for (const width of [1440, 768, 390]) {
 
 test('nested action forms keep all three chains editable and update counts without losing event focus', async ({ page }) => {
   await resetEditor(page);
-  await seedSavedConfig(page, { blocks: [{ id: 'text', type: 'MRichText', data: { content: 'Events' }, events: [{ event: 'init', actions: initialActions }] }] });
-  const events = await openToolEventsPanel(page, 'editor-tool-MRichText');
+  await seedSavedConfig(page, { blocks: [{ id: 'text', type: 'MForm', data: { items: [] }, events: [{ event: 'init', actions: initialActions }] }] });
+  const events = await openToolEventsPanel(page, 'editor-form-tool');
   for (const chain of ['actions', 'onError', 'onFinally']) {
     await events.getByTestId(`tool-event-${chain}-0`).getByTestId('m-action-editor-open').click();
     const actionDialog = page.getByTestId('m-action-editor-dialog');
@@ -75,12 +75,13 @@ test('nested action forms keep all three chains editable and update counts witho
     await page.setViewportSize({ width: 1440, height: 844 });
   }
   const input = events.getByTestId('tool-event-input-0-event');
-  await input.fill('custom_event');
+  await input.focus();
+  await input.selectOption('submit');
   await expect(input).toBeFocused();
   await events.getByTestId('tool-events-close').click();
   await page.getByTestId('save-button').click();
   const [block] = await getSavedBlocks(page);
-  expect(block?.events?.[0]).toMatchObject({ event: 'custom_event', actions: [{ uuid: 'confirm_actions' }], onError: [{ uuid: 'confirm_onError' }], onFinally: [{ uuid: 'confirm_onFinally' }] });
+  expect(block?.events?.[0]).toMatchObject({ event: 'submit', actions: [{ uuid: 'confirm_actions' }], onError: [{ uuid: 'confirm_onError' }], onFinally: [{ uuid: 'confirm_onFinally' }] });
 });
 
 // Mount existing form surfaces directly; their host route is outside this layout test.

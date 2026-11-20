@@ -189,42 +189,48 @@ import { defineEditorTool } from "@/editors/editorToolDefinition";
  *       "payload": "payload: MUploadImportProps & { files: MUploadImportUploadedFile[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "label": "变更"
+ *       "label": "变更",
+ *       "description": "文件列表或上传状态变化时触发；通过 event.files 读取文件列表及状态。"
  *     },
  *     {
  *       "event": "before-upload",
  *       "payload": "payload: { files: MUploadImportUploadedFile[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "label": "上传前"
+ *       "label": "上传前",
+ *       "description": "开始上传请求前触发；通过 event.files 读取本次文件列表。"
  *     },
  *     {
  *       "event": "upload-progress",
  *       "payload": "payload: { file: MUploadImportUploadedFile; percent: number }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "label": "上传进度"
+ *       "label": "上传进度",
+ *       "description": "上传组件更新上传进度时触发；通过 event.file 和 event.percent 读取文件及进度百分比。"
  *     },
  *     {
  *       "event": "upload-success",
  *       "payload": "payload: { result: MUploadImportResult; files: MUploadImportUploadedFile[] }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "label": "上传成功"
+ *       "label": "上传成功",
+ *       "description": "上传请求成功后触发；通过 event.result 和 event.files 读取返回结果与文件列表。"
  *     },
  *     {
  *       "event": "upload-error",
  *       "payload": "payload: { error: Error; file?: MUploadImportUploadedFile }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "label": "上传失败"
+ *       "label": "上传失败",
+ *       "description": "上传请求失败时触发；通过 event.error 和 event.file 读取错误与相关文件。"
  *     },
  *     {
  *       "event": "template-download",
  *       "payload": "payload: { template?: MUploadImportTemplate }",
  *       "trigger": "Vue component emit",
  *       "source": "submodule/mokelay-components/src/blocks/MUploadImport.vue",
- *       "label": "下载模板"
+ *       "label": "下载模板",
+ *       "description": "点击下载模板时触发；通过 event.template 读取模板配置。"
  *     }
  *   ],
  *   "methods": [

@@ -50,6 +50,15 @@ export type ClientBlockSaveRule = {
   [key: string]: unknown;
 };
 
+export type ClientBlockEventDefinition = {
+  event: string;
+  label: string;
+  description: string;
+  payload?: string;
+  trigger?: string;
+  source?: string;
+};
+
 export type ClientBlockDoc = {
   uuid: string;
   block_type?: string;
@@ -116,7 +125,7 @@ export type NormalizedClientBlockDoc = Required<Pick<ClientBlockDoc,
   sortOrder: number;
   defaultData: Record<string, unknown>;
   properties: ClientBlockPropertyField[];
-  events: unknown[];
+  events: ClientBlockEventDefinition[];
   methods: unknown[];
   dataFields: unknown[];
   saveRules: ClientBlockSaveRule[];
@@ -162,6 +171,24 @@ function arrayValue<T>(value: unknown): T[] {
   return Array.isArray(value) ? [...value] as T[] : [];
 }
 
+// Remote extensions may still supply the older event/label/trigger schema.
+export function normalizeClientBlockEvents(value: unknown): ClientBlockEventDefinition[] {
+  const seen = new Set<string>();
+  return arrayValue<unknown>(value).flatMap(item => {
+    const record = recordValue(item);
+    const text = (key: string) => typeof record[key] === 'string' ? record[key].trim() : '';
+    const event = text('event');
+    if (!event || seen.has(event)) return [];
+    seen.add(event);
+    return [{
+      ...record,
+      event,
+      label: text('label') || event,
+      description: text('description') || text('trigger')
+    }];
+  });
+}
+
 export function normalizeClientBlockDoc(doc: ClientBlockDoc, index = 0): NormalizedClientBlockDoc | null {
   const blockType = (doc.blockType || doc.block_type || '').trim();
   if (!blockType) return null;
@@ -198,7 +225,7 @@ export function normalizeClientBlockDoc(doc: ClientBlockDoc, index = 0): Normali
     toolbox: doc.toolbox || {},
     defaultData,
     properties: arrayValue<ClientBlockPropertyField>(doc.properties ?? doc.property_schema),
-    events: arrayValue(doc.events ?? doc.event_schema),
+    events: normalizeClientBlockEvents(doc.events ?? doc.event_schema),
     methods: arrayValue(doc.methods ?? doc.method_schema),
     dataFields: arrayValue(doc.dataFields ?? doc.data_fields_schema),
     saveRules: arrayValue<ClientBlockSaveRule>(doc.saveRules ?? doc.save_schema),
@@ -230,6 +257,10 @@ export function getClientBlockDocsSnapshot() {
 
 export function getClientBlockDocSnapshot(blockType: string) {
   return activeDocs.find((doc) => doc.blockType === blockType);
+}
+
+export function getClientBlockEvents(blockType: string): readonly ClientBlockEventDefinition[] {
+  return getClientBlockDocSnapshot(blockType)?.events ?? [];
 }
 
 export function filterClientBlockDocumentData(blockType: string, data: Record<string, unknown>) {
