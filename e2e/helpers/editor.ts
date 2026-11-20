@@ -75,6 +75,7 @@ export type MockMokelayApi = {
   createdAt?: string;
   updatedAt?: string;
   source?: 'user' | 'system';
+  assetApp?: string;
 };
 
 export type MockApiDomain = {
@@ -285,14 +286,14 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
   }
 
   for (const apiRecord of options.systemApis ?? []) {
-    systemApis.set(apiRecord.uuid, {
+    systemApis.set(`${apiRecord.assetApp ?? 'mokelay'}/${apiRecord.uuid}`, {
       ...apiRecord,
       source: 'system'
     });
   }
 
   for (const apiRecord of options.systemFragments ?? []) {
-    systemFragments.set(apiRecord.uuid, {
+    systemFragments.set(`${apiRecord.assetApp ?? 'mokelay'}/${apiRecord.uuid}`, {
       ...apiRecord,
       fragment: true,
       source: 'system'
@@ -826,6 +827,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     if (method === 'GET' && url.pathname === '/api/mokelay/list_mokelay_api_jsons') {
       apiListRequests.push(request.url());
       const fragmentFilter = url.searchParams.get('fragment');
+      const assetApp = url.searchParams.get('assetApp');
       const recordsByUuid = new Map<string, MockMokelayApi>();
       const sourceRecords = fragmentFilter === 'true'
         ? [
@@ -833,8 +835,11 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
             ...systemFragments.values()
           ]
         : Array.from(systemApis.values());
-      for (const apiRecord of sourceRecords) recordsByUuid.set(apiRecord.uuid, apiRecord);
+      for (const apiRecord of sourceRecords) {
+        recordsByUuid.set(`${apiRecord.assetApp ?? 'mokelay'}/${apiRecord.uuid}`, apiRecord);
+      }
       const apiRecords = Array.from(recordsByUuid.values())
+        .filter((apiRecord) => assetApp === null || (apiRecord.assetApp ?? 'mokelay') === assetApp)
         .filter((apiRecord) => fragmentFilter === null
           || Boolean(apiRecord.fragment ?? apiRecord.apiJson.fragment) === (fragmentFilter === 'true'));
       await delay(options.apiDelays?.listApis);
@@ -844,7 +849,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
         body: JSON.stringify({
           ok: true,
           data: {
-            apis: apiRecords.map((apiRecord) => apiRecord.apiJson),
+            apis: apiRecords.map((apiRecord) => ({ ...apiRecord.apiJson, assetApp: apiRecord.assetApp ?? 'mokelay' })),
             count: apiRecords.length
           }
         })
@@ -862,10 +867,12 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
     if (method === 'GET' && url.pathname === '/api/mokelay/read_mokelay_api_json') {
       systemApiReadRequests.push(request.url());
       const uuid = url.searchParams.get('uuid') ?? '';
+      const assetApp = url.searchParams.get('assetApp') ?? 'mokelay';
+      const key = `${assetApp}/${uuid}`;
       const fragment = url.searchParams.get('fragment') === 'true';
       const apiRecord = fragment
-        ? systemFragments.get(uuid) ?? (Boolean(systemApis.get(uuid)?.fragment ?? systemApis.get(uuid)?.apiJson.fragment) ? systemApis.get(uuid) : undefined)
-        : systemApis.get(uuid);
+        ? systemFragments.get(key) ?? (Boolean(systemApis.get(key)?.fragment ?? systemApis.get(key)?.apiJson.fragment) ? systemApis.get(key) : undefined)
+        : systemApis.get(key);
       await delay(options.apiDelays?.readApi);
       await route.fulfill({
         status: 200,
@@ -873,7 +880,7 @@ export async function mockPagesApi(page: Page, options: MockPagesApiOptions = {}
         body: JSON.stringify({
           ok: true,
           data: {
-            api: apiRecord?.apiJson ?? null
+            api: apiRecord ? { ...apiRecord.apiJson, assetApp } : null
           }
         })
       });
